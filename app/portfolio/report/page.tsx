@@ -102,7 +102,7 @@ function deadlineColor(days: number | null): string {
 }
 
 // ─── Build Template Report ────────────────────────────────────────────────────
-function buildTemplateReport(data: PortfolioReportData, language: string, periodStart: string, periodEnd: string): string {
+function buildTemplateReport(data: PortfolioReportData, language: string, periodStart: string, periodEnd: string, companyName = 'PM Tool'): string {
   const isVN = language === 'Vietnamese';
   const today = new Date().toLocaleDateString(isVN ? 'vi-VN' : 'en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
   const yyyymm = new Date().toISOString().slice(0, 7).replace('-', '');
@@ -286,7 +286,7 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
     }
     lines.push('');
     lines.push(divider);
-    lines.push('  CharterTech Global  │  Program Management Office');
+    lines.push(`  ${companyName}  │  Program Management Office`);
     lines.push('  Bảo mật — Chỉ dành cho nội bộ');
     lines.push(divider);
   } else {
@@ -451,7 +451,7 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
     }
     lines.push('');
     lines.push(divider);
-    lines.push('  CharterTech Global  │  Program Management Office');
+    lines.push(`  ${companyName}  │  Program Management Office`);
     lines.push('  Confidential — For Internal Distribution Only');
     lines.push(divider);
   }
@@ -493,6 +493,7 @@ export default function PortfolioReportPage() {
   // Date range for "completed in period"
   const [periodStart, setPeriodStart] = useState(getThisMonday);
   const [periodEnd, setPeriodEnd] = useState(getThisSunday);
+  const [companyName, setCompanyName] = useState('PM Tool');
 
   const loadConfig = useCallback(async () => {
     const res = await fetch('/api/config');
@@ -517,6 +518,9 @@ export default function PortfolioReportPage() {
 
   useEffect(() => { loadConfig(); }, [loadConfig]);
   useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => {
+    fetch('/api/auth/me').then(r => r.ok ? r.json() : null).then(d => { if (d?.company_name) setCompanyName(d.company_name); });
+  }, []);
 
   const saveApiKey = async () => {
     if (!apiKeyInput.startsWith('sk-ant-')) { toast.error('Invalid key — must start with sk-ant-'); return; }
@@ -536,7 +540,7 @@ export default function PortfolioReportPage() {
 
   const generateManual = () => {
     if (!data) return;
-    setReport(buildTemplateReport(data, language, periodStart, periodEnd));
+    setReport(buildTemplateReport(data, language, periodStart, periodEnd, companyName));
     toast.success('Portfolio report generated!');
   };
 
@@ -603,10 +607,10 @@ export default function PortfolioReportPage() {
 
   const sendEmail = () => {
     if (!report) { toast.error('Generate a report first'); return; }
-    const subject = encodeURIComponent(`[CharterTech Global] Portfolio Status Report — ${new Date().toLocaleDateString('en-GB', { month: 'long', day: 'numeric', year: 'numeric' })}`);
+    const subject = encodeURIComponent(`[${companyName}] Portfolio Status Report — ${new Date().toLocaleDateString('en-GB', { month: 'long', day: 'numeric', year: 'numeric' })}`);
     navigator.clipboard.writeText(report).catch(() => {});
     const shortBody = encodeURIComponent(
-      `${language === 'Vietnamese' ? 'Kính gửi,' : 'Dear CEO,'}\n\nPlease find the portfolio status report below.\n\n[Report content copied to clipboard — paste here]\n\n---\nSent via CharterTech Global PM Tool`
+      `${language === 'Vietnamese' ? 'Kính gửi,' : 'Dear CEO,'}\n\nPlease find the portfolio status report below.\n\n[Report content copied to clipboard — paste here]\n\n---\nSent via ${companyName} PM Tool`
     );
     window.open(`mailto:${ceoEmail}?subject=${subject}&body=${shortBody}`, '_self');
     toast.success('Email client opened. Full report copied to clipboard.');
@@ -638,7 +642,7 @@ export default function PortfolioReportPage() {
                 Portfolio Status Report
               </h1>
               <p className="text-sm text-slate-500 mt-0.5">
-                PMO-Grade Portfolio Report · CharterTech Global
+                PMO-Grade Portfolio Report · {companyName}
                 {data?.reportDate && (
                   <span className="ml-2 text-slate-400">· {fmtDate(data.reportDate)}</span>
                 )}
