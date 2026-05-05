@@ -58,10 +58,11 @@ export async function POST(req: NextRequest, { params }: Params) {
   if (!file) return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
 
   const arrayBuffer = await file.arrayBuffer();
-  const buffer = Buffer.from(arrayBuffer) as unknown as Buffer;
+  const buffer = Buffer.from(arrayBuffer);
 
   const wb = new ExcelJS.Workbook();
-  await wb.xlsx.load(buffer);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await wb.xlsx.load(buffer as any);
 
   // Try to find the "Resource Plan" sheet first, fall back to first sheet
   const ws = wb.getWorksheet('Resource Plan') ?? wb.worksheets[0];
