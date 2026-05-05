@@ -12,10 +12,11 @@ let _db: Database.Database | null = null;
 
 export function getDb(): Database.Database {
   if (_db) return _db;
-  _db = new Database(DB_PATH);
-  _db.pragma('journal_mode = WAL');
-  _db.pragma('foreign_keys = ON');
-  initSchema(_db);
+  const db = new Database(DB_PATH);
+  db.pragma('journal_mode = WAL');
+  db.pragma('foreign_keys = ON');
+  initSchema(db);
+  _db = db;
   return _db;
 }
 
@@ -71,8 +72,6 @@ function initSchema(db: Database.Database) {
     date TEXT NOT NULL,
     name TEXT DEFAULT ''
   )`); } catch { /* already exists */ }
-
-  seedAuthData(db);
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS settings (
@@ -198,6 +197,8 @@ function initSchema(db: Database.Database) {
       updated_at TEXT DEFAULT (datetime('now'))
     );
   `);
+
+  seedAuthData(db);
 }
 
 function seedAuthData(db: Database.Database) {
