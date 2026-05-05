@@ -6,7 +6,6 @@ import Sidebar from '@/components/layout/Sidebar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
@@ -615,14 +614,13 @@ export default function RisksPage() {
   const { id } = useParams<{ id: string }>();
   const [activities, setActivities] = useState<Activity[]>([]);
   const [editing, setEditing]       = useState<EditingItem | null>(null);
+  const [activeTab, setActiveTab]   = useState<'risks' | 'issues'>('risks');
 
   useEffect(() => {
     fetch(`/api/projects/${id}/activities`).then(r => r.json()).then(setActivities);
   }, [id]);
 
-  const handleSaved = (_item: Risk | Issue, _type: ItemType, _isNew: boolean) => {
-    // tables self-refresh via their own useEffect on editing change
-  };
+  const handleSaved = (_item: Risk | Issue, _type: ItemType, _isNew: boolean) => {};
 
   return (
     <div className="flex min-h-screen bg-slate-50">
@@ -653,22 +651,38 @@ export default function RisksPage() {
             ))}
           </div>
 
-          <Tabs defaultValue="risks">
-            <TabsList className="mb-5">
-              <TabsTrigger value="risks" className="gap-2">
-                <ShieldAlert className="h-3.5 w-3.5" /> Risk Register
-              </TabsTrigger>
-              <TabsTrigger value="issues" className="gap-2">
-                <Bug className="h-3.5 w-3.5" /> Issue Log
-              </TabsTrigger>
-            </TabsList>
-            <TabsContent value="risks">
-              <RiskTable projectId={id} activities={activities} editing={editing} setEditing={setEditing} onSaved={handleSaved} />
-            </TabsContent>
-            <TabsContent value="issues">
-              <IssueTable projectId={id} activities={activities} editing={editing} setEditing={setEditing} onSaved={handleSaved} />
-            </TabsContent>
-          </Tabs>
+          {/* Custom tab switcher */}
+          <div className="flex gap-2 mb-5">
+            <button
+              onClick={() => setActiveTab('risks')}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm border-2 transition-all shadow-sm ${
+                activeTab === 'risks'
+                  ? 'bg-red-600 border-red-600 text-white shadow-red-200 shadow-md'
+                  : 'bg-white border-slate-200 text-slate-600 hover:border-red-300 hover:text-red-600'
+              }`}
+            >
+              <ShieldAlert className="h-4 w-4" />
+              Risk Register
+            </button>
+            <button
+              onClick={() => setActiveTab('issues')}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm border-2 transition-all shadow-sm ${
+                activeTab === 'issues'
+                  ? 'bg-violet-600 border-violet-600 text-white shadow-violet-200 shadow-md'
+                  : 'bg-white border-slate-200 text-slate-600 hover:border-violet-300 hover:text-violet-600'
+              }`}
+            >
+              <Bug className="h-4 w-4" />
+              Issue Log
+            </button>
+          </div>
+
+          {activeTab === 'risks' && (
+            <RiskTable projectId={id} activities={activities} editing={editing} setEditing={setEditing} onSaved={handleSaved} />
+          )}
+          {activeTab === 'issues' && (
+            <IssueTable projectId={id} activities={activities} editing={editing} setEditing={setEditing} onSaved={handleSaved} />
+          )}
 
           {/* Shared dialog — rendered once at page level */}
           <ItemDialog
