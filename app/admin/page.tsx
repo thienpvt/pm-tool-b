@@ -32,6 +32,12 @@ export default function AdminPage() {
   const [editUser, setEditUser] = useState<User | null>(null);
   const [userForm, setUserForm] = useState(EMPTY_USER);
 
+  // Reset password dialog
+  const [resetOpen, setResetOpen] = useState(false);
+  const [resetUser, setResetUser] = useState<User | null>(null);
+  const [resetPwd, setResetPwd] = useState('');
+  const [resetConfirm, setResetConfirm] = useState('');
+
   const loadCompanies = useCallback(() =>
     fetch('/api/admin/companies').then(r => r.json()).then(setCompanies), []);
   const loadUsers = useCallback(() =>
@@ -98,6 +104,21 @@ export default function AdminPage() {
     toast.success(editUser ? 'User updated' : 'User created');
     setUserOpen(false);
     loadUsers();
+  };
+
+  const openResetPwd = (u: User) => { setResetUser(u); setResetPwd(''); setResetConfirm(''); setResetOpen(true); };
+  const doResetPwd = async () => {
+    if (!resetPwd) { toast.error('Enter a new password'); return; }
+    if (resetPwd !== resetConfirm) { toast.error('Passwords do not match'); return; }
+    if (resetPwd.length < 6) { toast.error('Password must be at least 6 characters'); return; }
+    const res = await fetch('/api/admin/users', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: resetUser!.id, password: resetPwd }),
+    });
+    if (!res.ok) { toast.error((await res.json()).error); return; }
+    toast.success(`Password reset for ${resetUser!.username}`);
+    setResetOpen(false);
   };
 
   const deleteUser = async (u: User) => {
@@ -179,7 +200,7 @@ export default function AdminPage() {
                         <button onClick={() => openEditUser(u)} className="text-slate-400 hover:text-blue-600 transition-colors" title="Edit">
                           <Pencil className="h-4 w-4" />
                         </button>
-                        <button onClick={() => { setEditUser(u); setUserForm({ ...EMPTY_USER, display_name: u.display_name, company_id: u.company_id ? String(u.company_id) : '', is_admin: !!u.is_admin }); setUserOpen(true); }} className="text-slate-400 hover:text-amber-600 transition-colors" title="Reset password">
+                        <button onClick={() => openResetPwd(u)} className="text-slate-400 hover:text-amber-600 transition-colors" title="Reset password">
                           <KeyRound className="h-4 w-4" />
                         </button>
                         <button onClick={() => deleteUser(u)} className="text-slate-400 hover:text-red-500 transition-colors" title="Delete" disabled={u.id === me?.id}>
@@ -260,6 +281,39 @@ export default function AdminPage() {
             <Button variant="outline" onClick={() => setCompanyOpen(false)}>Cancel</Button>
             <Button onClick={saveCompany} className="bg-blue-600 hover:bg-blue-700" disabled={!companyName.trim()}>
               {editCompany ? 'Save' : 'Create'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Reset Password Dialog ───────────────────────────────────────────── */}
+      <Dialog open={resetOpen} onOpenChange={setResetOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <KeyRound className="h-4 w-4 text-amber-500" />
+              Reset Password — {resetUser?.username}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <Label>New Password <span className="text-red-500">*</span></Label>
+              <Input className="mt-1.5" type="password" value={resetPwd}
+                onChange={e => setResetPwd(e.target.value)}
+                placeholder="Min. 6 characters" autoFocus />
+            </div>
+            <div>
+              <Label>Confirm Password <span className="text-red-500">*</span></Label>
+              <Input className="mt-1.5" type="password" value={resetConfirm}
+                onChange={e => setResetConfirm(e.target.value)}
+                placeholder="Repeat new password"
+                onKeyDown={e => e.key === 'Enter' && doResetPwd()} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setResetOpen(false)}>Cancel</Button>
+            <Button onClick={doResetPwd} className="bg-amber-600 hover:bg-amber-700">
+              Reset Password
             </Button>
           </DialogFooter>
         </DialogContent>

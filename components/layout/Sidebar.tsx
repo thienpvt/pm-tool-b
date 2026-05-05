@@ -4,10 +4,15 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 import {
-  LayoutDashboard, FolderKanban, Calendar, Users,
+  LayoutDashboard, Calendar, Users,
   MessageSquare, AlertTriangle, FileText, BarChart3, TrendingDown,
-  PieChart, Building2, ClipboardList, FileBarChart2, LogOut, ShieldCheck, ChevronDown,
+  PieChart, Building2, ClipboardList, FileBarChart2, LogOut, ShieldCheck, ChevronDown, KeyRound,
 } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { toast } from 'sonner';
 
 const NAV = [
   { href: '/', icon: LayoutDashboard, label: 'Portfolio' },
@@ -33,6 +38,9 @@ export default function Sidebar({ projectId }: { projectId?: string }) {
   const router = useRouter();
   const [me, setMe] = useState<Me | null>(null);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [changePwdOpen, setChangePwdOpen] = useState(false);
+  const [pwdForm, setPwdForm] = useState({ current: '', next: '', confirm: '' });
+  const [pwdLoading, setPwdLoading] = useState(false);
 
   useEffect(() => {
     fetch('/api/auth/me').then(r => r.ok ? r.json() : null).then(data => { if (data) setMe(data); });
@@ -42,6 +50,23 @@ export default function Sidebar({ projectId }: { projectId?: string }) {
     await fetch('/api/auth/logout', { method: 'POST' });
     router.push('/login');
     router.refresh();
+  };
+
+  const openChangePwd = () => { setPwdForm({ current: '', next: '', confirm: '' }); setUserMenuOpen(false); setChangePwdOpen(true); };
+  const handleChangePwd = async () => {
+    if (!pwdForm.current || !pwdForm.next || !pwdForm.confirm) { toast.error('All fields are required'); return; }
+    if (pwdForm.next !== pwdForm.confirm) { toast.error('New passwords do not match'); return; }
+    if (pwdForm.next.length < 6) { toast.error('New password must be at least 6 characters'); return; }
+    setPwdLoading(true);
+    const res = await fetch('/api/auth/change-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ current_password: pwdForm.current, new_password: pwdForm.next }),
+    });
+    setPwdLoading(false);
+    if (!res.ok) { toast.error((await res.json()).error); return; }
+    toast.success('Password changed successfully');
+    setChangePwdOpen(false);
   };
 
   return (
@@ -138,7 +163,14 @@ export default function Sidebar({ projectId }: { projectId?: string }) {
         </button>
 
         {userMenuOpen && (
-          <div className="px-3 pb-3">
+          <div className="px-3 pb-3 flex flex-col gap-1">
+            <button
+              onClick={openChangePwd}
+              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-sm text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
+            >
+              <KeyRound className="h-4 w-4" />
+              Change Password
+            </button>
             <button
               onClick={handleLogout}
               className="w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-sm text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors"
@@ -149,6 +181,45 @@ export default function Sidebar({ projectId }: { projectId?: string }) {
           </div>
         )}
       </div>
+
+      {/* Change Password Dialog */}
+      <Dialog open={changePwdOpen} onOpenChange={setChangePwdOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <KeyRound className="h-4 w-4 text-blue-500" />
+              Change Password
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <Label>Current Password</Label>
+              <Input className="mt-1.5" type="password" value={pwdForm.current}
+                onChange={e => setPwdForm(f => ({ ...f, current: e.target.value }))}
+                placeholder="Your current password" autoFocus />
+            </div>
+            <div>
+              <Label>New Password</Label>
+              <Input className="mt-1.5" type="password" value={pwdForm.next}
+                onChange={e => setPwdForm(f => ({ ...f, next: e.target.value }))}
+                placeholder="Min. 6 characters" />
+            </div>
+            <div>
+              <Label>Confirm New Password</Label>
+              <Input className="mt-1.5" type="password" value={pwdForm.confirm}
+                onChange={e => setPwdForm(f => ({ ...f, confirm: e.target.value }))}
+                placeholder="Repeat new password"
+                onKeyDown={e => e.key === 'Enter' && handleChangePwd()} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setChangePwdOpen(false)}>Cancel</Button>
+            <Button onClick={handleChangePwd} disabled={pwdLoading} className="bg-blue-600 hover:bg-blue-700">
+              {pwdLoading ? 'Saving…' : 'Change Password'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </aside>
   );
 }
