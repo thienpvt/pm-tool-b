@@ -24,7 +24,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   // All other types: upsert (one per type per project)
   const existing = await db.get('SELECT id FROM documents WHERE project_id = ? AND type = ?', id, body.type);
   if (existing) {
-    await db.run("UPDATE documents SET content_json = ?, title = ?, updated_at = datetime('now') WHERE id = ?",
+    await db.run("UPDATE documents SET content_json = ?, title = ?, updated_at = NOW() WHERE id = ?",
       JSON.stringify(body.content), body.title ?? body.type, (existing as { id: number }).id);
     return NextResponse.json(await db.get('SELECT * FROM documents WHERE id = ?', (existing as { id: number }).id));
   }
@@ -39,7 +39,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
   const db = await getDb();
   const doc = await db.get('SELECT id FROM documents WHERE id = ? AND project_id = ?', body.id, id);
   if (!doc) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  await db.run("UPDATE documents SET content_json = ?, title = ?, updated_at = datetime('now') WHERE id = ?",
+  await db.run("UPDATE documents SET content_json = ?, title = ?, updated_at = NOW() WHERE id = ?",
     JSON.stringify(body.content), body.title, body.id);
   return NextResponse.json(await db.get('SELECT * FROM documents WHERE id = ?', body.id));
 }

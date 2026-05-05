@@ -1,7 +1,4 @@
-import Database from 'better-sqlite3';
 import { Pool } from 'pg';
-import path from 'path';
-import fs from 'fs';
 import crypto from 'crypto';
 
 // ── Interface ──────────────────────────────────────────────────────────────────
@@ -10,25 +7,6 @@ export interface DbClient {
   all<T = Record<string, unknown>>(sql: string, ...params: unknown[]): Promise<T[]>;
   run(sql: string, ...params: unknown[]): Promise<{ lastInsertRowid: number | bigint; changes: number }>;
   exec(sql: string): Promise<void>;
-}
-
-// ── SQLite Client ──────────────────────────────────────────────────────────────
-class SQLiteClient implements DbClient {
-  constructor(private db: Database.Database) {}
-
-  async get<T>(sql: string, ...params: unknown[]): Promise<T | undefined> {
-    return this.db.prepare(sql).get(...params) as T | undefined;
-  }
-  async all<T>(sql: string, ...params: unknown[]): Promise<T[]> {
-    return this.db.prepare(sql).all(...params) as T[];
-  }
-  async run(sql: string, ...params: unknown[]): Promise<{ lastInsertRowid: number | bigint; changes: number }> {
-    const r = this.db.prepare(sql).run(...params);
-    return { lastInsertRowid: r.lastInsertRowid, changes: r.changes };
-  }
-  async exec(sql: string): Promise<void> {
-    this.db.exec(sql);
-  }
 }
 
 // ── PostgreSQL Client ──────────────────────────────────────────────────────────
@@ -77,166 +55,7 @@ function hashPwd(password: string): string {
   return `${salt}:${hash}`;
 }
 
-// ── SQLite schema (existing db, keep try/catch migrations) ─────────────────────
-function initSQLiteSchema(db: Database.Database) {
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS companies (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL UNIQUE,
-      created_at TEXT DEFAULT (datetime('now'))
-    );
-    CREATE TABLE IF NOT EXISTS users (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      username TEXT NOT NULL UNIQUE,
-      password_hash TEXT NOT NULL,
-      display_name TEXT DEFAULT '',
-      company_id INTEGER REFERENCES companies(id) ON DELETE SET NULL,
-      is_admin INTEGER DEFAULT 0,
-      created_at TEXT DEFAULT (datetime('now'))
-    );
-    CREATE TABLE IF NOT EXISTS sessions (
-      id TEXT PRIMARY KEY,
-      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      expires_at TEXT NOT NULL
-    );
-  `);
-
-  try { db.exec(`ALTER TABLE activities ADD COLUMN delay_owner TEXT DEFAULT 'N/A'`); } catch { /* exists */ }
-  try { db.exec(`ALTER TABLE activities ADD COLUMN delay_reason TEXT DEFAULT ''`); } catch { /* exists */ }
-  try { db.exec(`ALTER TABLE risks ADD COLUMN priority TEXT DEFAULT 'Medium'`); } catch { /* exists */ }
-  try { db.exec(`ALTER TABLE risks ADD COLUMN impact TEXT DEFAULT 'Major'`); } catch { /* exists */ }
-  try { db.exec(`ALTER TABLE risks ADD COLUMN affected_activity_id INTEGER`); } catch { /* exists */ }
-  try { db.exec(`ALTER TABLE issues ADD COLUMN priority TEXT DEFAULT 'Medium'`); } catch { /* exists */ }
-  try { db.exec(`ALTER TABLE issues ADD COLUMN impact TEXT DEFAULT 'Major'`); } catch { /* exists */ }
-  try { db.exec(`ALTER TABLE issues ADD COLUMN affected_activity_id INTEGER`); } catch { /* exists */ }
-  try { db.exec(`ALTER TABLE projects ADD COLUMN customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL`); } catch { /* exists */ }
-  try { db.exec(`ALTER TABLE projects ADD COLUMN company_id INTEGER REFERENCES companies(id) ON DELETE SET NULL`); } catch { /* exists */ }
-  try { db.exec(`ALTER TABLE customers ADD COLUMN company_id INTEGER REFERENCES companies(id) ON DELETE SET NULL`); } catch { /* exists */ }
-  try { db.exec(`CREATE TABLE IF NOT EXISTS project_holidays (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-    date TEXT NOT NULL,
-    name TEXT DEFAULT ''
-  )`); } catch { /* exists */ }
-
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS settings (
-      key TEXT PRIMARY KEY,
-      value TEXT NOT NULL DEFAULT ''
-    );
-    CREATE TABLE IF NOT EXISTS customers (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      industry TEXT DEFAULT '',
-      contact_name TEXT DEFAULT '',
-      contact_email TEXT DEFAULT '',
-      contact_phone TEXT DEFAULT '',
-      website TEXT DEFAULT '',
-      notes TEXT DEFAULT '',
-      created_at TEXT DEFAULT (datetime('now'))
-    );
-    CREATE TABLE IF NOT EXISTS projects (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      client TEXT,
-      pm_name TEXT,
-      pm_email TEXT,
-      start_date TEXT,
-      end_date TEXT,
-      status TEXT DEFAULT 'active',
-      current_phase TEXT DEFAULT 'Initiation',
-      description TEXT,
-      created_at TEXT DEFAULT (datetime('now'))
-    );
-    CREATE TABLE IF NOT EXISTS activities (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-      phase TEXT NOT NULL DEFAULT 'General',
-      no TEXT,
-      activity TEXT NOT NULL,
-      deliverable TEXT,
-      sign_off_doc TEXT,
-      accountable TEXT,
-      responsible TEXT,
-      support TEXT,
-      plan_start TEXT,
-      plan_end TEXT,
-      actual_start TEXT,
-      actual_end TEXT,
-      status TEXT DEFAULT 'To-do',
-      completion_pct INTEGER DEFAULT 0,
-      notes TEXT,
-      order_idx INTEGER DEFAULT 0,
-      delay_owner TEXT DEFAULT 'N/A',
-      delay_reason TEXT DEFAULT ''
-    );
-    CREATE TABLE IF NOT EXISTS team_members (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-      domain TEXT,
-      role TEXT,
-      name TEXT NOT NULL,
-      capacity_json TEXT DEFAULT '{}',
-      notes TEXT
-    );
-    CREATE TABLE IF NOT EXISTS meetings (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-      name TEXT NOT NULL,
-      frequency TEXT,
-      content TEXT,
-      participants TEXT,
-      method TEXT,
-      type TEXT DEFAULT 'regular'
-    );
-    CREATE TABLE IF NOT EXISTS escalation_levels (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-      level INTEGER NOT NULL,
-      level_name TEXT,
-      channel TEXT,
-      participants TEXT,
-      input TEXT,
-      output TEXT
-    );
-    CREATE TABLE IF NOT EXISTS risks (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-      risk_id TEXT,
-      description TEXT NOT NULL,
-      category TEXT,
-      owner TEXT,
-      trigger TEXT,
-      mitigation TEXT,
-      due_date TEXT,
-      status TEXT DEFAULT 'Open'
-    );
-    CREATE TABLE IF NOT EXISTS issues (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-      issue_id TEXT,
-      description TEXT NOT NULL,
-      root_cause TEXT,
-      category TEXT,
-      owner TEXT,
-      trigger TEXT,
-      mitigation TEXT,
-      due_date TEXT,
-      status TEXT DEFAULT 'Open'
-    );
-    CREATE TABLE IF NOT EXISTS documents (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-      type TEXT NOT NULL,
-      title TEXT,
-      content_json TEXT DEFAULT '{}',
-      created_at TEXT DEFAULT (datetime('now')),
-      updated_at TEXT DEFAULT (datetime('now'))
-    );
-  `);
-}
-
-// ── PostgreSQL schema (fresh install, all columns included) ────────────────────
+// ── PostgreSQL schema ──────────────────────────────────────────────────────────
 async function initPostgresSchema(db: DbClient) {
   await db.exec(`
     CREATE TABLE IF NOT EXISTS companies (
@@ -389,6 +208,27 @@ async function initPostgresSchema(db: DbClient) {
   `);
 }
 
+// ── Migrations for existing databases missing new columns ──────────────────────
+async function migratePostgresSchema(pool: Pool) {
+  const migrations = [
+    `ALTER TABLE users ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id) ON DELETE SET NULL`,
+    `ALTER TABLE customers ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id) ON DELETE SET NULL`,
+    `ALTER TABLE projects ADD COLUMN IF NOT EXISTS customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL`,
+    `ALTER TABLE projects ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id) ON DELETE SET NULL`,
+    `ALTER TABLE activities ADD COLUMN IF NOT EXISTS delay_owner TEXT DEFAULT 'N/A'`,
+    `ALTER TABLE activities ADD COLUMN IF NOT EXISTS delay_reason TEXT DEFAULT ''`,
+    `ALTER TABLE risks ADD COLUMN IF NOT EXISTS priority TEXT DEFAULT 'Medium'`,
+    `ALTER TABLE risks ADD COLUMN IF NOT EXISTS impact TEXT DEFAULT 'Major'`,
+    `ALTER TABLE risks ADD COLUMN IF NOT EXISTS affected_activity_id INTEGER`,
+    `ALTER TABLE issues ADD COLUMN IF NOT EXISTS priority TEXT DEFAULT 'Medium'`,
+    `ALTER TABLE issues ADD COLUMN IF NOT EXISTS impact TEXT DEFAULT 'Major'`,
+    `ALTER TABLE issues ADD COLUMN IF NOT EXISTS affected_activity_id INTEGER`,
+  ];
+  for (const sql of migrations) {
+    try { await pool.query(sql); } catch { /* column already exists */ }
+  }
+}
+
 // ── Seed default users ─────────────────────────────────────────────────────────
 async function seedAuthData(db: DbClient) {
   const row = await db.get<{ c: string | number }>('SELECT COUNT(*) as c FROM users');
@@ -417,25 +257,20 @@ let _client: DbClient | null = null;
 export async function getDb(): Promise<DbClient> {
   if (_client) return _client;
 
-  if (process.env.DATABASE_URL) {
-    const pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
-      ssl: process.env.DATABASE_URL.includes('railway.internal')
-        ? false
-        : { rejectUnauthorized: false },
-    });
-    const client = new PostgresClient(pool);
-    await initPostgresSchema(client);
-    _client = client;
-  } else {
-    const DATA_DIR = path.join(process.cwd(), 'data');
-    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-    const db = new Database(path.join(DATA_DIR, 'pm.db'));
-    db.pragma('journal_mode = WAL');
-    db.pragma('foreign_keys = ON');
-    initSQLiteSchema(db);
-    _client = new SQLiteClient(db);
+  if (!process.env.DATABASE_URL) {
+    throw new Error('DATABASE_URL environment variable is required. Set it to your PostgreSQL connection string.');
   }
+
+  const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: process.env.DATABASE_URL.includes('railway.internal')
+      ? false
+      : { rejectUnauthorized: false },
+  });
+  const client = new PostgresClient(pool);
+  await initPostgresSchema(client);
+  await migratePostgresSchema(pool);
+  _client = client;
 
   await seedAuthData(_client);
   return _client;
