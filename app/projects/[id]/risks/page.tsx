@@ -199,13 +199,13 @@ function ItemDialog({
                 />
               </FieldRow>
               <FieldRow label="Category">
-                <Select value={editing.category ?? ''} onValueChange={v => setEditing({ ...editing, category: v })}>
+                <Select value={editing.category ?? ''} onValueChange={v => setEditing({ ...editing, category: v ?? '' })}>
                   <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Select..." /></SelectTrigger>
                   <SelectContent>{CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
                 </Select>
               </FieldRow>
               <FieldRow label="Status">
-                <Select value={editing.status ?? 'Open'} onValueChange={v => setEditing({ ...editing, status: v })}>
+                <Select value={editing.status ?? 'Open'} onValueChange={v => setEditing({ ...editing, status: v ?? 'Open' })}>
                   <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
                   <SelectContent>{statuses.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
                 </Select>
@@ -215,7 +215,7 @@ function ItemDialog({
             {/* ── Row 2: Priority + Impact ── */}
             <div className="grid grid-cols-2 gap-4">
               <FieldRow label="Priority">
-                <Select value={editing.priority ?? 'Medium'} onValueChange={v => setEditing({ ...editing, priority: v })}>
+                <Select value={editing.priority ?? 'Medium'} onValueChange={v => setEditing({ ...editing, priority: v ?? 'Medium' })}>
                   <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {PRIORITIES.map(p => (
@@ -230,7 +230,7 @@ function ItemDialog({
                 </Select>
               </FieldRow>
               <FieldRow label="Impact / Severity">
-                <Select value={editing.impact ?? 'Major'} onValueChange={v => setEditing({ ...editing, impact: v })}>
+                <Select value={editing.impact ?? 'Major'} onValueChange={v => setEditing({ ...editing, impact: v ?? 'Major' })}>
                   <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {IMPACTS.map(i => (
