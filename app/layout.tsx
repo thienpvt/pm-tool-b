@@ -6,7 +6,7 @@ import { Toaster } from "@/components/ui/sonner";
 const geist = Geist({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "CharterTech Global PM Tool",
+  title: "Gambaru",
   description: "Project Management Document Automation",
 };
 

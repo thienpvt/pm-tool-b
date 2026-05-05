@@ -49,7 +49,7 @@ function LoginForm() {
               <BarChart3 className="h-7 w-7 text-blue-400" />
             </div>
           </div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">PM Tool</h1>
+          <h1 className="text-2xl font-bold text-white tracking-tight">Gambaru</h1>
           <p className="text-slate-400 text-sm mt-1">Sign in to continue</p>
         </div>
 
@@ -111,7 +111,7 @@ function LoginForm() {
         </div>
 
         <p className="text-center text-slate-600 text-xs mt-6">
-          CharterTech Global PM Tool
+          Gambaru
         </p>
       </div>
     </div>
