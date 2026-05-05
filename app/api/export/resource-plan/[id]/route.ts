@@ -49,12 +49,12 @@ function displayMonth(ym: string) {
 
 export async function GET(_req: NextRequest, { params }: Params) {
   const { id } = await params;
-  const db = getDb();
+  const db = await getDb();
 
-  const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(Number(id)) as Record<string, string> | undefined;
+  const project = await db.get<Record<string, string>>('SELECT * FROM projects WHERE id = ?', Number(id));
   if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  const members = db.prepare('SELECT * FROM team_members WHERE project_id = ? ORDER BY domain, id').all(Number(id)) as Record<string, string>[];
+  const members = await db.all<Record<string, string>>('SELECT * FROM team_members WHERE project_id = ? ORDER BY domain, id', Number(id));
 
   const months = getMonths(project.start_date, project.end_date);
   const totalCols = 3 + months.length + 1; // Domain, Role, Name, months..., Notes

@@ -5,10 +5,10 @@ import Anthropic from '@anthropic-ai/sdk';
 
 // ─── GET: Full portfolio report data ─────────────────────────────────────────
 export async function GET(req: NextRequest) {
-  const user = getSessionFromRequest(req);
+  const user = await getSessionFromRequest(req);
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const db = getDb();
+  const db = await getDb();
   const { searchParams } = new URL(req.url);
 
   // Date range for "completed in period" section (defaults to this Monday → Sunday)
@@ -27,21 +27,21 @@ export async function GET(req: NextRequest) {
   const cc = user.is_admin ? '' : 'AND p.company_id = ?';
   const cp = user.is_admin ? [] : [user.company_id];
 
-  const projects = db.prepare(`
+  const projects = await db.all(`
     SELECT p.*, c.name as customer_name, c.industry as customer_industry
     FROM projects p
     LEFT JOIN customers c ON p.customer_id = c.id
     WHERE 1=1 ${cc}
     ORDER BY p.created_at DESC
-  `).all(...cp) as any[];
+  `, ...cp) as any[];
 
   const customers = user.is_admin
-    ? db.prepare('SELECT * FROM customers ORDER BY name').all() as any[]
-    : db.prepare('SELECT * FROM customers WHERE company_id = ? ORDER BY name').all(user.company_id) as any[];
+    ? await db.all('SELECT * FROM customers ORDER BY name') as any[]
+    : await db.all('SELECT * FROM customers WHERE company_id = ? ORDER BY name', user.company_id) as any[];
 
-  const riskCounts = db.prepare(`SELECT project_id, COUNT(*) as total, SUM(CASE WHEN status='Open' OR status='In Progress' THEN 1 ELSE 0 END) as open FROM risks GROUP BY project_id`).all() as any[];
-  const issueCounts = db.prepare(`SELECT project_id, COUNT(*) as total, SUM(CASE WHEN status='Open' OR status='In Progress' THEN 1 ELSE 0 END) as open FROM issues GROUP BY project_id`).all() as any[];
-  const activityStats = db.prepare(`SELECT project_id, COUNT(*) as total, AVG(completion_pct) as avg_pct, SUM(CASE WHEN status='Done' THEN 1 ELSE 0 END) as done FROM activities GROUP BY project_id`).all() as any[];
+  const riskCounts = await db.all(`SELECT project_id, COUNT(*) as total, SUM(CASE WHEN status='Open' OR status='In Progress' THEN 1 ELSE 0 END) as open FROM risks GROUP BY project_id`) as any[];
+  const issueCounts = await db.all(`SELECT project_id, COUNT(*) as total, SUM(CASE WHEN status='Open' OR status='In Progress' THEN 1 ELSE 0 END) as open FROM issues GROUP BY project_id`) as any[];
+  const activityStats = await db.all(`SELECT project_id, COUNT(*) as total, AVG(completion_pct) as avg_pct, SUM(CASE WHEN status='Done' THEN 1 ELSE 0 END) as done FROM activities GROUP BY project_id`) as any[];
 
   const riskMap = Object.fromEntries(riskCounts.map((r: any) => [r.project_id, r]));
   const issueMap = Object.fromEntries(issueCounts.map((r: any) => [r.project_id, r]));
@@ -106,7 +106,7 @@ export async function GET(req: NextRequest) {
     : 0;
 
   // ─── Additional report data ────────────────────────────────────────────────
-  const topRisks = db.prepare(`
+  const topRisks = await db.all(`
     SELECT r.*, p.name as project_name, c.name as customer_name
     FROM risks r
     JOIN projects p ON r.project_id = p.id
@@ -114,9 +114,9 @@ export async function GET(req: NextRequest) {
     WHERE (r.status='Open' OR r.status='In Progress') ${cc}
     ORDER BY CASE r.priority WHEN 'Critical' THEN 1 WHEN 'High' THEN 2 WHEN 'Medium' THEN 3 ELSE 4 END, r.id DESC
     LIMIT 12
-  `).all(...cp) as any[];
+  `, ...cp) as any[];
 
-  const topIssues = db.prepare(`
+  const topIssues = await db.all(`
     SELECT i.*, p.name as project_name, c.name as customer_name
     FROM issues i
     JOIN projects p ON i.project_id = p.id
@@ -124,14 +124,14 @@ export async function GET(req: NextRequest) {
     WHERE (i.status='Open' OR i.status='In Progress') ${cc}
     ORDER BY CASE i.priority WHEN 'Critical' THEN 1 WHEN 'High' THEN 2 WHEN 'Medium' THEN 3 ELSE 4 END, i.id DESC
     LIMIT 12
-  `).all(...cp) as any[];
+  `, ...cp) as any[];
 
   const now = new Date();
   const todayStr = now.toISOString().slice(0, 10);
   const plus30 = new Date(now.getTime() + 30 * 86400000).toISOString().slice(0, 10);
   const minus14 = new Date(now.getTime() - 14 * 86400000).toISOString().slice(0, 10);
 
-  const upcomingMilestones = db.prepare(`
+  const upcomingMilestones = await db.all(`
     SELECT a.*, p.name as project_name, c.name as customer_name
     FROM activities a
     JOIN projects p ON a.project_id = p.id
@@ -140,9 +140,9 @@ export async function GET(req: NextRequest) {
       AND a.status != 'Done' ${cc}
     ORDER BY a.plan_end ASC
     LIMIT 15
-  `).all(todayStr, plus30, ...cp) as any[];
+  `, todayStr, plus30, ...cp) as any[];
 
-  const recentlyCompleted = db.prepare(`
+  const recentlyCompleted = await db.all(`
     SELECT a.*, p.name as project_name, c.name as customer_name
     FROM activities a
     JOIN projects p ON a.project_id = p.id
@@ -151,10 +151,10 @@ export async function GET(req: NextRequest) {
       AND a.actual_end >= ? ${cc}
     ORDER BY a.actual_end DESC
     LIMIT 10
-  `).all(minus14, ...cp) as any[];
+  `, minus14, ...cp) as any[];
 
   // ─── Completed activities in selected date range, grouped by project ─────────
-  const completedInRange = db.prepare(`
+  const completedInRange = await db.all(`
     SELECT a.*, p.name as project_name, p.current_phase, c.name as customer_name
     FROM activities a
     JOIN projects p ON a.project_id = p.id
@@ -163,7 +163,7 @@ export async function GET(req: NextRequest) {
       AND a.actual_end >= ?
       AND a.actual_end <= ? ${cc}
     ORDER BY a.project_id, a.actual_end
-  `).all(startParam, endParam, ...cp) as any[];
+  `, startParam, endParam, ...cp) as any[];
 
   // Group by project_id
   const completedByProject: Record<number, { project_name: string; customer_name: string; current_phase: string; activities: any[] }> = {};
@@ -235,8 +235,8 @@ export async function POST(req: NextRequest) {
   const { portfolioData } = body;
   const lang = (portfolioData.language ?? body.language ?? 'Vietnamese') === 'English' ? 'English' : 'Vietnamese';
 
-  const db = getDb();
-  const dbKey = (db.prepare("SELECT value FROM settings WHERE key='anthropic_api_key'").get() as any)?.value;
+  const db = await getDb();
+  const dbKey = (await db.get("SELECT value FROM settings WHERE key='anthropic_api_key'") as any)?.value;
   const apiKey = process.env.ANTHROPIC_API_KEY || dbKey;
   if (!apiKey) return NextResponse.json({ error: 'NO_API_KEY' }, { status: 503 });
 

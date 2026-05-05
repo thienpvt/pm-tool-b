@@ -29,34 +29,35 @@ export type SessionUser = {
   is_admin: number;
 };
 
-export function getSessionUser(sessionId: string): SessionUser | null {
-  const db = getDb();
+export async function getSessionUser(sessionId: string): Promise<SessionUser | null> {
+  const db = await getDb();
   const now = new Date().toISOString();
-  return db.prepare(`
+  return (await db.get<SessionUser>(`
     SELECT u.id, u.username, u.display_name, u.company_id, u.is_admin, c.name as company_name
     FROM sessions s
     JOIN users u ON s.user_id = u.id
     LEFT JOIN companies c ON u.company_id = c.id
     WHERE s.id = ? AND s.expires_at > ?
-  `).get(sessionId, now) as SessionUser | null;
+  `, sessionId, now)) ?? null;
 }
 
-export function getSessionFromRequest(req: NextRequest): SessionUser | null {
+export async function getSessionFromRequest(req: NextRequest): Promise<SessionUser | null> {
   const sessionId = req.cookies.get(SESSION_COOKIE_NAME)?.value;
   if (!sessionId) return null;
   return getSessionUser(sessionId);
 }
 
-export function createSession(userId: number): string {
+export async function createSession(userId: number): Promise<string> {
   const sessionId = crypto.randomBytes(32).toString('hex');
-  const db = getDb();
+  const db = await getDb();
   const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-  db.prepare('INSERT INTO sessions (id, user_id, expires_at) VALUES (?, ?, ?)').run(sessionId, userId, expires);
+  await db.run('INSERT INTO sessions (id, user_id, expires_at) VALUES (?, ?, ?)', sessionId, userId, expires);
   return sessionId;
 }
 
-export function deleteSession(sessionId: string): void {
-  getDb().prepare('DELETE FROM sessions WHERE id = ?').run(sessionId);
+export async function deleteSession(sessionId: string): Promise<void> {
+  const db = await getDb();
+  await db.run('DELETE FROM sessions WHERE id = ?', sessionId);
 }
 
 export function unauthorized() {

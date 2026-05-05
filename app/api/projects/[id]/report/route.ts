@@ -34,7 +34,7 @@ export async function GET(req: NextRequest, { params }: Params) {
   const endParam = searchParams.get('end');
   const weekStart = searchParams.get('week') ?? undefined;
 
-  const db = getDb();
+  const db = await getDb();
   let startStr: string, endStr: string;
   if (startParam && endParam) {
     startStr = startParam;
@@ -45,44 +45,50 @@ export async function GET(req: NextRequest, { params }: Params) {
     endStr = fmt(end);
   }
 
-  const project = db.prepare(`
+  const project = await db.get(`
     SELECT p.*, c.name as customer_name
     FROM projects p LEFT JOIN customers c ON p.customer_id = c.id
     WHERE p.id = ?
-  `).get(id) as any;
+  `, id) as any;
   if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  const doneThisWeek = db.prepare(
+  const doneThisWeek = await db.all(
     `SELECT * FROM activities WHERE project_id = ?
      AND actual_end >= ? AND actual_end <= ? AND status = 'Done'
-     ORDER BY actual_end`
-  ).all(id, startStr, endStr) as any[];
+     ORDER BY actual_end`,
+    id, startStr, endStr
+  ) as any[];
 
-  const inProgress = db.prepare(
-    `SELECT * FROM activities WHERE project_id = ? AND status = 'In Progress' ORDER BY plan_end`
-  ).all(id) as any[];
+  const inProgress = await db.all(
+    `SELECT * FROM activities WHERE project_id = ? AND status = 'In Progress' ORDER BY plan_end`,
+    id
+  ) as any[];
 
   const endDate = new Date(endStr + 'T23:59:59');
   const nextStart = fmt(new Date(endDate.getTime() + 1));
   const nextEnd = fmt(new Date(endDate.getTime() + 7 * 86400000));
-  const nextWeekPlan = db.prepare(
+  const nextWeekPlan = await db.all(
     `SELECT * FROM activities WHERE project_id = ?
      AND plan_start >= ? AND plan_start <= ? AND status != 'Done'
-     ORDER BY plan_start`
-  ).all(id, nextStart, nextEnd) as any[];
+     ORDER BY plan_start`,
+    id, nextStart, nextEnd
+  ) as any[];
 
-  const openRisks = db.prepare(
-    `SELECT * FROM risks WHERE project_id = ? AND (status='Open' OR status='In Progress') ORDER BY priority`
-  ).all(id) as any[];
+  const openRisks = await db.all(
+    `SELECT * FROM risks WHERE project_id = ? AND (status='Open' OR status='In Progress') ORDER BY priority`,
+    id
+  ) as any[];
 
-  const openIssues = db.prepare(
-    `SELECT * FROM issues WHERE project_id = ? AND (status='Open' OR status='In Progress') ORDER BY priority`
-  ).all(id) as any[];
+  const openIssues = await db.all(
+    `SELECT * FROM issues WHERE project_id = ? AND (status='Open' OR status='In Progress') ORDER BY priority`,
+    id
+  ) as any[];
 
-  const stats = db.prepare(
+  const stats = await db.get(
     `SELECT COUNT(*) as total, SUM(CASE WHEN status='Done' THEN 1 ELSE 0 END) as done, AVG(completion_pct) as avg_pct
-     FROM activities WHERE project_id = ?`
-  ).get(id) as any;
+     FROM activities WHERE project_id = ?`,
+    id
+  ) as any;
 
   return NextResponse.json({
     project,
@@ -105,8 +111,8 @@ export async function POST(req: NextRequest, { params }: Params) {
   void id;
   const body = await req.json();
 
-  const db2 = getDb();
-  const dbKey = (db2.prepare("SELECT value FROM settings WHERE key='anthropic_api_key'").get() as any)?.value;
+  const db2 = await getDb();
+  const dbKey = (await db2.get("SELECT value FROM settings WHERE key='anthropic_api_key'") as any)?.value;
   const apiKey = process.env.ANTHROPIC_API_KEY || dbKey;
   if (!apiKey) {
     return NextResponse.json(

@@ -71,12 +71,12 @@ function logoBlock(projectName: string) {
 }
 
 export async function generateWordDoc(projectId: number, docType: string, docId?: number): Promise<Buffer> {
-  const db = getDb();
-  const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(projectId) as Record<string, string>;
+  const db = await getDb();
+  const project = await db.get('SELECT * FROM projects WHERE id = ?', projectId) as Record<string, string>;
   // For weekly reports: fetch by specific docId; otherwise fetch the single doc of that type
   const docRow = (docId != null
-    ? db.prepare('SELECT * FROM documents WHERE id = ? AND project_id = ?').get(docId, projectId)
-    : db.prepare('SELECT * FROM documents WHERE project_id = ? AND type = ?').get(projectId, docType)
+    ? await db.get('SELECT * FROM documents WHERE id = ? AND project_id = ?', docId, projectId)
+    : await db.get('SELECT * FROM documents WHERE project_id = ? AND type = ?', projectId, docType)
   ) as { content_json: string; title?: string } | undefined;
   const content = docRow ? JSON.parse(docRow.content_json) : {};
 

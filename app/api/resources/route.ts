@@ -4,26 +4,26 @@ import { getSessionFromRequest } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
   try {
-    const user = getSessionFromRequest(req);
+    const user = await getSessionFromRequest(req);
     if (!user) return NextResponse.json([], { status: 401 });
 
-    const db = getDb();
+    const db = await getDb();
     const members = user.is_admin
-      ? db.prepare(`
+      ? await db.all(`
           SELECT tm.*, p.name as project_name, p.id as project_id,
                  p.start_date, p.end_date, p.current_phase, p.client
           FROM team_members tm
           JOIN projects p ON p.id = tm.project_id
           ORDER BY tm.domain, tm.name, p.name
-        `).all()
-      : db.prepare(`
+        `)
+      : await db.all(`
           SELECT tm.*, p.name as project_name, p.id as project_id,
                  p.start_date, p.end_date, p.current_phase, p.client
           FROM team_members tm
           JOIN projects p ON p.id = tm.project_id
           WHERE p.company_id = ?
           ORDER BY tm.domain, tm.name, p.name
-        `).all(user.company_id);
+        `, user.company_id);
 
     return NextResponse.json(members);
   } catch (e) {

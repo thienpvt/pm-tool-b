@@ -8,13 +8,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Username and password required' }, { status: 400 });
   }
 
-  const db = getDb();
-  const user = db.prepare('SELECT * FROM users WHERE username = ?').get(String(username).trim()) as any;
+  const db = await getDb();
+  const user = await db.get<any>('SELECT * FROM users WHERE username = ?', String(username).trim());
   if (!user || !verifyPassword(String(password), user.password_hash)) {
     return NextResponse.json({ error: 'Invalid username or password' }, { status: 401 });
   }
 
-  const sessionId = createSession(user.id);
+  const sessionId = await createSession(user.id);
   const res = NextResponse.json({ ok: true });
   res.cookies.set(SESSION_COOKIE_NAME, sessionId, {
     httpOnly: true,

@@ -88,16 +88,16 @@ export async function generateKickoffPPT(
     agenda?: string;
   } = {}
 ): Promise<Buffer> {
-  const db = getDb();
+  const db = await getDb();
 
-  const project     = db.prepare('SELECT * FROM projects WHERE id = ?').get(projectId) as Record<string, string> | undefined;
+  const project     = await db.get('SELECT * FROM projects WHERE id = ?', projectId) as Record<string, string> | undefined;
   if (!project) throw new Error('Project not found');
 
-  const team        = db.prepare('SELECT * FROM team_members WHERE project_id = ? ORDER BY domain, id').all(projectId) as Record<string, string>[];
-  const meetings    = db.prepare('SELECT * FROM meetings WHERE project_id = ? ORDER BY id').all(projectId) as Record<string, string>[];
-  const risks       = db.prepare('SELECT * FROM risks WHERE project_id = ? ORDER BY id').all(projectId) as Record<string, string>[];
-  const activities  = db.prepare('SELECT * FROM activities WHERE project_id = ? ORDER BY order_idx, id').all(projectId) as Record<string, string>[];
-  const docs        = db.prepare('SELECT * FROM documents WHERE project_id = ?').all(projectId) as Record<string, string>[];
+  const team        = await db.all('SELECT * FROM team_members WHERE project_id = ? ORDER BY domain, id', projectId) as Record<string, string>[];
+  const meetings    = await db.all('SELECT * FROM meetings WHERE project_id = ? ORDER BY id', projectId) as Record<string, string>[];
+  const risks       = await db.all('SELECT * FROM risks WHERE project_id = ? ORDER BY id', projectId) as Record<string, string>[];
+  const activities  = await db.all('SELECT * FROM activities WHERE project_id = ? ORDER BY order_idx, id', projectId) as Record<string, string>[];
+  const docs        = await db.all('SELECT * FROM documents WHERE project_id = ?', projectId) as Record<string, string>[];
 
   const charter = docs.find(d => d.type === 'project_charter');
   const charterContent = charter ? JSON.parse(charter.content_json || '{}') : {};

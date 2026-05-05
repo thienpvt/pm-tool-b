@@ -95,17 +95,17 @@ function getMonths(start: string, end: string): string[] {
 // ─── Main export function ─────────────────────────────────────────────────────
 
 export async function generateProjectPlan(projectId: number): Promise<Buffer> {
-  const db = getDb();
+  const db = await getDb();
 
-  const project    = db.prepare('SELECT * FROM projects WHERE id = ?').get(projectId) as Record<string, string> | undefined;
+  const project    = await db.get('SELECT * FROM projects WHERE id = ?', projectId) as Record<string, string> | undefined;
   if (!project) throw new Error('Project not found');
 
-  const activities  = db.prepare('SELECT * FROM activities WHERE project_id = ? ORDER BY order_idx, id').all(projectId) as Record<string, string | number>[];
-  const teamMembers = db.prepare('SELECT * FROM team_members WHERE project_id = ? ORDER BY domain, id').all(projectId) as Record<string, string>[];
-  const meetings    = db.prepare('SELECT * FROM meetings WHERE project_id = ? ORDER BY id').all(projectId) as Record<string, string>[];
-  const escalations = db.prepare('SELECT * FROM escalation_levels WHERE project_id = ? ORDER BY level').all(projectId) as Record<string, string | number>[];
-  const risks       = db.prepare('SELECT * FROM risks WHERE project_id = ? ORDER BY id').all(projectId) as Record<string, string>[];
-  const issues      = db.prepare('SELECT * FROM issues WHERE project_id = ? ORDER BY id').all(projectId) as Record<string, string>[];
+  const activities  = await db.all('SELECT * FROM activities WHERE project_id = ? ORDER BY order_idx, id', projectId) as Record<string, string | number>[];
+  const teamMembers = await db.all('SELECT * FROM team_members WHERE project_id = ? ORDER BY domain, id', projectId) as Record<string, string>[];
+  const meetings    = await db.all('SELECT * FROM meetings WHERE project_id = ? ORDER BY id', projectId) as Record<string, string>[];
+  const escalations = await db.all('SELECT * FROM escalation_levels WHERE project_id = ? ORDER BY level', projectId) as Record<string, string | number>[];
+  const risks       = await db.all('SELECT * FROM risks WHERE project_id = ? ORDER BY id', projectId) as Record<string, string>[];
+  const issues      = await db.all('SELECT * FROM issues WHERE project_id = ? ORDER BY id', projectId) as Record<string, string>[];
 
   const wb = new ExcelJS.Workbook();
   wb.creator = 'CharterTech Global PM Tool';

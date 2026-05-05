@@ -3,7 +3,7 @@ import { getSessionFromRequest, hashPassword, verifyPassword } from '@/lib/auth'
 import { getDb } from '@/lib/db';
 
 export async function POST(req: NextRequest) {
-  const user = getSessionFromRequest(req);
+  const user = await getSessionFromRequest(req);
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { current_password, new_password } = await req.json();
@@ -12,13 +12,13 @@ export async function POST(req: NextRequest) {
   if (new_password.length < 6)
     return NextResponse.json({ error: 'New password must be at least 6 characters' }, { status: 400 });
 
-  const db = getDb();
-  const row = db.prepare('SELECT password_hash FROM users WHERE id = ?').get(user.id) as { password_hash: string } | undefined;
+  const db = await getDb();
+  const row = await db.get<{ password_hash: string }>('SELECT password_hash FROM users WHERE id = ?', user.id);
   if (!row) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
   if (!verifyPassword(current_password, row.password_hash))
     return NextResponse.json({ error: 'Current password is incorrect' }, { status: 400 });
 
-  db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hashPassword(new_password), user.id);
+  await db.run('UPDATE users SET password_hash = ? WHERE id = ?', hashPassword(new_password), user.id);
   return NextResponse.json({ ok: true });
 }

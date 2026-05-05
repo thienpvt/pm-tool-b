@@ -3,22 +3,22 @@ import { getDb } from '@/lib/db';
 import { getSessionFromRequest } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
-  const user = getSessionFromRequest(req);
+  const user = await getSessionFromRequest(req);
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const db = getDb();
+  const db = await getDb();
 
   const projects = user.is_admin
-    ? db.prepare(`SELECT p.*, c.name as customer_name, c.industry as customer_industry FROM projects p LEFT JOIN customers c ON p.customer_id = c.id ORDER BY p.created_at DESC`).all() as any[]
-    : db.prepare(`SELECT p.*, c.name as customer_name, c.industry as customer_industry FROM projects p LEFT JOIN customers c ON p.customer_id = c.id WHERE p.company_id = ? ORDER BY p.created_at DESC`).all(user.company_id) as any[];
+    ? await db.all(`SELECT p.*, c.name as customer_name, c.industry as customer_industry FROM projects p LEFT JOIN customers c ON p.customer_id = c.id ORDER BY p.created_at DESC`) as any[]
+    : await db.all(`SELECT p.*, c.name as customer_name, c.industry as customer_industry FROM projects p LEFT JOIN customers c ON p.customer_id = c.id WHERE p.company_id = ? ORDER BY p.created_at DESC`, user.company_id) as any[];
 
   const customers = user.is_admin
-    ? db.prepare('SELECT * FROM customers ORDER BY name').all() as any[]
-    : db.prepare('SELECT * FROM customers WHERE company_id = ? ORDER BY name').all(user.company_id) as any[];
+    ? await db.all('SELECT * FROM customers ORDER BY name') as any[]
+    : await db.all('SELECT * FROM customers WHERE company_id = ? ORDER BY name', user.company_id) as any[];
 
-  const riskCounts = db.prepare(`SELECT project_id, COUNT(*) as total, SUM(CASE WHEN status='Open' OR status='In Progress' THEN 1 ELSE 0 END) as open FROM risks GROUP BY project_id`).all() as any[];
-  const issueCounts = db.prepare(`SELECT project_id, COUNT(*) as total, SUM(CASE WHEN status='Open' OR status='In Progress' THEN 1 ELSE 0 END) as open FROM issues GROUP BY project_id`).all() as any[];
-  const activityStats = db.prepare(`SELECT project_id, COUNT(*) as total, AVG(completion_pct) as avg_pct, SUM(CASE WHEN status='Done' THEN 1 ELSE 0 END) as done FROM activities GROUP BY project_id`).all() as any[];
+  const riskCounts = await db.all(`SELECT project_id, COUNT(*) as total, SUM(CASE WHEN status='Open' OR status='In Progress' THEN 1 ELSE 0 END) as open FROM risks GROUP BY project_id`) as any[];
+  const issueCounts = await db.all(`SELECT project_id, COUNT(*) as total, SUM(CASE WHEN status='Open' OR status='In Progress' THEN 1 ELSE 0 END) as open FROM issues GROUP BY project_id`) as any[];
+  const activityStats = await db.all(`SELECT project_id, COUNT(*) as total, AVG(completion_pct) as avg_pct, SUM(CASE WHEN status='Done' THEN 1 ELSE 0 END) as done FROM activities GROUP BY project_id`) as any[];
 
   const riskMap = Object.fromEntries(riskCounts.map((r: any) => [r.project_id, r]));
   const issueMap = Object.fromEntries(issueCounts.map((r: any) => [r.project_id, r]));

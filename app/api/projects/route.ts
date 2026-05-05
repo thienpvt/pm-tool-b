@@ -4,13 +4,13 @@ import { getSessionFromRequest } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
   try {
-    const user = getSessionFromRequest(req);
+    const user = await getSessionFromRequest(req);
     if (!user) return NextResponse.json([], { status: 401 });
 
-    const db = getDb();
+    const db = await getDb();
     const projects = user.is_admin
-      ? db.prepare(`SELECT p.*, c.name as customer_name, c.industry as customer_industry FROM projects p LEFT JOIN customers c ON p.customer_id = c.id ORDER BY p.created_at DESC`).all()
-      : db.prepare(`SELECT p.*, c.name as customer_name, c.industry as customer_industry FROM projects p LEFT JOIN customers c ON p.customer_id = c.id WHERE p.company_id = ? ORDER BY p.created_at DESC`).all(user.company_id);
+      ? await db.all(`SELECT p.*, c.name as customer_name, c.industry as customer_industry FROM projects p LEFT JOIN customers c ON p.customer_id = c.id ORDER BY p.created_at DESC`)
+      : await db.all(`SELECT p.*, c.name as customer_name, c.industry as customer_industry FROM projects p LEFT JOIN customers c ON p.customer_id = c.id WHERE p.company_id = ? ORDER BY p.created_at DESC`, user.company_id);
     return NextResponse.json(projects);
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 500 });
@@ -19,23 +19,22 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const user = getSessionFromRequest(req);
+    const user = await getSessionFromRequest(req);
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await req.json();
-    const db = getDb();
+    const db = await getDb();
     const companyId = user.is_admin ? (body.company_id ?? null) : user.company_id;
 
-    const result = db.prepare(`
-      INSERT INTO projects (name, client, customer_id, pm_name, pm_email, start_date, end_date, description, current_phase, company_id)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
+    const result = await db.run(
+      `INSERT INTO projects (name, client, customer_id, pm_name, pm_email, start_date, end_date, description, current_phase, company_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       body.name, body.client ?? '', body.customer_id ?? null, body.pm_name ?? '', body.pm_email ?? '',
       body.start_date ?? '', body.end_date ?? '', body.description ?? '', body.current_phase ?? 'Initiation',
       companyId
     );
 
-    const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(result.lastInsertRowid);
+    const project = await db.get('SELECT * FROM projects WHERE id = ?', result.lastInsertRowid);
 
     // Seed default meetings and escalation levels
     const meetings = [
@@ -44,7 +43,7 @@ export async function POST(req: NextRequest) {
       { name: 'WORKING TEAM (Follow Scrum Framework)', frequency: 'Daily stand-up: Every morning – Timebox 15m', content: 'Daily progress, blockers, next steps', participants: 'Technical leader & Members', method: 'Offline/Online', type: 'team' },
     ];
     for (const m of meetings) {
-      db.prepare('INSERT INTO meetings (project_id, name, frequency, content, participants, method, type) VALUES (?,?,?,?,?,?,?)').run(result.lastInsertRowid, m.name, m.frequency, m.content, m.participants, m.method, m.type);
+      await db.run('INSERT INTO meetings (project_id, name, frequency, content, participants, method, type) VALUES (?,?,?,?,?,?,?)', result.lastInsertRowid, m.name, m.frequency, m.content, m.participants, m.method, m.type);
     }
 
     const escalations = [
@@ -53,7 +52,7 @@ export async function POST(req: NextRequest) {
       { level: 1, level_name: 'Level 1 – Development team', channel: 'Daily meeting or ad-hoc meeting', participants: 'Customer: team leads\nCharterTech Global: PM, team leads', input: 'Issue/blockers', output: 'Resolution plan' },
     ];
     for (const e of escalations) {
-      db.prepare('INSERT INTO escalation_levels (project_id, level, level_name, channel, participants, input, output) VALUES (?,?,?,?,?,?,?)').run(result.lastInsertRowid, e.level, e.level_name, e.channel, e.participants, e.input, e.output);
+      await db.run('INSERT INTO escalation_levels (project_id, level, level_name, channel, participants, input, output) VALUES (?,?,?,?,?,?,?)', result.lastInsertRowid, e.level, e.level_name, e.channel, e.participants, e.input, e.output);
     }
 
     return NextResponse.json(project, { status: 201 });
