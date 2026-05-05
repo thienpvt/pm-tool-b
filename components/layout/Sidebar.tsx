@@ -5,9 +5,25 @@ import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 import {
   LayoutDashboard, Calendar, Users,
-  MessageSquare, AlertTriangle, FileText, BarChart3, TrendingDown,
+  MessageSquare, AlertTriangle, FileText, TrendingDown,
   PieChart, Building2, ClipboardList, FileBarChart2, LogOut, ShieldCheck, ChevronDown, KeyRound,
 } from 'lucide-react';
+
+function KoinoboriIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
+      <path d="M7 14 C7 7 20 6 22 12 L22 16 C20 22 7 21 7 14Z" fill="#fb923c"/>
+      <circle cx="7" cy="14" r="3.5" fill="none" stroke="#fb923c" strokeWidth="2"/>
+      <path d="M12 10 A3 3 0 0 1 17 10" stroke="rgba(255,255,255,0.6)" strokeWidth="1.3" fill="none"/>
+      <path d="M10 14 A3 3 0 0 1 15 14" stroke="rgba(255,255,255,0.6)" strokeWidth="1.3" fill="none"/>
+      <path d="M15 14 A3 3 0 0 1 20 14" stroke="rgba(255,255,255,0.6)" strokeWidth="1.3" fill="none"/>
+      <path d="M12 18 A3 3 0 0 1 17 18" stroke="rgba(255,255,255,0.6)" strokeWidth="1.3" fill="none"/>
+      <path d="M22 12 L28 7 L25 14 L28 21 L22 16Z" fill="#fb923c"/>
+      <circle cx="10" cy="11" r="2" fill="white"/>
+      <circle cx="10.5" cy="11.5" r="1" fill="#1e293b"/>
+    </svg>
+  );
+}
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -74,7 +90,7 @@ export default function Sidebar({ projectId }: { projectId?: string }) {
       {/* Logo */}
       <div className="px-5 py-4 border-b border-slate-700/60">
         <div className="flex items-center gap-2 mb-3">
-          <BarChart3 className="h-6 w-6 text-blue-400 shrink-0" />
+          <KoinoboriIcon className="h-6 w-6 shrink-0" />
           <div className="min-w-0">
             <p className="text-sm font-bold text-white leading-tight truncate">
               {me?.company_name ?? 'PM Tool'}
