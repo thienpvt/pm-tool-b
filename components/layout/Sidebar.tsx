@@ -72,8 +72,8 @@ export default function Sidebar({ projectId }: { projectId?: string }) {
   return (
     <aside className="w-60 min-h-screen bg-[#0f172a] text-slate-200 flex flex-col shrink-0">
       {/* Logo */}
-      <div className="px-5 py-5 border-b border-slate-700/60">
-        <div className="flex items-center gap-2">
+      <div className="px-5 py-4 border-b border-slate-700/60">
+        <div className="flex items-center gap-2 mb-3">
           <BarChart3 className="h-6 w-6 text-blue-400 shrink-0" />
           <div className="min-w-0">
             <p className="text-sm font-bold text-white leading-tight truncate">
@@ -82,6 +82,40 @@ export default function Sidebar({ projectId }: { projectId?: string }) {
             <p className="text-xs text-slate-400 leading-tight">Project Manager</p>
           </div>
         </div>
+
+        {/* User section */}
+        <button
+          onClick={() => setUserMenuOpen(v => !v)}
+          className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-slate-800 transition-colors text-left"
+        >
+          <div className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
+            {(me?.display_name || me?.username || '?')[0].toUpperCase()}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-semibold text-slate-200 truncate">{me?.display_name || me?.username || '…'}</p>
+            <p className="text-[10px] text-slate-500 truncate">{me?.username}</p>
+          </div>
+          <ChevronDown className={cn('h-3.5 w-3.5 text-slate-500 shrink-0 transition-transform', userMenuOpen && 'rotate-180')} />
+        </button>
+
+        {userMenuOpen && (
+          <div className="mt-1 flex flex-col gap-0.5">
+            <button
+              onClick={openChangePwd}
+              className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-sm text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
+            >
+              <KeyRound className="h-3.5 w-3.5" />
+              Change Password
+            </button>
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-sm text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+              Sign Out
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Main nav */}
@@ -145,42 +179,6 @@ export default function Sidebar({ projectId }: { projectId?: string }) {
           </div>
         </div>
       )}
-
-      {/* User section */}
-      <div className="mt-auto border-t border-slate-700/60">
-        <button
-          onClick={() => setUserMenuOpen(v => !v)}
-          className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-800 transition-colors text-left"
-        >
-          <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
-            {(me?.display_name || me?.username || '?')[0].toUpperCase()}
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold text-slate-200 truncate">{me?.display_name || me?.username || '…'}</p>
-            <p className="text-[10px] text-slate-500 truncate">{me?.username}</p>
-          </div>
-          <ChevronDown className={cn('h-3.5 w-3.5 text-slate-500 shrink-0 transition-transform', userMenuOpen && 'rotate-180')} />
-        </button>
-
-        {userMenuOpen && (
-          <div className="px-3 pb-3 flex flex-col gap-1">
-            <button
-              onClick={openChangePwd}
-              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-sm text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
-            >
-              <KeyRound className="h-4 w-4" />
-              Change Password
-            </button>
-            <button
-              onClick={handleLogout}
-              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-sm text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors"
-            >
-              <LogOut className="h-4 w-4" />
-              Sign Out
-            </button>
-          </div>
-        )}
-      </div>
 
       {/* Change Password Dialog */}
       <Dialog open={changePwdOpen} onOpenChange={setChangePwdOpen}>
