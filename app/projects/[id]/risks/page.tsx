@@ -243,7 +243,7 @@ function RiskTable({ projectId, activities }: { projectId: string; activities: A
 
       {/* Edit / Add Dialog */}
       <Dialog open={!!editing} onOpenChange={o => { if (!o) setEditing(null); }}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[95vw] max-w-4xl sm:max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <ShieldAlert className="h-4 w-4 text-red-500" />
@@ -523,7 +523,7 @@ function IssueTable({ projectId, activities }: { projectId: string; activities: 
 
       {/* Edit / Add Dialog */}
       <Dialog open={!!editing} onOpenChange={o => { if (!o) setEditing(null); }}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[95vw] max-w-4xl sm:max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Bug className="h-4 w-4 text-violet-500" />
