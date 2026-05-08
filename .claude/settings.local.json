@@ -25,7 +25,13 @@
       "Bash(git -C 'd:\\\\Project\\\\PM tool\\\\pm-tool' commit -m 'Fix risk/issue dialog too small — override sm:max-w-sm with sm:max-w-4xl *)",
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(git checkout *)",
+      "Bash(npm run *)",
+      "PowerShell(Get-Command node -ErrorAction SilentlyContinue; Get-ChildItem \"C:\\\\Program Files\\\\nodejs\\\\\" -ErrorAction SilentlyContinue | Select-Object -First 5; Get-ChildItem \"${env:APPDATA}\\\\npm\\\\\" -ErrorAction SilentlyContinue | Select-Object -First 5; where.exe npm 2>&1)",
+      "PowerShell($nvm = \"$env:LOCALAPPDATA\\\\nvm\"; if \\(Test-Path $nvm\\) { Get-ChildItem $nvm | Select-Object Name }; Get-ChildItem \"C:\\\\nvm\\\\\" -ErrorAction SilentlyContinue | Select-Object Name -First 5)",
+      "Bash(cd /d/Project/'PM tool'/pm-tool && find . -type f -name \"package.json\" | head -5)",
+      "Read(//d/d/Project/PM tool/**)"
     ]
   }
 }

@@ -11,5 +11,6 @@ export async function GET(req: NextRequest) {
     company_id: user.company_id,
     company_name: user.company_name,
     is_admin: user.is_admin,
+    onboarding_completed: user.onboarding_completed,
   });
 }

@@ -2,6 +2,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import Sidebar from '@/components/layout/Sidebar';
+import OnboardingModal from '@/components/onboarding/OnboardingModal';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -293,11 +294,24 @@ export default function PortfolioDashboard() {
   const [companyName, setCompanyName] = useState('');
   const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<'cards' | 'list'>('cards');
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [meUser, setMeUser] = useState<{ display_name: string; username: string; onboarding_completed: number } | null>(null);
 
   useEffect(() => {
     fetch('/api/portfolio').then(r => r.json()).then(d => { setData(d); setLoading(false); });
-    fetch('/api/auth/me').then(r => r.ok ? r.json() : null).then(u => { if (u?.company_name) setCompanyName(u.company_name); });
+    fetch('/api/auth/me').then(r => r.ok ? r.json() : null).then(u => {
+      if (u?.company_name) setCompanyName(u.company_name);
+      if (u) setMeUser(u);
+    });
   }, []);
+
+  useEffect(() => {
+    if (!loading && data !== null && meUser !== null) {
+      if (!meUser.onboarding_completed && data.projects.length === 0) {
+        setShowOnboarding(true);
+      }
+    }
+  }, [loading, data, meUser]);
 
   const activeCustomer = useMemo(() => {
     if (selectedCustomerId === null || !data) return null;
@@ -386,6 +400,12 @@ export default function PortfolioDashboard() {
 
   return (
     <div className="flex flex-col lg:flex-row min-h-screen bg-slate-50">
+      {showOnboarding && meUser && (
+        <OnboardingModal
+          userName={meUser.display_name || meUser.username || 'there'}
+          onComplete={() => setShowOnboarding(false)}
+        />
+      )}
       <Sidebar />
       <main className="flex-1 p-4 lg:p-6 overflow-auto">
         <div className="max-w-7xl mx-auto space-y-5">

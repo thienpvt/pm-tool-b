@@ -27,13 +27,16 @@ export type SessionUser = {
   company_id: number | null;
   company_name: string | null;
   is_admin: number;
+  onboarding_completed: number;
 };
 
 export async function getSessionUser(sessionId: string): Promise<SessionUser | null> {
   const db = await getDb();
   const now = new Date().toISOString();
   return (await db.get<SessionUser>(`
-    SELECT u.id, u.username, u.display_name, u.company_id, u.is_admin, c.name as company_name
+    SELECT u.id, u.username, u.display_name, u.company_id, u.is_admin,
+           COALESCE(u.onboarding_completed, 0) as onboarding_completed,
+           c.name as company_name
     FROM sessions s
     JOIN users u ON s.user_id = u.id
     LEFT JOIN companies c ON u.company_id = c.id
