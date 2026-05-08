@@ -229,7 +229,8 @@ Auth utilities (`lib/auth.ts`):
 8. **Import (Timeline):** Flexible column-mapping import — 3 bước: Upload → Map → Preview & Import
    - Hỗ trợ `.xlsx`, `.xls`, `.csv`, `.txt`
    - Auto-detect header row (bỏ qua dòng trống đầu file)
-   - Giao diện 2 panel: trái = cột file (+ sample data), phải = trường timeline + dropdown mapping
+   - Giao diện 2 panel: trái = cột file (+ sample data), phải = 17 trường timeline nhóm theo 6 category (Basic/Assignees/Dates/Progress/Delay/Notes)
+   - Right panel: mỗi trường có group header màu, progress counter per group, sample value preview ngay dưới dropdown (auto-convert hiển thị strikethrough gốc → resolved)
    - Auto-suggest mapping dựa trên tên cột (EN + VI không dấu)
    - **Date normalization:** DD/MM/YYYY, MM/DD/YYYY, YYYY/MM/DD, Excel serial → YYYY-MM-DD
    - **Fuzzy enum matching:** "Inprogress"→"In Progress", "todo"→"To-do", "dev"→"Development", "na"→"N/A", v.v.
@@ -248,4 +249,5 @@ Auth utilities (`lib/auth.ts`):
 | 2026-05-08 | Add `timeline_import_mappings` table; API routes `/api/parse-file-headers`, `/api/import-mapping` |
 | 2026-05-08 | Auto-detect header row in Excel/CSV (skip leading empty rows) |
 | 2026-05-08 | Import mapping UI redesigned as 2-panel layout (file columns ↔ timeline fields) |
+| 2026-05-09 | Import mapping right panel: grouped fields (6 categories), per-group progress, sample preview with conversion highlight |
 | 2026-05-08 | Initial CODEBASE.md snapshot created |
