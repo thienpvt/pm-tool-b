@@ -1,5 +1,5 @@
 ﻿'use client';
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import Sidebar from '@/components/layout/Sidebar';
 import OnboardingModal from '@/components/onboarding/OnboardingModal';
@@ -297,13 +297,18 @@ export default function PortfolioDashboard() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [meUser, setMeUser] = useState<{ display_name: string; username: string; onboarding_completed: number } | null>(null);
 
-  useEffect(() => {
+  const loadPortfolio = useCallback(() => {
+    setLoading(true);
     fetch('/api/portfolio').then(r => r.json()).then(d => { setData(d); setLoading(false); });
+  }, []);
+
+  useEffect(() => {
+    loadPortfolio();
     fetch('/api/auth/me').then(r => r.ok ? r.json() : null).then(u => {
       if (u?.company_name) setCompanyName(u.company_name);
       if (u) setMeUser(u);
     });
-  }, []);
+  }, [loadPortfolio]);
 
   useEffect(() => {
     if (!loading && data !== null && meUser !== null) {
@@ -403,7 +408,7 @@ export default function PortfolioDashboard() {
       {showOnboarding && meUser && (
         <OnboardingModal
           userName={meUser.display_name || meUser.username || 'there'}
-          onComplete={() => setShowOnboarding(false)}
+          onComplete={() => { setShowOnboarding(false); loadPortfolio(); }}
         />
       )}
       <Sidebar />
