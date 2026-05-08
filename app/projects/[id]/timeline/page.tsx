@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { Plus, Trash2, Save, Download, Upload, FileDown, AlertCircle, MessageSquare, GanttChart, LayoutList, CalendarX2 } from 'lucide-react';
+import ImportMappingDialog from '@/components/timeline/ImportMappingDialog';
 
 type Activity = {
   id: number; phase: string; no: string; activity: string; deliverable: string;
@@ -544,10 +545,6 @@ export default function TimelinePage() {
   const [saving, setSaving] = useState<number | null>(null);
 
   const [importOpen, setImportOpen] = useState(false);
-  const [csvText, setCsvText] = useState('');
-  const [importing, setImporting] = useState(false);
-  const [preview, setPreview] = useState<string[][]>([]);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [delayEdit, setDelayEdit] = useState<{ row: Activity; reason: string } | null>(null);
   const [viewMode, setViewMode] = useState<'table' | 'roadmap'>('table');
@@ -613,10 +610,6 @@ export default function TimelinePage() {
   useEffect(() => { load(); }, [load]);
   useEffect(() => { fetch(`/api/projects/${id}/team`).then(r => r.json()).then(setTeamMembers); }, [id]);
   useEffect(() => { fetch(`/api/projects/${id}/holidays`).then(r => r.json()).then(setHolidays); }, [id]);
-  useEffect(() => {
-    if (!csvText.trim()) { setPreview([]); return; }
-    setPreview(parseCSV(csvText).slice(0, 6));
-  }, [csvText]);
 
   const addActivity = async () => {
     const phase = filterPhase === 'All' ? 'Initializing' : filterPhase;
@@ -656,44 +649,6 @@ export default function TimelinePage() {
     const lines = [CSV_HEADERS.join(','), ...TEMPLATE_ROWS.map(r => r.map(escapeCSV).join(','))];
     downloadCSV(lines.join('\r\n'), 'timeline-template.csv');
     toast.success('Template downloaded');
-  };
-
-  const handleFileRead = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]; if (!file) return;
-    const reader = new FileReader();
-    reader.onload = ev => setCsvText(ev.target?.result as string ?? '');
-    reader.readAsText(file, 'UTF-8');
-  };
-
-  const handleImport = async () => {
-    const rows = parseCSV(csvText);
-    if (!rows.length) { toast.error('File trống'); return; }
-    const first = rows[0].map(h => h.toLowerCase());
-    const hasHeader = first.includes('activity') || first.includes('phase');
-    const dataRows = hasHeader ? rows.slice(1) : rows;
-    if (!dataRows.length) { toast.error('Không có dữ liệu'); return; }
-    setImporting(true);
-    let count = 0;
-    for (const c of dataRows) {
-      const get = (i: number) => c[i]?.trim() ?? '';
-      if (!get(2)) continue;
-      await fetch(`/api/projects/${id}/activities`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          no: get(0), phase: PHASES.includes(get(1)) ? get(1) : 'Initializing',
-          activity: get(2), deliverable: get(3), sign_off_doc: get(4),
-          accountable: get(5), responsible: get(6), support: get(7),
-          plan_start: get(8), plan_end: get(9), actual_start: get(10), actual_end: get(11),
-          status: STATUSES.includes(get(12)) ? get(12) : 'To-do',
-          completion_pct: Number(get(13)) || 0,
-          delay_owner: DELAY_OWNERS.includes(get(14)) ? get(14) : 'N/A',
-          delay_reason: get(15), notes: get(16),
-        }),
-      });
-      count++;
-    }
-    toast.success(`Imported ${count} activities`);
-    setImporting(false); setImportOpen(false); setCsvText(''); load();
   };
 
   // Grouped display
@@ -1051,56 +1006,12 @@ export default function TimelinePage() {
         </DialogContent>
       </Dialog>
 
-      {/* Import Dialog */}
-      <Dialog open={importOpen} onOpenChange={o => { if (!o) { setImportOpen(false); setCsvText(''); } }}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>Import Activities từ CSV</DialogTitle></DialogHeader>
-          <div className="space-y-4 py-1 text-sm">
-            <div className="bg-blue-50 rounded-lg p-3 text-xs text-blue-700 space-y-1">
-              <p className="font-semibold">Cột theo thứ tự:</p>
-              <p className="font-mono text-[10px] bg-white rounded px-2 py-1 border border-blue-100 overflow-x-auto whitespace-nowrap">
-                No, Phase, Activity, Deliverable, Sign-off Doc, Accountable, Responsible, Support, Plan Start, Plan End, Actual Start, Actual End, Status, %, Delay Owner, Delay Reason, Notes
-              </p>
-              <p>Delay Owner: {DELAY_OWNERS.join(' · ')} · Ngày: YYYY-MM-DD</p>
-            </div>
-            <div>
-              <Label>Upload file .csv</Label>
-              <div className="flex gap-2 mt-1.5">
-                <input ref={fileInputRef} type="file" accept=".csv,.txt" className="hidden" onChange={handleFileRead} />
-                <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} className="gap-2"><Upload className="h-3.5 w-3.5" /> Chọn file</Button>
-                <Button variant="outline" size="sm" onClick={handleDownloadTemplate} className="gap-2"><FileDown className="h-3.5 w-3.5" /> Download Template</Button>
-              </div>
-            </div>
-            <div>
-              <Label>Hoặc paste CSV</Label>
-              <textarea className="w-full mt-1.5 text-xs font-mono border rounded-md p-2 min-h-[100px] resize-y focus:outline-none focus:ring-1 focus:ring-blue-400" placeholder="No,Phase,Activity,..." value={csvText} onChange={e => setCsvText(e.target.value)} />
-            </div>
-            {preview.length > 0 && (
-              <div>
-                <Label className="text-slate-500">Preview</Label>
-                <div className="mt-1 rounded border overflow-x-auto">
-                  <table className="text-[10px] w-full">
-                    <tbody>
-                      {preview.map((row, i) => (
-                        <tr key={i} className={i === 0 && (row[0]?.toLowerCase() === 'no' || row[1]?.toLowerCase() === 'phase') ? 'bg-slate-100 font-semibold' : 'border-t'}>
-                          {row.slice(0, 8).map((cell, j) => <td key={j} className="px-2 py-1 truncate max-w-[100px]">{cell || '—'}</td>)}
-                          {row.length > 8 && <td className="px-2 py-1 text-slate-300">+{row.length - 8}</td>}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => { setImportOpen(false); setCsvText(''); }}>Hủy</Button>
-            <Button onClick={handleImport} disabled={!csvText.trim() || importing} className="bg-blue-600 hover:bg-blue-700">
-              {importing ? 'Đang import...' : 'Import'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ImportMappingDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        projectId={id}
+        onImported={load}
+      />
     </div>
   );
 }

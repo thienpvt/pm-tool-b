@@ -204,6 +204,12 @@ async function initPostgresSchema(db: DbClient) {
       project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
       date TEXT NOT NULL,
       name TEXT DEFAULT ''
+    );
+    CREATE TABLE IF NOT EXISTS timeline_import_mappings (
+      id SERIAL PRIMARY KEY,
+      name TEXT NOT NULL,
+      mappings_json TEXT NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `);
 }
@@ -225,6 +231,7 @@ async function migratePostgresSchema(pool: Pool) {
     `ALTER TABLE issues ADD COLUMN IF NOT EXISTS affected_activity_id INTEGER`,
     `ALTER TABLE users ADD COLUMN IF NOT EXISTS onboarding_completed INTEGER DEFAULT 0`,
     `UPDATE users SET onboarding_completed = 1 WHERE created_at < '2026-05-08 00:00:00' AND onboarding_completed = 0`,
+    `CREATE TABLE IF NOT EXISTS timeline_import_mappings (id SERIAL PRIMARY KEY, name TEXT NOT NULL, mappings_json TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
   ];
   for (const sql of migrations) {
     try { await pool.query(sql); } catch { /* column already exists */ }
