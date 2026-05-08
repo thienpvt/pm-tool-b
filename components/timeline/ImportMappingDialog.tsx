@@ -248,7 +248,7 @@ export default function ImportMappingDialog({
   // ─────────────────────────────────────────────────────────────────────────────
   return (
     <Dialog open={open} onOpenChange={o => { if (!o) onOpenChange(false); }}>
-      <DialogContent className="w-[95vw] max-w-5xl h-[92vh] overflow-hidden flex flex-col">
+      <DialogContent className="w-[98vw] max-w-[98vw] sm:max-w-[98vw] h-[94vh] overflow-hidden flex flex-col p-5">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileSpreadsheet className="h-5 w-5 text-blue-600" />
