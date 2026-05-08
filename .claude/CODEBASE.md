@@ -1,7 +1,7 @@
 # Codebase Snapshot — PM Tool (Gambaru)
 
 > **Đọc file này thay vì khám phá lại codebase.** Cập nhật phần liên quan sau mỗi lần thay đổi đáng kể.
-> Last updated: 2026-05-09
+> Last updated: 2026-05-08
 
 ---
 
@@ -81,7 +81,7 @@ Không dùng migrations file — schema được init trong `lib/db.ts:initSchem
 | `settings` | Key-value config | key (PK), value |
 | `customers` | Khách hàng | id, name, industry, contact_*, company_id |
 | `projects` | Dự án | id, name, client, pm_name, start_date, end_date, status, current_phase, customer_id, company_id |
-| `activities` | Task/phase của project | id, project_id, phase, no, activity, deliverable, accountable, responsible, plan_start/end, actual_start/end, status, completion_pct, delay_owner, delay_reason |
+| `activities` | Task/phase của project | id, project_id, phase, no, activity, deliverable, accountable, responsible, support, plan_start/end, actual_start/end, status, completion_pct, delay_owner, delay_reason, notes, order_idx |
 | `team_members` | Thành viên nhóm | id, project_id, domain, role, name, capacity_json |
 | `meetings` | Cuộc họp | id, project_id, name, frequency, content, participants, method, type |
 | `escalation_levels` | Quy trình leo thang | id, project_id, level, level_name, channel, participants |
@@ -226,7 +226,15 @@ Auth utilities (`lib/auth.ts`):
 5. **Communication:** Meetings + escalation levels
 6. **Risk/Issue register:** Categorized, owner, mitigation, status
 7. **Exports:** Excel (plan + resource), PPT (kickoff), Word (documents), Weekly report
-8. **Import:** Excel/CSV timeline import với flexible column mapping
+8. **Import (Timeline):** Flexible column-mapping import — 3 bước: Upload → Map → Preview & Import
+   - Hỗ trợ `.xlsx`, `.xls`, `.csv`, `.txt`
+   - Auto-detect header row (bỏ qua dòng trống đầu file)
+   - Giao diện 2 panel: trái = cột file (+ sample data), phải = trường timeline + dropdown mapping
+   - Auto-suggest mapping dựa trên tên cột (EN + VI không dấu)
+   - **Date normalization:** DD/MM/YYYY, MM/DD/YYYY, YYYY/MM/DD, Excel serial → YYYY-MM-DD
+   - **Fuzzy enum matching:** "Inprogress"→"In Progress", "todo"→"To-do", "dev"→"Development", "na"→"N/A", v.v.
+   - Lưu/load mapping template (`timeline_import_mappings` table) để tái sử dụng
+   - Step 3 preview highlight ô được auto-convert (màu vàng + hiện giá trị gốc)
 9. **AI Portfolio:** Claude-powered cross-project analysis
 10. **Onboarding:** 4-step wizard cho user mới (Welcome → Customer → Project → Done)
 
@@ -236,4 +244,8 @@ Auth utilities (`lib/auth.ts`):
 
 | Date | Change |
 |---|---|
-| 2026-05-09 | Initial snapshot created |
+| 2026-05-08 | Flexible timeline import: column mapping dialog, template save/load, date normalization, fuzzy enum matching |
+| 2026-05-08 | Add `timeline_import_mappings` table; API routes `/api/parse-file-headers`, `/api/import-mapping` |
+| 2026-05-08 | Auto-detect header row in Excel/CSV (skip leading empty rows) |
+| 2026-05-08 | Import mapping UI redesigned as 2-panel layout (file columns ↔ timeline fields) |
+| 2026-05-08 | Initial CODEBASE.md snapshot created |
