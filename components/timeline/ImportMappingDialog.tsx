@@ -248,7 +248,7 @@ export default function ImportMappingDialog({
   // ─────────────────────────────────────────────────────────────────────────────
   return (
     <Dialog open={open} onOpenChange={o => { if (!o) onOpenChange(false); }}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="w-[95vw] max-w-5xl h-[92vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileSpreadsheet className="h-5 w-5 text-blue-600" />
@@ -358,7 +358,7 @@ export default function ImportMappingDialog({
                     <span>Trường trong Timeline</span>
                     <span>Cột trong file</span>
                   </div>
-                  <div className="divide-y max-h-72 overflow-y-auto">
+                  <div className="divide-y max-h-[45vh] overflow-y-auto">
                     {ACTIVITY_FIELDS.map(field => (
                       <div key={field.key} className="grid grid-cols-2 items-center px-3 py-1.5 hover:bg-slate-50">
                         <span className={`text-xs ${field.required ? 'font-semibold text-slate-700' : 'text-slate-500'}`}>
@@ -410,7 +410,7 @@ export default function ImportMappingDialog({
               <div className="text-xs text-slate-500 bg-slate-50 rounded px-3 py-2">
                 Xem trước {Math.min(mappedPreview.length, 6)} dòng đầu (tổng {fileData.allRows.length} dòng sẽ được import)
               </div>
-              <div className="border rounded-lg overflow-auto">
+              <div className="border rounded-lg overflow-auto max-h-[55vh]">
                 <table className="text-[10px] w-full">
                   <thead className="bg-slate-50 border-b">
                     <tr>

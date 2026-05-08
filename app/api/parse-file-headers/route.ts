@@ -46,7 +46,8 @@ export async function POST(req: NextRequest) {
 
     if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
       const workbook = new ExcelJS.Workbook();
-      await workbook.xlsx.load(Buffer.from(new Uint8Array(arrayBuffer)));
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await workbook.xlsx.load(Buffer.from(new Uint8Array(arrayBuffer)) as any);
       const sheet = workbook.worksheets[0];
       if (!sheet) return NextResponse.json({ error: 'Empty workbook' }, { status: 400 });
 
