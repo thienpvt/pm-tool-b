@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Upload, Save, Trash2, ChevronRight, ChevronLeft, FileSpreadsheet, Check } from 'lucide-react';
+import { Upload, Save, Trash2, ChevronRight, ChevronLeft, FileSpreadsheet, Check, Calendar, Users, BarChart2, AlertTriangle, StickyNote, Info } from 'lucide-react';
 
 // ─── Activity fields definition ───────────────────────────────────────────────
 export const ACTIVITY_FIELDS: { key: string; label: string; required?: boolean }[] = [
@@ -70,6 +70,15 @@ const PHASES = ['Initializing', 'Architecture & Design', 'Setup & Infra', 'Devel
 const STATUSES = ['To-do', 'In Progress', 'Done', 'Blocked', 'Deferred'];
 const DELAY_OWNERS = ['N/A', 'Client', 'Vendor', 'Both', 'External'];
 const SKIP = '__skip__';
+
+const FIELD_GROUPS: { label: string; icon: React.ComponentType<{ className?: string }>; keys: string[]; color: string }[] = [
+  { label: 'Thông tin cơ bản', icon: Info,          keys: ['no', 'phase', 'activity', 'deliverable', 'sign_off_doc'], color: 'blue'   },
+  { label: 'Phân công',        icon: Users,          keys: ['accountable', 'responsible', 'support'],                  color: 'purple' },
+  { label: 'Ngày tháng',       icon: Calendar,       keys: ['plan_start', 'plan_end', 'actual_start', 'actual_end'],   color: 'orange' },
+  { label: 'Tiến độ',          icon: BarChart2,      keys: ['status', 'completion_pct'],                               color: 'green'  },
+  { label: 'Vấn đề trễ',       icon: AlertTriangle,  keys: ['delay_owner', 'delay_reason'],                            color: 'red'    },
+  { label: 'Ghi chú',          icon: StickyNote,     keys: ['notes'],                                                  color: 'gray'   },
+];
 
 // ─── Value normalizers ────────────────────────────────────────────────────────
 
@@ -242,7 +251,7 @@ export default function ImportMappingDialog({
 
   // ── Step 2: Mapping helpers ────────────────────────────────────────────────
   const setFieldMapping = (field: string, col: string) =>
-    setMapping(m => ({ ...m, [field]: col }));
+    setMapping((m: Record<string, string>) => ({ ...m, [field]: col }));
 
   const applyTemplate = (tpl: SavedMapping) => {
     try {
@@ -266,7 +275,7 @@ export default function ImportMappingDialog({
         body: JSON.stringify({ name: saveName.trim(), mappings_json: mapping }),
       });
       const saved = await res.json();
-      setSavedMappings(p => [saved, ...p]);
+      setSavedMappings((p: SavedMapping[]) => [saved, ...p]);
       setSaveName('');
       toast.success('Đã lưu template mapping');
     } catch { toast.error('Lưu thất bại'); }
@@ -275,12 +284,12 @@ export default function ImportMappingDialog({
 
   const deleteTemplate = async (id: number) => {
     await fetch(`/api/import-mapping/${id}`, { method: 'DELETE' });
-    setSavedMappings(p => p.filter(m => m.id !== id));
+    setSavedMappings((p: SavedMapping[]) => p.filter((m: SavedMapping) => m.id !== id));
     toast.success('Đã xóa template');
   };
 
   // ── Step 3: Import ─────────────────────────────────────────────────────────
-  const mappedPreview = fileData?.preview.map(row => {
+  const mappedPreview = fileData?.preview.map((row: string[]) => {
     const obj: Record<string, string> = {};
     const raw: Record<string, string> = {};
     for (const field of ACTIVITY_FIELDS) {
@@ -530,56 +539,120 @@ export default function ImportMappingDialog({
                   </div>
                 </div>
 
-                {/* RIGHT PANEL: Timeline mapping */}
+                {/* RIGHT PANEL: Timeline mapping — grouped */}
                 <div className="flex flex-col border rounded-xl overflow-hidden shadow-sm">
                   <div className="flex items-center gap-2 px-4 py-2.5 bg-slate-700 text-white text-sm font-semibold shrink-0">
                     <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
                     <span>Trường trong Timeline</span>
-                    <span className="ml-auto text-slate-400 text-xs font-normal">{ACTIVITY_FIELDS.length} trường</span>
+                    <span className="ml-auto text-slate-400 text-xs font-normal">{mappedCount}/{ACTIVITY_FIELDS.length} đã map</span>
                   </div>
-                  <div className="overflow-y-auto flex-1 divide-y divide-slate-100 bg-white">
-                    {ACTIVITY_FIELDS.map(field => {
-                      const isMapped = mapping[field.key] && mapping[field.key] !== SKIP;
-                      const isRequiredUnmapped = field.required && !isMapped;
-                      return (
-                        <div key={field.key} className={`flex items-center gap-3 px-3 py-2 transition-colors
-                          ${isMapped ? 'bg-green-50/60' : isRequiredUnmapped ? 'bg-red-50/40' : ''}`}>
-                          {/* Status dot */}
-                          <div className={`w-2 h-2 rounded-full shrink-0
-                            ${isMapped ? 'bg-green-500' : isRequiredUnmapped ? 'bg-red-400' : 'bg-slate-200'}`} />
+                  <div className="overflow-y-auto flex-1 bg-white">
+                    {FIELD_GROUPS.map(group => {
+                      const groupFields = ACTIVITY_FIELDS.filter(f => group.keys.includes(f.key));
+                      const mappedInGroup = groupFields.filter(f => mapping[f.key] && mapping[f.key] !== SKIP).length;
+                      const GroupIcon = group.icon;
 
-                          {/* Field label */}
-                          <div className="w-36 shrink-0">
-                            <span className={`text-xs ${field.required ? 'font-semibold text-slate-800' : 'text-slate-500'}`}>
-                              {field.label}
-                              {field.required && <span className="text-red-500 ml-0.5">*</span>}
+                      const headerColor: Record<string, string> = {
+                        blue:   'text-blue-700 bg-blue-50 border-blue-100',
+                        purple: 'text-purple-700 bg-purple-50 border-purple-100',
+                        orange: 'text-orange-700 bg-orange-50 border-orange-100',
+                        green:  'text-green-700 bg-green-50 border-green-100',
+                        red:    'text-red-700 bg-red-50 border-red-100',
+                        gray:   'text-slate-500 bg-slate-50 border-slate-100',
+                      };
+                      const dotDefault: Record<string, string> = {
+                        blue: 'bg-blue-300', purple: 'bg-purple-300', orange: 'bg-orange-300',
+                        green: 'bg-green-300', red: 'bg-red-300', gray: 'bg-slate-200',
+                      };
+
+                      return (
+                        <div key={group.label}>
+                          {/* Group header */}
+                          <div className={`sticky top-0 z-10 flex items-center gap-2 px-3 py-1.5 border-b border-t ${headerColor[group.color]}`}>
+                            <GroupIcon className="h-3 w-3 shrink-0" />
+                            <span className="text-[11px] font-semibold uppercase tracking-wide flex-1">{group.label}</span>
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold
+                              ${mappedInGroup === groupFields.length
+                                ? 'bg-green-500 text-white'
+                                : mappedInGroup > 0 ? 'bg-white/80 text-current' : 'bg-white/60 text-current opacity-60'}`}>
+                              {mappedInGroup}/{groupFields.length}
                             </span>
                           </div>
 
-                          {/* Arrow */}
-                          <ChevronRight className={`h-3.5 w-3.5 shrink-0 ${isMapped ? 'text-green-500' : 'text-slate-200'}`} />
+                          {/* Fields in group */}
+                          {groupFields.map(field => {
+                            const isMapped = !!(mapping[field.key] && mapping[field.key] !== SKIP);
+                            const isRequiredUnmapped = field.required && !isMapped;
+                            const mappedCol = isMapped ? mapping[field.key] : null;
+                            const colIdx = mappedCol != null ? fileData.columns.indexOf(mappedCol) : -1;
+                            const sampleRaw = colIdx >= 0
+                              ? (fileData.preview.find((r: string[]) => r[colIdx]?.trim())?.[colIdx] ?? '')
+                              : '';
+                            const sampleResolved = sampleRaw ? resolveField(field.key, sampleRaw) : '';
+                            const wasConverted = !!(sampleRaw && sampleResolved && sampleRaw !== sampleResolved);
 
-                          {/* Dropdown */}
-                          <div className="flex-1 min-w-0">
-                            <Select
-                              value={mapping[field.key] ?? SKIP}
-                              onValueChange={val => setFieldMapping(field.key, val ?? SKIP)}
-                            >
-                              <SelectTrigger className={`h-7 text-xs w-full
-                                ${isMapped ? 'border-green-300 bg-white text-green-700 font-medium' : 'text-slate-400'}`}>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value={SKIP}>— Bỏ qua —</SelectItem>
-                                {fileData.columns.map(col => (
-                                  <SelectItem key={col} value={col}>{col}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
+                            return (
+                              <div key={field.key} className={`px-3 py-2 border-b last:border-b-0 transition-colors
+                                ${isMapped ? 'bg-green-50/40' : isRequiredUnmapped ? 'bg-red-50/30' : 'hover:bg-slate-50/60'}`}>
 
-                          {/* Check icon */}
-                          {isMapped && <Check className="h-3.5 w-3.5 text-green-500 shrink-0" />}
+                                {/* Label row */}
+                                <div className="flex items-center gap-1.5 mb-1.5">
+                                  <div className={`w-1.5 h-1.5 rounded-full shrink-0
+                                    ${isMapped ? 'bg-green-500' : isRequiredUnmapped ? 'bg-red-400' : dotDefault[group.color]}`} />
+                                  <span className={`text-[11px] leading-tight flex-1
+                                    ${field.required ? 'font-semibold text-slate-800' : 'text-slate-500'}`}>
+                                    {field.label}
+                                    {field.required && <span className="text-red-500 ml-0.5">*</span>}
+                                  </span>
+                                  {isMapped && <Check className="h-3 w-3 text-green-500 shrink-0" />}
+                                </div>
+
+                                {/* Dropdown */}
+                                <Select
+                                  value={mapping[field.key] ?? SKIP}
+                                  onValueChange={(val: string) => setFieldMapping(field.key, val ?? SKIP)}
+                                >
+                                  <SelectTrigger className={`h-7 text-xs w-full
+                                    ${isMapped
+                                      ? 'border-green-300 bg-white text-green-800 font-medium'
+                                      : isRequiredUnmapped ? 'border-red-200 text-slate-400' : 'text-slate-400'}`}>
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value={SKIP}>— Bỏ qua —</SelectItem>
+                                    {fileData.columns.map((col: string) => {
+                                      const ci = fileData.columns.indexOf(col);
+                                      const s = fileData.preview.find((r: string[]) => r[ci]?.trim())?.[ci] ?? '';
+                                      return (
+                                        <SelectItem key={col} value={col}>
+                                          {col}{s ? ` · ${s.length > 20 ? s.substring(0, 20) + '…' : s}` : ''}
+                                        </SelectItem>
+                                      );
+                                    })}
+                                  </SelectContent>
+                                </Select>
+
+                                {/* Sample value preview */}
+                                {isMapped && (
+                                  <div className="mt-1 px-1">
+                                    {sampleRaw ? (
+                                      wasConverted ? (
+                                        <div className="flex items-center gap-1 text-[10px] text-amber-600">
+                                          <span className="line-through opacity-60 truncate max-w-[40%]">{sampleRaw}</span>
+                                          <span className="shrink-0">→</span>
+                                          <span className="font-medium truncate">{sampleResolved}</span>
+                                        </div>
+                                      ) : (
+                                        <div className="text-[10px] text-slate-400 italic truncate">{sampleResolved || sampleRaw}</div>
+                                      )
+                                    ) : (
+                                      <div className="text-[10px] text-slate-300 italic">không có dữ liệu mẫu</div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
                       );
                     })}
