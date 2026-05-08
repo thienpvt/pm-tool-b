@@ -71,6 +71,116 @@ const STATUSES = ['To-do', 'In Progress', 'Done', 'Blocked', 'Deferred'];
 const DELAY_OWNERS = ['N/A', 'Client', 'Vendor', 'Both', 'External'];
 const SKIP = '__skip__';
 
+// ─── Value normalizers ────────────────────────────────────────────────────────
+
+function normalizeDate(raw: string): string {
+  if (!raw) return '';
+  const v = raw.trim();
+  if (!v) return '';
+
+  // Already YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
+
+  // DD/MM/YYYY or MM/DD/YYYY or YYYY/MM/DD (separators: / - .)
+  const m = v.match(/^(\d{1,4})[\/\-\.](\d{1,2})[\/\-\.](\d{1,4})$/);
+  if (m) {
+    const [, a, b, c] = m;
+    const ai = parseInt(a), bi = parseInt(b), ci = parseInt(c);
+    if (a.length === 4) {
+      // YYYY/MM/DD
+      return `${a}-${b.padStart(2, '0')}-${c.padStart(2, '0')}`;
+    }
+    if (c.length === 4) {
+      // DD/MM/YYYY vs MM/DD/YYYY — heuristic: if a > 12 it must be day
+      if (ai > 12) return `${c}-${b.padStart(2, '0')}-${a.padStart(2, '0')}`;
+      if (bi > 12) return `${c}-${a.padStart(2, '0')}-${b.padStart(2, '0')}`;
+      // Default: DD/MM/YYYY (Vietnamese convention)
+      return `${c}-${b.padStart(2, '0')}-${a.padStart(2, '0')}`;
+    }
+    // Two-digit year (rare) — skip and fall through
+    void ai; void ci;
+  }
+
+  // Excel serial number (number of days since 1900-01-01)
+  const num = Number(v);
+  if (!isNaN(num) && num > 1 && num < 2958466) {
+    const d = new Date(Math.round((num - 25569) * 86400000));
+    if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
+  }
+
+  // Fallback: let Date parse it (handles "Jan 5 2025", ISO with time, etc.)
+  const parsed = new Date(v);
+  if (!isNaN(parsed.getTime())) return parsed.toISOString().split('T')[0];
+
+  return '';
+}
+
+const norm = (s: string) => s.toLowerCase().replace(/[\s_\-\/\.]/g, '');
+
+const STATUS_MAP: Record<string, string> = {
+  inprogress: 'In Progress', wip: 'In Progress', ongoing: 'In Progress',
+  processing: 'In Progress', running: 'In Progress',
+  todo: 'To-do', pending: 'To-do', notstarted: 'To-do', open: 'To-do', new: 'To-do',
+  done: 'Done', complete: 'Done', completed: 'Done', finished: 'Done', closed: 'Done',
+  blocked: 'Blocked', stuck: 'Blocked', onhold: 'Blocked', hold: 'Blocked',
+  deferred: 'Deferred', postponed: 'Deferred', delayed: 'Deferred', cancelled: 'Deferred',
+  cancel: 'Deferred', skipped: 'Deferred',
+};
+
+const PHASE_MAP: Record<string, string> = {
+  init: 'Initializing', initializ: 'Initializing', initiation: 'Initializing',
+  arch: 'Architecture & Design', architecture: 'Architecture & Design',
+  design: 'Architecture & Design', architecturedesign: 'Architecture & Design',
+  setup: 'Setup & Infra', infra: 'Setup & Infra', infrastructure: 'Setup & Infra',
+  dev: 'Development', develop: 'Development', development: 'Development', coding: 'Development',
+  implement: 'Development', implementation: 'Development',
+  test: 'Testing', testing: 'Testing', qa: 'Testing',
+  uat: 'UAT', useracceptance: 'UAT', acceptance: 'UAT',
+  deploy: 'Deployment', deployment: 'Deployment', release: 'Deployment', golive: 'Deployment',
+  clos: 'Closing', closing: 'Closing', close: 'Closing', wrap: 'Closing', handover: 'Closing',
+};
+
+const DELAY_MAP: Record<string, string> = {
+  na: 'N/A', n: 'N/A', none: 'N/A', notapplicable: 'N/A', no: 'N/A', '': 'N/A',
+  client: 'Client', customer: 'Client',
+  vendor: 'Vendor', supplier: 'Vendor', partner: 'Vendor',
+  both: 'Both', all: 'Both',
+  external: 'External', thirdparty: 'External', other: 'External',
+};
+
+function fuzzyStatus(raw: string): string {
+  if (!raw) return 'To-do';
+  const n = norm(raw);
+  if (STATUSES.includes(raw)) return raw;
+  return STATUS_MAP[n] ?? STATUS_MAP[Object.keys(STATUS_MAP).find(k => n.startsWith(k) || k.startsWith(n)) ?? ''] ?? 'To-do';
+}
+
+function fuzzyPhase(raw: string): string {
+  if (!raw) return 'Initializing';
+  const n = norm(raw);
+  if (PHASES.includes(raw)) return raw;
+  const found = PHASE_MAP[n] ?? PHASE_MAP[Object.keys(PHASE_MAP).find(k => n.startsWith(k) || k.startsWith(n)) ?? ''];
+  return found ?? 'Initializing';
+}
+
+function fuzzyDelayOwner(raw: string): string {
+  if (!raw) return 'N/A';
+  const n = norm(raw);
+  if (DELAY_OWNERS.includes(raw)) return raw;
+  return DELAY_MAP[n] ?? DELAY_MAP[Object.keys(DELAY_MAP).find(k => n.startsWith(k) || k.startsWith(n)) ?? ''] ?? 'N/A';
+}
+
+function resolveField(field: string, raw: string): string {
+  switch (field) {
+    case 'plan_start': case 'plan_end': case 'actual_start': case 'actual_end':
+      return normalizeDate(raw);
+    case 'status':      return fuzzyStatus(raw);
+    case 'phase':       return fuzzyPhase(raw);
+    case 'delay_owner': return fuzzyDelayOwner(raw);
+    default: return raw;
+  }
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function ImportMappingDialog({
   open, onOpenChange, projectId, onImported,
@@ -172,14 +282,17 @@ export default function ImportMappingDialog({
   // ── Step 3: Import ─────────────────────────────────────────────────────────
   const mappedPreview = fileData?.preview.map(row => {
     const obj: Record<string, string> = {};
+    const raw: Record<string, string> = {};
     for (const field of ACTIVITY_FIELDS) {
       const col = mapping[field.key];
       if (col && col !== SKIP) {
         const idx = fileData.columns.indexOf(col);
-        obj[field.key] = idx >= 0 ? (row[idx] ?? '') : '';
+        const rawVal = idx >= 0 ? (row[idx]?.trim() ?? '') : '';
+        raw[field.key] = rawVal;
+        obj[field.key] = resolveField(field.key, rawVal);
       }
     }
-    return obj;
+    return { resolved: obj, raw };
   }) ?? [];
 
   const handleImport = async () => {
@@ -205,31 +318,27 @@ export default function ImportMappingDialog({
       const activity = get('activity');
       if (!activity) continue;
 
-      const phase = get('phase');
-      const status = get('status');
-      const delayOwner = get('delay_owner');
-
       try {
         await fetch(`/api/projects/${projectId}/activities`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             no: get('no'),
-            phase: PHASES.includes(phase) ? phase : 'Initializing',
+            phase:       fuzzyPhase(get('phase')),
             activity,
             deliverable: get('deliverable'),
             sign_off_doc: get('sign_off_doc'),
             accountable: get('accountable'),
             responsible: get('responsible'),
-            support: get('support'),
-            plan_start: get('plan_start'),
-            plan_end: get('plan_end'),
-            actual_start: get('actual_start'),
-            actual_end: get('actual_end'),
-            status: STATUSES.includes(status) ? status : 'To-do',
-            completion_pct: Number(get('completion_pct')) || 0,
-            delay_owner: DELAY_OWNERS.includes(delayOwner) ? delayOwner : 'N/A',
+            support:     get('support'),
+            plan_start:  normalizeDate(get('plan_start')),
+            plan_end:    normalizeDate(get('plan_end')),
+            actual_start: normalizeDate(get('actual_start')),
+            actual_end:   normalizeDate(get('actual_end')),
+            status:      fuzzyStatus(get('status')),
+            completion_pct: Number(get('completion_pct').replace('%', '')) || 0,
+            delay_owner: fuzzyDelayOwner(get('delay_owner')),
             delay_reason: get('delay_reason'),
-            notes: get('notes'),
+            notes:       get('notes'),
           }),
         });
         count++;
@@ -483,39 +592,62 @@ export default function ImportMappingDialog({
           {/* ── Step 3: Preview ────────────────────────────────────────────────── */}
           {step === 3 && fileData && (
             <div className="space-y-3">
-              <div className="text-xs text-slate-500 bg-slate-50 rounded px-3 py-2">
-                Xem trước {Math.min(mappedPreview.length, 6)} dòng đầu (tổng {fileData.allRows.length} dòng sẽ được import)
+              <div className="flex items-center gap-3 flex-wrap">
+                <div className="text-xs text-slate-500 bg-slate-50 rounded px-3 py-2">
+                  Xem trước {Math.min(mappedPreview.length, 8)} dòng đầu · tổng <strong>{fileData.allRows.length}</strong> dòng
+                </div>
+                <div className="flex items-center gap-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1.5">
+                  <span className="w-2.5 h-2.5 rounded-sm bg-amber-300 shrink-0" />
+                  Giá trị được tự động chuẩn hoá (ngày, status…)
+                </div>
               </div>
-              <div className="border rounded-lg overflow-auto max-h-[55vh]">
-                <table className="text-[10px] w-full">
-                  <thead className="bg-slate-50 border-b">
+
+              <div className="border rounded-lg overflow-auto max-h-[60vh]">
+                <table className="text-[11px] w-full">
+                  <thead className="bg-slate-50 border-b sticky top-0">
                     <tr>
                       {ACTIVITY_FIELDS.filter(f => mapping[f.key] && mapping[f.key] !== SKIP).map(f => (
-                        <th key={f.key} className="px-2 py-1.5 text-left font-semibold text-slate-500 whitespace-nowrap">{f.label}</th>
+                        <th key={f.key} className="px-2 py-2 text-left font-semibold text-slate-600 whitespace-nowrap border-r last:border-r-0">
+                          {f.label}
+                        </th>
                       ))}
                     </tr>
                   </thead>
                   <tbody className="divide-y">
-                    {mappedPreview.slice(0, 6).map((row, i) => (
+                    {mappedPreview.slice(0, 8).map((row, i) => (
                       <tr key={i} className="hover:bg-slate-50">
-                        {ACTIVITY_FIELDS.filter(f => mapping[f.key] && mapping[f.key] !== SKIP).map(f => (
-                          <td key={f.key} className="px-2 py-1 max-w-[120px] truncate text-slate-700">{row[f.key] || '—'}</td>
-                        ))}
+                        {ACTIVITY_FIELDS.filter(f => mapping[f.key] && mapping[f.key] !== SKIP).map(f => {
+                          const resolved = row.resolved[f.key] ?? '';
+                          const rawVal   = row.raw[f.key] ?? '';
+                          const wasConverted = rawVal && resolved && rawVal !== resolved;
+                          return (
+                            <td key={f.key} className={`px-2 py-1.5 max-w-[150px] border-r last:border-r-0
+                              ${wasConverted ? 'bg-amber-50' : ''}`}>
+                              <div className="truncate font-medium text-slate-800">{resolved || '—'}</div>
+                              {wasConverted && (
+                                <div className="truncate text-[10px] text-amber-600 mt-0.5" title={`Gốc: ${rawVal}`}>
+                                  ← {rawVal}
+                                </div>
+                              )}
+                            </td>
+                          );
+                        })}
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
+
               {!mapping['activity'] || mapping['activity'] === SKIP ? (
                 <div className="text-xs text-red-600 bg-red-50 rounded px-3 py-2">
                   Chưa map cột Activity (bắt buộc). Quay lại bước 2 để mapping.
                 </div>
               ) : (
-                <div className="text-xs text-green-700 bg-green-50 rounded px-3 py-2">
-                  Sẵn sàng import {fileData.allRows.filter(r => {
+                <div className="text-xs text-green-700 bg-green-50 border border-green-200 rounded px-3 py-2">
+                  ✓ Sẵn sàng import <strong>{fileData.allRows.filter(r => {
                     const idx = fileData.columns.indexOf(mapping['activity']);
                     return idx >= 0 && r[idx]?.trim();
-                  }).length} activities (bỏ qua các dòng không có Activity)
+                  }).length}</strong> activities · Các dòng không có Activity sẽ bị bỏ qua
                 </div>
               )}
             </div>
