@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git -C \"d:\\\\Project\\\\PM tool\\\\pm-tool\" remote -v)",
+      "Bash(Get-ChildItem -Path \"d:\\\\Project\\\\PM tool\\\\pm-tool\" -Force)",
+      "Bash(Select-Object Name, FullName)",
+      "Bash(npm install *)",
+      "PowerShell(Get-ChildItem \"C:\\\\Program Files\\\\nodejs\\\\npm.cmd\" -ErrorAction SilentlyContinue; Get-ChildItem \"$env:APPDATA\\\\npm\\\\npm.cmd\" -ErrorAction SilentlyContinue; Get-ChildItem \"C:\\\\Users\\\\06.08.2017\\\\AppData\\\\Roaming\\\\nvm\" -ErrorAction SilentlyContinue | Select-Object Name)",
+      "PowerShell(cmd /c \"where node 2>nul\")",
+      "PowerShell(cmd /c \"where npm 2>nul\")",
+      "PowerShell(git -C \"d:\\\\Project\\\\PM tool\\\\pm-tool\" diff --stat)",
+      "Bash(git -C \"d:\\\\Project\\\\PM tool\\\\pm-tool\" diff --stat)",
+      "Bash(git -C \"d:\\\\Project\\\\PM tool\\\\pm-tool\" add lib/db.ts app/api/projects/[id]/documents/route.ts Dockerfile next.config.ts package.json)",
+      "Bash(git -C 'd:\\\\Project\\\\PM tool\\\\pm-tool' commit -m ' *)",
+      "Bash(git -C \"d:\\\\Project\\\\PM tool\\\\pm-tool\" config user.email \"hieunm1902@gmail.com\")",
+      "Bash(git -C \"d:\\\\Project\\\\PM tool\\\\pm-tool\" config user.name \"hieunm1902\")",
+      "Bash(git -C \"d:\\\\Project\\\\PM tool\\\\pm-tool\" push origin master)",
+      "Bash(Get-ChildItem -Path \"d:\\\\Project\\\\PM tool\\\\pm-tool\\\\app\" -Recurse -Directory)",
+      "Bash(Select-Object FullName)",
+      "Bash(git -C \"d:\\\\Project\\\\PM tool\\\\pm-tool\" add app/page.tsx)",
+      "Bash(git -C \"d:\\\\Project\\\\PM tool\\\\pm-tool\" add \"app/projects/[id]/dashboard/page.tsx\")",
+      "Bash(git -C \"d:\\\\Project\\\\PM tool\\\\pm-tool\" log --oneline -5)",
+      "Bash(git -C \"d:\\\\Project\\\\PM tool\\\\pm-tool\" show --stat HEAD)",
+      "Bash(git -C \"d:\\\\Project\\\\PM tool\\\\pm-tool\" add \"app/projects/[id]/risks/page.tsx\")",
+      "Bash(git -C 'd:\\\\Project\\\\PM tool\\\\pm-tool' commit -m 'Fix risk/issue dialog too small — override sm:max-w-sm with sm:max-w-4xl *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)"
+    ]
+  }
+}

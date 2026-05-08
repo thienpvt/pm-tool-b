@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Sidebar from '@/components/layout/Sidebar';
@@ -64,9 +64,9 @@ export default function ProjectsPage() {
   });
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex flex-col lg:flex-row min-h-screen">
       <Sidebar />
-      <main className="flex-1 p-8">
+      <main className="flex-1 p-4 lg:p-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -81,8 +81,8 @@ export default function ProjectsPage() {
         </div>
 
         {/* Filters */}
-        <div className="flex gap-3 mb-5">
-          <div className="relative flex-1 max-w-xs">
+        <div className="flex flex-wrap gap-3 mb-5">
+          <div className="relative flex-1 min-w-[200px] max-w-xs">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
             <Input
               className="pl-8 h-9 text-sm"
@@ -91,7 +91,7 @@ export default function ProjectsPage() {
               onChange={e => setSearch(e.target.value)}
             />
           </div>
-          <div className="flex gap-1">
+          <div className="flex flex-wrap gap-1">
             {['All', ...PHASE_ORDER].map(p => (
               <button
                 key={p}

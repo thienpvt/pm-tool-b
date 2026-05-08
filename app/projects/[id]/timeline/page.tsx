@@ -713,9 +713,9 @@ export default function TimelinePage() {
   const overdueCount = activities.filter(a => a.status !== 'Done' && calcLag(a.plan_end, a.actual_end, a.status) > 0).length;
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex flex-col lg:flex-row min-h-screen">
       <Sidebar projectId={id} />
-      <main className="flex-1 p-6 overflow-x-auto">
+      <main className="flex-1 p-4 lg:p-6 overflow-x-auto">
 
         {/* Header */}
         <div className="flex items-center justify-between mb-4">

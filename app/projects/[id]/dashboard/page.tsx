@@ -242,7 +242,7 @@ export default function DashboardPage() {
   };
 
   if (!project) return (
-    <div className="flex min-h-screen"><Sidebar projectId={id}/>
+    <div className="flex flex-col lg:flex-row min-h-screen"><Sidebar projectId={id}/>
       <main className="flex-1 flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"/>
@@ -304,9 +304,9 @@ export default function DashboardPage() {
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="flex min-h-screen bg-slate-50">
+    <div className="flex flex-col lg:flex-row min-h-screen bg-slate-50">
       <Sidebar projectId={id} />
-      <main className="flex-1 p-6 overflow-x-auto space-y-5">
+      <main className="flex-1 p-4 lg:p-6 overflow-x-auto space-y-5">
 
         {/* ── Header ── */}
         <div className="flex items-start justify-between gap-4">

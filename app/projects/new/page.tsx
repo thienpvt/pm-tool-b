@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/layout/Sidebar';
@@ -57,9 +57,9 @@ export default function NewProjectPage() {
   };
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex flex-col lg:flex-row min-h-screen">
       <Sidebar />
-      <main className="flex-1 p-8 max-w-2xl">
+      <main className="flex-1 p-4 lg:p-8 max-w-2xl">
         <h1 className="text-2xl font-bold text-slate-800 mb-2">New Project</h1>
         <p className="text-slate-500 text-sm mb-8">Điền thông tin để khởi tạo project mới</p>
 

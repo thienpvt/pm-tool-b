@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import Sidebar from '@/components/layout/Sidebar';
@@ -108,12 +108,12 @@ export default function CustomersPage() {
   const totalProjects = customers.reduce((s, c) => s + c.project_count, 0);
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
+    <div className="flex flex-col lg:flex-row min-h-screen bg-slate-50">
       <Sidebar />
-      <main className="flex-1 p-8">
+      <main className="flex-1 p-4 lg:p-8">
         <div className="max-w-6xl mx-auto">
           {/* Header */}
-          <div className="flex items-center justify-between mb-8">
+          <div className="flex items-start justify-between gap-3 flex-wrap mb-8">
             <div>
               <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
                 <Building2 className="h-6 w-6 text-blue-600" /> Customer Management

@@ -44,9 +44,9 @@ export default function CommunicationPage() {
   };
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex flex-col lg:flex-row min-h-screen">
       <Sidebar projectId={id} />
-      <main className="flex-1 p-6 max-w-5xl">
+      <main className="flex-1 p-4 lg:p-6 max-w-5xl">
         <h1 className="text-xl font-bold text-slate-800 mb-6">Communication Plan</h1>
 
         {/* Meetings */}
@@ -58,7 +58,8 @@ export default function CommunicationPage() {
             </Button>
           </div>
           <div className="rounded-xl border bg-white overflow-hidden">
-            <table className="w-full text-xs">
+            <div className="overflow-x-auto">
+            <table className="w-full text-xs min-w-[600px]">
               <thead>
                 <tr className="bg-[#1e293b] text-white">
                   <th className="px-3 py-3 text-left w-48">Meeting Name</th>
@@ -83,6 +84,7 @@ export default function CommunicationPage() {
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
         </div>
 
@@ -98,7 +100,7 @@ export default function CommunicationPage() {
                   </span>
                   <Input className="h-7 text-xs font-semibold flex-1 bg-white" value={esc.level_name} onChange={e => updateEscalation(esc.id, 'level_name', e.target.value)} onBlur={() => saveEscalation(esc)} />
                 </div>
-                <div className="grid grid-cols-2 gap-3 text-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                   <div>
                     <p className="text-slate-500 mb-1 font-medium">Channel / Cadence</p>
                     <Input className="h-7 text-xs bg-white" value={esc.channel} onChange={e => updateEscalation(esc.id, 'channel', e.target.value)} onBlur={() => saveEscalation(esc)} />

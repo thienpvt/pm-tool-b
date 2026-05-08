@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/layout/Sidebar';
@@ -133,9 +133,9 @@ export default function AdminPage() {
   if (!me) return null;
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex flex-col lg:flex-row min-h-screen">
       <Sidebar />
-      <main className="flex-1 p-6">
+      <main className="flex-1 p-4 lg:p-6">
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">
           <div className="bg-blue-100 rounded-xl p-2.5">
@@ -170,7 +170,8 @@ export default function AdminPage() {
                 <Plus className="h-3.5 w-3.5" /> Add User
               </Button>
             </div>
-            <table className="w-full text-sm">
+            <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[500px]">
               <thead>
                 <tr className="bg-slate-50 text-left text-xs text-slate-500 uppercase tracking-wide">
                   <th className="px-5 py-3">Username</th>
@@ -215,6 +216,7 @@ export default function AdminPage() {
                 )}
               </tbody>
             </table>
+            </div>
           </div>
         )}
 
@@ -227,7 +229,8 @@ export default function AdminPage() {
                 <Plus className="h-3.5 w-3.5" /> Add Company
               </Button>
             </div>
-            <table className="w-full text-sm">
+            <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[400px]">
               <thead>
                 <tr className="bg-slate-50 text-left text-xs text-slate-500 uppercase tracking-wide">
                   <th className="px-5 py-3">Company Name</th>
@@ -259,6 +262,7 @@ export default function AdminPage() {
                 )}
               </tbody>
             </table>
+            </div>
           </div>
         )}
       </main>

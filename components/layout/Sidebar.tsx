@@ -6,8 +6,15 @@ import { cn } from '@/lib/utils';
 import {
   LayoutDashboard, Calendar, Users,
   MessageSquare, AlertTriangle, FileText, TrendingDown,
-  PieChart, Building2, ClipboardList, FileBarChart2, LogOut, ShieldCheck, ChevronDown, KeyRound,
+  PieChart, Building2, ClipboardList, FileBarChart2,
+  LogOut, ShieldCheck, ChevronDown, KeyRound, Menu, X,
 } from 'lucide-react';
+import { Sheet, SheetContent } from '@/components/ui/sheet';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { toast } from 'sonner';
 
 function KoinoboriIcon({ className }: { className?: string }) {
   return (
@@ -24,11 +31,6 @@ function KoinoboriIcon({ className }: { className?: string }) {
     </svg>
   );
 }
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { toast } from 'sonner';
 
 const NAV = [
   { href: '/', icon: LayoutDashboard, label: 'Portfolio' },
@@ -49,6 +51,147 @@ const PROJECT_NAV = [
 
 type Me = { username: string; display_name: string; company_name: string | null; is_admin: number };
 
+// ─── Shared nav content (used in both desktop sidebar and mobile drawer) ───────
+function SidebarNav({
+  me, pathname, projectId,
+  userMenuOpen, onToggleUserMenu, onChangePwd, onLogout,
+  onNavClick, onClose,
+}: {
+  me: Me | null;
+  pathname: string;
+  projectId?: string;
+  userMenuOpen: boolean;
+  onToggleUserMenu: () => void;
+  onChangePwd: () => void;
+  onLogout: () => void;
+  onNavClick?: () => void;
+  onClose?: () => void;
+}) {
+  return (
+    <>
+      {/* Logo + user section */}
+      <div className="px-5 py-4 border-b border-slate-700/60">
+        <div className="flex items-center gap-2 mb-3">
+          <KoinoboriIcon className="h-6 w-6 shrink-0" />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-bold text-white leading-tight truncate">
+              {me?.company_name ?? 'PM Tool'}
+            </p>
+            <p className="text-xs text-slate-400 leading-tight">Project Manager</p>
+          </div>
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="p-1 rounded-lg hover:bg-slate-800 transition-colors shrink-0"
+              aria-label="Close navigation"
+            >
+              <X className="h-4 w-4 text-slate-400" />
+            </button>
+          )}
+        </div>
+
+        <button
+          onClick={onToggleUserMenu}
+          className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-slate-800 transition-colors text-left"
+        >
+          <div className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
+            {(me?.display_name || me?.username || '?')[0].toUpperCase()}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-semibold text-slate-200 truncate">{me?.display_name || me?.username || '…'}</p>
+            <p className="text-[10px] text-slate-500 truncate">{me?.username}</p>
+          </div>
+          <ChevronDown className={cn('h-3.5 w-3.5 text-slate-500 shrink-0 transition-transform', userMenuOpen && 'rotate-180')} />
+        </button>
+
+        {userMenuOpen && (
+          <div className="mt-1 flex flex-col gap-0.5">
+            <button
+              onClick={onChangePwd}
+              className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-sm text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
+            >
+              <KeyRound className="h-3.5 w-3.5" />
+              Change Password
+            </button>
+            <button
+              onClick={onLogout}
+              className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-sm text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+              Sign Out
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Main nav */}
+      <nav className="p-3 flex flex-col gap-1">
+        {NAV.map(({ href, icon: Icon, label }) => (
+          <Link
+            key={href}
+            href={href}
+            onClick={onNavClick}
+            className={cn(
+              'flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors',
+              pathname === href
+                ? 'bg-blue-600 text-white'
+                : 'text-slate-300 hover:bg-slate-700 hover:text-white'
+            )}
+          >
+            <Icon className="h-4 w-4 shrink-0" />
+            {label}
+          </Link>
+        ))}
+
+        {me?.is_admin ? (
+          <Link
+            href="/admin"
+            onClick={onNavClick}
+            className={cn(
+              'flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors',
+              pathname === '/admin'
+                ? 'bg-amber-600 text-white'
+                : 'text-amber-400 hover:bg-slate-700 hover:text-amber-300'
+            )}
+          >
+            <ShieldCheck className="h-4 w-4 shrink-0" />
+            Admin Panel
+          </Link>
+        ) : null}
+      </nav>
+
+      {/* Project-specific nav */}
+      {projectId && (
+        <div className="mt-2 px-3 pb-4">
+          <p className="text-xs text-slate-500 uppercase tracking-widest px-3 mb-2">Project</p>
+          <div className="flex flex-col gap-1">
+            {PROJECT_NAV.map(({ href, icon: Icon, label }) => {
+              const full = `/projects/${projectId}${href}`;
+              return (
+                <Link
+                  key={href}
+                  href={full}
+                  onClick={onNavClick}
+                  className={cn(
+                    'flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors',
+                    pathname === full
+                      ? 'bg-blue-600 text-white'
+                      : 'text-slate-300 hover:bg-slate-700 hover:text-white'
+                  )}
+                >
+                  <Icon className="h-4 w-4 shrink-0" />
+                  {label}
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+// ─── Main Sidebar component ────────────────────────────────────────────────────
 export default function Sidebar({ projectId }: { projectId?: string }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -57,6 +200,7 @@ export default function Sidebar({ projectId }: { projectId?: string }) {
   const [changePwdOpen, setChangePwdOpen] = useState(false);
   const [pwdForm, setPwdForm] = useState({ current: '', next: '', confirm: '' });
   const [pwdLoading, setPwdLoading] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
     fetch('/api/auth/me').then(r => r.ok ? r.json() : null).then(data => { if (data) setMe(data); });
@@ -68,7 +212,13 @@ export default function Sidebar({ projectId }: { projectId?: string }) {
     router.refresh();
   };
 
-  const openChangePwd = () => { setPwdForm({ current: '', next: '', confirm: '' }); setUserMenuOpen(false); setChangePwdOpen(true); };
+  const openChangePwd = () => {
+    setPwdForm({ current: '', next: '', confirm: '' });
+    setUserMenuOpen(false);
+    setMobileOpen(false);
+    setChangePwdOpen(true);
+  };
+
   const handleChangePwd = async () => {
     if (!pwdForm.current || !pwdForm.next || !pwdForm.confirm) { toast.error('All fields are required'); return; }
     if (pwdForm.next !== pwdForm.confirm) { toast.error('New passwords do not match'); return; }
@@ -85,118 +235,49 @@ export default function Sidebar({ projectId }: { projectId?: string }) {
     setChangePwdOpen(false);
   };
 
+  const navProps = {
+    me, pathname, projectId, userMenuOpen,
+    onToggleUserMenu: () => setUserMenuOpen(v => !v),
+    onChangePwd: openChangePwd,
+    onLogout: handleLogout,
+  };
+
   return (
-    <aside className="w-60 min-h-screen bg-[#0f172a] text-slate-200 flex flex-col shrink-0">
-      {/* Logo */}
-      <div className="px-5 py-4 border-b border-slate-700/60">
-        <div className="flex items-center gap-2 mb-3">
-          <KoinoboriIcon className="h-6 w-6 shrink-0" />
-          <div className="min-w-0">
-            <p className="text-sm font-bold text-white leading-tight truncate">
-              {me?.company_name ?? 'PM Tool'}
-            </p>
-            <p className="text-xs text-slate-400 leading-tight">Project Manager</p>
-          </div>
-        </div>
-
-        {/* User section */}
+    <>
+      {/* ── Mobile top bar (visible on < lg) ── */}
+      <div className="lg:hidden h-14 bg-[#0f172a] text-slate-200 flex items-center px-4 gap-3 border-b border-slate-700/60 w-full shrink-0">
+        <KoinoboriIcon className="h-6 w-6 shrink-0" />
+        <p className="text-sm font-bold text-white truncate flex-1">{me?.company_name ?? 'PM Tool'}</p>
         <button
-          onClick={() => setUserMenuOpen(v => !v)}
-          className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-slate-800 transition-colors text-left"
+          onClick={() => setMobileOpen(true)}
+          className="p-1.5 rounded-lg hover:bg-slate-800 transition-colors"
+          aria-label="Open navigation"
         >
-          <div className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
-            {(me?.display_name || me?.username || '?')[0].toUpperCase()}
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold text-slate-200 truncate">{me?.display_name || me?.username || '…'}</p>
-            <p className="text-[10px] text-slate-500 truncate">{me?.username}</p>
-          </div>
-          <ChevronDown className={cn('h-3.5 w-3.5 text-slate-500 shrink-0 transition-transform', userMenuOpen && 'rotate-180')} />
+          <Menu className="h-5 w-5 text-slate-300" />
         </button>
-
-        {userMenuOpen && (
-          <div className="mt-1 flex flex-col gap-0.5">
-            <button
-              onClick={openChangePwd}
-              className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-sm text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
-            >
-              <KeyRound className="h-3.5 w-3.5" />
-              Change Password
-            </button>
-            <button
-              onClick={handleLogout}
-              className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-sm text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors"
-            >
-              <LogOut className="h-3.5 w-3.5" />
-              Sign Out
-            </button>
-          </div>
-        )}
       </div>
 
-      {/* Main nav */}
-      <nav className="p-3 flex flex-col gap-1">
-        {NAV.map(({ href, icon: Icon, label }) => (
-          <Link
-            key={href}
-            href={href}
-            className={cn(
-              'flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors',
-              pathname === href
-                ? 'bg-blue-600 text-white'
-                : 'text-slate-300 hover:bg-slate-700 hover:text-white'
-            )}
-          >
-            <Icon className="h-4 w-4 shrink-0" />
-            {label}
-          </Link>
-        ))}
+      {/* ── Desktop sidebar (visible on lg+) ── */}
+      <aside className="hidden lg:flex w-60 min-h-screen bg-[#0f172a] text-slate-200 flex-col shrink-0">
+        <SidebarNav {...navProps} />
+      </aside>
 
-        {/* Admin link — only for admins */}
-        {me?.is_admin ? (
-          <Link
-            href="/admin"
-            className={cn(
-              'flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors',
-              pathname === '/admin'
-                ? 'bg-amber-600 text-white'
-                : 'text-amber-400 hover:bg-slate-700 hover:text-amber-300'
-            )}
-          >
-            <ShieldCheck className="h-4 w-4 shrink-0" />
-            Admin Panel
-          </Link>
-        ) : null}
-      </nav>
+      {/* ── Mobile drawer ── */}
+      <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+        <SheetContent
+          side="left"
+          className="p-0 bg-[#0f172a] text-slate-200 border-r border-slate-700/60 overflow-y-auto"
+          showCloseButton={false}
+        >
+          <SidebarNav
+            {...navProps}
+            onNavClick={() => setMobileOpen(false)}
+            onClose={() => setMobileOpen(false)}
+          />
+        </SheetContent>
+      </Sheet>
 
-      {/* Project-specific nav */}
-      {projectId && (
-        <div className="mt-2 px-3">
-          <p className="text-xs text-slate-500 uppercase tracking-widest px-3 mb-2">Project</p>
-          <div className="flex flex-col gap-1">
-            {PROJECT_NAV.map(({ href, icon: Icon, label }) => {
-              const full = `/projects/${projectId}${href}`;
-              return (
-                <Link
-                  key={href}
-                  href={full}
-                  className={cn(
-                    'flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors',
-                    pathname === full
-                      ? 'bg-blue-600 text-white'
-                      : 'text-slate-300 hover:bg-slate-700 hover:text-white'
-                  )}
-                >
-                  <Icon className="h-4 w-4 shrink-0" />
-                  {label}
-                </Link>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Change Password Dialog */}
+      {/* ── Change Password Dialog ── */}
       <Dialog open={changePwdOpen} onOpenChange={setChangePwdOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
@@ -234,6 +315,6 @@ export default function Sidebar({ projectId }: { projectId?: string }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </aside>
+    </>
   );
 }

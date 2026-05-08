@@ -286,9 +286,9 @@ export default function DocumentsPage() {
   // ─────────────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex flex-col lg:flex-row min-h-screen">
       <Sidebar projectId={id} />
-      <main className="flex-1 p-6">
+      <main className="flex-1 p-4 lg:p-6">
 
         {/* ── Kick-off PPT ───────────────────────────────────────────────── */}
         <div className="mb-8">

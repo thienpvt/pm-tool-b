@@ -178,9 +178,9 @@ export default function AnalysisPage() {
 
   if (!activities.length && !projectName) {
     return (
-      <div className="flex min-h-screen">
+      <div className="flex flex-col lg:flex-row min-h-screen">
         <Sidebar projectId={id} />
-        <main className="flex-1 p-8"><p className="text-slate-400">Loading...</p></main>
+        <main className="flex-1 p-4 lg:p-8"><p className="text-slate-400">Loading...</p></main>
       </div>
     );
   }
@@ -242,9 +242,9 @@ export default function AnalysisPage() {
   const maxOwnerDays = Math.max(1, ...ownerTotals.map(o => o.days));
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex flex-col lg:flex-row min-h-screen">
       <Sidebar projectId={id} />
-      <main className="flex-1 p-6 overflow-x-auto">
+      <main className="flex-1 p-4 lg:p-6 overflow-x-auto">
         <div className="mb-6">
           <h1 className="text-xl font-bold text-slate-800">Delay Analysis</h1>
           <p className="text-xs text-slate-400 mt-0.5">{projectName}{clientName ? ` · ${clientName}` : ''}</p>

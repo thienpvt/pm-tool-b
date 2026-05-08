@@ -125,16 +125,16 @@ export default function ProjectPage() {
   const selectedCustomer = customers.find(c => c.id === (editForm.customer_id ?? project?.customer_id));
 
   if (!project) return (
-    <div className="flex min-h-screen">
+    <div className="flex flex-col lg:flex-row min-h-screen">
       <Sidebar projectId={id} />
-      <main className="flex-1 p-8"><p className="text-slate-400">Loading...</p></main>
+      <main className="flex-1 p-4 lg:p-8"><p className="text-slate-400">Loading...</p></main>
     </div>
   );
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex flex-col lg:flex-row min-h-screen">
       <Sidebar projectId={id} />
-      <main className="flex-1 p-8 max-w-5xl">
+      <main className="flex-1 p-4 lg:p-8 max-w-5xl">
 
         {/* ── Header ── */}
         <div className="flex items-start justify-between mb-6">
@@ -154,7 +154,7 @@ export default function ProjectPage() {
               {project.start_date && <span>{project.start_date} → {project.end_date || '?'}</span>}
             </div>
           </div>
-          <div className="flex items-center gap-2 shrink-0 ml-4">
+          <div className="flex items-center gap-2 flex-wrap shrink-0 ml-4">
             <Button variant="outline" size="sm" onClick={openEdit} className="gap-2">
               <Pencil className="h-3.5 w-3.5" /> Edit
             </Button>

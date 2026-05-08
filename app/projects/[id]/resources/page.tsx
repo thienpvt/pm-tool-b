@@ -259,10 +259,10 @@ export default function ResourcesPage() {
   if (ungrouped.length) grouped['Other'] = [...(grouped['Other'] ?? []), ...ungrouped];
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex flex-col lg:flex-row min-h-screen">
       <Sidebar projectId={id} />
-      <main className="flex-1 p-6 overflow-x-auto">
-        <div className="flex items-center justify-between mb-5">
+      <main className="flex-1 p-4 lg:p-6 overflow-x-auto">
+        <div className="flex items-start justify-between gap-3 flex-wrap mb-5">
           <div className="flex items-center gap-4">
             <h1 className="text-xl font-bold text-slate-800">Resource Plan</h1>
             {/* Year navigator */}
@@ -292,7 +292,7 @@ export default function ResourcesPage() {
               </button>
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button
               variant="outline"
               onClick={exportExcel}

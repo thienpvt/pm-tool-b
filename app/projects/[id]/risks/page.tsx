@@ -623,9 +623,9 @@ export default function RisksPage() {
   const handleSaved = (_item: Risk | Issue, _type: ItemType, _isNew: boolean) => {};
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
+    <div className="flex flex-col lg:flex-row min-h-screen bg-slate-50">
       <Sidebar projectId={id} />
-      <main className="flex-1 p-6">
+      <main className="flex-1 p-4 lg:p-6">
         <div className="max-w-5xl mx-auto">
           <div className="mb-6">
             <h1 className="text-xl font-bold text-slate-800 flex items-center gap-2">

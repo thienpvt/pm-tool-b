@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import Sidebar from '@/components/layout/Sidebar';
@@ -629,9 +629,9 @@ export default function PortfolioReportPage() {
   });
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
+    <div className="flex flex-col lg:flex-row min-h-screen bg-slate-50">
       <Sidebar />
-      <main className="flex-1 p-6 overflow-auto">
+      <main className="flex-1 p-4 lg:p-6 overflow-auto">
         <div className="max-w-6xl mx-auto space-y-5">
 
           {/* ── 1. Header ── */}

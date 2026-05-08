@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Sidebar from '@/components/layout/Sidebar';
@@ -144,9 +144,9 @@ export default function GlobalResourcesPage() {
   }).length;
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex flex-col lg:flex-row min-h-screen">
       <Sidebar />
-      <main className="flex-1 p-6 overflow-x-auto">
+      <main className="flex-1 p-4 lg:p-6 overflow-x-auto">
         <div className="flex items-center justify-between mb-5">
           <div>
             <h1 className="text-xl font-bold text-slate-800">Global Resource View</h1>

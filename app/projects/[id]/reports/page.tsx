@@ -437,7 +437,7 @@ export default function ReportsPage() {
 
   // ─── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="flex min-h-screen bg-slate-50">
+    <div className="flex flex-col lg:flex-row min-h-screen bg-slate-50">
       <Sidebar projectId={id} />
 
       {/* ── Saved Reports Panel ── */}
@@ -494,7 +494,7 @@ export default function ReportsPage() {
       </div>
 
       {/* ── Main Area ── */}
-      <main className="flex-1 overflow-auto p-5">
+      <main className="flex-1 overflow-auto p-4 lg:p-5">
         <div className="max-w-5xl mx-auto">
 
           {/* Header */}
