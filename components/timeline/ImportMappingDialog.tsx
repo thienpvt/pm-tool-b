@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Upload, Save, Trash2, ChevronRight, ChevronLeft, FileSpreadsheet, Check, Calendar, Users, BarChart2, AlertTriangle, StickyNote, Info } from 'lucide-react';
+import { Upload, Save, Trash2, ChevronRight, ChevronLeft, FileSpreadsheet, Check, Calendar, Users, BarChart2, AlertTriangle, FileText, Info } from 'lucide-react';
 
 // ─── Activity fields definition ───────────────────────────────────────────────
 export const ACTIVITY_FIELDS: { key: string; label: string; required?: boolean }[] = [
@@ -77,7 +77,7 @@ const FIELD_GROUPS: { label: string; icon: React.ComponentType<{ className?: str
   { label: 'Ngày tháng',       icon: Calendar,       keys: ['plan_start', 'plan_end', 'actual_start', 'actual_end'],   color: 'orange' },
   { label: 'Tiến độ',          icon: BarChart2,      keys: ['status', 'completion_pct'],                               color: 'green'  },
   { label: 'Vấn đề trễ',       icon: AlertTriangle,  keys: ['delay_owner', 'delay_reason'],                            color: 'red'    },
-  { label: 'Ghi chú',          icon: StickyNote,     keys: ['notes'],                                                  color: 'gray'   },
+  { label: 'Ghi chú',          icon: FileText,       keys: ['notes'],                                                  color: 'gray'   },
 ];
 
 // ─── Value normalizers ────────────────────────────────────────────────────────
@@ -365,7 +365,7 @@ export default function ImportMappingDialog({
 
   // ─────────────────────────────────────────────────────────────────────────────
   return (
-    <Dialog open={open} onOpenChange={o => { if (!o) onOpenChange(false); }}>
+    <Dialog open={open} onOpenChange={(o: boolean) => { if (!o) onOpenChange(false); }}>
       <DialogContent className="w-[98vw] max-w-[98vw] sm:max-w-[98vw] h-[94vh] overflow-hidden flex flex-col p-5">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
