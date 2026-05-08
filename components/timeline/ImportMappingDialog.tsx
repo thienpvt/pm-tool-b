@@ -366,7 +366,7 @@ export default function ImportMappingDialog({
                         </span>
                         <Select
                           value={mapping[field.key] ?? SKIP}
-                          onValueChange={val => setFieldMapping(field.key, val)}
+                          onValueChange={val => setFieldMapping(field.key, val ?? SKIP)}
                         >
                           <SelectTrigger className="h-7 text-xs">
                             <SelectValue />
