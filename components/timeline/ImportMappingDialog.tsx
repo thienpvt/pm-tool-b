@@ -272,7 +272,7 @@ export default function ImportMappingDialog({
           </div>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto py-2">
+        <div className={`flex-1 py-2 ${step === 2 ? 'overflow-hidden flex flex-col' : 'overflow-y-auto'}`}>
 
           {/* ── Step 1: Upload ─────────────────────────────────────────────────── */}
           {step === 1 && (
@@ -301,104 +301,180 @@ export default function ImportMappingDialog({
               )}
               <div className="bg-slate-50 rounded-lg p-3 text-xs text-slate-500 space-y-1">
                 <p className="font-medium text-slate-600">Lưu ý:</p>
-                <p>• Dòng đầu tiên của file sẽ được nhận diện làm header (tên cột)</p>
-                <p>• Hệ thống sẽ tự động gợi ý mapping dựa trên tên cột</p>
-                <p>• Bạn có thể điều chỉnh mapping thủ công ở bước tiếp theo</p>
+                <p>• Hệ thống tự động tìm dòng header — bỏ qua các dòng trống ở đầu file</p>
+                <p>• Hỗ trợ mọi cấu trúc file: tên cột bất kỳ, thứ tự tuỳ ý</p>
+                <p>• Bước tiếp theo bạn chỉ cần kéo thả / chọn dropdown để map từng cột</p>
               </div>
             </div>
           )}
 
           {/* ── Step 2: Mapping ────────────────────────────────────────────────── */}
           {step === 2 && fileData && (
-            <div className="space-y-4">
-              {/* Saved templates */}
-              {savedMappings.length > 0 && (
-                <div className="bg-blue-50 rounded-lg p-3">
-                  <p className="text-xs font-semibold text-blue-700 mb-2">Template đã lưu</p>
-                  <div className="flex flex-wrap gap-1.5">
+            <div className="flex flex-col gap-3 h-full">
+
+              {/* Top bar: file info + templates + save */}
+              <div className="flex flex-wrap items-center gap-2">
+                {/* File badge */}
+                <div className="flex items-center gap-1.5 bg-blue-50 border border-blue-200 rounded-lg px-3 py-1.5 text-xs shrink-0">
+                  <FileSpreadsheet className="h-3.5 w-3.5 text-blue-500" />
+                  <span className="font-medium text-blue-700 max-w-[200px] truncate">{fileName}</span>
+                  <span className="text-blue-400">·</span>
+                  <span className="text-blue-600">{fileData.columns.length} cột</span>
+                  <span className="text-blue-400">·</span>
+                  <span className="text-blue-600">{fileData.allRows.length} dòng</span>
+                </div>
+
+                {/* Mapped count badge */}
+                <div className={`flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs shrink-0 border
+                  ${mappedCount > 0 ? 'bg-green-50 border-green-200 text-green-700' : 'bg-slate-50 border-slate-200 text-slate-500'}`}>
+                  <Check className="h-3.5 w-3.5" />
+                  {mappedCount}/{ACTIVITY_FIELDS.length} trường đã map
+                </div>
+
+                <button
+                  className="text-xs text-blue-500 hover:text-blue-700 hover:underline px-2 py-1 shrink-0"
+                  onClick={() => setMapping(autoSuggestMapping(fileData.columns))}
+                >
+                  Gợi ý tự động
+                </button>
+
+                <div className="flex-1" />
+
+                {/* Saved templates */}
+                {savedMappings.length > 0 && (
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-[11px] text-slate-400 shrink-0">Template:</span>
                     {savedMappings.map(tpl => (
-                      <div key={tpl.id} className="flex items-center gap-1 bg-white border border-blue-200 rounded-md px-2 py-1 text-xs">
+                      <div key={tpl.id} className="flex items-center bg-white border border-slate-200 rounded-md overflow-hidden text-xs">
                         <button
-                          className="text-blue-600 hover:underline font-medium"
+                          className="px-2 py-1 text-blue-600 hover:bg-blue-50 font-medium"
                           onClick={() => applyTemplate(tpl)}
+                          title="Áp dụng template này"
                         >
                           {tpl.name}
                         </button>
-                        <button onClick={() => deleteTemplate(tpl.id)} className="text-slate-300 hover:text-red-500 ml-1">
+                        <button
+                          onClick={() => deleteTemplate(tpl.id)}
+                          className="px-1.5 py-1 text-slate-300 hover:text-red-500 hover:bg-red-50 border-l border-slate-200"
+                          title="Xóa template"
+                        >
                           <Trash2 className="h-3 w-3" />
                         </button>
                       </div>
                     ))}
                   </div>
-                </div>
-              )}
+                )}
 
-              {/* File info */}
-              <div className="flex items-center gap-2 text-xs text-slate-500 bg-slate-50 rounded px-3 py-2">
-                <FileSpreadsheet className="h-4 w-4 text-slate-400 shrink-0" />
-                <span className="font-medium truncate">{fileName}</span>
-                <span className="shrink-0">— {fileData.columns.length} cột, {fileData.allRows.length} dòng dữ liệu</span>
-              </div>
-
-              {/* Mapping table */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs font-semibold text-slate-600">
-                    Mapping cột ({mappedCount}/{ACTIVITY_FIELDS.length} đã map)
-                  </p>
-                  <button
-                    className="text-xs text-blue-500 hover:underline"
-                    onClick={() => setMapping(autoSuggestMapping(fileData.columns))}
-                  >
-                    Tự động gợi ý lại
-                  </button>
-                </div>
-                <div className="border rounded-lg overflow-hidden text-xs">
-                  <div className="grid grid-cols-2 bg-slate-50 px-3 py-1.5 text-[11px] font-semibold text-slate-500 border-b">
-                    <span>Trường trong Timeline</span>
-                    <span>Cột trong file</span>
-                  </div>
-                  <div className="divide-y max-h-[45vh] overflow-y-auto">
-                    {ACTIVITY_FIELDS.map(field => (
-                      <div key={field.key} className="grid grid-cols-2 items-center px-3 py-1.5 hover:bg-slate-50">
-                        <span className={`text-xs ${field.required ? 'font-semibold text-slate-700' : 'text-slate-500'}`}>
-                          {field.label}{field.required && <span className="text-red-500 ml-0.5">*</span>}
-                        </span>
-                        <Select
-                          value={mapping[field.key] ?? SKIP}
-                          onValueChange={val => setFieldMapping(field.key, val ?? SKIP)}
-                        >
-                          <SelectTrigger className="h-7 text-xs">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value={SKIP}>— Bỏ qua —</SelectItem>
-                            {fileData.columns.map(col => (
-                              <SelectItem key={col} value={col}>{col}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Save template */}
-              <div className="bg-slate-50 rounded-lg p-3">
-                <p className="text-xs font-semibold text-slate-600 mb-2">Lưu mapping này để dùng lại</p>
-                <div className="flex gap-2">
+                {/* Save template inline */}
+                <div className="flex items-center gap-1 shrink-0">
                   <Input
-                    className="h-8 text-xs flex-1"
-                    placeholder="Tên template (vd: JIRA Export, Trello...)"
+                    className="h-7 text-xs w-40"
+                    placeholder="Tên template..."
                     value={saveName}
                     onChange={e => setSaveName(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter') saveTemplate(); }}
                   />
-                  <Button size="sm" variant="outline" onClick={saveTemplate} disabled={saving || !saveName.trim()} className="gap-1 h-8">
-                    <Save className="h-3.5 w-3.5" />
-                    {saving ? 'Đang lưu...' : 'Lưu'}
+                  <Button size="sm" variant="outline" onClick={saveTemplate} disabled={saving || !saveName.trim()} className="gap-1 h-7 text-xs px-2">
+                    <Save className="h-3 w-3" />
+                    {saving ? '...' : 'Lưu'}
                   </Button>
+                </div>
+              </div>
+
+              {/* Two-panel mapping area */}
+              <div className="grid grid-cols-2 gap-3 flex-1 min-h-0">
+
+                {/* LEFT PANEL: File columns */}
+                <div className="flex flex-col border rounded-xl overflow-hidden shadow-sm">
+                  <div className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white text-sm font-semibold shrink-0">
+                    <FileSpreadsheet className="h-4 w-4" />
+                    <span>Cột trong file Excel</span>
+                    <span className="ml-auto text-blue-200 text-xs font-normal">{fileData.columns.length} cột</span>
+                  </div>
+                  <div className="overflow-y-auto flex-1 divide-y divide-slate-100 bg-white">
+                    {fileData.columns.map((col, idx) => {
+                      const mappedField = Object.entries(mapping).find(([, v]) => v === col);
+                      const fieldDef = mappedField ? ACTIVITY_FIELDS.find(f => f.key === mappedField[0]) : null;
+                      const sampleVal = fileData.preview.find(r => r[idx]?.trim())?.[idx] ?? '';
+                      return (
+                        <div key={col} className={`flex items-start gap-3 px-3 py-2.5 transition-colors
+                          ${fieldDef ? 'bg-green-50 hover:bg-green-100/70' : 'hover:bg-slate-50'}`}>
+                          <span className="text-[11px] text-slate-400 w-5 text-right mt-0.5 shrink-0 font-mono">{idx + 1}</span>
+                          <div className="flex-1 min-w-0">
+                            <p className={`text-xs font-semibold truncate ${fieldDef ? 'text-slate-800' : 'text-slate-600'}`}>
+                              {col}
+                            </p>
+                            {sampleVal && (
+                              <p className="text-[11px] text-slate-400 truncate mt-0.5 italic">{sampleVal}</p>
+                            )}
+                          </div>
+                          {fieldDef ? (
+                            <span className="shrink-0 text-[10px] bg-green-500 text-white px-1.5 py-0.5 rounded font-medium whitespace-nowrap">
+                              → {fieldDef.label}
+                            </span>
+                          ) : (
+                            <span className="shrink-0 text-[10px] text-slate-300 px-1.5 py-0.5">—</span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* RIGHT PANEL: Timeline mapping */}
+                <div className="flex flex-col border rounded-xl overflow-hidden shadow-sm">
+                  <div className="flex items-center gap-2 px-4 py-2.5 bg-slate-700 text-white text-sm font-semibold shrink-0">
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+                    <span>Trường trong Timeline</span>
+                    <span className="ml-auto text-slate-400 text-xs font-normal">{ACTIVITY_FIELDS.length} trường</span>
+                  </div>
+                  <div className="overflow-y-auto flex-1 divide-y divide-slate-100 bg-white">
+                    {ACTIVITY_FIELDS.map(field => {
+                      const isMapped = mapping[field.key] && mapping[field.key] !== SKIP;
+                      const isRequiredUnmapped = field.required && !isMapped;
+                      return (
+                        <div key={field.key} className={`flex items-center gap-3 px-3 py-2 transition-colors
+                          ${isMapped ? 'bg-green-50/60' : isRequiredUnmapped ? 'bg-red-50/40' : ''}`}>
+                          {/* Status dot */}
+                          <div className={`w-2 h-2 rounded-full shrink-0
+                            ${isMapped ? 'bg-green-500' : isRequiredUnmapped ? 'bg-red-400' : 'bg-slate-200'}`} />
+
+                          {/* Field label */}
+                          <div className="w-36 shrink-0">
+                            <span className={`text-xs ${field.required ? 'font-semibold text-slate-800' : 'text-slate-500'}`}>
+                              {field.label}
+                              {field.required && <span className="text-red-500 ml-0.5">*</span>}
+                            </span>
+                          </div>
+
+                          {/* Arrow */}
+                          <ChevronRight className={`h-3.5 w-3.5 shrink-0 ${isMapped ? 'text-green-500' : 'text-slate-200'}`} />
+
+                          {/* Dropdown */}
+                          <div className="flex-1 min-w-0">
+                            <Select
+                              value={mapping[field.key] ?? SKIP}
+                              onValueChange={val => setFieldMapping(field.key, val ?? SKIP)}
+                            >
+                              <SelectTrigger className={`h-7 text-xs w-full
+                                ${isMapped ? 'border-green-300 bg-white text-green-700 font-medium' : 'text-slate-400'}`}>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value={SKIP}>— Bỏ qua —</SelectItem>
+                                {fileData.columns.map(col => (
+                                  <SelectItem key={col} value={col}>{col}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          {/* Check icon */}
+                          {isMapped && <Check className="h-3.5 w-3.5 text-green-500 shrink-0" />}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             </div>

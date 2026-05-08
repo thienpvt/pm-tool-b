@@ -33,6 +33,16 @@ function cellStr(cell: ExcelJS.Cell): string {
   return String(cell.value).trim();
 }
 
+function rowValues(row: ExcelJS.Row, maxCols: number): string[] {
+  const cells: string[] = [];
+  for (let c = 1; c <= maxCols; c++) cells.push(cellStr(row.getCell(c)));
+  return cells;
+}
+
+function countNonEmpty(vals: string[]): number {
+  return vals.filter(v => v.trim()).length;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData();
@@ -51,51 +61,62 @@ export async function POST(req: NextRequest) {
       const sheet = workbook.worksheets[0];
       if (!sheet) return NextResponse.json({ error: 'Empty workbook' }, { status: 400 });
 
-      // Find first non-empty row as header
-      let headerRowNum = 1;
+      // Auto-detect header: find first row with at least 2 non-empty cells
+      let headerRowNum = -1;
       sheet.eachRow((row, rowNum) => {
-        if (rowNum <= headerRowNum) {
-          const vals = (row.values as (ExcelJS.CellValue | undefined)[]).slice(1).map(v => {
+        if (headerRowNum !== -1) return;
+        const vals = (row.values as (ExcelJS.CellValue | undefined)[])
+          .slice(1)
+          .map(v => {
             if (v === null || v === undefined) return '';
-            if (typeof v === 'object' && 'richText' in (v as object)) {
+            if (typeof v === 'object' && 'richText' in (v as object))
               return (v as ExcelJS.CellRichTextValue).richText.map(r => r.text).join('');
-            }
+            if (v instanceof Date) return v.toISOString().split('T')[0];
             return String(v).trim();
           });
-          if (vals.some(v => v)) columns = vals.map(v => v || '');
+        if (countNonEmpty(vals) >= 2) {
+          headerRowNum = rowNum;
+          columns = vals.map(v => v || '');
+          // Remove trailing empty columns
+          while (columns.length && !columns[columns.length - 1]) columns.pop();
         }
       });
 
-      // Remove trailing empty columns
-      while (columns.length && !columns[columns.length - 1]) columns.pop();
+      if (headerRowNum === -1 || !columns.length) {
+        return NextResponse.json({ error: 'Không tìm thấy header trong file' }, { status: 400 });
+      }
 
-      // Collect up to 100 data rows
-      let currentRow = 0;
+      // Collect data rows after the header row
       sheet.eachRow((row, rowNum) => {
-        if (rowNum === 1) return;
-        if (currentRow >= 100) return;
-        currentRow++;
-        const cells: string[] = [];
-        for (let c = 1; c <= columns.length; c++) {
-          cells.push(cellStr(row.getCell(c)));
-        }
-        dataRows.push(cells);
+        if (rowNum <= headerRowNum) return;
+        if (dataRows.length >= 200) return;
+        const cells = rowValues(row, columns.length);
+        if (countNonEmpty(cells) > 0) dataRows.push(cells);
       });
+
     } else {
-      // CSV / TXT
+      // CSV / TXT — skip leading empty lines, first non-empty line = header
       const text = new TextDecoder('utf-8').decode(arrayBuffer);
-      const all = parseCSV(text);
-      if (!all.length) return NextResponse.json({ error: 'Empty file' }, { status: 400 });
-      columns = all[0];
-      dataRows = all.slice(1, 101);
+      const all = parseCSV(text); // already skips blank lines
+      if (!all.length) return NextResponse.json({ error: 'File trống' }, { status: 400 });
+
+      // Find header: first row with >= 2 non-empty cells
+      let headerIdx = 0;
+      for (let i = 0; i < all.length; i++) {
+        if (countNonEmpty(all[i]) >= 2) { headerIdx = i; break; }
+      }
+      columns = all[headerIdx];
+      dataRows = all.slice(headerIdx + 1, headerIdx + 201).filter(r => countNonEmpty(r) > 0);
     }
 
-    // Filter out completely empty rows
-    dataRows = dataRows.filter(r => r.some(c => c.trim()));
-
-    return NextResponse.json({ columns, preview: dataRows.slice(0, 6), totalRows: dataRows.length, allRows: dataRows });
+    return NextResponse.json({
+      columns,
+      preview: dataRows.slice(0, 8),
+      totalRows: dataRows.length,
+      allRows: dataRows,
+    });
   } catch (e) {
     console.error('parse-file-headers error:', e);
-    return NextResponse.json({ error: 'Failed to parse file' }, { status: 500 });
+    return NextResponse.json({ error: 'Không thể đọc file. Kiểm tra định dạng.' }, { status: 500 });
   }
 }
