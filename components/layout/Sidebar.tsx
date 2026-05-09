@@ -8,6 +8,7 @@ import {
   MessageSquare, AlertTriangle, FileText, TrendingDown,
   PieChart, Building2, ClipboardList, FileBarChart2,
   LogOut, ShieldCheck, ChevronDown, KeyRound, Menu, X,
+  FolderOpen, Plus,
 } from 'lucide-react';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -50,16 +51,27 @@ const PROJECT_NAV = [
 ];
 
 type Me = { username: string; display_name: string; company_name: string | null; is_admin: number };
+type ProjectItem = { id: number; name: string; current_phase: string };
+
+const PHASE_DOT: Record<string, string> = {
+  Initiation: 'bg-purple-400',
+  Planning:   'bg-blue-400',
+  Execution:  'bg-amber-400',
+  Closing:    'bg-green-400',
+};
 
 // ─── Shared nav content (used in both desktop sidebar and mobile drawer) ───────
 function SidebarNav({
-  me, pathname, projectId,
+  me, pathname, projectId, projects, projectsOpen, onToggleProjects,
   userMenuOpen, onToggleUserMenu, onChangePwd, onLogout,
   onNavClick, onClose,
 }: {
   me: Me | null;
   pathname: string;
   projectId?: string;
+  projects: ProjectItem[];
+  projectsOpen: boolean;
+  onToggleProjects: () => void;
   userMenuOpen: boolean;
   onToggleUserMenu: () => void;
   onChangePwd: () => void;
@@ -143,6 +155,58 @@ function SidebarNav({
           </Link>
         ))}
 
+        {/* Projects collapsible */}
+        <button
+          onClick={onToggleProjects}
+          className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
+        >
+          <FolderOpen className="h-4 w-4 shrink-0" />
+          <span className="flex-1 text-left">Projects</span>
+          {projects.length > 0 && (
+            <span className="text-[10px] bg-slate-700 text-slate-400 rounded px-1.5 py-0.5 font-medium">
+              {projects.length}
+            </span>
+          )}
+          <ChevronDown className={cn('h-3.5 w-3.5 shrink-0 transition-transform', projectsOpen && 'rotate-180')} />
+        </button>
+
+        {projectsOpen && (
+          <div className="ml-3 flex flex-col gap-0.5 border-l border-slate-700/60 pl-3">
+            {projects.length === 0 && (
+              <p className="px-2 py-1.5 text-xs text-slate-500 italic">No projects yet</p>
+            )}
+            {projects.map(p => {
+              const isActive = projectId === String(p.id);
+              const dot = PHASE_DOT[p.current_phase] ?? 'bg-slate-500';
+              return (
+                <Link
+                  key={p.id}
+                  href={`/projects/${p.id}`}
+                  onClick={onNavClick}
+                  title={p.name}
+                  className={cn(
+                    'flex items-center gap-2 px-2 py-1.5 rounded-md text-xs transition-colors',
+                    isActive
+                      ? 'bg-blue-600/20 text-blue-300 font-medium'
+                      : 'text-slate-400 hover:bg-slate-700 hover:text-white'
+                  )}
+                >
+                  <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', dot)} />
+                  <span className="truncate">{p.name}</span>
+                </Link>
+              );
+            })}
+            <Link
+              href="/projects/new"
+              onClick={onNavClick}
+              className="flex items-center gap-2 px-2 py-1.5 rounded-md text-xs text-slate-500 hover:bg-slate-700 hover:text-white transition-colors mt-0.5"
+            >
+              <Plus className="h-3 w-3 shrink-0" />
+              New project
+            </Link>
+          </div>
+        )}
+
         {me?.is_admin ? (
           <Link
             href="/admin"
@@ -196,6 +260,8 @@ export default function Sidebar({ projectId }: { projectId?: string }) {
   const pathname = usePathname();
   const router = useRouter();
   const [me, setMe] = useState<Me | null>(null);
+  const [projects, setProjects] = useState<ProjectItem[]>([]);
+  const [projectsOpen, setProjectsOpen] = useState(true);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [changePwdOpen, setChangePwdOpen] = useState(false);
   const [pwdForm, setPwdForm] = useState({ current: '', next: '', confirm: '' });
@@ -204,6 +270,7 @@ export default function Sidebar({ projectId }: { projectId?: string }) {
 
   useEffect(() => {
     fetch('/api/auth/me').then(r => r.ok ? r.json() : null).then(data => { if (data) setMe(data); });
+    fetch('/api/projects').then(r => r.ok ? r.json() : []).then((data: ProjectItem[]) => setProjects(data ?? []));
   }, []);
 
   const handleLogout = async () => {
@@ -236,7 +303,9 @@ export default function Sidebar({ projectId }: { projectId?: string }) {
   };
 
   const navProps = {
-    me, pathname, projectId, userMenuOpen,
+    me, pathname, projectId, projects, projectsOpen,
+    onToggleProjects: () => setProjectsOpen(v => !v),
+    userMenuOpen,
     onToggleUserMenu: () => setUserMenuOpen(v => !v),
     onChangePwd: openChangePwd,
     onLogout: handleLogout,
