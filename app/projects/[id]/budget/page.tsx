@@ -368,7 +368,7 @@ export default function BudgetPage() {
                     <XAxis dataKey="name" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
                     <YAxis hide />
                     <Tooltip
-                      formatter={(v: number) => fmtFull(v)}
+                      formatter={(v: number | string | undefined) => fmtFull(Number(v ?? 0))}
                       contentStyle={{ fontSize: 11, borderRadius: 8 }}
                     />
                     <Legend iconSize={10} wrapperStyle={{ fontSize: 11 }} />
