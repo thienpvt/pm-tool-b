@@ -54,6 +54,13 @@ const EMPTY_EXP = {
 };
 
 // ─── Formatters ───────────────────────────────────────────────────────────────
+function formatDisplayAmount(v: string): string {
+  if (!v) return '';
+  const parts = v.split('.');
+  const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return parts.length > 1 ? `${intPart}.${parts[1]}` : intPart;
+}
+
 function fmtAmount(n: number, unit: string, compact = false): string {
   const u = (unit || '').toUpperCase();
   const prefix = CURRENCY_PREFIX[u] ?? '';
@@ -151,6 +158,8 @@ export default function BudgetPage() {
   const [expenseTarget, setExpenseTarget] = useState<BudgetItem | null>(null);
   const [expForm, setExpForm]           = useState({ ...EMPTY_EXP });
   const [expSaving, setExpSaving]       = useState(false);
+  const [unitOpen, setUnitOpen]         = useState(false);
+  const [focusedField, setFocusedField] = useState<string | null>(null);
 
   const load = useCallback(() => {
     fetch(`/api/projects/${projectId}/budget`)
@@ -758,17 +767,36 @@ export default function BudgetPage() {
             {/* Unit */}
             <div>
               <Label className="text-xs">Unit (currency / measure)</Label>
-              <Input
-                className="mt-1.5"
-                value={form.unit}
-                onChange={e => setForm(f => ({ ...f, unit: e.target.value }))}
-                placeholder="USD / VND / person-day"
-                list="unit-suggestions"
-              />
-              <datalist id="unit-suggestions">
-                {UNIT_PRESETS.map(u => <option key={u} value={u} />)}
-                {unitSuggestions.filter(u => !UNIT_PRESETS.includes(u)).map(u => <option key={u} value={u} />)}
-              </datalist>
+              <div className="relative mt-1.5">
+                <input
+                  className="h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                  value={form.unit}
+                  onChange={e => { setForm(f => ({ ...f, unit: e.target.value })); setUnitOpen(true); }}
+                  onFocus={() => setUnitOpen(true)}
+                  onBlur={() => setTimeout(() => setUnitOpen(false), 150)}
+                  placeholder="USD / VND / person-day"
+                  autoComplete="off"
+                />
+                {unitOpen && (() => {
+                  const query = form.unit.toLowerCase();
+                  const allUnits = [...UNIT_PRESETS, ...unitSuggestions.filter(u => !UNIT_PRESETS.includes(u))];
+                  const opts = query ? allUnits.filter(u => u.toLowerCase().includes(query)) : allUnits;
+                  return opts.length > 0 ? (
+                    <div className="absolute z-50 top-full left-0 right-0 mt-0.5 bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                      {opts.map(u => (
+                        <button
+                          key={u}
+                          type="button"
+                          className="w-full text-left px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50 first:rounded-t-lg last:rounded-b-lg"
+                          onMouseDown={() => { setForm(f => ({ ...f, unit: u })); setUnitOpen(false); }}
+                        >
+                          {u}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null;
+                })()}
+              </div>
               <p className="text-[10px] text-slate-400 mt-1">Currency symbols auto-applied: $USD €EUR £GBP ₫VND ¥JPY …</p>
             </div>
             {/* Amounts */}
@@ -777,10 +805,12 @@ export default function BudgetPage() {
                 <Label className="text-xs">Planned Amount</Label>
                 <Input
                   className="mt-1.5"
-                  type="number"
-                  min="0"
-                  value={form.planned_amount}
-                  onChange={e => setForm(f => ({ ...f, planned_amount: e.target.value }))}
+                  type="text"
+                  inputMode="decimal"
+                  value={focusedField === 'planned' ? form.planned_amount : formatDisplayAmount(form.planned_amount)}
+                  onFocus={() => setFocusedField('planned')}
+                  onBlur={() => setFocusedField(null)}
+                  onChange={e => setForm(f => ({ ...f, planned_amount: e.target.value.replace(/[^0-9.]/g, '') }))}
                   placeholder="0"
                 />
               </div>
@@ -793,10 +823,12 @@ export default function BudgetPage() {
                 </Label>
                 <Input
                   className="mt-1.5"
-                  type="number"
-                  min="0"
-                  value={form.actual_amount}
-                  onChange={e => setForm(f => ({ ...f, actual_amount: e.target.value }))}
+                  type="text"
+                  inputMode="decimal"
+                  value={focusedField === 'actual' ? form.actual_amount : formatDisplayAmount(form.actual_amount)}
+                  onFocus={() => setFocusedField('actual')}
+                  onBlur={() => setFocusedField(null)}
+                  onChange={e => setForm(f => ({ ...f, actual_amount: e.target.value.replace(/[^0-9.]/g, '') }))}
                   placeholder="0"
                   readOnly={!!(editItem && editItem.expenses.length > 0)}
                   disabled={!!(editItem && editItem.expenses.length > 0)}
@@ -855,11 +887,13 @@ export default function BudgetPage() {
                 <div>
                   <Label className="text-xs">Amount ({expenseTarget.unit})</Label>
                   <Input
-                    type="number"
-                    min="0"
+                    type="text"
+                    inputMode="decimal"
                     className="mt-1.5"
-                    value={expForm.amount}
-                    onChange={e => setExpForm(f => ({ ...f, amount: e.target.value }))}
+                    value={focusedField === 'exp_amount' ? expForm.amount : formatDisplayAmount(expForm.amount)}
+                    onFocus={() => setFocusedField('exp_amount')}
+                    onBlur={() => setFocusedField(null)}
+                    onChange={e => setExpForm(f => ({ ...f, amount: e.target.value.replace(/[^0-9.]/g, '') }))}
                     placeholder="0"
                     autoFocus
                   />
