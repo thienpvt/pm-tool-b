@@ -59,6 +59,27 @@ function buildYearTimeline(year: number) {
   return { rStart, rEnd, totalMs, qs, todayPct };
 }
 
+// ─── Project-in-year check ────────────────────────────────────────────────────
+function projectInYear(p: ProjectRow, year: number): boolean {
+  const yStart = new Date(year, 0, 1).getTime();
+  const yEnd   = new Date(year, 11, 31, 23, 59, 59).getTime();
+
+  if (p.start_date || p.end_date) {
+    const s = p.start_date ? new Date(p.start_date + 'T00:00:00').getTime() : -Infinity;
+    const e = p.end_date   ? new Date(p.end_date   + 'T23:59:59').getTime() :  Infinity;
+    return s <= yEnd && e >= yStart;
+  }
+
+  // Fall back to min/max of phase activity dates
+  const times: number[] = [];
+  for (const ph of p.phases) {
+    if (ph.start_date) times.push(new Date(ph.start_date + 'T00:00:00').getTime());
+    if (ph.end_date)   times.push(new Date(ph.end_date   + 'T23:59:59').getTime());
+  }
+  if (!times.length) return false;
+  return Math.min(...times) <= yEnd && Math.max(...times) >= yStart;
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function PortfolioRoadmap() {
   const [data, setData]         = useState<RoadmapData | null>(null);
@@ -109,13 +130,17 @@ export default function PortfolioRoadmap() {
 
   const groups = useMemo((): CustomerGroup[] => {
     if (!data) return [];
+    const filter = (ps: ProjectRow[]) => ps.filter(p => projectInYear(p, selectedYear));
     return [
-      ...data.customers,
-      ...(data.noCustomerProjects.length
-        ? [{ id: 0, name: 'Unassigned', industry: '', projects: data.noCustomerProjects }]
-        : []),
+      ...data.customers
+        .map((c: CustomerGroup) => ({ ...c, projects: filter(c.projects) }))
+        .filter((c: CustomerGroup) => c.projects.length > 0),
+      ...((() => {
+        const ps = filter(data.noCustomerProjects);
+        return ps.length ? [{ id: 0, name: 'Unassigned', industry: '', projects: ps }] : [];
+      })()),
     ];
-  }, [data]);
+  }, [data, selectedYear]);
 
   const toggleCustomer = useCallback((id: number) => {
     setOpenSet((prev: Set<number>) => {
