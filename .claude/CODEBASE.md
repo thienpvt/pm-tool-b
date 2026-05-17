@@ -245,6 +245,7 @@ Auth utilities (`lib/auth.ts`):
 
 | Date | Change |
 |---|---|
+| 2026-05-17 | Add Portfolio Roadmap page (`/portfolio/roadmap`): Gantt-style timeline X=quarters, Y=customer/phase rows, project bars with fill=completion%, RAG dot, sticky header+labels, today marker, collapsible groups |
 | 2026-05-08 | Flexible timeline import: column mapping dialog, template save/load, date normalization, fuzzy enum matching |
 | 2026-05-08 | Add `timeline_import_mappings` table; API routes `/api/parse-file-headers`, `/api/import-mapping` |
 | 2026-05-08 | Auto-detect header row in Excel/CSV (skip leading empty rows) |
