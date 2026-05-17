@@ -74,20 +74,29 @@ export default function PortfolioRoadmap() {
     });
   }, []);
 
-  // Available years derived from all project / phase dates
+  // Available years: range from (min project year - 1) to (max project year + 1),
+  // always including at least currentYear-1 .. currentYear+2
   const availableYears = useMemo(() => {
-    const years = new Set<number>([new Date().getFullYear()]);
-    if (!data) return [...years].sort();
-    const all = [...data.customers.flatMap(c => c.projects), ...data.noCustomerProjects];
-    for (const p of all) {
-      if (p.start_date) years.add(new Date(p.start_date + 'T00:00:00').getFullYear());
-      if (p.end_date)   years.add(new Date(p.end_date   + 'T00:00:00').getFullYear());
-      for (const ph of p.phases) {
-        if (ph.start_date) years.add(new Date(ph.start_date + 'T00:00:00').getFullYear());
-        if (ph.end_date)   years.add(new Date(ph.end_date   + 'T00:00:00').getFullYear());
+    const cur = new Date().getFullYear();
+    let minY = cur - 1;
+    let maxY = cur + 2;
+
+    if (data) {
+      const all = [...data.customers.flatMap((c: CustomerGroup) => c.projects), ...data.noCustomerProjects];
+      for (const p of all) {
+        const toY = (s: string) => new Date(s + 'T00:00:00').getFullYear();
+        if (p.start_date) { minY = Math.min(minY, toY(p.start_date) - 1); maxY = Math.max(maxY, toY(p.start_date) + 1); }
+        if (p.end_date)   { minY = Math.min(minY, toY(p.end_date)   - 1); maxY = Math.max(maxY, toY(p.end_date)   + 1); }
+        for (const ph of p.phases) {
+          if (ph.start_date) { minY = Math.min(minY, toY(ph.start_date) - 1); maxY = Math.max(maxY, toY(ph.start_date) + 1); }
+          if (ph.end_date)   { minY = Math.min(minY, toY(ph.end_date)   - 1); maxY = Math.max(maxY, toY(ph.end_date)   + 1); }
+        }
       }
     }
-    return [...years].sort();
+
+    const years: number[] = [];
+    for (let y = minY; y <= maxY; y++) years.push(y);
+    return years;
   }, [data]);
 
   const tl = useMemo(() => buildYearTimeline(selectedYear), [selectedYear]);
@@ -109,7 +118,7 @@ export default function PortfolioRoadmap() {
   }, [data]);
 
   const toggleCustomer = useCallback((id: number) => {
-    setOpenSet(prev => {
+    setOpenSet((prev: Set<number>) => {
       const next = new Set(prev);
       next.has(id) ? next.delete(id) : next.add(id);
       return next;
