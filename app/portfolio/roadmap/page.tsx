@@ -42,21 +42,23 @@ const LABEL_W = 220;
 const BAR_H   = 24;
 const BAR_GAP = 5;
 const ROW_PAD = 6;
-const MIN_Q_W = 120;
+const MIN_M_W = 72; // min width per month column
+
+const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function buildYearTimeline(year: number) {
-  const rStart = new Date(year, 0, 1, 0, 0, 0);
-  const rEnd   = new Date(year, 11, 31, 23, 59, 59);
+  const rStart  = new Date(year, 0, 1, 0, 0, 0);
+  const rEnd    = new Date(year, 11, 31, 23, 59, 59);
   const totalMs = rEnd.getTime() - rStart.getTime();
-  const qs = [
-    { label: `Q1 ${year}`, start: new Date(year, 0, 1),  end: new Date(year, 2, 31, 23, 59, 59) },
-    { label: `Q2 ${year}`, start: new Date(year, 3, 1),  end: new Date(year, 5, 30, 23, 59, 59) },
-    { label: `Q3 ${year}`, start: new Date(year, 6, 1),  end: new Date(year, 8, 30, 23, 59, 59) },
-    { label: `Q4 ${year}`, start: new Date(year, 9, 1),  end: new Date(year, 11, 31, 23, 59, 59) },
-  ];
+  const months  = MONTH_NAMES.map((label, m) => ({
+    label,
+    quarter: `Q${Math.floor(m / 3) + 1}`,
+    start: new Date(year, m, 1),
+    end:   new Date(year, m + 1, 0, 23, 59, 59),
+  }));
   const todayPct = Math.max(0, Math.min(100, (Date.now() - rStart.getTime()) / totalMs * 100));
-  return { rStart, rEnd, totalMs, qs, todayPct };
+  return { rStart, rEnd, totalMs, months, todayPct };
 }
 
 // ─── Project-in-year check ────────────────────────────────────────────────────
@@ -248,10 +250,10 @@ export default function PortfolioRoadmap() {
         <div className="flex-1 overflow-auto p-4">
           <div
             className="bg-white rounded-xl border shadow-sm overflow-hidden"
-            style={{ minWidth: LABEL_W + 4 * MIN_Q_W }}
+            style={{ minWidth: LABEL_W + 12 * MIN_M_W }}
           >
 
-            {/* Quarter header */}
+            {/* Month header */}
             <div className="flex border-b bg-slate-50" style={{ position: 'sticky', top: 0, zIndex: 20 }}>
               <div
                 className="shrink-0 bg-slate-50 border-r flex items-end px-4 pb-2 pt-3"
@@ -260,18 +262,14 @@ export default function PortfolioRoadmap() {
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Customer / Project</span>
               </div>
               <div className="flex flex-1">
-                {tl.qs.map(q => (
+                {tl.months.map((m: { label: string; quarter: string; start: Date; end: Date }, idx: number) => (
                   <div
-                    key={q.label}
-                    className="flex-1 border-r last:border-r-0 py-2 px-2 text-center"
-                    style={{ minWidth: MIN_Q_W }}
+                    key={m.label}
+                    className={`flex-1 border-r last:border-r-0 py-2 px-1 text-center ${idx % 3 === 0 ? 'bg-slate-100/60' : ''}`}
+                    style={{ minWidth: MIN_M_W }}
                   >
-                    <p className="text-xs font-bold text-slate-600">{q.label}</p>
-                    <p className="text-[10px] text-slate-400 mt-0.5">
-                      {q.start.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
-                      {' – '}
-                      {q.end.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
-                    </p>
+                    <p className="text-xs font-bold text-slate-600">{m.label}</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5 font-medium">{m.quarter}</p>
                   </div>
                 ))}
               </div>
@@ -391,13 +389,13 @@ export default function PortfolioRoadmap() {
                           className="flex-1 relative overflow-hidden"
                           style={{ height: rowH, minHeight: rowH }}
                         >
-                          {/* Quarter grid lines */}
+                          {/* Month grid lines */}
                           <div className="absolute inset-0 flex pointer-events-none" aria-hidden>
-                            {tl.qs.map(q => (
+                            {tl.months.map((m: { label: string; quarter: string }, idx: number) => (
                               <div
-                                key={q.label}
-                                className="flex-1 border-r border-slate-100 last:border-r-0"
-                                style={{ minWidth: MIN_Q_W }}
+                                key={m.label}
+                                className={`flex-1 border-r last:border-r-0 ${idx % 3 === 0 ? 'border-slate-200' : 'border-slate-100'}`}
+                                style={{ minWidth: MIN_M_W }}
                               />
                             ))}
                           </div>
