@@ -18,19 +18,27 @@ export async function GET(req: NextRequest, { params }: Ctx) {
   if (!user.is_admin && project.company_id !== user.company_id)
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-  const items = await db.all(
-    'SELECT * FROM budget_items WHERE project_id = ? ORDER BY type, group_name, created_at',
-    id
-  );
+  const [items, expenses, stats] = await Promise.all([
+    db.all('SELECT * FROM budget_items WHERE project_id = ? ORDER BY type, group_name, created_at', id),
+    db.all('SELECT * FROM budget_expenses WHERE project_id = ? ORDER BY expense_date, created_at', id),
+    db.get<{ avg_pct: number; total: number }>(
+      'SELECT AVG(completion_pct) as avg_pct, COUNT(*) as total FROM activities WHERE project_id = ?', id
+    ),
+  ]);
 
-  // Project completion for EVM metrics
-  const stats = await db.get<{ avg_pct: number; total: number }>(
-    'SELECT AVG(completion_pct) as avg_pct, COUNT(*) as total FROM activities WHERE project_id = ?',
-    id
-  );
+  const expByItem = new Map<number, unknown[]>();
+  for (const e of expenses) {
+    const bid = (e as { budget_item_id: number }).budget_item_id;
+    if (!expByItem.has(bid)) expByItem.set(bid, []);
+    expByItem.get(bid)!.push(e);
+  }
+  const itemsWithExpenses = items.map(i => ({
+    ...i,
+    expenses: expByItem.get((i as { id: number }).id) ?? [],
+  }));
+
   const completion_pct = Math.round(stats?.avg_pct ?? 0);
-
-  return NextResponse.json({ items, completion_pct });
+  return NextResponse.json({ items: itemsWithExpenses, completion_pct });
 }
 
 export async function POST(req: NextRequest, { params }: Ctx) {

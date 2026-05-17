@@ -12,40 +12,67 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { toast } from 'sonner';
 import {
   Plus, Pencil, Trash2, DollarSign, TrendingUp, TrendingDown,
-  Wallet, PieChart, ChevronDown, ChevronRight, AlertCircle,
+  Wallet, PieChart, ChevronDown, ChevronRight, AlertCircle, Receipt,
 } from 'lucide-react';
 import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  Cell, Legend,
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+type BudgetExpense = {
+  id: number; budget_item_id: number;
+  expense_date: string; description: string;
+  amount: number; reference: string;
+};
 type BudgetItem = {
   id: number; project_id: number;
   type: 'CAPEX' | 'OPEX';
   group_name: string; name: string;
   planned_amount: number; actual_amount: number;
   unit: string; notes: string;
+  expenses: BudgetExpense[];
 };
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+const CURRENCY_PREFIX: Record<string, string> = {
+  USD: '$', EUR: '€', GBP: '£', SGD: 'S$', AUD: 'A$', CAD: 'C$',
+  JPY: '¥', CNY: '¥', KRW: '₩', VND: '₫', THB: '฿', IDR: 'Rp ', MYR: 'RM ', PHP: '₱',
+};
+const NO_DEC = new Set(['VND', 'JPY', 'KRW', 'IDR']);
+const UNIT_PRESETS = [
+  'USD', 'VND', 'EUR', 'GBP', 'SGD', 'JPY', 'CNY', 'AUD', 'CAD', 'KRW', 'THB', 'IDR', 'MYR', 'PHP',
+  'person-day', 'man-hour', 'man-month',
+];
 
 const EMPTY_FORM = {
   type: 'CAPEX' as 'CAPEX' | 'OPEX',
-  group_name: '', name: '',
-  planned_amount: '', actual_amount: '',
-  unit: 'USD', notes: '',
+  group_name: '', name: '', planned_amount: '', actual_amount: '', unit: 'USD', notes: '',
+};
+const EMPTY_EXP = {
+  expense_date: new Date().toISOString().slice(0, 10),
+  description: '', amount: '', reference: '',
 };
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-function fmtNum(n: number) {
-  if (n >= 1_000_000_000) return (n / 1_000_000_000).toFixed(1) + 'B';
-  if (n >= 1_000_000)     return (n / 1_000_000).toFixed(1) + 'M';
-  if (n >= 1_000)         return (n / 1_000).toFixed(1) + 'K';
-  return n.toLocaleString();
+// ─── Formatters ───────────────────────────────────────────────────────────────
+function fmtAmount(n: number, unit: string, compact = false): string {
+  const u = (unit || '').toUpperCase();
+  const prefix = CURRENCY_PREFIX[u] ?? '';
+  const noDec = NO_DEC.has(u);
+  if (compact) {
+    const abs = Math.abs(n);
+    const neg = n < 0 ? '-' : '';
+    if (abs >= 1_000_000_000) return `${neg}${prefix}${(abs / 1_000_000_000).toFixed(1)}B`;
+    if (abs >= 1_000_000)     return `${neg}${prefix}${(abs / 1_000_000).toFixed(1)}M`;
+    if (abs >= 1_000)         return `${neg}${prefix}${(abs / 1_000).toFixed(0)}K`;
+    return `${neg}${prefix}${abs.toLocaleString('en-US')}`;
+  }
+  if (prefix) {
+    const dec = noDec ? 0 : 2;
+    return prefix + n.toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+  }
+  return n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 }
-function fmtFull(n: number) {
-  return n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
-}
-function variance(planned: number, actual: number) { return planned - actual; }
+
 function utilPct(planned: number, actual: number) {
   return planned > 0 ? Math.round((actual / planned) * 100) : 0;
 }
@@ -80,7 +107,7 @@ function Donut({ slices, size = 140 }: { slices: { label: string; value: number;
         angle += sweep;
         return <path key={i} d={d} fill={s.color} />;
       })}
-      <text x={cx} y={cy - 7} textAnchor="middle" fontSize={13} fontWeight="700" fill="#0f172a">{fmtNum(total)}</text>
+      <text x={cx} y={cy - 7} textAnchor="middle" fontSize={13} fontWeight="700" fill="#0f172a">{fmtAmount(total, '', true)}</text>
       <text x={cx} y={cy + 9} textAnchor="middle" fontSize={9} fill="#64748b">total</text>
     </svg>
   );
@@ -99,7 +126,7 @@ function KpiCard({ label, value, sub, color, icon: Icon }: {
           <Icon className="h-3.5 w-3.5" />
         </div>
       </div>
-      <p className="text-2xl font-bold text-slate-800 leading-none">{value}</p>
+      <p className="text-xl font-bold text-slate-800 leading-none">{value}</p>
       {sub && <p className="text-[11px] text-slate-400">{sub}</p>}
     </div>
   );
@@ -110,16 +137,20 @@ export default function BudgetPage() {
   const params = useParams();
   const projectId = params.id as string;
 
-  const [items, setItems]             = useState<BudgetItem[]>([]);
-  const [completionPct, setCompletion] = useState(0);
-  const [loading, setLoading]         = useState(true);
-  const [tab, setTab]                 = useState<'ALL' | 'CAPEX' | 'OPEX'>('ALL');
-  const [openGroups, setOpenGroups]   = useState<Set<string>>(new Set());
-  const [dialogOpen, setDialogOpen]   = useState(false);
-  const [editItem, setEditItem]       = useState<BudgetItem | null>(null);
-  const [form, setForm]               = useState({ ...EMPTY_FORM });
-  const [saving, setSaving]           = useState(false);
+  const [items, setItems]               = useState<BudgetItem[]>([]);
+  const [completionPct, setCompletion]  = useState(0);
+  const [loading, setLoading]           = useState(true);
+  const [tab, setTab]                   = useState<'ALL' | 'CAPEX' | 'OPEX'>('ALL');
+  const [openGroups, setOpenGroups]     = useState<Set<string>>(new Set());
+  const [expandedItems, setExpandedItems] = useState<Set<number>>(new Set());
+  const [dialogOpen, setDialogOpen]     = useState(false);
+  const [editItem, setEditItem]         = useState<BudgetItem | null>(null);
+  const [form, setForm]                 = useState({ ...EMPTY_FORM });
+  const [saving, setSaving]             = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<BudgetItem | null>(null);
+  const [expenseTarget, setExpenseTarget] = useState<BudgetItem | null>(null);
+  const [expForm, setExpForm]           = useState({ ...EMPTY_EXP });
+  const [expSaving, setExpSaving]       = useState(false);
 
   const load = useCallback(() => {
     fetch(`/api/projects/${projectId}/budget`)
@@ -129,6 +160,7 @@ export default function BudgetPage() {
           ...i,
           planned_amount: Number(i.planned_amount),
           actual_amount:  Number(i.actual_amount),
+          expenses: (i.expenses ?? []).map((e: any) => ({ ...e, amount: Number(e.amount) })),
         }));
         setItems(mapped);
         setCompletion(d.completion_pct ?? 0);
@@ -140,29 +172,34 @@ export default function BudgetPage() {
   useEffect(() => { load(); }, [load]);
 
   // ── Computed ─────────────────────────────────────────────────────────────────
+  const dominantUnit = useMemo(() => {
+    if (items.length === 0) return 'USD';
+    const counts = new Map<string, number>();
+    for (const i of items) counts.set(i.unit, (counts.get(i.unit) ?? 0) + 1);
+    return [...counts.entries()].sort((a, b) => b[1] - a[1])[0][0];
+  }, [items]);
+
   const filtered = useMemo(() =>
     tab === 'ALL' ? items : items.filter(i => i.type === tab),
     [items, tab]
   );
 
   const totals = useMemo(() => {
-    const planned   = items.reduce((s, i) => s + i.planned_amount, 0);
-    const actual    = items.reduce((s, i) => s + i.actual_amount, 0);
-    const capexP    = items.filter(i => i.type === 'CAPEX').reduce((s, i) => s + i.planned_amount, 0);
-    const opexP     = items.filter(i => i.type === 'OPEX').reduce((s, i)  => s + i.planned_amount, 0);
-    const capexA    = items.filter(i => i.type === 'CAPEX').reduce((s, i) => s + i.actual_amount, 0);
-    const opexA     = items.filter(i => i.type === 'OPEX').reduce((s, i)  => s + i.actual_amount, 0);
+    const planned = items.reduce((s, i) => s + i.planned_amount, 0);
+    const actual  = items.reduce((s, i) => s + i.actual_amount, 0);
+    const capexP  = items.filter(i => i.type === 'CAPEX').reduce((s, i) => s + i.planned_amount, 0);
+    const opexP   = items.filter(i => i.type === 'OPEX').reduce((s, i) => s + i.planned_amount, 0);
+    const capexA  = items.filter(i => i.type === 'CAPEX').reduce((s, i) => s + i.actual_amount, 0);
+    const opexA   = items.filter(i => i.type === 'OPEX').reduce((s, i) => s + i.actual_amount, 0);
     const remaining = planned - actual;
-    const util      = utilPct(planned, actual);
-    // EVM
-    const ev  = completionPct > 0 ? (planned * completionPct) / 100 : 0;
-    const cpi = actual > 0 ? ev / actual : null;
-    const eac = cpi && cpi > 0 ? planned / cpi : actual > 0 ? actual : null;
-    const etc = eac !== null ? eac - actual : null;
+    const util = utilPct(planned, actual);
+    const ev   = completionPct > 0 ? (planned * completionPct) / 100 : 0;
+    const cpi  = actual > 0 ? ev / actual : null;
+    const eac  = cpi && cpi > 0 ? planned / cpi : actual > 0 ? actual : null;
+    const etc  = eac !== null ? eac - actual : null;
     return { planned, actual, capexP, opexP, capexA, opexA, remaining, util, ev, cpi, eac, etc };
   }, [items, completionPct]);
 
-  // Groups for table
   const groups = useMemo(() => {
     const map = new Map<string, BudgetItem[]>();
     for (const item of filtered) {
@@ -170,13 +207,12 @@ export default function BudgetPage() {
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(item);
     }
-    return Array.from(map.entries()).map(([key, items]) => {
+    return Array.from(map.entries()).map(([key, gitems]) => {
       const [type, group] = key.split('::');
-      return { key, type, group, items };
+      return { key, type, group, items: gitems };
     }).sort((a, b) => a.type.localeCompare(b.type) || a.group.localeCompare(b.group));
   }, [filtered]);
 
-  // Bar chart data by group
   const barData = useMemo(() => {
     const map = new Map<string, { planned: number; actual: number }>();
     for (const item of items) {
@@ -213,9 +249,7 @@ export default function BudgetPage() {
       planned_amount: parseFloat(form.planned_amount) || 0,
       actual_amount:  parseFloat(form.actual_amount)  || 0,
     };
-    const url    = editItem
-      ? `/api/projects/${projectId}/budget/${editItem.id}`
-      : `/api/projects/${projectId}/budget`;
+    const url    = editItem ? `/api/projects/${projectId}/budget/${editItem.id}` : `/api/projects/${projectId}/budget`;
     const method = editItem ? 'PUT' : 'POST';
     const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     setSaving(false);
@@ -234,11 +268,38 @@ export default function BudgetPage() {
   }
 
   function toggleGroup(key: string) {
-    setOpenGroups(prev => {
-      const next = new Set(prev);
-      next.has(key) ? next.delete(key) : next.add(key);
-      return next;
+    setOpenGroups(prev => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n; });
+  }
+  function toggleItem(id: number) {
+    setExpandedItems(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  }
+
+  async function handleAddExpense() {
+    if (!expenseTarget) return;
+    if (!expForm.description.trim()) { toast.error('Description is required'); return; }
+    setExpSaving(true);
+    const res = await fetch(`/api/projects/${projectId}/budget/${expenseTarget.id}/expenses`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        expense_date: expForm.expense_date,
+        description:  expForm.description.trim(),
+        amount:       parseFloat(expForm.amount) || 0,
+        reference:    expForm.reference.trim(),
+      }),
     });
+    setExpSaving(false);
+    if (!res.ok) { toast.error('Failed to log expense'); return; }
+    toast.success('Expense logged');
+    setExpenseTarget(null);
+    load();
+  }
+
+  async function handleDeleteExpense(itemId: number, expId: number) {
+    const res = await fetch(`/api/projects/${projectId}/budget/${itemId}/expenses/${expId}`, { method: 'DELETE' });
+    if (!res.ok) { toast.error('Failed to delete expense'); return; }
+    toast.success('Expense removed');
+    load();
   }
 
   const unitSuggestions = useMemo(() =>
@@ -251,18 +312,17 @@ export default function BudgetPage() {
   );
 
   // ── Loading ───────────────────────────────────────────────────────────────────
-  if (loading) {
-    return (
-      <div className="flex flex-col lg:flex-row min-h-screen bg-slate-50">
-        <Sidebar projectId={projectId} />
-        <main className="flex-1 flex items-center justify-center">
-          <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-        </main>
-      </div>
-    );
-  }
+  if (loading) return (
+    <div className="flex flex-col lg:flex-row min-h-screen bg-slate-50">
+      <Sidebar projectId={projectId} />
+      <main className="flex-1 flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+      </main>
+    </div>
+  );
 
   const isOverBudget = totals.actual > totals.planned && totals.planned > 0;
+  const GRID = '28px 80px 1fr 130px 140px 70px 68px 90px 56px';
 
   return (
     <div className="flex flex-col lg:flex-row min-h-screen bg-slate-50">
@@ -288,14 +348,14 @@ export default function BudgetPage() {
 
           {/* ── KPI Cards ── */}
           <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
-            <KpiCard label="Total Budget"   value={fmtNum(totals.planned)}   sub={`${items.length} items`}          color="bg-blue-50 text-blue-600"   icon={Wallet} />
-            <KpiCard label="Total Actual"   value={fmtNum(totals.actual)}    sub={`${totals.util}% utilized`}        color={isOverBudget ? 'bg-red-50 text-red-600' : 'bg-slate-50 text-slate-600'} icon={DollarSign} />
-            <KpiCard label="Remaining"      value={fmtNum(Math.abs(totals.remaining))} sub={totals.remaining < 0 ? '⚠ Over budget' : 'available'} color={totals.remaining < 0 ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'} icon={totals.remaining < 0 ? TrendingUp : TrendingDown} />
-            <KpiCard label="CAPEX Budget"   value={fmtNum(totals.capexP)}    sub={`Actual: ${fmtNum(totals.capexA)}`} color="bg-purple-50 text-purple-600" icon={PieChart} />
-            <KpiCard label="OPEX Budget"    value={fmtNum(totals.opexP)}     sub={`Actual: ${fmtNum(totals.opexA)}`}  color="bg-amber-50 text-amber-600"   icon={PieChart} />
+            <KpiCard label="Total Budget"   value={fmtAmount(totals.planned, dominantUnit, true)} sub={`${items.length} items`}             color="bg-blue-50 text-blue-600"   icon={Wallet} />
+            <KpiCard label="Total Actual"   value={fmtAmount(totals.actual,  dominantUnit, true)} sub={`${totals.util}% utilized`}           color={isOverBudget ? 'bg-red-50 text-red-600' : 'bg-slate-50 text-slate-600'} icon={DollarSign} />
+            <KpiCard label="Remaining"      value={fmtAmount(Math.abs(totals.remaining), dominantUnit, true)} sub={totals.remaining < 0 ? '⚠ Over budget' : 'available'} color={totals.remaining < 0 ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'} icon={totals.remaining < 0 ? TrendingUp : TrendingDown} />
+            <KpiCard label="CAPEX Budget"   value={fmtAmount(totals.capexP,  dominantUnit, true)} sub={`Actual: ${fmtAmount(totals.capexA, dominantUnit, true)}`} color="bg-purple-50 text-purple-600" icon={PieChart} />
+            <KpiCard label="OPEX Budget"    value={fmtAmount(totals.opexP,   dominantUnit, true)} sub={`Actual: ${fmtAmount(totals.opexA,  dominantUnit, true)}`} color="bg-amber-50 text-amber-600"   icon={PieChart} />
             <KpiCard
               label={totals.cpi !== null ? `CPI ${totals.cpi.toFixed(2)}` : 'CPI'}
-              value={totals.eac !== null ? fmtNum(totals.eac) : '—'}
+              value={totals.eac !== null ? fmtAmount(totals.eac, dominantUnit, true) : '—'}
               sub={totals.eac !== null ? 'Est. at Completion' : 'No activity data'}
               color={totals.cpi !== null && totals.cpi < 1 ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}
               icon={totals.cpi !== null && totals.cpi < 1 ? AlertCircle : TrendingUp}
@@ -333,21 +393,18 @@ export default function BudgetPage() {
                         <span className="text-slate-500">{utilPct(planned, actual)}%</span>
                       </div>
                       <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                        <div
-                          className={`h-full rounded-full ${color}`}
-                          style={{ width: `${Math.min(100, utilPct(planned, actual))}%` }}
-                        />
+                        <div className={`h-full rounded-full ${color}`} style={{ width: `${Math.min(100, utilPct(planned, actual))}%` }} />
                       </div>
                       <div className="flex justify-between text-[10px] text-slate-400 mt-0.5">
-                        <span>Actual: {fmtNum(actual)}</span>
-                        <span>Plan: {fmtNum(planned)}</span>
+                        <span>Actual: {fmtAmount(actual, dominantUnit, true)}</span>
+                        <span>Plan: {fmtAmount(planned, dominantUnit, true)}</span>
                       </div>
                     </div>
                   ))}
                   {totals.etc !== null && (
                     <div className="mt-1 text-[11px] bg-slate-50 rounded-lg px-3 py-2 border">
                       <p className="text-slate-500">ETC (Est. To Complete)</p>
-                      <p className="font-bold text-slate-700">{fmtNum(Math.max(0, totals.etc))}</p>
+                      <p className="font-bold text-slate-700">{fmtAmount(Math.max(0, totals.etc), dominantUnit, true)}</p>
                     </div>
                   )}
                 </div>
@@ -368,7 +425,7 @@ export default function BudgetPage() {
                     <XAxis dataKey="name" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
                     <YAxis hide />
                     <Tooltip
-                      formatter={(v) => fmtFull(Number(v ?? 0))}
+                      formatter={(v) => fmtAmount(Number(v ?? 0), dominantUnit)}
                       contentStyle={{ fontSize: 11, borderRadius: 8 }}
                     />
                     <Legend iconSize={10} wrapperStyle={{ fontSize: 11 }} />
@@ -390,28 +447,25 @@ export default function BudgetPage() {
                   <button
                     key={t}
                     onClick={() => setTab(t)}
-                    className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors ${
-                      tab === t ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'
-                    }`}
+                    className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors ${tab === t ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                   >
                     {t}
-                    <span className={`ml-1.5 text-[10px] px-1 py-0.5 rounded-full font-bold ${
-                      tab === t ? 'bg-blue-500 text-white' : 'bg-slate-100 text-slate-500'
-                    }`}>
+                    <span className={`ml-1.5 text-[10px] px-1 py-0.5 rounded-full font-bold ${tab === t ? 'bg-blue-500 text-white' : 'bg-slate-100 text-slate-500'}`}>
                       {t === 'ALL' ? items.length : items.filter(i => i.type === t).length}
                     </span>
                   </button>
                 ))}
               </div>
               <p className="text-xs text-slate-400">
-                {fmtFull(filtered.reduce((s, i) => s + i.planned_amount, 0))} planned ·{' '}
-                {fmtFull(filtered.reduce((s, i) => s + i.actual_amount,  0))} actual
+                {fmtAmount(filtered.reduce((s, i) => s + i.planned_amount, 0), dominantUnit)} planned ·{' '}
+                {fmtAmount(filtered.reduce((s, i) => s + i.actual_amount,  0), dominantUnit)} actual
               </p>
             </div>
 
             {/* Column headers */}
             <div className="grid gap-0 text-[10px] font-bold text-slate-400 uppercase tracking-wide px-4 py-2 border-b bg-slate-50/40"
-              style={{ gridTemplateColumns: '90px 1fr 120px 120px 80px 80px 120px 72px' }}>
+              style={{ gridTemplateColumns: GRID }}>
+              <span />
               <span>Type</span>
               <span>Name</span>
               <span className="text-right">Planned</span>
@@ -449,7 +503,7 @@ export default function BudgetPage() {
                     <span className="text-xs font-semibold text-slate-700 flex-1">{group}</span>
                     <span className="text-[11px] text-slate-400 shrink-0">{gItems.length} items</span>
                     <span className="text-[11px] text-slate-500 font-semibold shrink-0 ml-4">
-                      {fmtNum(gActual)} / {fmtNum(gPlanned)}
+                      {fmtAmount(gActual, dominantUnit, true)} / {fmtAmount(gPlanned, dominantUnit, true)}
                     </span>
                     <span className={`text-[10px] font-bold shrink-0 ml-2 ${utilPct(gPlanned, gActual) > 100 ? 'text-red-600' : 'text-slate-500'}`}>
                       {utilPct(gPlanned, gActual)}%
@@ -458,42 +512,122 @@ export default function BudgetPage() {
 
                   {/* Items */}
                   {isOpen && gItems.map(item => {
-                    const vari  = variance(item.planned_amount, item.actual_amount);
-                    const util  = utilPct(item.planned_amount, item.actual_amount);
-                    const over  = util > 100;
+                    const util    = utilPct(item.planned_amount, item.actual_amount);
+                    const over    = util > 100;
+                    const hasExp  = item.expenses.length > 0;
+                    const isExpanded = expandedItems.has(item.id);
                     return (
-                      <div
-                        key={item.id}
-                        className="grid items-center gap-0 px-4 py-2.5 border-t hover:bg-slate-50/60 transition-colors text-sm"
-                        style={{ gridTemplateColumns: '90px 1fr 120px 120px 80px 80px 120px 72px' }}
-                      >
-                        <Badge className={`text-[10px] font-bold w-fit ${type === 'CAPEX' ? 'bg-purple-100 text-purple-700' : 'bg-amber-100 text-amber-700'}`}>
-                          {item.type}
-                        </Badge>
-                        <span className="text-xs font-semibold text-slate-700 truncate pr-2">{item.name}</span>
-                        <span className="text-xs text-right text-slate-600 font-medium">{fmtFull(item.planned_amount)}</span>
-                        <span className={`text-xs text-right font-semibold ${over ? 'text-red-600' : 'text-slate-700'}`}>
-                          {fmtFull(item.actual_amount)}
-                        </span>
-                        <span className="text-xs text-right text-slate-400">{item.unit}</span>
-                        <div className="flex flex-col items-end gap-0.5">
-                          <span className={`text-[11px] font-bold ${over ? 'text-red-600' : util >= 80 ? 'text-amber-600' : 'text-slate-600'}`}>
-                            {util}%
+                      <div key={item.id} className="border-t">
+                        {/* Main row */}
+                        <div
+                          className="grid items-center gap-0 px-4 py-2.5 hover:bg-slate-50/60 transition-colors text-sm"
+                          style={{ gridTemplateColumns: GRID }}
+                        >
+                          {/* Expand toggle */}
+                          <button
+                            onClick={() => toggleItem(item.id)}
+                            className="p-0.5 rounded hover:bg-slate-100 text-slate-300 hover:text-slate-500 transition-colors"
+                            title="Show expense log"
+                          >
+                            {isExpanded
+                              ? <ChevronDown className="h-3 w-3" />
+                              : <ChevronRight className="h-3 w-3" />}
+                          </button>
+
+                          <Badge className={`text-[10px] font-bold w-fit ${type === 'CAPEX' ? 'bg-purple-100 text-purple-700' : 'bg-amber-100 text-amber-700'}`}>
+                            {item.type}
+                          </Badge>
+                          <span className="text-xs font-semibold text-slate-700 truncate pr-2">{item.name}</span>
+                          <span className="text-xs text-right text-slate-600 font-medium tabular-nums">
+                            {fmtAmount(item.planned_amount, item.unit)}
                           </span>
-                          <div className="w-12 h-1 bg-slate-100 rounded-full overflow-hidden">
-                            <div className={`h-full rounded-full ${over ? 'bg-red-500' : util >= 80 ? 'bg-amber-400' : 'bg-blue-400'}`}
-                              style={{ width: `${Math.min(100, util)}%` }} />
+                          <div className="flex flex-col items-end">
+                            <span className={`text-xs font-semibold tabular-nums ${over ? 'text-red-600' : 'text-slate-700'}`}>
+                              {fmtAmount(item.actual_amount, item.unit)}
+                            </span>
+                            {hasExp && (
+                              <span className="text-[9px] text-blue-500 font-medium">{item.expenses.length} entries</span>
+                            )}
+                          </div>
+                          <span className="text-xs text-right text-slate-400">{item.unit}</span>
+                          <div className="flex flex-col items-end gap-0.5">
+                            <span className={`text-[11px] font-bold ${over ? 'text-red-600' : util >= 80 ? 'text-amber-600' : 'text-slate-600'}`}>
+                              {util}%
+                            </span>
+                            <div className="w-10 h-1 bg-slate-100 rounded-full overflow-hidden">
+                              <div className={`h-full rounded-full ${over ? 'bg-red-500' : util >= 80 ? 'bg-amber-400' : 'bg-blue-400'}`}
+                                style={{ width: `${Math.min(100, util)}%` }} />
+                            </div>
+                          </div>
+                          <span className="text-[11px] text-slate-400 truncate px-1">{item.notes || '—'}</span>
+                          <div className="flex items-center gap-1 justify-end">
+                            <button
+                              onClick={() => { setExpenseTarget(item); setExpForm({ ...EMPTY_EXP }); }}
+                              className="p-1 rounded hover:bg-emerald-50 text-slate-300 hover:text-emerald-600 transition-colors"
+                              title="Log expense"
+                            >
+                              <Receipt className="h-3.5 w-3.5" />
+                            </button>
+                            <button onClick={() => openEdit(item)} className="p-1 rounded hover:bg-blue-50 text-slate-300 hover:text-blue-600 transition-colors">
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                            <button onClick={() => setDeleteConfirm(item)} className="p-1 rounded hover:bg-red-50 text-slate-300 hover:text-red-600 transition-colors">
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
                           </div>
                         </div>
-                        <span className="text-[11px] text-slate-400 truncate px-2">{item.notes || '—'}</span>
-                        <div className="flex items-center gap-1 justify-end">
-                          <button onClick={() => openEdit(item)} className="p-1 rounded hover:bg-blue-50 text-slate-400 hover:text-blue-600 transition-colors">
-                            <Pencil className="h-3.5 w-3.5" />
-                          </button>
-                          <button onClick={() => setDeleteConfirm(item)} className="p-1 rounded hover:bg-red-50 text-slate-400 hover:text-red-600 transition-colors">
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
+
+                        {/* Expense log panel */}
+                        {isExpanded && (
+                          <div className="mx-4 mb-2 rounded-lg border border-blue-100 bg-blue-50/30 overflow-hidden">
+                            <div className="flex items-center justify-between px-3 py-1.5 border-b border-blue-100 bg-blue-50/50">
+                              <span className="text-[11px] font-semibold text-blue-700 flex items-center gap-1.5">
+                                <Receipt className="h-3 w-3" /> Expense Log
+                                {hasExp && <span className="text-[10px] bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded-full">{item.expenses.length}</span>}
+                              </span>
+                              <button
+                                onClick={() => { setExpenseTarget(item); setExpForm({ ...EMPTY_EXP }); }}
+                                className="text-[11px] text-blue-600 hover:text-blue-800 font-semibold flex items-center gap-1"
+                              >
+                                <Plus className="h-3 w-3" /> Log Expense
+                              </button>
+                            </div>
+                            {item.expenses.length === 0 ? (
+                              <p className="text-[11px] text-slate-400 px-3 py-3 text-center">No expenses logged yet. Click "Log Expense" to add actual cost entries.</p>
+                            ) : (
+                              <div>
+                                <div className="grid text-[10px] font-bold text-slate-400 uppercase tracking-wide px-3 py-1.5 border-b border-blue-100"
+                                  style={{ gridTemplateColumns: '100px 1fr 120px 100px 28px' }}>
+                                  <span>Date</span>
+                                  <span>Description</span>
+                                  <span className="text-right">Amount</span>
+                                  <span>Ref / PO</span>
+                                  <span />
+                                </div>
+                                {item.expenses.map(exp => (
+                                  <div key={exp.id} className="grid items-center px-3 py-1.5 border-b border-blue-100/60 last:border-b-0 hover:bg-blue-50/40"
+                                    style={{ gridTemplateColumns: '100px 1fr 120px 100px 28px' }}>
+                                    <span className="text-[11px] text-slate-500">{exp.expense_date?.slice(0, 10)}</span>
+                                    <span className="text-[11px] text-slate-700 font-medium truncate pr-2">{exp.description}</span>
+                                    <span className="text-[11px] text-right font-semibold text-slate-700 tabular-nums">{fmtAmount(exp.amount, item.unit)}</span>
+                                    <span className="text-[11px] text-slate-400 truncate">{exp.reference || '—'}</span>
+                                    <button
+                                      onClick={() => handleDeleteExpense(item.id, exp.id)}
+                                      className="p-0.5 rounded hover:bg-red-100 text-slate-300 hover:text-red-500 transition-colors"
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                    </button>
+                                  </div>
+                                ))}
+                                <div className="flex justify-end px-3 py-1.5 border-t border-blue-100 bg-blue-50/50">
+                                  <span className="text-[11px] font-bold text-slate-600">
+                                    Total: {fmtAmount(item.expenses.reduce((s, e) => s + e.amount, 0), item.unit)}
+                                  </span>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -504,17 +638,16 @@ export default function BudgetPage() {
             {/* Grand total footer */}
             {filtered.length > 0 && (
               <div className="grid items-center gap-0 px-4 py-3 bg-slate-50 border-t text-xs font-bold text-slate-700"
-                style={{ gridTemplateColumns: '90px 1fr 120px 120px 80px 80px 120px 72px' }}>
-                <span />
+                style={{ gridTemplateColumns: GRID }}>
+                <span /><span />
                 <span className="text-slate-500 font-semibold">TOTAL</span>
-                <span className="text-right">{fmtFull(filtered.reduce((s, i) => s + i.planned_amount, 0))}</span>
-                <span className={`text-right ${isOverBudget ? 'text-red-600' : ''}`}>
-                  {fmtFull(filtered.reduce((s, i) => s + i.actual_amount, 0))}
+                <span className="text-right tabular-nums">{fmtAmount(filtered.reduce((s, i) => s + i.planned_amount, 0), dominantUnit)}</span>
+                <span className={`text-right tabular-nums ${isOverBudget ? 'text-red-600' : ''}`}>
+                  {fmtAmount(filtered.reduce((s, i) => s + i.actual_amount, 0), dominantUnit)}
                 </span>
                 <span />
                 <span className={`text-right ${totals.util > 100 ? 'text-red-600' : ''}`}>{totals.util}%</span>
-                <span />
-                <span />
+                <span /><span />
               </div>
             )}
           </div>
@@ -528,14 +661,14 @@ export default function BudgetPage() {
               </p>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 {[
-                  { label: 'Planned Value (PV)',    value: fmtFull(totals.planned),              sub: '100% budget',                   color: 'text-blue-600'  },
-                  { label: 'Earned Value (EV)',      value: fmtFull(totals.ev),                   sub: `${completionPct}% × budget`,    color: 'text-green-600' },
-                  { label: 'Actual Cost (AC)',        value: fmtFull(totals.actual),               sub: 'spent so far',                  color: 'text-slate-700' },
+                  { label: 'Planned Value (PV)',    value: fmtAmount(totals.planned, dominantUnit), sub: '100% budget',                color: 'text-blue-600'  },
+                  { label: 'Earned Value (EV)',      value: fmtAmount(totals.ev, dominantUnit),      sub: `${completionPct}% × budget`, color: 'text-green-600' },
+                  { label: 'Actual Cost (AC)',        value: fmtAmount(totals.actual, dominantUnit),  sub: 'spent so far',               color: 'text-slate-700' },
                   { label: 'Cost Perf. Index (CPI)', value: totals.cpi !== null ? totals.cpi.toFixed(2) : '—', sub: totals.cpi !== null ? (totals.cpi >= 1 ? 'Under budget ✓' : 'Over budget ⚠') : 'No spend yet', color: totals.cpi !== null && totals.cpi < 1 ? 'text-red-600' : 'text-green-600' },
                 ].map(({ label, value, sub, color }) => (
                   <div key={label} className="bg-slate-50 rounded-lg p-3 border">
                     <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide">{label}</p>
-                    <p className={`text-xl font-bold mt-1 ${color}`}>{value}</p>
+                    <p className={`text-xl font-bold mt-1 tabular-nums ${color}`}>{value}</p>
                     <p className="text-[10px] text-slate-400 mt-0.5">{sub}</p>
                   </div>
                 ))}
@@ -546,11 +679,11 @@ export default function BudgetPage() {
                     <AlertCircle className={`h-4 w-4 shrink-0 ${totals.eac > totals.planned ? 'text-red-500' : 'text-green-500'}`} />
                     <div>
                       <p className="text-xs font-bold text-slate-700">Estimate at Completion (EAC)</p>
-                      <p className={`text-lg font-bold ${totals.eac > totals.planned ? 'text-red-600' : 'text-green-600'}`}>{fmtFull(totals.eac)}</p>
+                      <p className={`text-lg font-bold tabular-nums ${totals.eac > totals.planned ? 'text-red-600' : 'text-green-600'}`}>{fmtAmount(totals.eac, dominantUnit)}</p>
                       <p className="text-[10px] text-slate-500">
                         {totals.eac > totals.planned
-                          ? `+${fmtFull(totals.eac - totals.planned)} over planned`
-                          : `${fmtFull(totals.planned - totals.eac)} under planned`}
+                          ? `+${fmtAmount(totals.eac - totals.planned, dominantUnit)} over planned`
+                          : `${fmtAmount(totals.planned - totals.eac, dominantUnit)} under planned`}
                       </p>
                     </div>
                   </div>
@@ -558,7 +691,7 @@ export default function BudgetPage() {
                     <TrendingDown className="h-4 w-4 shrink-0 text-blue-500" />
                     <div>
                       <p className="text-xs font-bold text-slate-700">Estimate to Complete (ETC)</p>
-                      <p className="text-lg font-bold text-blue-600">{fmtFull(Math.max(0, totals.etc ?? 0))}</p>
+                      <p className="text-lg font-bold text-blue-600 tabular-nums">{fmtAmount(Math.max(0, totals.etc ?? 0), dominantUnit)}</p>
                       <p className="text-[10px] text-slate-500">remaining spend forecast</p>
                     </div>
                   </div>
@@ -593,9 +726,7 @@ export default function BudgetPage() {
                         ? t === 'CAPEX' ? 'bg-purple-600 text-white border-purple-600' : 'bg-amber-500 text-white border-amber-500'
                         : 'text-slate-500 hover:bg-slate-50'
                     }`}
-                  >
-                    {t}
-                  </button>
+                  >{t}</button>
                 ))}
               </div>
             </div>
@@ -624,6 +755,22 @@ export default function BudgetPage() {
                 autoFocus
               />
             </div>
+            {/* Unit */}
+            <div>
+              <Label className="text-xs">Unit (currency / measure)</Label>
+              <Input
+                className="mt-1.5"
+                value={form.unit}
+                onChange={e => setForm(f => ({ ...f, unit: e.target.value }))}
+                placeholder="USD / VND / person-day"
+                list="unit-suggestions"
+              />
+              <datalist id="unit-suggestions">
+                {UNIT_PRESETS.map(u => <option key={u} value={u} />)}
+                {unitSuggestions.filter(u => !UNIT_PRESETS.includes(u)).map(u => <option key={u} value={u} />)}
+              </datalist>
+              <p className="text-[10px] text-slate-400 mt-1">Currency symbols auto-applied: $USD €EUR £GBP ₫VND ¥JPY …</p>
+            </div>
             {/* Amounts */}
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -638,7 +785,12 @@ export default function BudgetPage() {
                 />
               </div>
               <div>
-                <Label className="text-xs">Actual Amount</Label>
+                <Label className="text-xs">
+                  Actual Amount
+                  {editItem && editItem.expenses.length > 0 && (
+                    <span className="ml-1 text-blue-500">(auto from expenses)</span>
+                  )}
+                </Label>
                 <Input
                   className="mt-1.5"
                   type="number"
@@ -646,23 +798,13 @@ export default function BudgetPage() {
                   value={form.actual_amount}
                   onChange={e => setForm(f => ({ ...f, actual_amount: e.target.value }))}
                   placeholder="0"
+                  readOnly={!!(editItem && editItem.expenses.length > 0)}
+                  disabled={!!(editItem && editItem.expenses.length > 0)}
                 />
+                {editItem && editItem.expenses.length > 0 && (
+                  <p className="text-[10px] text-blue-500 mt-0.5">Calculated from {editItem.expenses.length} expense {editItem.expenses.length === 1 ? 'entry' : 'entries'}</p>
+                )}
               </div>
-            </div>
-            {/* Unit */}
-            <div>
-              <Label className="text-xs">Unit (currency / measure)</Label>
-              <Input
-                className="mt-1.5"
-                value={form.unit}
-                onChange={e => setForm(f => ({ ...f, unit: e.target.value }))}
-                placeholder="USD / VND / person-day"
-                list="unit-suggestions"
-              />
-              <datalist id="unit-suggestions">
-                {['USD', 'VND', 'EUR', 'person-day'].map(u => <option key={u} value={u} />)}
-                {unitSuggestions.filter(u => !['USD','VND','EUR','person-day'].includes(u)).map(u => <option key={u} value={u} />)}
-              </datalist>
             </div>
             {/* Notes */}
             <div>
@@ -685,12 +827,79 @@ export default function BudgetPage() {
         </DialogContent>
       </Dialog>
 
+      {/* ── Log Expense Dialog ── */}
+      <Dialog open={!!expenseTarget} onOpenChange={() => setExpenseTarget(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Receipt className="h-4 w-4 text-emerald-500" />
+              Log Expense
+            </DialogTitle>
+          </DialogHeader>
+          {expenseTarget && (
+            <div className="space-y-3 py-1">
+              <p className="text-xs text-slate-500 bg-slate-50 rounded-lg px-3 py-2 border">
+                <span className="font-semibold text-slate-700">{expenseTarget.name}</span>
+                {' · '}{expenseTarget.type} · {expenseTarget.unit}
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs">Date *</Label>
+                  <Input
+                    type="date"
+                    className="mt-1.5"
+                    value={expForm.expense_date}
+                    onChange={e => setExpForm(f => ({ ...f, expense_date: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Amount ({expenseTarget.unit})</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    className="mt-1.5"
+                    value={expForm.amount}
+                    onChange={e => setExpForm(f => ({ ...f, amount: e.target.value }))}
+                    placeholder="0"
+                    autoFocus
+                  />
+                </div>
+              </div>
+              <div>
+                <Label className="text-xs">Description *</Label>
+                <Input
+                  className="mt-1.5"
+                  value={expForm.description}
+                  onChange={e => setExpForm(f => ({ ...f, description: e.target.value }))}
+                  placeholder="e.g. AWS invoice Apr 2025"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Reference / PO No. (optional)</Label>
+                <Input
+                  className="mt-1.5"
+                  value={expForm.reference}
+                  onChange={e => setExpForm(f => ({ ...f, reference: e.target.value }))}
+                  placeholder="e.g. INV-2025-042"
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setExpenseTarget(null)}>Cancel</Button>
+            <Button onClick={handleAddExpense} disabled={expSaving} className="bg-emerald-600 hover:bg-emerald-700">
+              {expSaving ? 'Saving…' : 'Log Expense'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* ── Delete confirm ── */}
       <Dialog open={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>
         <DialogContent className="max-w-sm">
           <DialogHeader><DialogTitle>Delete budget item?</DialogTitle></DialogHeader>
           <p className="text-sm text-slate-600 py-2">
-            <strong>{deleteConfirm?.name}</strong> will be permanently removed.
+            <strong>{deleteConfirm?.name}</strong> and all its expense records will be permanently removed.
           </p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteConfirm(null)}>Cancel</Button>
