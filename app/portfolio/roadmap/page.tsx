@@ -1,8 +1,8 @@
 'use client';
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import Sidebar from '@/components/layout/Sidebar';
-import { ChevronDown, ChevronRight, Building2, Map, CalendarDays } from 'lucide-react';
+import { ChevronDown, ChevronRight, ChevronLeft, Building2, Map, CalendarDays } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type PhaseInfo = {
@@ -15,7 +15,7 @@ type PhaseInfo = {
 };
 type ProjectRow = {
   id: number; name: string; pm_name: string;
-  customer_id: number | null; customer_name: string;
+  customer_id: number | null;
   start_date: string; end_date: string;
   current_phase: string; completion_pct: number;
   rag: 'red' | 'amber' | 'green';
@@ -24,53 +24,47 @@ type ProjectRow = {
 type CustomerGroup = { id: number; name: string; industry: string; projects: ProjectRow[] };
 type RoadmapData = { customers: CustomerGroup[]; noCustomerProjects: ProjectRow[] };
 
-// ─── Phase style ──────────────────────────────────────────────────────────────
-const PHASES = ['Initiation', 'Planning', 'Execution', 'Closing'] as const;
+// ─── Phase colours (vivid, clearly distinct) ──────────────────────────────────
+type PhaseStyle = { labelBg: string; bg: string; border: string; fill: string; textColor: string };
 
-const PS: Record<string, { labelBg: string; barBg: string; barBorder: string; fill: string; text: string }> = {
-  Initiation: { labelBg: 'bg-purple-100 text-purple-700', barBg: 'rgba(168,85,247,0.10)', barBorder: 'rgba(168,85,247,0.50)', fill: 'rgba(168,85,247,0.35)', text: 'text-purple-700' },
-  Planning:   { labelBg: 'bg-blue-100 text-blue-700',     barBg: 'rgba(59,130,246,0.10)',  barBorder: 'rgba(59,130,246,0.50)',  fill: 'rgba(59,130,246,0.35)',  text: 'text-blue-700'   },
-  Execution:  { labelBg: 'bg-amber-100 text-amber-700',   barBg: 'rgba(245,158,11,0.10)',  barBorder: 'rgba(245,158,11,0.50)',  fill: 'rgba(245,158,11,0.35)',  text: 'text-amber-700'  },
-  Closing:    { labelBg: 'bg-green-100 text-green-700',   barBg: 'rgba(34,197,94,0.10)',   barBorder: 'rgba(34,197,94,0.50)',   fill: 'rgba(34,197,94,0.35)',   text: 'text-green-700'  },
+const PS: Record<string, PhaseStyle> = {
+  Initiation: { labelBg: 'bg-purple-100 text-purple-700', bg: '#f3e8ff', border: '#9333ea', fill: '#c084fc', textColor: '#6b21a8' },
+  Planning:   { labelBg: 'bg-blue-100 text-blue-700',     bg: '#dbeafe', border: '#2563eb', fill: '#60a5fa', textColor: '#1e40af' },
+  Execution:  { labelBg: 'bg-amber-100 text-amber-700',   bg: '#fef3c7', border: '#d97706', fill: '#fbbf24', textColor: '#92400e' },
+  Closing:    { labelBg: 'bg-green-100 text-green-700',   bg: '#dcfce7', border: '#16a34a', fill: '#4ade80', textColor: '#14532d' },
 };
+const PHASES = ['Initiation', 'Planning', 'Execution', 'Closing'] as const;
 
 const RAG_COLOR: Record<string, string> = { red: '#ef4444', amber: '#f59e0b', green: '#22c55e' };
 
-// ─── Quarter helpers ──────────────────────────────────────────────────────────
-type Quarter = { label: string; start: Date; end: Date };
+// ─── Layout ───────────────────────────────────────────────────────────────────
+const LABEL_W = 220;
+const BAR_H   = 24;
+const BAR_GAP = 5;
+const ROW_PAD = 6;
+const MIN_Q_W = 120;
 
-function qStart(d: Date) {
-  return new Date(d.getFullYear(), Math.floor(d.getMonth() / 3) * 3, 1);
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function buildYearTimeline(year: number) {
+  const rStart = new Date(year, 0, 1, 0, 0, 0);
+  const rEnd   = new Date(year, 11, 31, 23, 59, 59);
+  const totalMs = rEnd.getTime() - rStart.getTime();
+  const qs = [
+    { label: `Q1 ${year}`, start: new Date(year, 0, 1),  end: new Date(year, 2, 31, 23, 59, 59) },
+    { label: `Q2 ${year}`, start: new Date(year, 3, 1),  end: new Date(year, 5, 30, 23, 59, 59) },
+    { label: `Q3 ${year}`, start: new Date(year, 6, 1),  end: new Date(year, 8, 30, 23, 59, 59) },
+    { label: `Q4 ${year}`, start: new Date(year, 9, 1),  end: new Date(year, 11, 31, 23, 59, 59) },
+  ];
+  const todayPct = Math.max(0, Math.min(100, (Date.now() - rStart.getTime()) / totalMs * 100));
+  return { rStart, rEnd, totalMs, qs, todayPct };
 }
 
-function buildQuarters(minD: Date, maxD: Date): { qs: Quarter[]; rStart: Date; rEnd: Date } {
-  const rStart = qStart(new Date(minD.getFullYear(), minD.getMonth() - 3, 1));
-  const afterMaxQ = qStart(new Date(maxD.getFullYear(), maxD.getMonth() + 3, 1));
-  const rEnd = new Date(afterMaxQ.getFullYear(), afterMaxQ.getMonth() + 3, 0, 23, 59, 59);
-
-  const qs: Quarter[] = [];
-  let cur = new Date(rStart);
-  while (cur <= rEnd && qs.length < 24) {
-    const s = new Date(cur);
-    const e = new Date(cur.getFullYear(), cur.getMonth() + 3, 0, 23, 59, 59);
-    qs.push({ label: `Q${Math.floor(s.getMonth() / 3) + 1} ${s.getFullYear()}`, start: s, end: e });
-    cur = new Date(cur.getFullYear(), cur.getMonth() + 3, 1);
-  }
-  return { qs, rStart, rEnd };
-}
-
-// ─── Layout constants ─────────────────────────────────────────────────────────
-const LABEL_W   = 220; // px — sticky left column
-const BAR_H     = 22;  // px — height of each phase bar
-const BAR_GAP   = 4;   // px — gap between phase bars
-const ROW_PAD   = 6;   // px — top/bottom padding in project row
-const MIN_Q_W   = 100; // px — min quarter column width
-
-// ─── Main Page ────────────────────────────────────────────────────────────────
+// ─── Page ─────────────────────────────────────────────────────────────────────
 export default function PortfolioRoadmap() {
-  const [data, setData]       = useState<RoadmapData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [openSet, setOpenSet] = useState<Set<number>>(new Set());
+  const [data, setData]         = useState<RoadmapData | null>(null);
+  const [loading, setLoading]   = useState(true);
+  const [openSet, setOpenSet]   = useState<Set<number>>(new Set());
+  const [selectedYear, setYear] = useState(() => new Date().getFullYear());
 
   useEffect(() => {
     fetch('/api/portfolio/roadmap').then(r => r.json()).then((d: RoadmapData) => {
@@ -80,42 +74,29 @@ export default function PortfolioRoadmap() {
     });
   }, []);
 
-  // ── Derive time range from all phase dates ──────────────────────────────────
-  const timeline = useMemo(() => {
-    const fallback = () => {
-      const now = new Date();
-      const { qs, rStart, rEnd } = buildQuarters(
-        new Date(now.getFullYear(), now.getMonth() - 3, 1),
-        new Date(now.getFullYear(), now.getMonth() + 9, 1),
-      );
-      const totalMs = rEnd.getTime() - rStart.getTime();
-      return { qs, rStart, totalMs, todayPct: (Date.now() - rStart.getTime()) / totalMs * 100 };
-    };
-    if (!data) return fallback();
-
-    const allProjects = [...data.customers.flatMap(c => c.projects), ...data.noCustomerProjects];
-    const dates: Date[] = [];
-    for (const p of allProjects) {
+  // Available years derived from all project / phase dates
+  const availableYears = useMemo(() => {
+    const years = new Set<number>([new Date().getFullYear()]);
+    if (!data) return [...years].sort();
+    const all = [...data.customers.flatMap(c => c.projects), ...data.noCustomerProjects];
+    for (const p of all) {
+      if (p.start_date) years.add(new Date(p.start_date + 'T00:00:00').getFullYear());
+      if (p.end_date)   years.add(new Date(p.end_date   + 'T00:00:00').getFullYear());
       for (const ph of p.phases) {
-        if (ph.start_date) dates.push(new Date(ph.start_date + 'T00:00:00'));
-        if (ph.end_date)   dates.push(new Date(ph.end_date   + 'T23:59:59'));
+        if (ph.start_date) years.add(new Date(ph.start_date + 'T00:00:00').getFullYear());
+        if (ph.end_date)   years.add(new Date(ph.end_date   + 'T00:00:00').getFullYear());
       }
-      if (p.start_date) dates.push(new Date(p.start_date + 'T00:00:00'));
-      if (p.end_date)   dates.push(new Date(p.end_date   + 'T23:59:59'));
     }
-    if (!dates.length) return fallback();
-
-    const minD = new Date(Math.min(...dates.map(d => d.getTime())));
-    const maxD = new Date(Math.max(...dates.map(d => d.getTime())));
-    const { qs, rStart, rEnd } = buildQuarters(minD, maxD);
-    const totalMs = rEnd.getTime() - rStart.getTime();
-    return { qs, rStart, totalMs, todayPct: Math.max(0, Math.min(100, (Date.now() - rStart.getTime()) / totalMs * 100)) };
+    return [...years].sort();
   }, [data]);
 
-  function pct(dateStr: string, eod = false) {
+  const tl = useMemo(() => buildYearTimeline(selectedYear), [selectedYear]);
+
+  // Convert date string → unclamped % within selected year
+  const rawPct = useCallback((dateStr: string, eod = false) => {
     const ms = new Date(dateStr + (eod ? 'T23:59:59' : 'T00:00:00')).getTime();
-    return Math.max(0, Math.min(100, (ms - timeline.rStart.getTime()) / timeline.totalMs * 100));
-  }
+    return (ms - tl.rStart.getTime()) / tl.totalMs * 100;
+  }, [tl]);
 
   const groups = useMemo((): CustomerGroup[] => {
     if (!data) return [];
@@ -126,6 +107,14 @@ export default function PortfolioRoadmap() {
         : []),
     ];
   }, [data]);
+
+  const toggleCustomer = useCallback((id: number) => {
+    setOpenSet(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }, []);
 
   // ── Loading ─────────────────────────────────────────────────────────────────
   if (loading) {
@@ -143,6 +132,7 @@ export default function PortfolioRoadmap() {
   }
 
   const totalProjects = groups.reduce((s, g) => s + g.projects.length, 0);
+  const curYearIdx = availableYears.indexOf(selectedYear);
 
   return (
     <div className="flex flex-col lg:flex-row min-h-screen bg-slate-50">
@@ -150,30 +140,73 @@ export default function PortfolioRoadmap() {
       <main className="flex-1 flex flex-col overflow-hidden">
 
         {/* ── Header ── */}
-        <div className="shrink-0 px-6 py-4 bg-white border-b flex items-center justify-between gap-4 flex-wrap">
+        <div className="shrink-0 px-6 py-3 bg-white border-b flex items-center justify-between gap-4 flex-wrap">
           <div>
             <h1 className="text-xl font-bold text-slate-900 flex items-center gap-2">
               <Map className="h-5 w-5 text-blue-500" />
               Portfolio Roadmap
             </h1>
             <p className="text-sm text-slate-500 mt-0.5">
-              {totalProjects} project{totalProjects !== 1 ? 's' : ''} across {groups.length} customer{groups.length !== 1 ? 's' : ''}
-              &nbsp;·&nbsp;Phase bars positioned by actual activity dates
+              {totalProjects} project{totalProjects !== 1 ? 's' : ''} · phase bars from activity dates
             </p>
           </div>
-          <Link href="/" className="text-sm text-blue-600 hover:underline">← Portfolio Dashboard</Link>
+
+          {/* Year selector */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => curYearIdx > 0 && setYear(availableYears[curYearIdx - 1])}
+              disabled={curYearIdx <= 0}
+              className="p-1.5 rounded-lg border hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            >
+              <ChevronLeft className="h-4 w-4 text-slate-500" />
+            </button>
+            <div className="flex items-center gap-1 bg-slate-100 rounded-xl p-1">
+              {availableYears.map(y => (
+                <button
+                  key={y}
+                  onClick={() => setYear(y)}
+                  className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-colors ${
+                    y === selectedYear
+                      ? 'bg-white shadow-sm text-blue-600'
+                      : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  {y}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() => curYearIdx < availableYears.length - 1 && setYear(availableYears[curYearIdx + 1])}
+              disabled={curYearIdx >= availableYears.length - 1}
+              className="p-1.5 rounded-lg border hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            >
+              <ChevronRight className="h-4 w-4 text-slate-500" />
+            </button>
+          </div>
+
+          <Link href="/" className="text-sm text-blue-600 hover:underline shrink-0">← Dashboard</Link>
         </div>
 
         {/* ── Legend ── */}
-        <div className="shrink-0 px-6 py-2 bg-white border-b flex items-center gap-4 text-xs text-slate-500 flex-wrap">
+        <div className="shrink-0 px-6 py-2 bg-white border-b flex items-center gap-4 text-xs flex-wrap">
           <span className="font-semibold text-slate-600">Phase:</span>
-          {PHASES.map(ph => (
-            <span key={ph} className={`px-2 py-0.5 rounded font-medium ${PS[ph].labelBg}`}>{ph}</span>
-          ))}
-          <span className="mx-1 text-slate-300">|</span>
-          <span>Bar fill = phase completion %</span>
-          <span className="flex items-center gap-1.5">
-            <span className="inline-block w-0.5 h-4 bg-blue-400 rounded" /> Today
+          {PHASES.map(ph => {
+            const s = PS[ph];
+            return (
+              <span
+                key={ph}
+                className="flex items-center gap-1.5 px-2 py-0.5 rounded-md font-semibold text-[11px]"
+                style={{ backgroundColor: s.bg, color: s.textColor, border: `1px solid ${s.border}` }}
+              >
+                <span className="w-2 h-2 rounded-sm inline-block" style={{ backgroundColor: s.fill }} />
+                {ph}
+              </span>
+            );
+          })}
+          <span className="text-slate-300 mx-1">|</span>
+          <span className="text-slate-500">Bar fill = completion %</span>
+          <span className="flex items-center gap-1.5 text-slate-500">
+            <span className="inline-block w-0.5 h-4 bg-blue-400 rounded" />Today
           </span>
         </div>
 
@@ -181,7 +214,7 @@ export default function PortfolioRoadmap() {
         <div className="flex-1 overflow-auto p-4">
           <div
             className="bg-white rounded-xl border shadow-sm overflow-hidden"
-            style={{ minWidth: LABEL_W + timeline.qs.length * MIN_Q_W }}
+            style={{ minWidth: LABEL_W + 4 * MIN_Q_W }}
           >
 
             {/* Quarter header */}
@@ -193,7 +226,7 @@ export default function PortfolioRoadmap() {
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Customer / Project</span>
               </div>
               <div className="flex flex-1">
-                {timeline.qs.map(q => (
+                {tl.qs.map(q => (
                   <div
                     key={q.label}
                     className="flex-1 border-r last:border-r-0 py-2 px-2 text-center"
@@ -222,38 +255,35 @@ export default function PortfolioRoadmap() {
             {/* Customer groups */}
             {groups.map(customer => {
               const isOpen = openSet.has(customer.id);
-
               return (
                 <div key={customer.id} className="border-b last:border-b-0">
 
-                  {/* ── Customer header row ── */}
+                  {/* Customer header */}
                   <button
-                    onClick={() => setOpenSet(prev => {
-                      const next = new Set(prev);
-                      next.has(customer.id) ? next.delete(customer.id) : next.add(customer.id);
-                      return next;
-                    })}
-                    className="w-full flex items-stretch border-b bg-slate-50/90 hover:bg-slate-100/90 transition-colors text-left"
+                    onClick={() => toggleCustomer(customer.id)}
+                    className="w-full flex items-stretch border-b bg-slate-50/90 hover:bg-slate-100/80 transition-colors text-left"
                   >
-                    {/* Label */}
                     <div
                       className="shrink-0 flex items-center gap-2 px-4 py-2.5 bg-slate-50/90"
                       style={{ width: LABEL_W, minWidth: LABEL_W, position: 'sticky', left: 0, zIndex: 10 }}
                     >
                       {isOpen
-                        ? <ChevronDown className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                        ? <ChevronDown  className="h-3.5 w-3.5 text-slate-400 shrink-0" />
                         : <ChevronRight className="h-3.5 w-3.5 text-slate-400 shrink-0" />}
                       <Building2 className="h-3.5 w-3.5 text-slate-500 shrink-0" />
                       <span className="text-xs font-bold text-slate-700 truncate">{customer.name}</span>
                     </div>
-                    {/* Timeline area: summary badges */}
                     <div className="flex-1 flex items-center gap-3 px-4 py-2.5 text-xs text-slate-400 flex-wrap">
                       <span>{customer.projects.length} project{customer.projects.length !== 1 ? 's' : ''}</span>
                       {PHASES.map(ph => {
                         const cnt = customer.projects.filter(p => p.current_phase === ph).length;
                         if (!cnt) return null;
                         return (
-                          <span key={ph} className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${PS[ph].labelBg}`}>
+                          <span
+                            key={ph}
+                            className="px-1.5 py-0.5 rounded text-[10px] font-semibold"
+                            style={{ backgroundColor: PS[ph].bg, color: PS[ph].textColor }}
+                          >
                             {cnt} {ph}
                           </span>
                         );
@@ -261,29 +291,42 @@ export default function PortfolioRoadmap() {
                     </div>
                   </button>
 
-                  {/* ── Project rows ── */}
+                  {/* Project rows */}
                   {isOpen && customer.projects.map((project, pIdx) => {
-                    // Collect phase bars that have dates
-                    const phaseBars = project.phases.filter(ph => ph.start_date || ph.end_date);
+                    // Determine which phase bars overlap with selected year
+                    const barsToShow = project.phases
+                      .filter(ph => {
+                        if (!ph.start_date && !ph.end_date) return false;
+                        const r0 = ph.start_date ? rawPct(ph.start_date) : -Infinity;
+                        const r1 = ph.end_date   ? rawPct(ph.end_date, true) : Infinity;
+                        return r1 > 0 && r0 < 100;
+                      });
 
-                    // Fallback: use project start/end with current_phase color if no activity dates
-                    const useFallback = phaseBars.length === 0 && (project.start_date || project.end_date);
+                    // Fallback: use project-level dates if no phase activity dates
+                    const fallbackR0 = project.start_date ? rawPct(project.start_date) : -Infinity;
+                    const fallbackR1 = project.end_date   ? rawPct(project.end_date, true) : Infinity;
+                    const showFallback = barsToShow.length === 0 &&
+                      (project.start_date || project.end_date) &&
+                      fallbackR1 > 0 && fallbackR0 < 100;
 
-                    const numBars = phaseBars.length || (useFallback ? 1 : 0);
-                    const rowH = numBars * (BAR_H + BAR_GAP) + ROW_PAD * 2;
+                    const numBars = barsToShow.length + (showFallback ? 1 : 0);
+                    const rowH = Math.max(
+                      (numBars || 1) * (BAR_H + BAR_GAP) + ROW_PAD * 2,
+                      BAR_H + ROW_PAD * 2,
+                    );
 
                     return (
                       <div
                         key={project.id}
-                        className={`flex border-b last:border-b-0 ${pIdx % 2 === 1 ? 'bg-slate-50/40' : 'bg-white'}`}
+                        className={`flex border-b last:border-b-0 ${pIdx % 2 === 1 ? 'bg-slate-50/50' : 'bg-white'}`}
                       >
-                        {/* Project label (sticky) */}
+                        {/* Label (sticky) */}
                         <div
-                          className={`shrink-0 flex flex-col justify-center px-4 border-r ${pIdx % 2 === 1 ? 'bg-slate-50/40' : 'bg-white'}`}
+                          className={`shrink-0 flex flex-col justify-center gap-0.5 px-4 border-r ${pIdx % 2 === 1 ? 'bg-slate-50/50' : 'bg-white'}`}
                           style={{ width: LABEL_W, minWidth: LABEL_W, minHeight: rowH, position: 'sticky', left: 0, zIndex: 10 }}
                         >
                           <Link href={`/projects/${project.id}`} className="group">
-                            <div className="flex items-center gap-1.5 mb-0.5">
+                            <div className="flex items-center gap-1.5">
                               <span
                                 className="w-1.5 h-1.5 rounded-full shrink-0"
                                 style={{ backgroundColor: RAG_COLOR[project.rag] }}
@@ -292,20 +335,31 @@ export default function PortfolioRoadmap() {
                                 {project.name}
                               </span>
                             </div>
-                            {project.pm_name && (
-                              <p className="text-[10px] text-slate-400 truncate pl-3">{project.pm_name}</p>
-                            )}
                           </Link>
+                          {project.pm_name && (
+                            <p className="text-[10px] text-slate-400 truncate pl-3">{project.pm_name}</p>
+                          )}
+                          <div className="pl-3">
+                            <span
+                              className="text-[9px] font-semibold px-1 py-0.5 rounded"
+                              style={{
+                                backgroundColor: PS[project.current_phase]?.bg ?? '#f1f5f9',
+                                color: PS[project.current_phase]?.textColor ?? '#475569',
+                              }}
+                            >
+                              {project.current_phase}
+                            </span>
+                          </div>
                         </div>
 
                         {/* Timeline canvas */}
                         <div
-                          className="flex-1 relative"
+                          className="flex-1 relative overflow-hidden"
                           style={{ height: rowH, minHeight: rowH }}
                         >
                           {/* Quarter grid lines */}
                           <div className="absolute inset-0 flex pointer-events-none" aria-hidden>
-                            {timeline.qs.map(q => (
+                            {tl.qs.map(q => (
                               <div
                                 key={q.label}
                                 className="flex-1 border-r border-slate-100 last:border-r-0"
@@ -314,22 +368,24 @@ export default function PortfolioRoadmap() {
                             ))}
                           </div>
 
-                          {/* Today line */}
-                          {timeline.todayPct >= 0 && timeline.todayPct <= 100 && (
+                          {/* Today line (only if current year) */}
+                          {tl.todayPct > 0 && tl.todayPct < 100 && (
                             <div
                               aria-hidden
-                              className="absolute top-0 bottom-0 w-px bg-blue-400 opacity-60 pointer-events-none z-10"
-                              style={{ left: `${timeline.todayPct}%` }}
+                              className="absolute top-0 bottom-0 w-px pointer-events-none z-10"
+                              style={{ left: `${tl.todayPct}%`, backgroundColor: '#60a5fa', opacity: 0.7 }}
                             />
                           )}
 
-                          {/* Phase bars from activity data */}
-                          {phaseBars.map((ph, barIdx) => {
-                            const startPct = ph.start_date ? pct(ph.start_date) : 0;
-                            const endPct   = ph.end_date   ? pct(ph.end_date, true) : 100;
-                            const widthPct = Math.max(endPct - startPct, 0.5);
-                            const style    = PS[ph.phase] ?? PS['Execution'];
-                            const top      = ROW_PAD + barIdx * (BAR_H + BAR_GAP);
+                          {/* Phase bars */}
+                          {barsToShow.map((ph, barIdx) => {
+                            const s = PS[ph.phase] ?? PS['Execution'];
+                            const r0 = ph.start_date ? rawPct(ph.start_date) : 0;
+                            const r1 = ph.end_date   ? rawPct(ph.end_date, true) : 100;
+                            const startPct = Math.max(0, r0);
+                            const endPct   = Math.min(100, r1);
+                            const widthPct = Math.max(endPct - startPct, 0.4);
+                            const top = ROW_PAD + barIdx * (BAR_H + BAR_GAP);
 
                             return (
                               <Link key={ph.phase} href={`/projects/${project.id}`} className="block">
@@ -338,25 +394,28 @@ export default function PortfolioRoadmap() {
                                   style={{ top, left: `${startPct}%`, width: `${widthPct}%`, height: BAR_H }}
                                 >
                                   <div
-                                    className="relative h-full rounded-md overflow-hidden flex items-center transition-all hover:brightness-95 shadow-sm"
-                                    style={{ backgroundColor: style.barBg, border: `1.5px solid ${style.barBorder}` }}
-                                    title={`${ph.phase}: ${ph.done}/${ph.total} done (${ph.completion_pct}%)`}
+                                    className="relative h-full rounded-md overflow-hidden flex items-center shadow-sm transition-opacity hover:opacity-90"
+                                    style={{ backgroundColor: s.bg, border: `1.5px solid ${s.border}` }}
+                                    title={`${ph.phase}: ${ph.done}/${ph.total} done · ${ph.completion_pct}%`}
                                   >
                                     {/* Completion fill */}
                                     <div
                                       aria-hidden
-                                      className="absolute inset-y-0 left-0 rounded-l-md"
-                                      style={{ width: `${ph.completion_pct}%`, backgroundColor: style.fill }}
+                                      className="absolute inset-y-0 left-0"
+                                      style={{ width: `${ph.completion_pct}%`, backgroundColor: s.fill }}
                                     />
-                                    {/* Labels */}
-                                    <div className="relative z-10 flex items-center gap-1.5 px-2 min-w-0 w-full">
-                                      <span className={`text-[10px] font-semibold shrink-0 ${style.text}`}>
-                                        {ph.phase.slice(0, 4)}
+                                    {/* Label */}
+                                    <div
+                                      className="relative z-10 flex items-center gap-1.5 px-2 min-w-0 w-full"
+                                      style={{ color: s.textColor }}
+                                    >
+                                      <span className="text-[10px] font-bold shrink-0">
+                                        {ph.phase.slice(0, 4).toUpperCase()}
                                       </span>
-                                      <span className="text-[10px] text-slate-500 truncate flex-1">
+                                      <span className="text-[10px] truncate flex-1 opacity-80">
                                         {ph.done}/{ph.total}
                                       </span>
-                                      <span className={`text-[10px] font-bold shrink-0 ${style.text}`}>
+                                      <span className="text-[10px] font-bold shrink-0">
                                         {ph.completion_pct}%
                                       </span>
                                     </div>
@@ -366,12 +425,12 @@ export default function PortfolioRoadmap() {
                             );
                           })}
 
-                          {/* Fallback bar (project dates, no activity dates) */}
-                          {useFallback && (() => {
-                            const startPct = project.start_date ? pct(project.start_date) : 0;
-                            const endPct   = project.end_date   ? pct(project.end_date, true) : 100;
-                            const widthPct = Math.max(endPct - startPct, 0.5);
-                            const style    = PS[project.current_phase] ?? PS['Execution'];
+                          {/* Fallback bar (project-level dates) */}
+                          {showFallback && (() => {
+                            const s = PS[project.current_phase] ?? PS['Execution'];
+                            const startPct = Math.max(0, fallbackR0);
+                            const endPct   = Math.min(100, fallbackR1);
+                            const widthPct = Math.max(endPct - startPct, 0.4);
                             return (
                               <Link href={`/projects/${project.id}`} className="block">
                                 <div
@@ -379,20 +438,23 @@ export default function PortfolioRoadmap() {
                                   style={{ top: ROW_PAD, left: `${startPct}%`, width: `${widthPct}%`, height: BAR_H }}
                                 >
                                   <div
-                                    className="relative h-full rounded-md overflow-hidden flex items-center transition-all hover:brightness-95 shadow-sm"
-                                    style={{ backgroundColor: style.barBg, border: `1.5px solid ${style.barBorder}` }}
+                                    className="relative h-full rounded-md overflow-hidden flex items-center shadow-sm transition-opacity hover:opacity-90"
+                                    style={{ backgroundColor: s.bg, border: `1.5px solid ${s.border}` }}
                                     title={`${project.current_phase} · ${project.completion_pct}%`}
                                   >
                                     <div
                                       aria-hidden
-                                      className="absolute inset-y-0 left-0 rounded-l-md"
-                                      style={{ width: `${project.completion_pct}%`, backgroundColor: style.fill }}
+                                      className="absolute inset-y-0 left-0"
+                                      style={{ width: `${project.completion_pct}%`, backgroundColor: s.fill }}
                                     />
-                                    <div className="relative z-10 flex items-center gap-1.5 px-2 min-w-0 w-full">
-                                      <span className={`text-[10px] font-semibold shrink-0 ${style.text}`}>
-                                        {project.current_phase.slice(0, 4)}
+                                    <div
+                                      className="relative z-10 flex items-center gap-1.5 px-2 min-w-0 w-full"
+                                      style={{ color: s.textColor }}
+                                    >
+                                      <span className="text-[10px] font-bold shrink-0">
+                                        {project.current_phase.slice(0, 4).toUpperCase()}
                                       </span>
-                                      <span className={`text-[10px] font-bold shrink-0 ${style.text}`}>
+                                      <span className="text-[10px] font-bold shrink-0">
                                         {project.completion_pct}%
                                       </span>
                                     </div>
@@ -402,10 +464,10 @@ export default function PortfolioRoadmap() {
                             );
                           })()}
 
-                          {/* No dates placeholder */}
-                          {!useFallback && phaseBars.length === 0 && (
+                          {/* No activity in this year */}
+                          {numBars === 0 && (
                             <div className="absolute inset-0 flex items-center px-4">
-                              <span className="text-[10px] text-slate-300 italic">No dates set</span>
+                              <span className="text-[10px] text-slate-300 italic">No activity in {selectedYear}</span>
                             </div>
                           )}
                         </div>
