@@ -210,6 +210,18 @@ async function initPostgresSchema(db: DbClient) {
       name TEXT NOT NULL,
       mappings_json TEXT NOT NULL,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE TABLE IF NOT EXISTS budget_items (
+      id SERIAL PRIMARY KEY,
+      project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      type TEXT NOT NULL DEFAULT 'CAPEX',
+      group_name TEXT NOT NULL DEFAULT '',
+      name TEXT NOT NULL,
+      planned_amount NUMERIC(15,2) NOT NULL DEFAULT 0,
+      actual_amount NUMERIC(15,2) NOT NULL DEFAULT 0,
+      unit TEXT NOT NULL DEFAULT 'USD',
+      notes TEXT DEFAULT '',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `);
 }
@@ -232,6 +244,7 @@ async function migratePostgresSchema(pool: Pool) {
     `ALTER TABLE users ADD COLUMN IF NOT EXISTS onboarding_completed INTEGER DEFAULT 0`,
     `UPDATE users SET onboarding_completed = 1 WHERE created_at < '2026-05-08 00:00:00' AND onboarding_completed = 0`,
     `CREATE TABLE IF NOT EXISTS timeline_import_mappings (id SERIAL PRIMARY KEY, name TEXT NOT NULL, mappings_json TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
+    `CREATE TABLE IF NOT EXISTS budget_items (id SERIAL PRIMARY KEY, project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE, type TEXT NOT NULL DEFAULT 'CAPEX', group_name TEXT NOT NULL DEFAULT '', name TEXT NOT NULL, planned_amount NUMERIC(15,2) NOT NULL DEFAULT 0, actual_amount NUMERIC(15,2) NOT NULL DEFAULT 0, unit TEXT NOT NULL DEFAULT 'USD', notes TEXT DEFAULT '', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
   ];
   for (const sql of migrations) {
     try { await pool.query(sql); } catch { /* column already exists */ }

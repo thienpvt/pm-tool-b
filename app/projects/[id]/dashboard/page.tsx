@@ -14,7 +14,7 @@ import {
   CheckCircle2, Clock, AlertTriangle, Users, TrendingUp,
   TrendingDown, Minus, ChevronLeft, ChevronRight, Flame,
   CalendarClock, ShieldAlert, Bug, Target, Pencil,
-  Activity, Zap, Calendar, User, BarChart2,
+  Activity, Zap, Calendar, User, BarChart2, DollarSign,
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -207,20 +207,31 @@ export default function DashboardPage() {
   const [editOpen,   setEditOpen]   = useState(false);
   const [editForm,   setEditForm]   = useState<Partial<Project>>({});
   const [saving,     setSaving]     = useState(false);
+  const [budget,     setBudget]     = useState<{ planned: number; actual: number; capex: number; opex: number } | null>(null);
 
   const load = useCallback(async () => {
-    const [proj, acts, tm, rs, iss] = await Promise.all([
+    const [proj, acts, tm, rs, iss, bud] = await Promise.all([
       fetch(`/api/projects/${id}`).then(r=>r.json()),
       fetch(`/api/projects/${id}/activities`).then(r=>r.json()),
       fetch(`/api/projects/${id}/team`).then(r=>r.json()),
       fetch(`/api/projects/${id}/risks`).then(r=>r.json()),
       fetch(`/api/projects/${id}/issues`).then(r=>r.json()),
+      fetch(`/api/projects/${id}/budget`).then(r=>r.ok?r.json():null),
     ]);
     setProject(proj);
     setActivities(Array.isArray(acts)?acts:[]);
     setTeam(Array.isArray(tm)?tm:[]);
     setRisks(Array.isArray(rs)?rs:[]);
     setIssues(Array.isArray(iss)?iss:[]);
+    if (bud?.items) {
+      const items = bud.items as { type: string; planned_amount: number; actual_amount: number }[];
+      setBudget({
+        planned: items.reduce((s: number, i: any) => s + Number(i.planned_amount), 0),
+        actual:  items.reduce((s: number, i: any) => s + Number(i.actual_amount),  0),
+        capex:   items.filter((i: any) => i.type === 'CAPEX').reduce((s: number, i: any) => s + Number(i.planned_amount), 0),
+        opex:    items.filter((i: any) => i.type === 'OPEX').reduce((s: number, i: any)  => s + Number(i.planned_amount), 0),
+      });
+    }
   }, [id]);
 
   useEffect(() => { load(); }, [load]);
@@ -444,6 +455,50 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
+
+        {/* ── Budget Summary ── */}
+        {budget !== null && budget.planned > 0 && (() => {
+          const utilPct = budget.planned > 0 ? Math.round((budget.actual / budget.planned) * 100) : 0;
+          const remaining = budget.planned - budget.actual;
+          const fmtK = (v: number) => v >= 1_000_000 ? `${(v/1_000_000).toFixed(1)}M` : v >= 1_000 ? `${(v/1_000).toFixed(0)}K` : v.toFixed(0);
+          return (
+            <div className="bg-white rounded-2xl border shadow-sm p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-emerald-50 flex items-center justify-center">
+                    <DollarSign className="h-4 w-4 text-emerald-600"/>
+                  </div>
+                  <span className="text-sm font-bold text-slate-700">Budget & Cost</span>
+                </div>
+                <Link href={`/projects/${id}/budget`} className="text-[11px] text-blue-600 hover:underline font-medium">View details →</Link>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="rounded-xl bg-slate-50 border px-3 py-2.5">
+                  <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wide">Total Budget</p>
+                  <p className="text-xl font-bold text-slate-800 mt-0.5">{fmtK(budget.planned)}</p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">Planned</p>
+                </div>
+                <div className="rounded-xl bg-slate-50 border px-3 py-2.5">
+                  <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wide">Spent</p>
+                  <p className={`text-xl font-bold mt-0.5 ${budget.actual > budget.planned ? 'text-red-600' : 'text-slate-800'}`}>{fmtK(budget.actual)}</p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">Actual cost</p>
+                </div>
+                <div className="rounded-xl bg-slate-50 border px-3 py-2.5">
+                  <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wide">Remaining</p>
+                  <p className={`text-xl font-bold mt-0.5 ${remaining < 0 ? 'text-red-600' : 'text-emerald-600'}`}>{remaining < 0 ? '-' : ''}{fmtK(Math.abs(remaining))}</p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">{remaining < 0 ? 'Over budget' : 'Available'}</p>
+                </div>
+                <div className="rounded-xl bg-slate-50 border px-3 py-2.5">
+                  <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wide">Utilization</p>
+                  <p className={`text-xl font-bold mt-0.5 ${utilPct > 100 ? 'text-red-600' : utilPct > 80 ? 'text-amber-600' : 'text-slate-800'}`}>{utilPct}%</p>
+                  <div className="mt-1.5 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                    <div className={`h-full rounded-full ${utilPct > 100 ? 'bg-red-500' : utilPct > 80 ? 'bg-amber-500' : 'bg-emerald-500'}`} style={{width:`${Math.min(utilPct,100)}%`}}/>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* ── Activity Flow + Phase Progress ── */}
         <div className="grid grid-cols-1 xl:grid-cols-5 gap-4">

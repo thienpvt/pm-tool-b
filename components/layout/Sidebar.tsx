@@ -8,7 +8,7 @@ import {
   MessageSquare, AlertTriangle, FileText, TrendingDown,
   PieChart, Building2, ClipboardList, FileBarChart2,
   LogOut, ShieldCheck, ChevronDown, KeyRound, Menu, X,
-  FolderOpen, Plus, Map,
+  FolderOpen, Plus, Map, DollarSign,
 } from 'lucide-react';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -45,6 +45,7 @@ const PROJECT_NAV = [
   { href: '/timeline', icon: Calendar, label: 'Project Timeline' },
   { href: '/resources', icon: Users, label: 'Resource Plan' },
   { href: '/communication', icon: MessageSquare, label: 'Communication' },
+  { href: '/budget', icon: DollarSign, label: 'Budget & Cost' },
   { href: '/risks', icon: AlertTriangle, label: 'Risks & Issues' },
   { href: '/analysis', icon: TrendingDown, label: 'Delay Analysis' },
   { href: '/reports', icon: ClipboardList, label: 'Weekly Report' },
