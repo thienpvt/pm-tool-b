@@ -863,11 +863,12 @@ export default function ImportMappingDialog({
                                 <span className="text-slate-300 text-xs">→</span>
                                 <Select
                                   value={override || autoMapped}
-                                  onValueChange={val => {
-                                    if (val === autoMapped) {
+                                  onValueChange={(val: string | null) => {
+                                    const v = val ?? autoMapped;
+                                    if (v === autoMapped) {
                                       setStatusOverrides(prev => { const n = { ...prev }; delete n[raw]; return n; });
                                     } else {
-                                      setStatusOverrides(prev => ({ ...prev, [raw]: val }));
+                                      setStatusOverrides(prev => ({ ...prev, [raw]: v }));
                                     }
                                   }}
                                 >
