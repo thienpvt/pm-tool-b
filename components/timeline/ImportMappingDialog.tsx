@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSeparator, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import {
   Upload, Save, Trash2, ChevronRight, ChevronLeft, FileSpreadsheet, Check,
@@ -77,7 +77,15 @@ function autoSuggestMapping(columns: string[]): Record<string, string> {
 type SavedMapping = { id: number; name: string; mappings_json: string; created_at: string };
 type FileData = { columns: string[]; allRows: string[][]; preview: string[][] };
 
-const STATUSES = ['To-do', 'In Progress', 'Done', 'Blocked', 'Deferred'];
+const STATUSES = [
+  'New', 'To Do', 'To-do', 'REFINEMENT',
+  'In Dev', 'In development', 'Ready For Dev', 'In Progress',
+  'In Review', 'PENDING',
+  'In Testing', 'Testing', 'Ready for Test', 'READY4TEST', 'STAGING-READY4TEST',
+  'Re-Open',
+  'Done', 'UAT', 'Deployed', 'QC Done', 'READY TO RELEASE', 'READY FOR RELEASE', 'Passed QC', 'ANBM',
+  'Blocked', 'Deferred',
+];
 const DELAY_OWNERS = ['N/A', 'Client', 'Vendor', 'Both', 'External'];
 const SKIP = '__skip__';
 
@@ -120,13 +128,40 @@ function normalizeDate(raw: string): string {
 const norm = (s: string) => s.toLowerCase().replace(/[\s_\-\/\.]/g, '');
 
 const STATUS_MAP: Record<string, string> = {
+  // Chưa làm
+  new: 'New', notstarted: 'New', open: 'New',
+  todo: 'To-do', tostart: 'To-do',
+  refinement: 'REFINEMENT', refining: 'REFINEMENT', grooming: 'REFINEMENT', backlog: 'REFINEMENT',
+  // Đang làm
+  indev: 'In Dev', developing: 'In Dev',
+  indevelopment: 'In development', development: 'In development',
+  readyfordev: 'Ready For Dev', readydev: 'Ready For Dev',
   inprogress: 'In Progress', wip: 'In Progress', ongoing: 'In Progress',
   processing: 'In Progress', running: 'In Progress',
-  todo: 'To-do', pending: 'To-do', notstarted: 'To-do', open: 'To-do', new: 'To-do',
+  // Giữa chừng
+  inreview: 'In Review', review: 'In Review', reviewing: 'In Review', codereview: 'In Review',
+  pending: 'PENDING',
+  // Đang test
+  intesting: 'In Testing', qa: 'In Testing', qc: 'In Testing',
+  testing: 'Testing',
+  readyfortest: 'Ready for Test', readytest: 'Ready for Test',
+  ready4test: 'READY4TEST', r4t: 'READY4TEST',
+  staging: 'STAGING-READY4TEST', stagingready: 'STAGING-READY4TEST',
+  // Gần xong
+  reopen: 'Re-Open', reopened: 'Re-Open',
+  // Hoàn thành
   done: 'Done', complete: 'Done', completed: 'Done', finished: 'Done', closed: 'Done',
+  uat: 'UAT', useracceptancetesting: 'UAT',
+  deployed: 'Deployed', deploy: 'Deployed', live: 'Deployed', production: 'Deployed',
+  qcdone: 'QC Done',
+  passedqc: 'Passed QC', passed: 'Passed QC',
+  readytorelease: 'READY TO RELEASE', rtr: 'READY TO RELEASE',
+  readyforrelease: 'READY FOR RELEASE', rfr: 'READY FOR RELEASE',
+  anbm: 'ANBM',
+  // Đặc biệt
   blocked: 'Blocked', stuck: 'Blocked', onhold: 'Blocked', hold: 'Blocked',
-  deferred: 'Deferred', postponed: 'Deferred', delayed: 'Deferred', cancelled: 'Deferred',
-  cancel: 'Deferred', skipped: 'Deferred',
+  deferred: 'Deferred', postponed: 'Deferred', delayed: 'Deferred',
+  cancelled: 'Deferred', cancel: 'Deferred', skipped: 'Deferred',
 };
 
 const DELAY_MAP: Record<string, string> = {
@@ -875,8 +910,41 @@ export default function ImportMappingDialog({
                                   <SelectTrigger className={`h-6 text-xs w-36 ${override ? 'border-amber-300 text-amber-700' : 'border-green-200 text-green-700'}`}>
                                     <SelectValue />
                                   </SelectTrigger>
-                                  <SelectContent>
-                                    {STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                                  <SelectContent className="max-h-72">
+                                    <SelectGroup>
+                                      <SelectLabel className="text-[10px] text-slate-400 py-1">Chưa làm</SelectLabel>
+                                      {['New', 'To Do', 'To-do', 'REFINEMENT'].map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                                    </SelectGroup>
+                                    <SelectSeparator />
+                                    <SelectGroup>
+                                      <SelectLabel className="text-[10px] text-slate-400 py-1">Đang làm</SelectLabel>
+                                      {['In Dev', 'In development', 'Ready For Dev', 'In Progress'].map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                                    </SelectGroup>
+                                    <SelectSeparator />
+                                    <SelectGroup>
+                                      <SelectLabel className="text-[10px] text-slate-400 py-1">Giữa chừng</SelectLabel>
+                                      {['In Review', 'PENDING'].map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                                    </SelectGroup>
+                                    <SelectSeparator />
+                                    <SelectGroup>
+                                      <SelectLabel className="text-[10px] text-slate-400 py-1">Đang test</SelectLabel>
+                                      {['In Testing', 'Testing', 'Ready for Test', 'READY4TEST', 'STAGING-READY4TEST'].map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                                    </SelectGroup>
+                                    <SelectSeparator />
+                                    <SelectGroup>
+                                      <SelectLabel className="text-[10px] text-slate-400 py-1">Gần xong</SelectLabel>
+                                      {['Re-Open'].map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                                    </SelectGroup>
+                                    <SelectSeparator />
+                                    <SelectGroup>
+                                      <SelectLabel className="text-[10px] text-slate-400 py-1">Hoàn thành</SelectLabel>
+                                      {['Done', 'UAT', 'Deployed', 'QC Done', 'READY TO RELEASE', 'READY FOR RELEASE', 'Passed QC', 'ANBM'].map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                                    </SelectGroup>
+                                    <SelectSeparator />
+                                    <SelectGroup>
+                                      <SelectLabel className="text-[10px] text-slate-400 py-1">Đặc biệt</SelectLabel>
+                                      {['Blocked', 'Deferred'].map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                                    </SelectGroup>
                                   </SelectContent>
                                 </Select>
                                 {!override && !isExact && (
