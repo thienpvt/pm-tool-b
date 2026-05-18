@@ -35,13 +35,49 @@ type Issue = { id: number; issue_id: string; description: string; category: stri
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const PHASE_ORDER = ['Initializing','Architecture & Design','Setup & Infra','Development','Testing','UAT','Deployment','Closing'];
-const STATUS_COLOR: Record<string, string> = {
-  'Done': '#22c55e', 'In Progress': '#3b82f6', 'To-do': '#94a3b8', 'Blocked': '#ef4444',
+
+const STATUS_WEIGHTS: Record<string, number> = {
+  'ANBM': 1, 'STAGING-READY4TEST': 0.6, 'Deployed': 1, 'Done': 1,
+  'In Dev': 0.2, 'In development': 0.2, 'In Progress': 0.3, 'In Review': 0.5,
+  'In Testing': 0.6, 'New': 0, 'PENDING': 0.5, 'UAT': 1, 'QC Done': 1,
+  'Ready For Dev': 0.2, 'Ready for Test': 0.6, 'Testing': 0.6, 'To Do': 0.1,
+  'To-do': 0.1, 'REFINEMENT': 0.1, 'Re-Open': 0.7, 'READY TO RELEASE': 1,
+  'Passed QC': 1, 'READY4TEST': 0.6, 'READY FOR RELEASE': 1, 'Blocked': 0,
 };
+
+const STATUS_GROUPS: { key: string; label: string; color: string; statuses: string[] }[] = [
+  { key: 'notStarted', label: 'Chưa làm',  color: '#94a3b8', statuses: ['New','To Do','To-do','REFINEMENT'] },
+  { key: 'inDev',      label: 'Đang làm',  color: '#3b82f6', statuses: ['In Dev','In development','Ready For Dev','In Progress'] },
+  { key: 'midway',     label: 'Giữa chừng',color: '#f59e0b', statuses: ['In Review','PENDING'] },
+  { key: 'testing',    label: 'Đang test', color: '#8b5cf6', statuses: ['In Testing','Testing','Ready for Test','READY4TEST','STAGING-READY4TEST'] },
+  { key: 'nearDone',   label: 'Gần xong',  color: '#f97316', statuses: ['Re-Open'] },
+  { key: 'done',       label: 'Hoàn thành',color: '#22c55e', statuses: ['Done','UAT','Deployed','QC Done','READY TO RELEASE','READY FOR RELEASE','Passed QC','ANBM'] },
+];
+
 const STATUS_BADGE: Record<string, string> = {
-  'Done': 'bg-green-100 text-green-700', 'In Progress': 'bg-blue-100 text-blue-700',
-  'To-do': 'bg-slate-100 text-slate-600', 'Blocked': 'bg-red-100 text-red-700',
+  'Done': 'bg-green-100 text-green-700', 'Deployed': 'bg-green-100 text-green-700',
+  'UAT': 'bg-green-100 text-green-700', 'QC Done': 'bg-green-100 text-green-700',
+  'ANBM': 'bg-green-100 text-green-700', 'READY TO RELEASE': 'bg-green-100 text-green-700',
+  'READY FOR RELEASE': 'bg-green-100 text-green-700', 'Passed QC': 'bg-green-100 text-green-700',
+  'In Progress': 'bg-blue-100 text-blue-700', 'In Dev': 'bg-blue-100 text-blue-700',
+  'In development': 'bg-blue-100 text-blue-700', 'Ready For Dev': 'bg-blue-100 text-blue-700',
+  'In Review': 'bg-amber-100 text-amber-700', 'PENDING': 'bg-amber-100 text-amber-700',
+  'In Testing': 'bg-purple-100 text-purple-700', 'Testing': 'bg-purple-100 text-purple-700',
+  'Ready for Test': 'bg-purple-100 text-purple-700', 'READY4TEST': 'bg-purple-100 text-purple-700',
+  'STAGING-READY4TEST': 'bg-purple-100 text-purple-700',
+  'Re-Open': 'bg-orange-100 text-orange-700',
+  'To-do': 'bg-slate-100 text-slate-600', 'To Do': 'bg-slate-100 text-slate-600',
+  'New': 'bg-slate-100 text-slate-600', 'REFINEMENT': 'bg-slate-100 text-slate-600',
+  'Blocked': 'bg-red-100 text-red-700',
 };
+
+// ─── Status Helpers ───────────────────────────────────────────────────────────
+function getStatusWeight(status: string): number {
+  return STATUS_WEIGHTS[status] ?? 0;
+}
+function isStatusComplete(status: string): boolean {
+  return getStatusWeight(status) >= 1.0;
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function today0(): Date { const d = new Date(); d.setHours(0,0,0,0); return d; }
@@ -50,13 +86,13 @@ function daysFromNow(dateStr: string): number {
   const d = new Date(dateStr); d.setHours(0,0,0,0);
   return Math.round((d.getTime() - today0().getTime()) / 86400000);
 }
-function isOverdue(act: Activity)   { return act.status !== 'Done' && !!act.plan_end && daysFromNow(act.plan_end) < 0; }
+function isOverdue(act: Activity)   { return !isStatusComplete(act.status) && act.status !== 'Blocked' && !!act.plan_end && daysFromNow(act.plan_end) < 0; }
 function isDueThisWeek(act: Activity) {
   const d = daysFromNow(act.plan_end);
-  return act.status !== 'Done' && !!act.plan_end && d >= 0 && d <= 7;
+  return !isStatusComplete(act.status) && !!act.plan_end && d >= 0 && d <= 7;
 }
 function isCompletedThisWeek(act: Activity) {
-  if (act.status !== 'Done' || !act.actual_end) return false;
+  if (!isStatusComplete(act.status) || !act.actual_end) return false;
   return daysFromNow(act.actual_end) >= -7 && daysFromNow(act.actual_end) <= 0;
 }
 function dateDiffDays(a: string, b: string) {
@@ -183,15 +219,31 @@ function SpiBadge({ spi }: { spi: number | null }) {
   );
 }
 
+// ─── Phase Status (status-weight based) ──────────────────────────────────────
 function PhaseStatus({ acts }: { acts: Activity[] }) {
-  const done=acts.filter(a=>a.status==='Done').length;
-  const inProg=acts.filter(a=>a.status==='In Progress').length;
-  const blocked=acts.filter(a=>a.status==='Blocked').length;
-  const pct=acts.length?Math.round(acts.reduce((s,a)=>s+(a.completion_pct||0),0)/acts.length):0;
-  const label=done===acts.length?'Done':blocked>0?'Blocked':inProg>0?'In Progress':'Not Started';
-  const lCls=done===acts.length?'text-green-600':blocked>0?'text-red-600':inProg>0?'text-blue-600':'text-slate-400';
-  const barCls=done===acts.length?'bg-green-500':blocked>0?'bg-red-500':inProg>0?'bg-blue-500':'bg-slate-200';
-  return {pct,label,lCls,barCls,done,inProg,blocked,total:acts.length};
+  const doneActs  = acts.filter(a => isStatusComplete(a.status));
+  const blocked   = acts.filter(a => a.status === 'Blocked');
+  const weightSum = acts.reduce((s, a) => s + getStatusWeight(a.status), 0);
+  const pct = acts.length ? Math.round((weightSum / acts.length) * 100) : 0;
+  const label = doneActs.length === acts.length && acts.length > 0
+    ? 'Hoàn thành'
+    : blocked.length > 0 ? 'Blocked'
+    : pct > 50 ? 'Đang tiến hành'
+    : pct > 0  ? 'Mới bắt đầu'
+    : 'Chưa bắt đầu';
+  const lCls = doneActs.length === acts.length && acts.length > 0
+    ? 'text-green-600'
+    : blocked.length > 0 ? 'text-red-600'
+    : pct > 50 ? 'text-blue-600'
+    : pct > 0  ? 'text-amber-600'
+    : 'text-slate-400';
+  const barCls = doneActs.length === acts.length && acts.length > 0
+    ? 'bg-green-500'
+    : blocked.length > 0 ? 'bg-red-500'
+    : pct > 50 ? 'bg-blue-500'
+    : pct > 0  ? 'bg-amber-400'
+    : 'bg-slate-200';
+  return { pct, label, lCls, barCls, done: doneActs.length, blocked: blocked.length, total: acts.length };
 }
 
 // ─── Main Dashboard ───────────────────────────────────────────────────────────
@@ -263,14 +315,21 @@ export default function DashboardPage() {
     </div>
   );
 
-  // ── Derived metrics ───────────────────────────────────────────────────────
-  const total   = activities.length;
-  const done    = activities.filter(a=>a.status==='Done').length;
-  const inProg  = activities.filter(a=>a.status==='In Progress').length;
-  const blocked = activities.filter(a=>a.status==='Blocked').length;
-  const todo    = activities.filter(a=>a.status==='To-do').length;
-  const avgPct  = total ? Math.round(activities.reduce((s,a)=>s+(a.completion_pct||0),0)/total) : 0;
+  // ── Derived metrics (status-weight based) ────────────────────────────────
+  const total    = activities.length;
+  const done     = activities.filter(a => isStatusComplete(a.status)).length;
+  const blocked  = activities.filter(a => a.status === 'Blocked').length;
 
+  // Weighted progress: avg(statusWeight) * 100
+  const weightedPct = total
+    ? Math.round(activities.reduce((s, a) => s + getStatusWeight(a.status), 0) / total * 100)
+    : 0;
+
+  // Group counts for Activity Flow
+  const groupCounts = STATUS_GROUPS.map(g => ({
+    ...g,
+    count: activities.filter(a => g.statuses.includes(a.status)).length,
+  }));
   const openRisks  = risks.filter(r=>r.status==='Open'||r.status==='In Progress');
   const openIssues = issues.filter(i=>i.status==='Open'||i.status==='In Progress');
 
@@ -279,13 +338,13 @@ export default function DashboardPage() {
     const dTotal   = dateDiffDays(project.start_date, project.end_date);
     const dElapsed = dateDiffDays(project.start_date, new Date().toISOString().slice(0,10));
     const timePct  = dTotal > 0 ? Math.max(0, Math.min(dElapsed/dTotal, 1))*100 : 0;
-    if (timePct > 0) spi = Math.round((avgPct/timePct)*100)/100;
+    if (timePct > 0) spi = Math.round((weightedPct/timePct)*100)/100;
   }
 
   const daysLeft = project.end_date ? daysFromNow(project.end_date) : null;
   const withPlanEnd = activities.filter(a=>a.plan_end);
   const onTime = withPlanEnd.filter(a => {
-    if (a.status==='Done') return !a.actual_end || daysFromNow(a.plan_end)>=daysFromNow(a.actual_end);
+    if (isStatusComplete(a.status)) return !a.actual_end || daysFromNow(a.plan_end)>=daysFromNow(a.actual_end);
     return daysFromNow(a.plan_end) >= 0;
   }).length;
   const onTimePct = withPlanEnd.length ? Math.round((onTime/withPlanEnd.length)*100) : 100;
@@ -304,9 +363,9 @@ export default function DashboardPage() {
   const overdue  = activities.filter(isOverdue).sort((a,b)=>daysFromNow(a.plan_end)-daysFromNow(b.plan_end));
   const dueWeek  = activities.filter(isDueThisWeek).sort((a,b)=>daysFromNow(a.plan_end)-daysFromNow(b.plan_end));
   const completedThisWeek = activities.filter(isCompletedThisWeek);
-  const upcoming = activities.filter(a=>a.status!=='Done'&&a.deliverable&&a.plan_end&&daysFromNow(a.plan_end)>=0&&daysFromNow(a.plan_end)<=30).sort((a,b)=>daysFromNow(a.plan_end)-daysFromNow(b.plan_end)).slice(0,5);
+  const upcoming = activities.filter(a=>!isStatusComplete(a.status)&&a.deliverable&&a.plan_end&&daysFromNow(a.plan_end)>=0&&daysFromNow(a.plan_end)<=30).sort((a,b)=>daysFromNow(a.plan_end)-daysFromNow(b.plan_end)).slice(0,5);
 
-  // Project health score
+  // Health score uses weighted progress
   const healthScore = Math.max(10, Math.min(100,
     100 - overdue.length*5 - blocked*8 - openRisks.length*4 - openIssues.length*3 - (onTimePct<60?15:onTimePct<80?5:0) - (spi!==null&&spi<0.8?10:0)
   ));
@@ -373,7 +432,7 @@ export default function DashboardPage() {
             </div>
             <HealthScoreArc score={healthScore} />
             <p className="text-xs text-slate-400 text-center">
-              {done}/{total} activities done
+              {done}/{total} hoàn thành · {weightedPct}% weighted
             </p>
           </div>
 
@@ -429,12 +488,12 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Work Progress */}
+          {/* Work Progress (status-weight based) */}
           <div className="bg-white rounded-2xl border p-5 shadow-sm">
             <div className="flex items-start justify-between mb-3">
               <div>
                 <p className="text-sm font-bold text-slate-700">Work Progress</p>
-                <p className="text-[11px] text-slate-400">Overall completion</p>
+                <p className="text-[11px] text-slate-400">Weighted by status</p>
               </div>
               <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
                 <Target className="h-4 w-4 text-blue-500"/>
@@ -442,16 +501,16 @@ export default function DashboardPage() {
             </div>
             <div className="flex items-end justify-between mb-3">
               <div>
-                <p className="text-4xl font-bold text-slate-900">{avgPct}%</p>
-                <p className="text-xs text-slate-400 mt-1">{done}/{total} activities done</p>
+                <p className="text-4xl font-bold text-slate-900">{weightedPct}%</p>
+                <p className="text-xs text-slate-400 mt-1">{done}/{total} hoàn thành</p>
               </div>
               <div className="flex flex-col items-end gap-1">
-                <Spark data={[10,20,30,40,50,avgPct||0]} color="#3b82f6"/>
+                <Spark data={[10,20,30,40,50,weightedPct||0]} color="#3b82f6"/>
                 {blocked>0&&<span className="text-[10px] text-red-500 font-semibold flex items-center gap-0.5"><Flame className="h-2.5 w-2.5"/>{blocked} blocked</span>}
               </div>
             </div>
             <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-              <div className="h-full bg-blue-500 rounded-full transition-all" style={{width:`${avgPct}%`}}/>
+              <div className="h-full bg-blue-500 rounded-full transition-all" style={{width:`${weightedPct}%`}}/>
             </div>
           </div>
         </div>
@@ -503,59 +562,80 @@ export default function DashboardPage() {
         {/* ── Activity Flow + Phase Progress ── */}
         <div className="grid grid-cols-1 xl:grid-cols-5 gap-4">
 
-          {/* Activity Flow */}
+          {/* Activity Flow — 6 status groups */}
           <div className="xl:col-span-2 bg-white rounded-2xl border p-5 shadow-sm">
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h3 className="text-sm font-bold text-slate-700">Activity Flow</h3>
-                <p className="text-[11px] text-slate-400">Work status breakdown</p>
+                <p className="text-[11px] text-slate-400">Phân nhóm theo trạng thái</p>
               </div>
               <Activity className="h-4 w-4 text-slate-300"/>
             </div>
-            <div className="grid grid-cols-2 gap-3 mb-4">
-              {[
-                { label:'To-do',       value:todo,    bg:'bg-slate-50 border-slate-200',   text:'text-slate-700',  bar:'bg-slate-400' },
-                { label:'In Progress', value:inProg,  bg:'bg-blue-50 border-blue-200',     text:'text-blue-700',   bar:'bg-blue-500' },
-                { label:'Blocked',     value:blocked, bg:'bg-red-50 border-red-200',       text:'text-red-700',    bar:'bg-red-500' },
-                { label:'Done',        value:done,    bg:'bg-green-50 border-green-200',   text:'text-green-700',  bar:'bg-green-500' },
-              ].map(({label,value,bg,text,bar})=>(
-                <div key={label} className={`rounded-xl border p-3 ${bg}`}>
-                  <p className={`text-2xl font-bold ${text}`}>{value}</p>
-                  <p className={`text-[11px] font-medium mt-0.5 ${text} opacity-80`}>{label}</p>
-                  <div className="mt-2 h-1 bg-white/60 rounded-full overflow-hidden">
-                    <div className={`h-full ${bar} rounded-full`} style={{width:total?`${(value/total)*100}%`:'0%'}}/>
+
+            {/* 6-group grid */}
+            <div className="grid grid-cols-2 gap-2 mb-4">
+              {groupCounts.map(g => (
+                <div key={g.key} className="rounded-xl border p-2.5" style={{backgroundColor:`${g.color}12`, borderColor:`${g.color}30`}}>
+                  <p className="text-xl font-bold" style={{color: g.color}}>{g.count}</p>
+                  <p className="text-[11px] font-medium mt-0.5 opacity-80" style={{color: g.color}}>{g.label}</p>
+                  <div className="mt-1.5 h-1 rounded-full overflow-hidden" style={{backgroundColor:`${g.color}20`}}>
+                    <div className="h-full rounded-full" style={{width:total?`${(g.count/total)*100}%`:'0%', backgroundColor: g.color}}/>
                   </div>
                 </div>
               ))}
             </div>
+
+            {/* Blocked row (special) */}
+            {blocked > 0 && (
+              <div className="rounded-xl border border-red-200 bg-red-50 p-2.5 mb-4 flex items-center gap-2">
+                <Flame className="h-3.5 w-3.5 text-red-500 shrink-0"/>
+                <span className="text-xs font-semibold text-red-700">{blocked} Blocked</span>
+                <div className="flex-1 h-1 bg-red-100 rounded-full overflow-hidden ml-1">
+                  <div className="h-full bg-red-500 rounded-full" style={{width:total?`${(blocked/total)*100}%`:'0%'}}/>
+                </div>
+              </div>
+            )}
+
             {/* Donut + legend */}
-            <div className="flex items-center gap-4">
-              <DonutChart size={100} center={String(total)} slices={[
-                {label:'Done',value:done,color:STATUS_COLOR['Done']},
-                {label:'In Progress',value:inProg,color:STATUS_COLOR['In Progress']},
-                {label:'Blocked',value:blocked,color:STATUS_COLOR['Blocked']},
-                {label:'To-do',value:todo,color:STATUS_COLOR['To-do']},
+            <div className="flex items-center gap-3">
+              <DonutChart size={96} center={String(total)} slices={[
+                ...groupCounts.map(g => ({ label: g.label, value: g.count, color: g.color })),
+                ...(blocked > 0 ? [{ label: 'Blocked', value: blocked, color: '#ef4444' }] : []),
               ]}/>
-              <div className="flex-1 space-y-2">
-                {[{label:'Done',value:done,color:STATUS_COLOR['Done']},{label:'In Progress',value:inProg,color:STATUS_COLOR['In Progress']},{label:'Blocked',value:blocked,color:STATUS_COLOR['Blocked']},{label:'To-do',value:todo,color:STATUS_COLOR['To-do']}].map(s=>(
-                  <div key={s.label} className="flex items-center justify-between text-xs">
+              <div className="flex-1 space-y-1.5">
+                {groupCounts.filter(g => g.count > 0).map(g => (
+                  <div key={g.key} className="flex items-center justify-between text-xs">
                     <div className="flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-sm shrink-0" style={{background:s.color}}/>
-                      <span className="text-slate-600">{s.label}</span>
+                      <span className="w-2 h-2 rounded-sm shrink-0" style={{background: g.color}}/>
+                      <span className="text-slate-600">{g.label}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <div className="w-12 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                        <div className="h-full rounded-full" style={{width:total?`${(s.value/total)*100}%`:'0%',background:s.color}}/>
+                      <div className="w-10 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                        <div className="h-full rounded-full" style={{width:total?`${(g.count/total)*100}%`:'0%', background: g.color}}/>
                       </div>
-                      <span className="font-mono w-4 text-right text-slate-500">{s.value}</span>
+                      <span className="font-mono w-4 text-right text-slate-500">{g.count}</span>
                     </div>
                   </div>
                 ))}
+                {blocked > 0 && (
+                  <div className="flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-sm shrink-0 bg-red-500"/>
+                      <span className="text-slate-600">Blocked</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-10 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                        <div className="h-full bg-red-500 rounded-full" style={{width:total?`${(blocked/total)*100}%`:'0%'}}/>
+                      </div>
+                      <span className="font-mono w-4 text-right text-slate-500">{blocked}</span>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
 
-          {/* Phase Progress */}
+          {/* Phase Progress — status-weight based % */}
           <div className="xl:col-span-3 bg-white rounded-2xl border p-5 shadow-sm">
             <div className="flex items-center justify-between mb-4">
               <div>
@@ -570,7 +650,7 @@ export default function DashboardPage() {
               <div className="space-y-3">
                 {orderedPhases.map(phase=>{
                   const acts = activities.filter(a=>a.phase===phase);
-                  const {pct,label,lCls,barCls,done:d,inProg:ip,blocked:bl,total:tot} = PhaseStatus({acts});
+                  const {pct,label,lCls,barCls,done:d,blocked:bl,total:tot} = PhaseStatus({acts});
                   const isCurrent = phase===project.current_phase;
                   return (
                     <div key={phase} className={`rounded-xl p-3 transition-colors ${isCurrent?'bg-blue-50/60 border border-blue-100':'hover:bg-slate-50'}`}>
@@ -803,7 +883,7 @@ export default function DashboardPage() {
                     <CheckCircle2 className="h-3.5 w-3.5 text-green-500 mt-0.5 shrink-0"/>
                     <div className="min-w-0">
                       <p className="text-xs font-medium text-slate-700 truncate">{a.activity}</p>
-                      <p className="text-[10px] text-slate-400">{a.phase} · Done {fmt(a.actual_end)}</p>
+                      <p className="text-[10px] text-slate-400">{a.phase} · {a.status} · {fmt(a.actual_end)}</p>
                     </div>
                   </div>
                 ))}
@@ -832,7 +912,7 @@ export default function DashboardPage() {
                         <p className="text-xs font-medium text-slate-700 truncate">{a.deliverable}</p>
                         <p className="text-[10px] text-slate-400 truncate">{a.activity} · {a.phase}</p>
                       </div>
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded border shrink-0 ${STATUS_BADGE[a.status]??''}`}>{a.status}</span>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded border shrink-0 ${STATUS_BADGE[a.status]??'bg-slate-100 text-slate-600'}`}>{a.status}</span>
                     </div>
                   );
                 })}
@@ -899,7 +979,7 @@ export default function DashboardPage() {
                           <td className="px-3 py-2 text-slate-500">{a.phase}</td>
                           <td className="px-3 py-2 font-mono text-slate-600">{a.plan_end}</td>
                           <td className="px-3 py-2 text-center"><span className={`font-bold ${lag>14?'text-red-600':lag>7?'text-orange-600':'text-amber-600'}`}>+{lag}d</span></td>
-                          <td className="px-3 py-2"><span className={`text-[10px] px-1.5 py-0.5 rounded border ${STATUS_BADGE[a.status]??''}`}>{a.status}</span></td>
+                          <td className="px-3 py-2"><span className={`text-[10px] px-1.5 py-0.5 rounded border ${STATUS_BADGE[a.status]??'bg-slate-100 text-slate-600'}`}>{a.status}</span></td>
                           <td className="px-3 py-2 text-slate-500">{a.accountable||'—'}</td>
                         </tr>
                       );
@@ -953,7 +1033,7 @@ export default function DashboardPage() {
                               <span className="text-slate-500">{a.completion_pct}%</span>
                             </div>
                           </td>
-                          <td className="px-3 py-2"><span className={`text-[10px] px-1.5 py-0.5 rounded border ${STATUS_BADGE[a.status]??''}`}>{a.status}</span></td>
+                          <td className="px-3 py-2"><span className={`text-[10px] px-1.5 py-0.5 rounded border ${STATUS_BADGE[a.status]??'bg-slate-100 text-slate-600'}`}>{a.status}</span></td>
                           <td className="px-3 py-2 text-slate-500">{a.accountable||'—'}</td>
                         </tr>
                       );
@@ -967,7 +1047,7 @@ export default function DashboardPage() {
         </div>
 
         <p className="text-[10px] text-slate-300 text-center pb-2">
-          SPI (Schedule Performance Index) = % work done ÷ % timeline elapsed · &gt;1 ahead · &lt;0.8 at risk
+          SPI = weighted progress % ÷ % timeline elapsed · &gt;1 ahead · &lt;0.8 at risk · weighted progress = avg(status weight) × 100
         </p>
 
       </main>
