@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { Plus, Trash2, Save, Download, Upload, FileDown, AlertCircle, MessageSquare, GanttChart, LayoutList, CalendarX2 } from 'lucide-react';
+import { Plus, Trash2, Save, Download, Upload, FileDown, AlertCircle, MessageSquare, GanttChart, LayoutList, CalendarX2, ChevronDown, ChevronRight, ChevronsUpDown } from 'lucide-react';
 import ImportMappingDialog from '@/components/timeline/ImportMappingDialog';
 
 type Activity = {
@@ -28,42 +28,22 @@ type DateMode  = 'plan' | 'actual' | 'both';
 const DEFAULT_PHASES = ['Initializing', 'Architecture & Design', 'Setup & Infra', 'Development', 'Testing', 'UAT', 'Deployment', 'Closing'];
 const DELAY_OWNERS = ['N/A', 'Client', 'Vendor', 'Both', 'External'];
 
-// ─── Statuses ─────────────────────────────────────────────────────────────────
 const STATUSES = [
-  // Chưa làm
   'New', 'To Do', 'To-do', 'REFINEMENT',
-  // Đang làm
   'In Dev', 'In development', 'Ready For Dev', 'In Progress',
-  // Giữa chừng
   'In Review', 'PENDING',
-  // Đang test
   'In Testing', 'Testing', 'Ready for Test', 'READY4TEST', 'STAGING-READY4TEST',
-  // Gần xong
   'Re-Open',
-  // Hoàn thành
   'Done', 'UAT', 'Deployed', 'QC Done', 'READY TO RELEASE', 'READY FOR RELEASE', 'Passed QC', 'ANBM',
-  // Đặc biệt
   'Blocked', 'Deferred',
 ];
-
-const STATUS_WEIGHT: Record<string, number> = {
-  'New': 0, 'To Do': 0.1, 'To-do': 0.1, 'REFINEMENT': 0.1,
-  'In Dev': 0.2, 'In development': 0.2, 'Ready For Dev': 0.2, 'In Progress': 0.3,
-  'In Review': 0.5, 'PENDING': 0.5,
-  'In Testing': 0.6, 'Testing': 0.6, 'Ready for Test': 0.6,
-  'READY4TEST': 0.6, 'STAGING-READY4TEST': 0.6,
-  'Re-Open': 0.7,
-  'Done': 1, 'UAT': 1, 'Deployed': 1, 'QC Done': 1,
-  'READY TO RELEASE': 1, 'READY FOR RELEASE': 1, 'Passed QC': 1, 'ANBM': 1,
-  'Blocked': 0, 'Deferred': 0,
-};
 
 const DONE_STATUSES = new Set([
   'Done', 'UAT', 'Deployed', 'QC Done', 'READY TO RELEASE', 'READY FOR RELEASE', 'Passed QC', 'ANBM',
 ]);
 const NOT_STARTED_STATUSES = new Set(['New', 'To Do', 'To-do', 'REFINEMENT']);
+const EXEMPT_LAG_STATUSES  = new Set(['Blocked', 'Deferred']);
 
-// Badge colors (table & roadmap left panel)
 const STATUS_COLOR: Record<string, string> = {
   'New':                'bg-slate-100 text-slate-500',
   'To Do':              'bg-slate-100 text-slate-500',
@@ -93,24 +73,25 @@ const STATUS_COLOR: Record<string, string> = {
   'Deferred':           'bg-orange-100 text-orange-700',
 };
 
-const PHASE_STYLE: Record<string, { bg: string; text: string; bar: string }> = {
-  'Initializing':          { bg: 'bg-blue-50',   text: 'text-blue-900',   bar: 'bg-blue-500' },
-  'Architecture & Design': { bg: 'bg-indigo-50',  text: 'text-indigo-900', bar: 'bg-indigo-500' },
-  'Setup & Infra':         { bg: 'bg-cyan-50',    text: 'text-cyan-900',   bar: 'bg-cyan-500' },
-  'Development':           { bg: 'bg-violet-50',  text: 'text-violet-900', bar: 'bg-violet-500' },
-  'Testing':               { bg: 'bg-amber-50',   text: 'text-amber-900',  bar: 'bg-amber-500' },
-  'UAT':                   { bg: 'bg-orange-50',  text: 'text-orange-900', bar: 'bg-orange-500' },
-  'Deployment':            { bg: 'bg-emerald-50', text: 'text-emerald-900',bar: 'bg-emerald-500' },
-  'Closing':               { bg: 'bg-slate-100',  text: 'text-slate-700',  bar: 'bg-slate-500' },
+const PHASE_STYLE: Record<string, { bg: string; text: string; bar: string; hex: string }> = {
+  'Initializing':          { bg: 'bg-blue-50',   text: 'text-blue-900',   bar: 'bg-blue-500',   hex: '#3b82f6' },
+  'Architecture & Design': { bg: 'bg-indigo-50',  text: 'text-indigo-900', bar: 'bg-indigo-500', hex: '#6366f1' },
+  'Setup & Infra':         { bg: 'bg-cyan-50',    text: 'text-cyan-900',   bar: 'bg-cyan-500',   hex: '#06b6d4' },
+  'Development':           { bg: 'bg-violet-50',  text: 'text-violet-900', bar: 'bg-violet-500', hex: '#8b5cf6' },
+  'Testing':               { bg: 'bg-amber-50',   text: 'text-amber-900',  bar: 'bg-amber-500',  hex: '#f59e0b' },
+  'UAT':                   { bg: 'bg-orange-50',  text: 'text-orange-900', bar: 'bg-orange-500', hex: '#f97316' },
+  'Deployment':            { bg: 'bg-emerald-50', text: 'text-emerald-900',bar: 'bg-emerald-500',hex: '#10b981' },
+  'Closing':               { bg: 'bg-slate-100',  text: 'text-slate-700',  bar: 'bg-slate-500',  hex: '#64748b' },
 };
 
 function getPhaseStyle(phase: string) {
-  return PHASE_STYLE[phase] ?? { bg: 'bg-gray-50', text: 'text-gray-800', bar: 'bg-gray-400' };
+  return PHASE_STYLE[phase] ?? { bg: 'bg-gray-50', text: 'text-gray-800', bar: 'bg-gray-400', hex: '#9ca3af' };
 }
 
 // ─── Lag calculation ──────────────────────────────────────────────────────────
 function calcLag(planEnd: string, actualEnd: string, status: string): number {
   if (!planEnd) return 0;
+  if (EXEMPT_LAG_STATUSES.has(status)) return 0;
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const plan = new Date(planEnd); plan.setHours(0, 0, 0, 0);
 
@@ -173,7 +154,6 @@ function downloadCSV(content: string, filename: string) {
   URL.revokeObjectURL(url);
 }
 
-// No, Phase, Key, Activity, Deliverable, Sign-off, Accountable, Responsible, Support, PlanStart, PlanEnd, ActualStart, ActualEnd, Status, Pct, Sprint, DelayOwner, DelayReason, Notes
 const TEMPLATE_ROWS = [
   ['1', 'Initializing', 'PROJ-1', 'Project Kickoff', 'Kickoff Presentation', 'Signed Charter', 'PM', 'PM', '', '2025-01-06', '2025-01-06', '2025-01-06', '2025-01-08', 'Done', '100', '', 'Vendor', 'Internal prep took longer', ''],
   ['2', 'Development',  'PROJ-2', 'Backend API',     'API Module',           'Test Report',    'Tech Lead', 'BE Team', 'SA', '2025-02-01', '2025-03-31', '2025-02-05', '', 'In Progress', '60', 'Sprint 1', 'Client', 'Waiting for client API spec', ''],
@@ -198,8 +178,8 @@ function parseCSV(text: string): string[][] {
   return rows;
 }
 
-// ─── Roadmap ──────────────────────────────────────────────────────────────────
-const MO_FULL = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+// ─── Roadmap helpers ──────────────────────────────────────────────────────────
+const MO_FULL  = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const MO_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
 function rd(s?: string | null): Date | null {
@@ -214,7 +194,6 @@ function fmtD(s?: string | null): string {
   return `${MO_SHORT[d.getMonth()]} ${d.getDate()}`;
 }
 
-// Roadmap bar colors by status (vibrant, status-driven)
 const STATUS_BAR_COLOR: Record<string, { fill: string; ghost: string; border: string }> = {
   'New':                { fill: '#94a3b8', ghost: '#f8fafc', border: '#cbd5e1' },
   'To Do':              { fill: '#94a3b8', ghost: '#f8fafc', border: '#cbd5e1' },
@@ -247,13 +226,9 @@ function statusBar(status: string) {
   return STATUS_BAR_COLOR[status] ?? { fill: '#94a3b8', ghost: '#f1f5f9', border: '#cbd5e1' };
 }
 
-// ─── DateCell: date input with weekend / holiday warning ─────────────────────
+// ─── DateCell ─────────────────────────────────────────────────────────────────
 function DateCell({ value, onChange, onBlur, warn, extraClass = '' }: {
-  value: string;
-  onChange: (v: string) => void;
-  onBlur: () => void;
-  warn: string | null;
-  extraClass?: string;
+  value: string; onChange: (v: string) => void; onBlur: () => void; warn: string | null; extraClass?: string;
 }) {
   return (
     <div className="relative">
@@ -266,11 +241,7 @@ function DateCell({ value, onChange, onBlur, warn, extraClass = '' }: {
         onBlur={onBlur}
       />
       {warn && (
-        <div
-          title={warn}
-          className="absolute -top-1.5 -right-1.5 z-20 w-4 h-4 rounded-full bg-orange-500
-            flex items-center justify-center cursor-help shadow"
-        >
+        <div title={warn} className="absolute -top-1.5 -right-1.5 z-20 w-4 h-4 rounded-full bg-orange-500 flex items-center justify-center cursor-help shadow">
           <span className="text-white font-bold leading-none" style={{ fontSize: 9 }}>!</span>
         </div>
       )}
@@ -280,15 +251,18 @@ function DateCell({ value, onChange, onBlur, warn, extraClass = '' }: {
 
 // ─── RoadmapView ──────────────────────────────────────────────────────────────
 function RoadmapView({
-  phaseGroups,
-  innerRef,
-  holidays,
-  dateMode,
+  phaseGroups, innerRef, holidays, dateMode,
+  collapsedPhases, onTogglePhase,
+  viewYear, viewPeriod,
 }: {
   phaseGroups: { phase: string; acts: Activity[] }[];
   innerRef: React.RefObject<HTMLDivElement | null>;
   holidays: Holiday[];
   dateMode: DateMode;
+  collapsedPhases: Set<string>;
+  onTogglePhase: (phase: string) => void;
+  viewYear: number | null;
+  viewPeriod: string;
 }) {
   const today = new Date(); today.setHours(0, 0, 0, 0);
 
@@ -312,27 +286,43 @@ function RoadmapView({
     ? 'Chưa có Actual Start/End để hiển thị'
     : 'Điền Plan Start và Plan End cho các activity trước.';
 
-  if (!allMs.length) {
-    return (
-      <div className="rounded-xl border bg-white py-20 text-center text-slate-400 shadow-sm">
-        <GanttChart className="h-12 w-12 mx-auto mb-3 opacity-15" />
-        <p className="text-sm font-semibold">Chưa có dữ liệu để hiển thị Roadmap</p>
-        <p className="text-xs mt-1">{emptyLabel}</p>
-      </div>
-    );
+  // Compute rangeStart / rangeEnd
+  let rangeStart: Date, rangeEnd: Date;
+  if (viewYear !== null) {
+    if (viewPeriod === 'q1')           { rangeStart = new Date(viewYear, 0, 1);  rangeEnd = new Date(viewYear, 2, 31); }
+    else if (viewPeriod === 'q2')      { rangeStart = new Date(viewYear, 3, 1);  rangeEnd = new Date(viewYear, 5, 30); }
+    else if (viewPeriod === 'q3')      { rangeStart = new Date(viewYear, 6, 1);  rangeEnd = new Date(viewYear, 8, 30); }
+    else if (viewPeriod === 'q4')      { rangeStart = new Date(viewYear, 9, 1);  rangeEnd = new Date(viewYear, 11, 31); }
+    else if (viewPeriod.startsWith('m')) {
+      const mo = parseInt(viewPeriod.slice(1));
+      rangeStart = new Date(viewYear, mo, 1);
+      rangeEnd   = new Date(viewYear, mo + 1, 0);
+    } else {
+      rangeStart = new Date(viewYear, 0, 1);
+      rangeEnd   = new Date(viewYear, 11, 31);
+    }
+  } else {
+    if (!allMs.length) {
+      return (
+        <div className="rounded-xl border bg-white py-20 text-center text-slate-400 shadow-sm">
+          <GanttChart className="h-12 w-12 mx-auto mb-3 opacity-15" />
+          <p className="text-sm font-semibold">Chưa có dữ liệu để hiển thị Roadmap</p>
+          <p className="text-xs mt-1">{emptyLabel}</p>
+        </div>
+      );
+    }
+    const minMs = Math.min(...allMs), maxMs = Math.max(...allMs);
+    rangeStart = new Date(new Date(minMs).getFullYear(), new Date(minMs).getMonth(), 1);
+    rangeEnd   = new Date(new Date(maxMs).getFullYear(), new Date(maxMs).getMonth() + 1, 0);
   }
-
-  const minMs = Math.min(...allMs), maxMs = Math.max(...allMs);
-  const rangeStart = new Date(new Date(minMs).getFullYear(), new Date(minMs).getMonth(), 1);
-  const rangeEnd   = new Date(new Date(maxMs).getFullYear(), new Date(maxMs).getMonth() + 1, 0);
 
   const totalDays = Math.ceil((rangeEnd.getTime() - rangeStart.getTime()) / 86_400_000) + 1;
   const ppd = Math.max(3, Math.min(32, Math.round(1100 / totalDays)));
-  const totalW = totalDays * ppd;
-  const weekW  = 7 * ppd; // nominal week width
-  const showWeekLabel = weekW >= 18; // only label W1-W4 if wide enough
+  const totalW  = totalDays * ppd;
+  const weekW   = 7 * ppd;
+  const showWeekLabel = weekW >= 18;
 
-  // ── Month + week structure ───────────────────────────────────────────────
+  // Month + week structure
   interface WeekCell { label: string; sx: number; w: number; }
   interface MonthCell { label: string; fullLabel: string; year: number; sx: number; totalW: number; weeks: WeekCell[]; }
   const months: MonthCell[] = [];
@@ -343,26 +333,20 @@ function RoadmapView({
       const lastDay = new Date(yr, mo + 1, 0).getDate();
       const mStartPx = Math.max(0, Math.round((cur.getTime() - rangeStart.getTime()) / 86_400_000) * ppd);
       const mEndPx   = Math.min(totalW, (Math.round((new Date(yr, mo, lastDay).getTime() - rangeStart.getTime()) / 86_400_000) + 1) * ppd);
-
       const wDefs = [
-        { label: 'W1', d0: 1,  d1: 7 },
-        { label: 'W2', d0: 8,  d1: 14 },
-        { label: 'W3', d0: 15, d1: 21 },
-        { label: 'W4', d0: 22, d1: lastDay },
+        { label: 'W1', d0: 1, d1: 7 }, { label: 'W2', d0: 8, d1: 14 },
+        { label: 'W3', d0: 15, d1: 21 }, { label: 'W4', d0: 22, d1: lastDay },
       ];
       const weeks: WeekCell[] = wDefs.map(({ label, d0, d1 }) => {
         const wsx = Math.max(0, Math.round((new Date(yr, mo, d0).getTime() - rangeStart.getTime()) / 86_400_000) * ppd);
         const wex = Math.min(totalW, (Math.round((new Date(yr, mo, Math.min(d1, lastDay)).getTime() - rangeStart.getTime()) / 86_400_000) + 1) * ppd);
         return { label, sx: wsx, w: Math.max(0, wex - wsx) };
       }).filter(w => w.w > 0);
-
       months.push({ label: MO_SHORT[mo], fullLabel: MO_FULL[mo], year: yr, sx: mStartPx, totalW: Math.max(0, mEndPx - mStartPx), weeks });
       cur = new Date(yr, mo + 1, 1);
     }
   }
   const multiYear = new Set(months.map(m => m.year)).size > 1;
-
-  // year groups
   const yearGroups: { year: number; w: number }[] = [];
   for (const m of months) {
     if (yearGroups.length && yearGroups[yearGroups.length - 1].year === m.year)
@@ -370,16 +354,13 @@ function RoadmapView({
     else yearGroups.push({ year: m.year, w: m.totalW });
   }
 
-  // ── Today ────────────────────────────────────────────────────────────────
-  const todayX = Math.round((today.getTime() - rangeStart.getTime()) / 86_400_000) * ppd;
+  const todayX    = Math.round((today.getTime() - rangeStart.getTime()) / 86_400_000) * ppd;
   const showToday = todayX > 0 && todayX < totalW;
 
-  // ── Weekend bands (Saturday+Sunday pairs) ────────────────────────────────
   const weekendBands: { x: number; w: number }[] = [];
   {
     const d = new Date(rangeStart);
-    const dow = d.getDay();
-    d.setDate(d.getDate() + ((6 - dow + 7) % 7)); // advance to first Saturday
+    d.setDate(d.getDate() + ((6 - d.getDay() + 7) % 7));
     while (d <= rangeEnd) {
       const sx = Math.round((d.getTime() - rangeStart.getTime()) / 86_400_000) * ppd;
       const bw = Math.min(2 * ppd, totalW - sx);
@@ -388,48 +369,51 @@ function RoadmapView({
     }
   }
 
-  // ── Holiday markers ───────────────────────────────────────────────────────
   const holidayMarkers: { x: number; name: string }[] = holidays
     .map(h => ({ d: rd(h.date), name: h.name }))
     .filter(h => h.d !== null)
     .map(h => ({ x: Math.round((h.d!.getTime() - rangeStart.getTime()) / 86_400_000) * ppd, name: h.name }))
     .filter(h => h.x >= 0 && h.x < totalW);
 
-  // ── Bar helpers ───────────────────────────────────────────────────────────
+  // Clipped bar helpers
   function pBar(a: Activity) {
     const s = rd(a.plan_start), e = rd(a.plan_end);
     if (!s || !e) return null;
-    const lx = Math.round((s.getTime() - rangeStart.getTime()) / 86_400_000) * ppd;
-    const w  = Math.max(ppd, (Math.round((e.getTime() - s.getTime()) / 86_400_000) + 1) * ppd);
-    return { lx, w };
+    const sx = Math.round((s.getTime() - rangeStart.getTime()) / 86_400_000) * ppd;
+    const ex = Math.round((e.getTime() - rangeStart.getTime()) / 86_400_000) * ppd + ppd;
+    const lx = Math.max(0, sx), rx = Math.min(totalW, ex);
+    if (rx <= lx) return null;
+    return { lx, w: rx - lx };
   }
   function aBar(a: Activity) {
     const s = rd(a.actual_start);
     if (!s) return null;
     const e = rd(a.actual_end) ?? today;
-    const lx = Math.round((s.getTime() - rangeStart.getTime()) / 86_400_000) * ppd;
-    const w  = Math.max(ppd, (Math.round((e.getTime() - s.getTime()) / 86_400_000) + 1) * ppd);
-    return { lx, w };
+    const sx = Math.round((s.getTime() - rangeStart.getTime()) / 86_400_000) * ppd;
+    const ex = Math.round((e.getTime() - rangeStart.getTime()) / 86_400_000) * ppd + ppd;
+    const lx = Math.max(0, sx), rx = Math.min(totalW, ex);
+    if (rx <= lx) return null;
+    return { lx, w: rx - lx };
   }
 
-  const LEFT = 256, ROW = 46;
-  const HDR = (multiYear ? 22 : 0) + 26 + 22; // year? + month + week rows
-  const totalBodyH = phaseGroups.reduce((h, { acts }) => h + 30 + acts.length * ROW, 0);
+  const ROW   = dateMode === 'both' ? 58 : 50;
+  const LEFT  = 268;
+  const HDR   = (multiYear ? 22 : 0) + 26 + 22;
+  const totalBodyH = phaseGroups.reduce((h, { phase, acts }) =>
+    h + 30 + (collapsedPhases.has(phase) ? 0 : acts.length * ROW), 0);
 
   return (
     <div className="rounded-xl border bg-white overflow-hidden shadow-sm">
       <div className="overflow-x-auto">
         <div ref={innerRef} style={{ minWidth: LEFT + totalW + 24, background: '#fff' }}>
 
-          {/* ── Header ── */}
+          {/* Header */}
           <div style={{ display: 'flex', background: '#0f172a', height: HDR }}>
-            {/* corner */}
             <div style={{ width: LEFT, flexShrink: 0, borderRight: '1px solid rgba(255,255,255,0.08)',
-              display: 'flex', alignItems: 'flex-end', padding: '0 16px 8px' }}>
+              display: 'flex', alignItems: 'flex-end', padding: '0 14px 8px' }}>
               <span style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', letterSpacing: '0.05em' }}>ACTIVITY</span>
             </div>
             <div style={{ flex: 1, position: 'relative' }}>
-              {/* year row */}
               {multiYear && (
                 <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 22, display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
                   {yearGroups.map((yg, i) => (
@@ -440,9 +424,7 @@ function RoadmapView({
                   ))}
                 </div>
               )}
-              {/* month row */}
-              <div style={{ position: 'absolute', top: multiYear ? 22 : 0, left: 0, right: 0, height: 26, display: 'flex',
-                borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+              <div style={{ position: 'absolute', top: multiYear ? 22 : 0, left: 0, right: 0, height: 26, display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
                 {months.map((m, i) => (
                   <div key={i} style={{ width: m.totalW, flexShrink: 0, borderRight: '1px solid rgba(255,255,255,0.12)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
@@ -453,18 +435,13 @@ function RoadmapView({
                   </div>
                 ))}
               </div>
-              {/* week row */}
               <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 22, display: 'flex' }}>
                 {months.map(m =>
                   m.weeks.map((wk, wi) => (
                     <div key={`${m.year}-${m.label}-${wi}`} style={{ width: wk.w, flexShrink: 0,
-                      borderRight: wi === m.weeks.length - 1
-                        ? '1.5px solid rgba(255,255,255,0.18)'
-                        : '1px solid rgba(255,255,255,0.06)',
+                      borderRight: wi === m.weeks.length - 1 ? '1.5px solid rgba(255,255,255,0.18)' : '1px solid rgba(255,255,255,0.06)',
                       display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      {showWeekLabel && (
-                        <span style={{ fontSize: 9, color: '#64748b', fontWeight: 500 }}>{wk.label}</span>
-                      )}
+                      {showWeekLabel && <span style={{ fontSize: 9, color: '#64748b', fontWeight: 500 }}>{wk.label}</span>}
                     </div>
                   ))
                 )}
@@ -472,9 +449,9 @@ function RoadmapView({
             </div>
           </div>
 
-          {/* ── Body ── */}
+          {/* Body */}
           <div style={{ position: 'relative' }}>
-            {/* weekend shading layer */}
+            {/* Weekend + holiday shading */}
             <div style={{ position: 'absolute', left: LEFT, top: 0, height: totalBodyH, pointerEvents: 'none', zIndex: 0, overflow: 'hidden', right: 0 }}>
               {weekendBands.map((b, i) => (
                 <div key={i} style={{ position: 'absolute', left: b.x, width: b.w, top: 0, bottom: 0, background: 'rgba(0,0,0,0.028)' }} />
@@ -486,19 +463,33 @@ function RoadmapView({
               ))}
             </div>
 
-            {phaseGroups.map(({ phase, acts }) => {
-              const pSt = getPhaseStyle(phase);
+            {phaseGroups.map(({ phase, acts }, phaseIdx) => {
+              const pSt        = getPhaseStyle(phase);
+              const isCollapsed = collapsedPhases.has(phase);
+              const phaseLag   = Math.max(0, ...acts.map(a => calcLag(a.plan_end, a.actual_end, a.status)));
+              const phaseEven  = phaseIdx % 2 === 0;
+
               return (
                 <React.Fragment key={phase}>
-                  {/* phase header */}
-                  <div className={`flex border-b ${pSt.bg}`} style={{ height: 30, position: 'relative', zIndex: 1 }}>
-                    <div className={`flex items-center gap-2 px-4 border-r border-slate-200 shrink-0 ${pSt.text}`} style={{ width: LEFT }}>
-                      <div className={`w-2 h-2 rounded-full shrink-0 ${pSt.bar}`} />
-                      <span className="text-[11px] font-bold uppercase tracking-widest">{phase}</span>
-                      <span className="text-[10px] font-normal opacity-50">({acts.length})</span>
+                  {/* Phase header */}
+                  <div className={`flex border-b ${pSt.bg}`}
+                    style={{ height: 30, position: 'relative', zIndex: 2, borderTop: phaseIdx > 0 ? '2px solid rgba(0,0,0,0.08)' : undefined }}>
+                    <div className={`flex items-center px-3 border-r border-slate-200 shrink-0 ${pSt.text}`} style={{ width: LEFT }}>
+                      <button
+                        onClick={() => onTogglePhase(phase)}
+                        className="flex items-center gap-1.5 w-full h-full text-left"
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit' }}
+                      >
+                        {isCollapsed
+                          ? <ChevronRight className="w-3.5 h-3.5 shrink-0 opacity-50" />
+                          : <ChevronDown  className="w-3.5 h-3.5 shrink-0 opacity-50" />}
+                        <div className={`w-2 h-2 rounded-full shrink-0 ${pSt.bar}`} />
+                        <span className="text-[11px] font-bold uppercase tracking-widest truncate">{phase}</span>
+                        <span className="text-[10px] font-normal opacity-50 shrink-0 ml-1">({acts.length})</span>
+                        {phaseLag > 0 && <span className="ml-1 text-[9px] font-bold text-red-600 shrink-0 bg-red-100 px-1 rounded">+{phaseLag}d</span>}
+                      </button>
                     </div>
                     <div className="relative flex-1">
-                      {/* week grid lines */}
                       {months.map(m => m.weeks.map((wk, wi) => (
                         <div key={`${m.label}-${wi}`} className="absolute inset-y-0"
                           style={{ left: wk.sx, borderRight: wi === m.weeks.length - 1 ? '1.5px solid rgba(100,116,139,0.25)' : '1px solid rgba(100,116,139,0.10)' }} />
@@ -507,10 +498,10 @@ function RoadmapView({
                     </div>
                   </div>
 
-                  {/* activity rows */}
-                  {acts.map((a, ri) => {
+                  {/* Activity rows */}
+                  {!isCollapsed && acts.map((a, ri) => {
                     const pb = pBar(a), ab = aBar(a);
-                    const lag = calcLag(a.plan_end, a.actual_end, a.status);
+                    const lag     = calcLag(a.plan_end, a.actual_end, a.status);
                     const overdue = lag > 0 && !DONE_STATUSES.has(a.status);
                     const sb = statusBar(a.status);
                     const fc = sb.fill;
@@ -519,59 +510,64 @@ function RoadmapView({
                     const showActual = dateMode !== 'plan';
                     const dualBar    = showPlan && showActual && !!ab;
                     const planShift  = dualBar ? 'translateY(calc(-50% - 4px))' : 'translateY(-50%)';
+                    const actualEndLabel = a.actual_end ? fmtD(a.actual_end) : (a.actual_start ? 'now' : '—');
 
-                    const actualEndLabel = a.actual_end ? fmtD(a.actual_end) : (a.actual_start ? 'ongoing' : '—');
+                    // Alternating background per phase group
+                    const rowBg = overdue
+                      ? '!bg-red-50/50'
+                      : phaseEven
+                        ? (ri % 2 === 1 ? 'bg-slate-50/30' : 'bg-white')
+                        : (ri % 2 === 1 ? 'bg-indigo-50/20' : 'bg-slate-50/60');
 
                     return (
                       <div key={a.id}
-                        className={`flex border-b transition-colors hover:bg-blue-50/30
-                          ${overdue ? '!bg-red-50/50' : ri % 2 === 1 ? 'bg-slate-50/40' : 'bg-white'}`}
+                        className={`flex border-b transition-colors hover:bg-blue-50/20 ${rowBg}`}
                         style={{ height: ROW, position: 'relative', zIndex: 1 }}>
 
-                        {/* left panel */}
-                        <div className="flex items-center gap-2 px-4 border-r border-slate-100 shrink-0 bg-inherit" style={{ width: LEFT }}>
+                        {/* Left panel */}
+                        <div className="flex items-center px-3 border-r border-slate-100 shrink-0"
+                          style={{ width: LEFT, height: ROW, borderLeft: `3px solid ${pSt.hex}50` }}>
                           <div className="min-w-0 flex-1">
+                            {/* Activity name */}
                             <p className="text-[11px] font-semibold text-slate-700 truncate leading-tight">{a.activity || '—'}</p>
-                            <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                              <span className={`text-[9px] px-1.5 py-px rounded-sm font-bold ${STATUS_COLOR[a.status] ?? 'bg-slate-100 text-slate-500'}`}>{a.status}</span>
-                              {overdue && <span className="text-[9px] font-bold text-red-500">+{lag}d</span>}
-                              {a.accountable && <span className="text-[9px] text-slate-400 truncate max-w-[80px]">{a.accountable}</span>}
+                            {/* Status + overdue + completion */}
+                            <div className="flex items-center gap-1 mt-0.5">
+                              <span className={`text-[9px] px-1 py-px rounded font-bold shrink-0 ${STATUS_COLOR[a.status] ?? 'bg-slate-100 text-slate-500'}`}>{a.status}</span>
+                              {overdue && <span className="text-[9px] font-bold text-red-500 shrink-0">+{lag}d</span>}
+                              {a.accountable && <span className="text-[9px] text-slate-400 truncate hidden sm:block max-w-[60px]">{a.accountable}</span>}
+                              {a.completion_pct > 0 && (
+                                <span className="ml-auto text-[9px] font-bold text-slate-400 shrink-0 tabular-nums">{a.completion_pct}%</span>
+                              )}
                             </div>
-                            {/* date display */}
-                            {showPlan && (a.plan_start || a.plan_end) && (
-                              <div className="flex items-center gap-1 mt-0.5">
-                                <span className="text-[8px] font-bold text-blue-400 shrink-0">P:</span>
-                                <span className="text-[9px] text-blue-600 tabular-nums truncate">{fmtD(a.plan_start)} → {fmtD(a.plan_end)}</span>
-                              </div>
-                            )}
-                            {showActual && (a.actual_start || a.actual_end) && (
-                              <div className="flex items-center gap-1 mt-0.5">
-                                <span className="text-[8px] font-bold text-slate-400 shrink-0">A:</span>
-                                <span className="text-[9px] text-slate-500 tabular-nums truncate">{fmtD(a.actual_start)} → {actualEndLabel}</span>
-                              </div>
-                            )}
+                            {/* Dates — compact single line */}
+                            <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                              {showPlan && (a.plan_start || a.plan_end) && (
+                                <span className="text-[9px] text-blue-600 tabular-nums whitespace-nowrap leading-tight">
+                                  <span className="text-[8px] text-blue-400 font-bold">P </span>
+                                  {fmtD(a.plan_start)}→{fmtD(a.plan_end)}
+                                </span>
+                              )}
+                              {showActual && (a.actual_start || a.actual_end) && (
+                                <span className="text-[9px] text-slate-500 tabular-nums whitespace-nowrap leading-tight">
+                                  <span className="text-[8px] text-slate-400 font-bold">A </span>
+                                  {fmtD(a.actual_start)}→{actualEndLabel}
+                                </span>
+                              )}
+                            </div>
                           </div>
-                          {a.completion_pct > 0 && (
-                            <span className="text-[11px] font-bold text-slate-400 shrink-0 tabular-nums">{a.completion_pct}%</span>
-                          )}
                         </div>
 
-                        {/* bar area */}
+                        {/* Bar area */}
                         <div className="relative flex-1" style={{ height: ROW }}>
-                          {/* week grid lines */}
                           {months.map(m => m.weeks.map((wk, wi) => (
                             <div key={`${m.label}-${wi}`} className="absolute inset-y-0"
                               style={{ left: wk.sx, borderRight: wi === m.weeks.length - 1 ? '1.5px solid rgba(100,116,139,0.12)' : '1px solid rgba(100,116,139,0.06)' }} />
                           )))}
-
-                          {/* today */}
                           {showToday && (
                             <div className="absolute inset-y-0 z-10" style={{ left: todayX }}>
                               <div className="w-px h-full" style={{ background: '#f87171', opacity: 0.7 }} />
                             </div>
                           )}
-
-                          {/* ghost plan bar */}
                           {showPlan && pb && (
                             <div style={{
                               position: 'absolute', left: pb.lx, width: pb.w, height: 18,
@@ -579,7 +575,6 @@ function RoadmapView({
                               background: sb.ghost, border: `2px solid ${sb.border}`, borderRadius: 9999,
                             }} />
                           )}
-                          {/* progress fill */}
                           {showPlan && pb && a.completion_pct > 0 && (
                             <div style={{
                               position: 'absolute', left: pb.lx,
@@ -588,7 +583,6 @@ function RoadmapView({
                               background: fc, opacity: 0.92, borderRadius: 9999,
                             }} />
                           )}
-                          {/* % label */}
                           {showPlan && pb && pb.w >= 38 && a.completion_pct > 0 && (
                             <div style={{
                               position: 'absolute', left: pb.lx + 5, top: '50%', transform: planShift,
@@ -596,7 +590,6 @@ function RoadmapView({
                               lineHeight: '18px', zIndex: 20, pointerEvents: 'none',
                             }}>{a.completion_pct}%</div>
                           )}
-                          {/* actual bar */}
                           {showActual && ab && (
                             dateMode === 'actual'
                               ? <div style={{
@@ -620,7 +613,7 @@ function RoadmapView({
             })}
           </div>
 
-          {/* today footer label */}
+          {/* Today footer */}
           {showToday && (
             <div className="relative border-t bg-slate-50" style={{ height: 22 }}>
               <div className="absolute inset-y-0 w-px bg-red-400/50" style={{ left: LEFT + todayX }} />
@@ -630,7 +623,7 @@ function RoadmapView({
             </div>
           )}
 
-          {/* legend */}
+          {/* Legend */}
           <div className="flex flex-wrap items-center gap-x-5 gap-y-2 px-5 py-3 border-t bg-slate-50/70">
             {([
               dateMode !== 'actual' && ['Plan range',     <div key="a" style={{ width:28, height:14, background:'#dbeafe', border:'2px solid #60a5fa', borderRadius:9999 }} />] as [string, React.ReactNode],
@@ -662,15 +655,18 @@ export default function TimelinePage() {
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [filterPhase, setFilterPhase] = useState('All');
   const [saving, setSaving] = useState<number | null>(null);
-
   const [importOpen, setImportOpen] = useState(false);
-
   const [delayEdit, setDelayEdit] = useState<{ row: Activity; reason: string } | null>(null);
   const [viewMode, setViewMode] = useState<'table' | 'roadmap'>('table');
   const [dateMode, setDateMode] = useState<DateMode>('both');
   const roadmapRef = useRef<HTMLDivElement>(null);
 
-  // ── Holidays ────────────────────────────────────────────────────────────────
+  // Roadmap navigation state
+  const [collapsedPhases, setCollapsedPhases] = useState<Set<string>>(new Set());
+  const [roadmapYear,   setRoadmapYear]   = useState<number | null>(null);
+  const [roadmapPeriod, setRoadmapPeriod] = useState<string>('all');
+
+  // Holidays
   const [holidays, setHolidays] = useState<Holiday[]>([]);
   const [holidayOpen, setHolidayOpen] = useState(false);
   const [newHDate, setNewHDate] = useState('');
@@ -715,9 +711,7 @@ export default function TimelinePage() {
       const { toPng } = await import('html-to-image');
       const dataUrl = await toPng(roadmapRef.current, { pixelRatio: 2, backgroundColor: '#ffffff' });
       const a = document.createElement('a');
-      a.download = 'roadmap.png';
-      a.href = dataUrl;
-      a.click();
+      a.download = 'roadmap.png'; a.href = dataUrl; a.click();
       toast.success('Exported roadmap.png');
     } catch {
       toast.error('Export PNG thất bại');
@@ -733,9 +727,7 @@ export default function TimelinePage() {
 
   const addActivity = async () => {
     const uniquePhases = [...new Set(activities.map(a => a.phase).filter(Boolean))];
-    const phase = filterPhase === 'All'
-      ? (uniquePhases[0] ?? DEFAULT_PHASES[0])
-      : filterPhase;
+    const phase = filterPhase === 'All' ? (uniquePhases[0] ?? DEFAULT_PHASES[0]) : filterPhase;
     const res = await fetch(`/api/projects/${id}/activities`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ phase, activity: 'New Activity', jira_key: '', sprint: '' }),
@@ -774,21 +766,27 @@ export default function TimelinePage() {
     toast.success('Template downloaded');
   };
 
-  // Dynamic phases from data (preserving insertion order)
   const allPhases = useMemo(() => {
-    const seen = new Set<string>();
-    const result: string[] = [];
+    const seen = new Set<string>(); const result: string[] = [];
     for (const a of activities) {
       if (a.phase && !seen.has(a.phase)) { seen.add(a.phase); result.push(a.phase); }
     }
-    // Append default phases not yet in data
-    for (const p of DEFAULT_PHASES) {
-      if (!seen.has(p)) result.push(p);
-    }
+    for (const p of DEFAULT_PHASES) { if (!seen.has(p)) result.push(p); }
     return result;
   }, [activities]);
 
-  // Grouped display
+  // Years present in activity dates (for roadmap year selector)
+  const dataYears = useMemo(() => {
+    const years = new Set<number>();
+    for (const a of activities) {
+      [a.plan_start, a.plan_end, a.actual_start, a.actual_end].forEach(d => {
+        if (d) { const y = new Date(d + 'T00:00:00').getFullYear(); if (!isNaN(y)) years.add(y); }
+      });
+    }
+    years.add(new Date().getFullYear());
+    return [...years].sort();
+  }, [activities]);
+
   const baseList = filterPhase === 'All' ? activities : activities.filter(a => a.phase === filterPhase);
   const phaseGroups: { phase: string; acts: Activity[] }[] = [];
   const seenPhases = new Set<string>();
@@ -800,8 +798,17 @@ export default function TimelinePage() {
   }
   const showGroups = filterPhase === 'All';
 
-  // Overdue count for banner
   const overdueCount = activities.filter(a => !DONE_STATUSES.has(a.status) && calcLag(a.plan_end, a.actual_end, a.status) > 0).length;
+
+  const togglePhase = useCallback((phase: string) => {
+    setCollapsedPhases(prev => {
+      const next = new Set(prev);
+      if (next.has(phase)) next.delete(phase); else next.add(phase);
+      return next;
+    });
+  }, []);
+
+  const allCollapsed = collapsedPhases.size === phaseGroups.length && phaseGroups.length > 0;
 
   return (
     <div className="flex flex-col lg:flex-row min-h-screen">
@@ -809,7 +816,7 @@ export default function TimelinePage() {
       <main className="flex-1 p-4 lg:p-6 overflow-x-auto">
 
         {/* Header */}
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
           <div className="flex items-center gap-3">
             <h1 className="text-xl font-bold text-slate-800">Project Timeline</h1>
             {overdueCount > 0 && (
@@ -821,20 +828,12 @@ export default function TimelinePage() {
           <div className="flex items-center gap-2 flex-wrap">
             {/* View toggle */}
             <div className="flex items-center bg-slate-100 border border-slate-200 rounded-lg p-0.5 gap-0.5">
-              <button
-                onClick={() => setViewMode('table')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
-                  viewMode === 'table' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-                }`}
-              >
+              <button onClick={() => setViewMode('table')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all ${viewMode === 'table' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
                 <LayoutList className="h-3.5 w-3.5" /> Table
               </button>
-              <button
-                onClick={() => setViewMode('roadmap')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
-                  viewMode === 'roadmap' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-                }`}
-              >
+              <button onClick={() => setViewMode('roadmap')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all ${viewMode === 'roadmap' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
                 <GanttChart className="h-3.5 w-3.5" /> Roadmap
               </button>
             </div>
@@ -861,31 +860,71 @@ export default function TimelinePage() {
               </Button>
             </>}
 
-            {viewMode === 'roadmap' && (
-              <>
-                {/* Date mode selector */}
+            {viewMode === 'roadmap' && <>
+              {/* Plan/Actual/Both */}
+              <div className="flex items-center bg-slate-100 border border-slate-200 rounded-lg p-0.5 gap-0.5">
+                {([
+                  { key: 'plan',   label: 'Plan',   active: 'bg-blue-600 text-white shadow-sm' },
+                  { key: 'actual', label: 'Actual', active: 'bg-slate-700 text-white shadow-sm' },
+                  { key: 'both',   label: 'Both',   active: 'bg-white text-slate-800 shadow-sm' },
+                ] as { key: DateMode; label: string; active: string }[]).map(({ key, label, active }) => (
+                  <button key={key} onClick={() => setDateMode(key)}
+                    className={`px-2.5 py-1.5 text-xs font-medium rounded-md transition-all ${dateMode === key ? active : 'text-slate-500 hover:text-slate-700'}`}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Collapse All toggle */}
+              <button
+                onClick={() => setCollapsedPhases(allCollapsed ? new Set() : new Set(phaseGroups.map(g => g.phase)))}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 h-9 text-xs font-medium rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">
+                <ChevronsUpDown className="h-3.5 w-3.5" />
+                {allCollapsed ? 'Expand All' : 'Collapse All'}
+              </button>
+
+              {/* Year selector */}
+              <Select
+                value={roadmapYear === null ? 'auto' : String(roadmapYear)}
+                onValueChange={v => { setRoadmapYear(v === 'auto' ? null : Number(v)); if (v === 'auto') setRoadmapPeriod('all'); }}
+              >
+                <SelectTrigger className="w-32 h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="auto">Auto Range</SelectItem>
+                  {dataYears.map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
+                </SelectContent>
+              </Select>
+
+              {/* Period selector — shown when year is selected */}
+              {roadmapYear !== null && (
                 <div className="flex items-center bg-slate-100 border border-slate-200 rounded-lg p-0.5 gap-0.5">
-                  {([
-                    { key: 'plan',   label: 'Plan',   active: 'bg-blue-600 text-white shadow-sm' },
-                    { key: 'actual', label: 'Actual', active: 'bg-slate-700 text-white shadow-sm' },
-                    { key: 'both',   label: 'Both',   active: 'bg-white text-slate-800 shadow-sm' },
-                  ] as { key: DateMode; label: string; active: string }[]).map(({ key, label, active }) => (
-                    <button
-                      key={key}
-                      onClick={() => setDateMode(key)}
-                      className={`px-2.5 py-1.5 text-xs font-medium rounded-md transition-all ${
-                        dateMode === key ? active : 'text-slate-500 hover:text-slate-700'
-                      }`}
-                    >
-                      {label}
+                  {(['all', 'q1', 'q2', 'q3', 'q4'] as const).map(key => (
+                    <button key={key} onClick={() => setRoadmapPeriod(key)}
+                      className={`px-2.5 py-1.5 text-xs font-medium rounded-md transition-all ${roadmapPeriod === key ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
+                      {key === 'all' ? 'Year' : key.toUpperCase()}
                     </button>
                   ))}
+                  {/* Month picker */}
+                  <Select
+                    value={roadmapPeriod.startsWith('m') ? roadmapPeriod : ''}
+                    onValueChange={v => v && setRoadmapPeriod(v)}
+                  >
+                    <SelectTrigger className="h-7 text-xs border-0 bg-transparent px-2 w-[72px] focus:ring-0">
+                      <SelectValue placeholder="Month" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {MO_SHORT.map((m, i) => <SelectItem key={i} value={`m${i}`}>{m}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
                 </div>
-                <Button variant="outline" size="sm" onClick={handleExportPng} className="gap-1.5 h-9 border-violet-200 text-violet-700 hover:bg-violet-50">
-                  <Download className="h-3.5 w-3.5" /> Export PNG
-                </Button>
-              </>
-            )}
+              )}
+
+              <Button variant="outline" size="sm" onClick={handleExportPng} className="gap-1.5 h-9 border-violet-200 text-violet-700 hover:bg-violet-50">
+                <Download className="h-3.5 w-3.5" /> PNG
+              </Button>
+            </>}
 
             <Button
               variant="outline" size="sm"
@@ -902,20 +941,28 @@ export default function TimelinePage() {
           </div>
         </div>
 
-        {viewMode === 'roadmap' ? (
-          <RoadmapView phaseGroups={phaseGroups} innerRef={roadmapRef} holidays={holidays} dateMode={dateMode} />
-        ) : null}
+        {viewMode === 'roadmap' && (
+          <RoadmapView
+            phaseGroups={phaseGroups}
+            innerRef={roadmapRef}
+            holidays={holidays}
+            dateMode={dateMode}
+            collapsedPhases={collapsedPhases}
+            onTogglePhase={togglePhase}
+            viewYear={roadmapYear}
+            viewPeriod={roadmapPeriod}
+          />
+        )}
 
         {/* Table */}
         {viewMode === 'table' && <div className="rounded-xl border bg-white overflow-hidden shadow-sm">
           <div className="overflow-x-auto">
-            <table className="w-full text-xs" style={{ minWidth: '1800px' }}>
+            <table className="w-full text-xs" style={{ minWidth: '1600px' }}>
               <thead>
                 <tr className="bg-[#1e293b] text-white">
                   {showGroups && <th className="px-2 py-3 text-left w-32">Phase</th>}
-                  <th className="px-2 py-3 text-left w-24 bg-teal-900/40">Key</th>
+                  <th className="px-2 py-3 text-left w-36 bg-teal-900/40">Key</th>
                   <th className="px-2 py-3 text-left" style={{ minWidth: '200px' }}>Activity</th>
-                  <th className="px-2 py-3 text-left w-36">Deliverable</th>
                   <th className="px-2 py-3 text-left w-28">Accountable</th>
                   <th className="px-2 py-3 text-left w-28">Responsible</th>
                   <th className="px-2 py-3 text-left w-24">Plan Start</th>
@@ -934,7 +981,7 @@ export default function TimelinePage() {
               </thead>
               <tbody>
                 {baseList.length === 0 && (
-                  <tr><td colSpan={showGroups ? 18 : 17} className="text-center py-16 text-slate-400">
+                  <tr><td colSpan={showGroups ? 17 : 16} className="text-center py-16 text-slate-400">
                     <div className="flex flex-col items-center gap-3">
                       <p>Chưa có activity nào.</p>
                       <div className="flex gap-2">
@@ -953,7 +1000,7 @@ export default function TimelinePage() {
                     <React.Fragment key={phase}>
                       {showGroups && (
                         <tr key={`ph-${phase}`}>
-                          <td colSpan={18} className={`px-4 py-2 font-bold text-xs uppercase tracking-widest border-t-2 border-slate-200 ${style.bg} ${style.text}`}>
+                          <td colSpan={17} className={`px-4 py-2 font-bold text-xs uppercase tracking-widest border-t-2 border-slate-200 ${style.bg} ${style.text}`}>
                             <div className="flex items-center gap-3">
                               <div className={`w-2 h-2 rounded-full ${style.bar}`} />
                               {phase}
@@ -992,9 +1039,6 @@ export default function TimelinePage() {
                               <textarea className="text-xs w-full min-h-[48px] px-2 py-1 border border-slate-200 rounded-md resize-y bg-white focus:outline-none focus:ring-1 focus:ring-blue-400 leading-snug" value={row.activity} onChange={e => updateField(row.id, 'activity', e.target.value)} onBlur={() => saveRow(row)} />
                             </td>
                             <td className="px-2 py-1.5">
-                              <textarea className="text-xs w-full min-h-[48px] px-2 py-1 border border-slate-200 rounded-md resize-y bg-white focus:outline-none focus:ring-1 focus:ring-blue-400 leading-snug" value={row.deliverable} onChange={e => updateField(row.id, 'deliverable', e.target.value)} onBlur={() => saveRow(row)} />
-                            </td>
-                            <td className="px-2 py-1.5">
                               <input list={`team-${id}`} className="h-7 text-xs w-full border border-slate-200 rounded-md px-2 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400" value={row.accountable} onChange={e => updateField(row.id, 'accountable', e.target.value)} onBlur={() => saveRow(row)} placeholder="Chọn..." />
                             </td>
                             <td className="px-2 py-1.5">
@@ -1026,18 +1070,15 @@ export default function TimelinePage() {
                             <td className="px-2 py-1.5 text-center">
                               <Input className="h-7 text-xs w-12 px-1 text-center mx-auto" type="number" min={0} max={100} value={row.completion_pct} onChange={e => updateField(row.id, 'completion_pct', Number(e.target.value))} onBlur={() => saveRow(row)} />
                             </td>
-                            {/* Lag */}
                             <td className="px-2 py-1.5 text-center bg-slate-50/50">
                               <LagBadge lag={lag} />
                             </td>
-                            {/* Delay Owner */}
                             <td className="px-2 py-1.5 bg-slate-50/50">
                               <Select value={row.delay_owner || 'N/A'} onValueChange={v => { const val = v ?? 'N/A'; updateField(row.id, 'delay_owner', val); saveRow({ ...row, delay_owner: val }); }}>
                                 <SelectTrigger className={`h-7 text-xs ${row.delay_owner && row.delay_owner !== 'N/A' ? DELAY_OWNER_COLOR[row.delay_owner] : ''}`}><SelectValue /></SelectTrigger>
                                 <SelectContent>{DELAY_OWNERS.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
                               </Select>
                             </td>
-                            {/* Delay Reason */}
                             <td className="px-2 py-1.5 bg-slate-50/50">
                               <button
                                 onClick={() => setDelayEdit({ row, reason: row.delay_reason || '' })}
@@ -1091,7 +1132,6 @@ export default function TimelinePage() {
         )}
       </main>
 
-      {/* Datalists */}
       <datalist id={`team-${id}`}>
         {teamMembers.map(m => <option key={m.id} value={m.name}>{m.role} — {m.domain}</option>)}
       </datalist>
@@ -1109,10 +1149,8 @@ export default function TimelinePage() {
           </DialogHeader>
           <div className="space-y-4 py-1">
             <p className="text-xs text-slate-500 bg-orange-50 border border-orange-100 rounded-lg px-3 py-2">
-              Thứ 7 và Chủ nhật được tự động cảnh báo. Thêm các ngày nghỉ lễ khác bên dưới — Plan Start / Plan End rơi vào ngày nghỉ sẽ hiện cảnh báo <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white font-bold" style={{fontSize:9}}>!</span>
+              Thứ 7 và Chủ nhật được tự động cảnh báo. Thêm các ngày nghỉ lễ khác bên dưới.
             </p>
-
-            {/* Add form */}
             <div className="flex gap-2">
               <input type="date" className="h-8 text-xs border border-slate-200 rounded-md px-2 flex-1 focus:outline-none focus:ring-1 focus:ring-blue-400"
                 value={newHDate} onChange={e => setNewHDate(e.target.value)}
@@ -1124,8 +1162,6 @@ export default function TimelinePage() {
                 <Plus className="h-3.5 w-3.5" />
               </Button>
             </div>
-
-            {/* List */}
             <div className="space-y-1 max-h-60 overflow-y-auto pr-1">
               {holidays.length === 0 && (
                 <p className="text-xs text-slate-400 text-center py-6">Chưa có ngày nghỉ lễ nào được thêm</p>
@@ -1183,9 +1219,7 @@ export default function TimelinePage() {
                 saveRow(updated);
                 setDelayEdit(null);
               }}
-            >
-              Lưu
-            </Button>
+            >Lưu</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
