@@ -23,6 +23,7 @@ type Activity = {
 
 type TeamMember = { id: number; name: string; role: string; domain: string; };
 type Holiday   = { id: number; project_id: number; date: string; name: string; };
+type DateMode  = 'plan' | 'actual' | 'both';
 
 const DEFAULT_PHASES = ['Initializing', 'Architecture & Design', 'Setup & Infra', 'Development', 'Testing', 'UAT', 'Deployment', 'Closing'];
 const STATUSES = ['To-do', 'In Progress', 'Done', 'Blocked', 'Deferred'];
@@ -152,6 +153,12 @@ function rd(s?: string | null): Date | null {
   return isNaN(d.getTime()) ? null : d;
 }
 
+function fmtD(s?: string | null): string {
+  const d = rd(s);
+  if (!d) return '—';
+  return `${MO_SHORT[d.getMonth()]} ${d.getDate()}`;
+}
+
 const BAR_PALETTE: Record<string, { ghost: string; border: string; fill: string }> = {
   'Initializing':          { ghost: '#eff6ff', border: '#93c5fd', fill: '#3b82f6' },
   'Architecture & Design': { ghost: '#eef2ff', border: '#a5b4fc', fill: '#6366f1' },
@@ -202,25 +209,41 @@ function RoadmapView({
   phaseGroups,
   innerRef,
   holidays,
+  dateMode,
 }: {
   phaseGroups: { phase: string; acts: Activity[] }[];
   innerRef: React.RefObject<HTMLDivElement | null>;
   holidays: Holiday[];
+  dateMode: DateMode;
 }) {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+
   const allMs: number[] = [];
   for (const { acts } of phaseGroups)
     for (const a of acts) {
-      const s = rd(a.plan_start), e = rd(a.plan_end);
-      if (s) allMs.push(s.getTime());
-      if (e) allMs.push(e.getTime());
+      if (dateMode !== 'actual') {
+        const s = rd(a.plan_start), e = rd(a.plan_end);
+        if (s) allMs.push(s.getTime());
+        if (e) allMs.push(e.getTime());
+      }
+      if (dateMode !== 'plan') {
+        const s = rd(a.actual_start);
+        const e = rd(a.actual_end) ?? (a.actual_start ? today : null);
+        if (s) allMs.push(s.getTime());
+        if (e) allMs.push(e.getTime());
+      }
     }
+
+  const emptyLabel = dateMode === 'actual'
+    ? 'Chưa có Actual Start/End để hiển thị'
+    : 'Điền Plan Start và Plan End cho các activity trước.';
 
   if (!allMs.length) {
     return (
       <div className="rounded-xl border bg-white py-20 text-center text-slate-400 shadow-sm">
         <GanttChart className="h-12 w-12 mx-auto mb-3 opacity-15" />
         <p className="text-sm font-semibold">Chưa có dữ liệu để hiển thị Roadmap</p>
-        <p className="text-xs mt-1">Điền Plan Start và Plan End cho các activity trước.</p>
+        <p className="text-xs mt-1">{emptyLabel}</p>
       </div>
     );
   }
@@ -274,7 +297,6 @@ function RoadmapView({
   }
 
   // ── Today ────────────────────────────────────────────────────────────────
-  const today = new Date(); today.setHours(0, 0, 0, 0);
   const todayX = Math.round((today.getTime() - rangeStart.getTime()) / 86_400_000) * ppd;
   const showToday = todayX > 0 && todayX < totalW;
 
@@ -424,7 +446,13 @@ function RoadmapView({
                     const lag = calcLag(a.plan_end, a.actual_end, a.status);
                     const overdue = lag > 0 && a.status !== 'Done';
                     const fc = fillCol(a, pal.fill);
-                    const barShift = ab ? 'translateY(calc(-50% - 3px))' : 'translateY(-50%)';
+
+                    const showPlan   = dateMode !== 'actual';
+                    const showActual = dateMode !== 'plan';
+                    const dualBar    = showPlan && showActual && !!ab;
+                    const planShift  = dualBar ? 'translateY(calc(-50% - 4px))' : 'translateY(-50%)';
+
+                    const actualEndLabel = a.actual_end ? fmtD(a.actual_end) : (a.actual_start ? 'ongoing' : '—');
 
                     return (
                       <div key={a.id}
@@ -441,6 +469,19 @@ function RoadmapView({
                               {overdue && <span className="text-[9px] font-bold text-red-500">+{lag}d</span>}
                               {a.accountable && <span className="text-[9px] text-slate-400 truncate max-w-[80px]">{a.accountable}</span>}
                             </div>
+                            {/* date display */}
+                            {showPlan && (a.plan_start || a.plan_end) && (
+                              <div className="flex items-center gap-1 mt-0.5">
+                                <span className="text-[8px] font-bold text-blue-400 shrink-0">P:</span>
+                                <span className="text-[9px] text-blue-600 tabular-nums truncate">{fmtD(a.plan_start)} → {fmtD(a.plan_end)}</span>
+                              </div>
+                            )}
+                            {showActual && (a.actual_start || a.actual_end) && (
+                              <div className="flex items-center gap-1 mt-0.5">
+                                <span className="text-[8px] font-bold text-slate-400 shrink-0">A:</span>
+                                <span className="text-[9px] text-slate-500 tabular-nums truncate">{fmtD(a.actual_start)} → {actualEndLabel}</span>
+                              </div>
+                            )}
                           </div>
                           {a.completion_pct > 0 && (
                             <span className="text-[11px] font-bold text-slate-400 shrink-0 tabular-nums">{a.completion_pct}%</span>
@@ -463,37 +504,44 @@ function RoadmapView({
                           )}
 
                           {/* ghost plan bar */}
-                          {pb && (
+                          {showPlan && pb && (
                             <div style={{
                               position: 'absolute', left: pb.lx, width: pb.w, height: 18,
-                              top: '50%', transform: barShift,
+                              top: '50%', transform: planShift,
                               background: pal.ghost, border: `1.5px solid ${pal.border}`, borderRadius: 9999,
                             }} />
                           )}
                           {/* progress fill */}
-                          {pb && a.completion_pct > 0 && (
+                          {showPlan && pb && a.completion_pct > 0 && (
                             <div style={{
                               position: 'absolute', left: pb.lx,
                               width: Math.round(pb.w * a.completion_pct / 100), height: 18,
-                              top: '50%', transform: barShift,
+                              top: '50%', transform: planShift,
                               background: fc, opacity: 0.88, borderRadius: 9999,
                             }} />
                           )}
                           {/* % label */}
-                          {pb && pb.w >= 38 && a.completion_pct > 0 && (
+                          {showPlan && pb && pb.w >= 38 && a.completion_pct > 0 && (
                             <div style={{
-                              position: 'absolute', left: pb.lx + 5, top: '50%', transform: barShift,
+                              position: 'absolute', left: pb.lx + 5, top: '50%', transform: planShift,
                               fontSize: 9, fontWeight: 700, color: a.completion_pct > 28 ? '#fff' : pal.fill,
                               lineHeight: '18px', zIndex: 20, pointerEvents: 'none',
                             }}>{a.completion_pct}%</div>
                           )}
                           {/* actual bar */}
-                          {ab && (
-                            <div style={{
-                              position: 'absolute', left: ab.lx, width: ab.w, height: 4,
-                              top: '50%', transform: 'translateY(7px)',
-                              background: '#475569', opacity: 0.4, borderRadius: 9999,
-                            }} />
+                          {showActual && ab && (
+                            dateMode === 'actual'
+                              ? <div style={{
+                                  position: 'absolute', left: ab.lx, width: ab.w, height: 16,
+                                  top: '50%', transform: 'translateY(-50%)',
+                                  background: fc, opacity: 0.78,
+                                  border: `1.5px solid ${pal.border}`, borderRadius: 9999,
+                                }} />
+                              : <div style={{
+                                  position: 'absolute', left: ab.lx, width: ab.w, height: 5,
+                                  top: '50%', transform: 'translateY(6px)',
+                                  background: '#475569', opacity: 0.45, borderRadius: 9999,
+                                }} />
                           )}
                         </div>
                       </div>
@@ -517,15 +565,16 @@ function RoadmapView({
           {/* legend */}
           <div className="flex flex-wrap items-center gap-x-5 gap-y-2 px-5 py-3 border-t bg-slate-50/70">
             {([
-              ['Plan range',    <div key="a" style={{ width:28, height:14, background:'#eff6ff', border:'1.5px solid #93c5fd', borderRadius:9999 }} />],
-              ['Progress',      <div key="b" style={{ width:28, height:14, background:'#3b82f6', borderRadius:9999, opacity:.85 }} />],
+              dateMode !== 'actual' && ['Plan range',    <div key="a" style={{ width:28, height:14, background:'#eff6ff', border:'1.5px solid #93c5fd', borderRadius:9999 }} />] as [string, React.ReactNode],
+              dateMode !== 'actual' && ['Progress',      <div key="b" style={{ width:28, height:14, background:'#3b82f6', borderRadius:9999, opacity:.85 }} />] as [string, React.ReactNode],
               ['Done',          <div key="c" style={{ width:28, height:14, background:'#22c55e', borderRadius:9999, opacity:.85 }} />],
               ['Blocked',       <div key="d" style={{ width:28, height:14, background:'#ef4444', borderRadius:9999, opacity:.85 }} />],
-              ['Actual period', <div key="e" style={{ width:28, height:4, background:'#475569', borderRadius:9999, opacity:.4 }} />],
+              dateMode === 'actual' && ['Actual (solid)', <div key="e2" style={{ width:28, height:14, background:'#8b5cf6', opacity:.75, border:'1.5px solid #c4b5fd', borderRadius:9999 }} />] as [string, React.ReactNode],
+              dateMode !== 'actual' && dateMode !== 'plan' && ['Actual period', <div key="e" style={{ width:28, height:5, background:'#475569', borderRadius:9999, opacity:.45 }} />] as [string, React.ReactNode],
               ['Weekend',       <div key="f" style={{ width:14, height:14, background:'rgba(0,0,0,0.06)', borderRadius:2 }} />],
               ['Holiday',       <div key="g" style={{ width:14, height:14, background:'rgba(249,115,22,0.15)', borderTop:'3px solid #f97316', borderRadius:2 }} />],
               ['Today',         <div key="h" style={{ width:2, height:14, background:'#f87171', opacity:.7 }} />],
-            ] as [string, React.ReactNode][]).map(([label, el]) => (
+            ].filter(Boolean) as [string, React.ReactNode][]).map(([label, el]) => (
               <div key={label} className="flex items-center gap-1.5">
                 <div className="flex items-center justify-center" style={{ width:30, height:16 }}>{el}</div>
                 <span className="text-[10px] text-slate-500 whitespace-nowrap">{label}</span>
@@ -550,6 +599,7 @@ export default function TimelinePage() {
 
   const [delayEdit, setDelayEdit] = useState<{ row: Activity; reason: string } | null>(null);
   const [viewMode, setViewMode] = useState<'table' | 'roadmap'>('table');
+  const [dateMode, setDateMode] = useState<DateMode>('both');
   const roadmapRef = useRef<HTMLDivElement>(null);
 
   // ── Holidays ────────────────────────────────────────────────────────────────
@@ -744,9 +794,29 @@ export default function TimelinePage() {
             </>}
 
             {viewMode === 'roadmap' && (
-              <Button variant="outline" size="sm" onClick={handleExportPng} className="gap-1.5 h-9 border-violet-200 text-violet-700 hover:bg-violet-50">
-                <Download className="h-3.5 w-3.5" /> Export PNG
-              </Button>
+              <>
+                {/* Date mode selector */}
+                <div className="flex items-center bg-slate-100 border border-slate-200 rounded-lg p-0.5 gap-0.5">
+                  {([
+                    { key: 'plan',   label: 'Plan',   active: 'bg-blue-600 text-white shadow-sm' },
+                    { key: 'actual', label: 'Actual', active: 'bg-slate-700 text-white shadow-sm' },
+                    { key: 'both',   label: 'Both',   active: 'bg-white text-slate-800 shadow-sm' },
+                  ] as { key: DateMode; label: string; active: string }[]).map(({ key, label, active }) => (
+                    <button
+                      key={key}
+                      onClick={() => setDateMode(key)}
+                      className={`px-2.5 py-1.5 text-xs font-medium rounded-md transition-all ${
+                        dateMode === key ? active : 'text-slate-500 hover:text-slate-700'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <Button variant="outline" size="sm" onClick={handleExportPng} className="gap-1.5 h-9 border-violet-200 text-violet-700 hover:bg-violet-50">
+                  <Download className="h-3.5 w-3.5" /> Export PNG
+                </Button>
+              </>
             )}
 
             <Button
@@ -765,7 +835,7 @@ export default function TimelinePage() {
         </div>
 
         {viewMode === 'roadmap' ? (
-          <RoadmapView phaseGroups={phaseGroups} innerRef={roadmapRef} holidays={holidays} />
+          <RoadmapView phaseGroups={phaseGroups} innerRef={roadmapRef} holidays={holidays} dateMode={dateMode} />
         ) : null}
 
         {/* Table */}
