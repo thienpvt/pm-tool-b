@@ -26,15 +26,71 @@ type Holiday   = { id: number; project_id: number; date: string; name: string; }
 type DateMode  = 'plan' | 'actual' | 'both';
 
 const DEFAULT_PHASES = ['Initializing', 'Architecture & Design', 'Setup & Infra', 'Development', 'Testing', 'UAT', 'Deployment', 'Closing'];
-const STATUSES = ['To-do', 'In Progress', 'Done', 'Blocked', 'Deferred'];
 const DELAY_OWNERS = ['N/A', 'Client', 'Vendor', 'Both', 'External'];
 
+// ─── Statuses ─────────────────────────────────────────────────────────────────
+const STATUSES = [
+  // Chưa làm
+  'New', 'To Do', 'To-do', 'REFINEMENT',
+  // Đang làm
+  'In Dev', 'In development', 'Ready For Dev', 'In Progress',
+  // Giữa chừng
+  'In Review', 'PENDING',
+  // Đang test
+  'In Testing', 'Testing', 'Ready for Test', 'READY4TEST', 'STAGING-READY4TEST',
+  // Gần xong
+  'Re-Open',
+  // Hoàn thành
+  'Done', 'UAT', 'Deployed', 'QC Done', 'READY TO RELEASE', 'READY FOR RELEASE', 'Passed QC', 'ANBM',
+  // Đặc biệt
+  'Blocked', 'Deferred',
+];
+
+const STATUS_WEIGHT: Record<string, number> = {
+  'New': 0, 'To Do': 0.1, 'To-do': 0.1, 'REFINEMENT': 0.1,
+  'In Dev': 0.2, 'In development': 0.2, 'Ready For Dev': 0.2, 'In Progress': 0.3,
+  'In Review': 0.5, 'PENDING': 0.5,
+  'In Testing': 0.6, 'Testing': 0.6, 'Ready for Test': 0.6,
+  'READY4TEST': 0.6, 'STAGING-READY4TEST': 0.6,
+  'Re-Open': 0.7,
+  'Done': 1, 'UAT': 1, 'Deployed': 1, 'QC Done': 1,
+  'READY TO RELEASE': 1, 'READY FOR RELEASE': 1, 'Passed QC': 1, 'ANBM': 1,
+  'Blocked': 0, 'Deferred': 0,
+};
+
+const DONE_STATUSES = new Set([
+  'Done', 'UAT', 'Deployed', 'QC Done', 'READY TO RELEASE', 'READY FOR RELEASE', 'Passed QC', 'ANBM',
+]);
+const NOT_STARTED_STATUSES = new Set(['New', 'To Do', 'To-do', 'REFINEMENT']);
+
+// Badge colors (table & roadmap left panel)
 const STATUS_COLOR: Record<string, string> = {
-  'To-do': 'bg-slate-100 text-slate-600',
-  'In Progress': 'bg-blue-100 text-blue-700',
-  'Done': 'bg-green-100 text-green-700',
-  'Blocked': 'bg-red-100 text-red-700',
-  'Deferred': 'bg-orange-100 text-orange-700',
+  'New':                'bg-slate-100 text-slate-500',
+  'To Do':              'bg-slate-100 text-slate-500',
+  'To-do':              'bg-slate-100 text-slate-600',
+  'REFINEMENT':         'bg-slate-100 text-slate-500',
+  'In Dev':             'bg-blue-100 text-blue-700',
+  'In development':     'bg-blue-100 text-blue-700',
+  'Ready For Dev':      'bg-sky-100 text-sky-700',
+  'In Progress':        'bg-blue-100 text-blue-700',
+  'In Review':          'bg-violet-100 text-violet-700',
+  'PENDING':            'bg-purple-100 text-purple-700',
+  'In Testing':         'bg-amber-100 text-amber-700',
+  'Testing':            'bg-amber-100 text-amber-700',
+  'Ready for Test':     'bg-amber-100 text-amber-700',
+  'READY4TEST':         'bg-amber-100 text-amber-700',
+  'STAGING-READY4TEST': 'bg-amber-100 text-amber-800',
+  'Re-Open':            'bg-orange-100 text-orange-700',
+  'Done':               'bg-green-100 text-green-700',
+  'UAT':                'bg-emerald-100 text-emerald-700',
+  'Deployed':           'bg-teal-100 text-teal-700',
+  'QC Done':            'bg-green-100 text-green-700',
+  'READY TO RELEASE':   'bg-teal-100 text-teal-800',
+  'READY FOR RELEASE':  'bg-teal-100 text-teal-800',
+  'Passed QC':          'bg-green-100 text-green-800',
+  'ANBM':               'bg-green-100 text-green-700',
+  'Blocked':            'bg-red-100 text-red-700',
+  'Deferred':           'bg-orange-100 text-orange-700',
 };
 
 const PHASE_STYLE: Record<string, { bg: string; text: string; bar: string }> = {
@@ -58,13 +114,12 @@ function calcLag(planEnd: string, actualEnd: string, status: string): number {
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const plan = new Date(planEnd); plan.setHours(0, 0, 0, 0);
 
-  if (status === 'Done') {
+  if (DONE_STATUSES.has(status)) {
     if (!actualEnd) return 0;
     const actual = new Date(actualEnd); actual.setHours(0, 0, 0, 0);
     return Math.round((actual.getTime() - plan.getTime()) / 86400000);
   }
-  if (status === 'To-do') return 0; // not started, ignore
-  // In Progress / Blocked / Deferred — accumulating delay
+  if (NOT_STARTED_STATUSES.has(status)) return 0;
   return today > plan ? Math.round((today.getTime() - plan.getTime()) / 86400000) : 0;
 }
 
@@ -159,18 +214,37 @@ function fmtD(s?: string | null): string {
   return `${MO_SHORT[d.getMonth()]} ${d.getDate()}`;
 }
 
-const BAR_PALETTE: Record<string, { ghost: string; border: string; fill: string }> = {
-  'Initializing':          { ghost: '#eff6ff', border: '#93c5fd', fill: '#3b82f6' },
-  'Architecture & Design': { ghost: '#eef2ff', border: '#a5b4fc', fill: '#6366f1' },
-  'Setup & Infra':         { ghost: '#ecfeff', border: '#67e8f9', fill: '#06b6d4' },
-  'Development':           { ghost: '#f5f3ff', border: '#c4b5fd', fill: '#8b5cf6' },
-  'Testing':               { ghost: '#fffbeb', border: '#fcd34d', fill: '#f59e0b' },
-  'UAT':                   { ghost: '#fff7ed', border: '#fdba74', fill: '#f97316' },
-  'Deployment':            { ghost: '#ecfdf5', border: '#6ee7b7', fill: '#10b981' },
-  'Closing':               { ghost: '#f8fafc', border: '#cbd5e1', fill: '#64748b' },
+// Roadmap bar colors by status (vibrant, status-driven)
+const STATUS_BAR_COLOR: Record<string, { fill: string; ghost: string; border: string }> = {
+  'New':                { fill: '#94a3b8', ghost: '#f8fafc', border: '#cbd5e1' },
+  'To Do':              { fill: '#94a3b8', ghost: '#f8fafc', border: '#cbd5e1' },
+  'To-do':              { fill: '#94a3b8', ghost: '#f8fafc', border: '#cbd5e1' },
+  'REFINEMENT':         { fill: '#94a3b8', ghost: '#f8fafc', border: '#cbd5e1' },
+  'In Dev':             { fill: '#3b82f6', ghost: '#dbeafe', border: '#60a5fa' },
+  'In development':     { fill: '#3b82f6', ghost: '#dbeafe', border: '#60a5fa' },
+  'Ready For Dev':      { fill: '#38bdf8', ghost: '#e0f2fe', border: '#7dd3fc' },
+  'In Progress':        { fill: '#2563eb', ghost: '#dbeafe', border: '#60a5fa' },
+  'In Review':          { fill: '#7c3aed', ghost: '#ede9fe', border: '#a78bfa' },
+  'PENDING':            { fill: '#8b5cf6', ghost: '#ede9fe', border: '#a78bfa' },
+  'In Testing':         { fill: '#d97706', ghost: '#fef3c7', border: '#fbbf24' },
+  'Testing':            { fill: '#d97706', ghost: '#fef3c7', border: '#fbbf24' },
+  'Ready for Test':     { fill: '#f59e0b', ghost: '#fef3c7', border: '#fbbf24' },
+  'READY4TEST':         { fill: '#f59e0b', ghost: '#fef3c7', border: '#fbbf24' },
+  'STAGING-READY4TEST': { fill: '#d97706', ghost: '#fef3c7', border: '#fbbf24' },
+  'Re-Open':            { fill: '#ea580c', ghost: '#ffedd5', border: '#fb923c' },
+  'Done':               { fill: '#16a34a', ghost: '#dcfce7', border: '#4ade80' },
+  'UAT':                { fill: '#059669', ghost: '#d1fae5', border: '#34d399' },
+  'Deployed':           { fill: '#0d9488', ghost: '#ccfbf1', border: '#2dd4bf' },
+  'QC Done':            { fill: '#15803d', ghost: '#dcfce7', border: '#4ade80' },
+  'READY TO RELEASE':   { fill: '#0f766e', ghost: '#ccfbf1', border: '#2dd4bf' },
+  'READY FOR RELEASE':  { fill: '#0f766e', ghost: '#ccfbf1', border: '#2dd4bf' },
+  'Passed QC':          { fill: '#15803d', ghost: '#dcfce7', border: '#4ade80' },
+  'ANBM':               { fill: '#16a34a', ghost: '#dcfce7', border: '#4ade80' },
+  'Blocked':            { fill: '#dc2626', ghost: '#fee2e2', border: '#f87171' },
+  'Deferred':           { fill: '#64748b', ghost: '#f1f5f9', border: '#94a3b8' },
 };
-function barPalette(phase: string) {
-  return BAR_PALETTE[phase] ?? { ghost: '#f8fafc', border: '#e2e8f0', fill: '#94a3b8' };
+function statusBar(status: string) {
+  return STATUS_BAR_COLOR[status] ?? { fill: '#94a3b8', ghost: '#f1f5f9', border: '#cbd5e1' };
 }
 
 // ─── DateCell: date input with weekend / holiday warning ─────────────────────
@@ -337,12 +411,6 @@ function RoadmapView({
     const w  = Math.max(ppd, (Math.round((e.getTime() - s.getTime()) / 86_400_000) + 1) * ppd);
     return { lx, w };
   }
-  function fillCol(a: Activity, base: string) {
-    if (a.status === 'Done')     return '#22c55e';
-    if (a.status === 'Blocked')  return '#ef4444';
-    if (a.status === 'Deferred') return '#94a3b8';
-    return base;
-  }
 
   const LEFT = 256, ROW = 46;
   const HDR = (multiYear ? 22 : 0) + 26 + 22; // year? + month + week rows
@@ -420,7 +488,6 @@ function RoadmapView({
 
             {phaseGroups.map(({ phase, acts }) => {
               const pSt = getPhaseStyle(phase);
-              const pal = barPalette(phase);
               return (
                 <React.Fragment key={phase}>
                   {/* phase header */}
@@ -444,8 +511,9 @@ function RoadmapView({
                   {acts.map((a, ri) => {
                     const pb = pBar(a), ab = aBar(a);
                     const lag = calcLag(a.plan_end, a.actual_end, a.status);
-                    const overdue = lag > 0 && a.status !== 'Done';
-                    const fc = fillCol(a, pal.fill);
+                    const overdue = lag > 0 && !DONE_STATUSES.has(a.status);
+                    const sb = statusBar(a.status);
+                    const fc = sb.fill;
 
                     const showPlan   = dateMode !== 'actual';
                     const showActual = dateMode !== 'plan';
@@ -508,7 +576,7 @@ function RoadmapView({
                             <div style={{
                               position: 'absolute', left: pb.lx, width: pb.w, height: 18,
                               top: '50%', transform: planShift,
-                              background: pal.ghost, border: `1.5px solid ${pal.border}`, borderRadius: 9999,
+                              background: sb.ghost, border: `2px solid ${sb.border}`, borderRadius: 9999,
                             }} />
                           )}
                           {/* progress fill */}
@@ -517,14 +585,14 @@ function RoadmapView({
                               position: 'absolute', left: pb.lx,
                               width: Math.round(pb.w * a.completion_pct / 100), height: 18,
                               top: '50%', transform: planShift,
-                              background: fc, opacity: 0.88, borderRadius: 9999,
+                              background: fc, opacity: 0.92, borderRadius: 9999,
                             }} />
                           )}
                           {/* % label */}
                           {showPlan && pb && pb.w >= 38 && a.completion_pct > 0 && (
                             <div style={{
                               position: 'absolute', left: pb.lx + 5, top: '50%', transform: planShift,
-                              fontSize: 9, fontWeight: 700, color: a.completion_pct > 28 ? '#fff' : pal.fill,
+                              fontSize: 9, fontWeight: 700, color: a.completion_pct > 28 ? '#fff' : sb.fill,
                               lineHeight: '18px', zIndex: 20, pointerEvents: 'none',
                             }}>{a.completion_pct}%</div>
                           )}
@@ -534,13 +602,13 @@ function RoadmapView({
                               ? <div style={{
                                   position: 'absolute', left: ab.lx, width: ab.w, height: 16,
                                   top: '50%', transform: 'translateY(-50%)',
-                                  background: fc, opacity: 0.78,
-                                  border: `1.5px solid ${pal.border}`, borderRadius: 9999,
+                                  background: fc, opacity: 0.85,
+                                  border: `2px solid ${sb.border}`, borderRadius: 9999,
                                 }} />
                               : <div style={{
-                                  position: 'absolute', left: ab.lx, width: ab.w, height: 5,
-                                  top: '50%', transform: 'translateY(6px)',
-                                  background: '#475569', opacity: 0.45, borderRadius: 9999,
+                                  position: 'absolute', left: ab.lx, width: ab.w, height: 6,
+                                  top: '50%', transform: 'translateY(5px)',
+                                  background: fc, opacity: 0.55, borderRadius: 9999,
                                 }} />
                           )}
                         </div>
@@ -565,15 +633,15 @@ function RoadmapView({
           {/* legend */}
           <div className="flex flex-wrap items-center gap-x-5 gap-y-2 px-5 py-3 border-t bg-slate-50/70">
             {([
-              dateMode !== 'actual' && ['Plan range',    <div key="a" style={{ width:28, height:14, background:'#eff6ff', border:'1.5px solid #93c5fd', borderRadius:9999 }} />] as [string, React.ReactNode],
-              dateMode !== 'actual' && ['Progress',      <div key="b" style={{ width:28, height:14, background:'#3b82f6', borderRadius:9999, opacity:.85 }} />] as [string, React.ReactNode],
-              ['Done',          <div key="c" style={{ width:28, height:14, background:'#22c55e', borderRadius:9999, opacity:.85 }} />],
-              ['Blocked',       <div key="d" style={{ width:28, height:14, background:'#ef4444', borderRadius:9999, opacity:.85 }} />],
-              dateMode === 'actual' && ['Actual (solid)', <div key="e2" style={{ width:28, height:14, background:'#8b5cf6', opacity:.75, border:'1.5px solid #c4b5fd', borderRadius:9999 }} />] as [string, React.ReactNode],
-              dateMode !== 'actual' && dateMode !== 'plan' && ['Actual period', <div key="e" style={{ width:28, height:5, background:'#475569', borderRadius:9999, opacity:.45 }} />] as [string, React.ReactNode],
-              ['Weekend',       <div key="f" style={{ width:14, height:14, background:'rgba(0,0,0,0.06)', borderRadius:2 }} />],
-              ['Holiday',       <div key="g" style={{ width:14, height:14, background:'rgba(249,115,22,0.15)', borderTop:'3px solid #f97316', borderRadius:2 }} />],
-              ['Today',         <div key="h" style={{ width:2, height:14, background:'#f87171', opacity:.7 }} />],
+              dateMode !== 'actual' && ['Plan range',     <div key="a" style={{ width:28, height:14, background:'#dbeafe', border:'2px solid #60a5fa', borderRadius:9999 }} />] as [string, React.ReactNode],
+              dateMode !== 'actual' && ['In Progress',    <div key="b" style={{ width:28, height:14, background:'#2563eb', borderRadius:9999, opacity:.9 }} />] as [string, React.ReactNode],
+              ['Done',                                    <div key="c" style={{ width:28, height:14, background:'#16a34a', borderRadius:9999, opacity:.9 }} />],
+              ['Blocked',                                 <div key="d" style={{ width:28, height:14, background:'#dc2626', borderRadius:9999, opacity:.9 }} />],
+              dateMode === 'actual' && ['Actual (solid)', <div key="e2" style={{ width:28, height:14, background:'#2563eb', opacity:.85, border:'2px solid #60a5fa', borderRadius:9999 }} />] as [string, React.ReactNode],
+              dateMode === 'both' && ['Actual period',    <div key="e" style={{ width:28, height:6, background:'#16a34a', borderRadius:9999, opacity:.55 }} />] as [string, React.ReactNode],
+              ['Weekend',                                 <div key="f" style={{ width:14, height:14, background:'rgba(0,0,0,0.06)', borderRadius:2 }} />],
+              ['Holiday',                                 <div key="g" style={{ width:14, height:14, background:'rgba(249,115,22,0.15)', borderTop:'3px solid #f97316', borderRadius:2 }} />],
+              ['Today',                                   <div key="h" style={{ width:2, height:14, background:'#f87171', opacity:.7 }} />],
             ].filter(Boolean) as [string, React.ReactNode][]).map(([label, el]) => (
               <div key={label} className="flex items-center gap-1.5">
                 <div className="flex items-center justify-center" style={{ width:30, height:16 }}>{el}</div>
@@ -733,7 +801,7 @@ export default function TimelinePage() {
   const showGroups = filterPhase === 'All';
 
   // Overdue count for banner
-  const overdueCount = activities.filter(a => a.status !== 'Done' && calcLag(a.plan_end, a.actual_end, a.status) > 0).length;
+  const overdueCount = activities.filter(a => !DONE_STATUSES.has(a.status) && calcLag(a.plan_end, a.actual_end, a.status) > 0).length;
 
   return (
     <div className="flex flex-col lg:flex-row min-h-screen">
