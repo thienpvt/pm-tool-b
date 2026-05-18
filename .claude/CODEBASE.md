@@ -245,6 +245,8 @@ Auth utilities (`lib/auth.ts`):
 
 | Date | Change |
 |---|---|
+| 2026-05-18 | Project Timeline Roadmap overhaul: collapsible epics (toggle + Collapse All), Year/Quarter/Month selector, bars clipped to range, alternating phase backgrounds + colored left border, redesigned left panel (compact status+dates line), Blocked/Deferred exempt from lag; Table: remove Deliverable column, wider Key column |
+| 2026-05-18 | Jira CSV import + Key/Sprint fields: text-paste import mode, EPIC→Phase hierarchy, dynamic phases (not fixed list), jira_key+sprint DB columns, bulk upsert API, status value mapping UI, upsert preview with overwrite count |
 | 2026-05-17 | Add Portfolio Roadmap page (`/portfolio/roadmap`): Gantt-style timeline X=quarters, Y=customer/phase rows, project bars with fill=completion%, RAG dot, sticky header+labels, today marker, collapsible groups |
 | 2026-05-08 | Flexible timeline import: column mapping dialog, template save/load, date normalization, fuzzy enum matching |
 | 2026-05-08 | Add `timeline_import_mappings` table; API routes `/api/parse-file-headers`, `/api/import-mapping` |
