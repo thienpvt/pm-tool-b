@@ -128,7 +128,9 @@ async function initPostgresSchema(db: DbClient) {
       notes TEXT,
       order_idx INTEGER DEFAULT 0,
       delay_owner TEXT DEFAULT 'N/A',
-      delay_reason TEXT DEFAULT ''
+      delay_reason TEXT DEFAULT '',
+      jira_key TEXT DEFAULT '',
+      sprint TEXT DEFAULT ''
     );
     CREATE TABLE IF NOT EXISTS team_members (
       id SERIAL PRIMARY KEY,
@@ -256,6 +258,8 @@ async function migratePostgresSchema(pool: Pool) {
     `CREATE TABLE IF NOT EXISTS timeline_import_mappings (id SERIAL PRIMARY KEY, name TEXT NOT NULL, mappings_json TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
     `CREATE TABLE IF NOT EXISTS budget_items (id SERIAL PRIMARY KEY, project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE, type TEXT NOT NULL DEFAULT 'CAPEX', group_name TEXT NOT NULL DEFAULT '', name TEXT NOT NULL, planned_amount NUMERIC(15,2) NOT NULL DEFAULT 0, actual_amount NUMERIC(15,2) NOT NULL DEFAULT 0, unit TEXT NOT NULL DEFAULT 'USD', notes TEXT DEFAULT '', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
     `CREATE TABLE IF NOT EXISTS budget_expenses (id SERIAL PRIMARY KEY, budget_item_id INTEGER NOT NULL REFERENCES budget_items(id) ON DELETE CASCADE, project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE, expense_date DATE NOT NULL DEFAULT CURRENT_DATE, description TEXT NOT NULL DEFAULT '', amount NUMERIC(15,2) NOT NULL DEFAULT 0, reference TEXT DEFAULT '', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
+    `ALTER TABLE activities ADD COLUMN IF NOT EXISTS jira_key TEXT DEFAULT ''`,
+    `ALTER TABLE activities ADD COLUMN IF NOT EXISTS sprint TEXT DEFAULT ''`,
   ];
   for (const sql of migrations) {
     try { await pool.query(sql); } catch { /* column already exists */ }
@@ -326,6 +330,7 @@ export type Activity = {
   support: string; plan_start: string; plan_end: string; actual_start: string;
   actual_end: string; status: string; completion_pct: number; notes: string;
   order_idx: number; delay_owner: string; delay_reason: string;
+  jira_key: string; sprint: string;
 };
 export type TeamMember = {
   id: number; project_id: number; domain: string; role: string;

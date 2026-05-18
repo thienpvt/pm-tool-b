@@ -18,12 +18,13 @@ type Activity = {
   plan_start: string; plan_end: string; actual_start: string; actual_end: string;
   status: string; completion_pct: number; notes: string; order_idx: number;
   delay_owner: string; delay_reason: string;
+  jira_key: string; sprint: string;
 };
 
 type TeamMember = { id: number; name: string; role: string; domain: string; };
 type Holiday   = { id: number; project_id: number; date: string; name: string; };
 
-const PHASES = ['Initializing', 'Architecture & Design', 'Setup & Infra', 'Development', 'Testing', 'UAT', 'Deployment', 'Closing'];
+const DEFAULT_PHASES = ['Initializing', 'Architecture & Design', 'Setup & Infra', 'Development', 'Testing', 'UAT', 'Deployment', 'Closing'];
 const STATUSES = ['To-do', 'In Progress', 'Done', 'Blocked', 'Deferred'];
 const DELAY_OWNERS = ['N/A', 'Client', 'Vendor', 'Both', 'External'];
 
@@ -84,10 +85,10 @@ const DELAY_OWNER_COLOR: Record<string, string> = {
 
 // ─── CSV helpers ──────────────────────────────────────────────────────────────
 const CSV_HEADERS = [
-  'No', 'Phase', 'Activity', 'Deliverable', 'Sign-off Document',
+  'No', 'Phase', 'Key', 'Activity', 'Deliverable', 'Sign-off Document',
   'Accountable', 'Responsible', 'Support',
   'Plan Start', 'Plan End', 'Actual Start', 'Actual End',
-  'Status', 'Completion (%)', 'Delay Owner', 'Delay Reason', 'Notes',
+  'Status', 'Completion (%)', 'Sprint', 'Delay Owner', 'Delay Reason', 'Notes',
 ];
 
 function escapeCSV(val: string | number | null | undefined): string {
@@ -99,10 +100,10 @@ function activitiesToCSV(rows: Activity[]): string {
   const lines = [CSV_HEADERS.join(',')];
   for (const r of rows) {
     lines.push([
-      r.no, r.phase, r.activity, r.deliverable, r.sign_off_doc,
+      r.no, r.phase, r.jira_key, r.activity, r.deliverable, r.sign_off_doc,
       r.accountable, r.responsible, r.support,
       r.plan_start, r.plan_end, r.actual_start, r.actual_end,
-      r.status, r.completion_pct, r.delay_owner, r.delay_reason, r.notes,
+      r.status, r.completion_pct, r.sprint, r.delay_owner, r.delay_reason, r.notes,
     ].map(escapeCSV).join(','));
   }
   return lines.join('\r\n');
@@ -116,10 +117,11 @@ function downloadCSV(content: string, filename: string) {
   URL.revokeObjectURL(url);
 }
 
+// No, Phase, Key, Activity, Deliverable, Sign-off, Accountable, Responsible, Support, PlanStart, PlanEnd, ActualStart, ActualEnd, Status, Pct, Sprint, DelayOwner, DelayReason, Notes
 const TEMPLATE_ROWS = [
-  ['1', 'Initializing', 'Project Kickoff', 'Kickoff Presentation', 'Signed Charter', 'PM', 'PM', '', '2025-01-06', '2025-01-06', '2025-01-06', '2025-01-08', 'Done', '100', 'Vendor', 'Internal prep took longer', ''],
-  ['2', 'Development',  'Backend API',     'API Module',           'Test Report',    'Tech Lead', 'BE Team', 'SA', '2025-02-01', '2025-03-31', '2025-02-05', '', 'In Progress', '60', 'Client', 'Waiting for client API spec', 'Sprint 1–4'],
-  ['3', 'Testing',      'SIT',             'SIT Report',           'SIT Sign-off',   'QA Lead', 'QA Team', 'Dev', '2025-04-01', '2025-04-15', '', '', 'To-do', '0', 'N/A', '', ''],
+  ['1', 'Initializing', 'PROJ-1', 'Project Kickoff', 'Kickoff Presentation', 'Signed Charter', 'PM', 'PM', '', '2025-01-06', '2025-01-06', '2025-01-06', '2025-01-08', 'Done', '100', '', 'Vendor', 'Internal prep took longer', ''],
+  ['2', 'Development',  'PROJ-2', 'Backend API',     'API Module',           'Test Report',    'Tech Lead', 'BE Team', 'SA', '2025-02-01', '2025-03-31', '2025-02-05', '', 'In Progress', '60', 'Sprint 1', 'Client', 'Waiting for client API spec', ''],
+  ['3', 'Testing',      'PROJ-3', 'SIT',             'SIT Report',           'SIT Sign-off',   'QA Lead', 'QA Team', 'Dev', '2025-04-01', '2025-04-15', '', '', 'To-do', '0', '', 'N/A', '', ''],
 ];
 
 function parseCSV(text: string): string[][] {
@@ -612,10 +614,13 @@ export default function TimelinePage() {
   useEffect(() => { fetch(`/api/projects/${id}/holidays`).then(r => r.json()).then(setHolidays); }, [id]);
 
   const addActivity = async () => {
-    const phase = filterPhase === 'All' ? 'Initializing' : filterPhase;
+    const uniquePhases = [...new Set(activities.map(a => a.phase).filter(Boolean))];
+    const phase = filterPhase === 'All'
+      ? (uniquePhases[0] ?? DEFAULT_PHASES[0])
+      : filterPhase;
     const res = await fetch(`/api/projects/${id}/activities`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phase, activity: 'New Activity' }),
+      body: JSON.stringify({ phase, activity: 'New Activity', jira_key: '', sprint: '' }),
     });
     const row = await res.json();
     setActivities(a => [...a, row]);
@@ -651,16 +656,29 @@ export default function TimelinePage() {
     toast.success('Template downloaded');
   };
 
+  // Dynamic phases from data (preserving insertion order)
+  const allPhases = useMemo(() => {
+    const seen = new Set<string>();
+    const result: string[] = [];
+    for (const a of activities) {
+      if (a.phase && !seen.has(a.phase)) { seen.add(a.phase); result.push(a.phase); }
+    }
+    // Append default phases not yet in data
+    for (const p of DEFAULT_PHASES) {
+      if (!seen.has(p)) result.push(p);
+    }
+    return result;
+  }, [activities]);
+
   // Grouped display
   const baseList = filterPhase === 'All' ? activities : activities.filter(a => a.phase === filterPhase);
   const phaseGroups: { phase: string; acts: Activity[] }[] = [];
-  for (const phase of PHASES) {
-    const acts = baseList.filter(a => a.phase === phase);
-    if (acts.length) phaseGroups.push({ phase, acts });
-  }
-  const knownSet = new Set(PHASES);
-  for (const phase of [...new Set(baseList.filter(a => !knownSet.has(a.phase)).map(a => a.phase))]) {
-    phaseGroups.push({ phase, acts: baseList.filter(a => a.phase === phase) });
+  const seenPhases = new Set<string>();
+  for (const a of baseList) {
+    if (!seenPhases.has(a.phase)) {
+      seenPhases.add(a.phase);
+      phaseGroups.push({ phase: a.phase, acts: baseList.filter(x => x.phase === a.phase) });
+    }
   }
   const showGroups = filterPhase === 'All';
 
@@ -704,10 +722,12 @@ export default function TimelinePage() {
             </div>
 
             <Select value={filterPhase} onValueChange={v => setFilterPhase(v ?? 'All')}>
-              <SelectTrigger className="w-44 h-9"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-48 h-9"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="All">All Phases</SelectItem>
-                {PHASES.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                {allPhases.filter(p => activities.some(a => a.phase === p)).map(p => (
+                  <SelectItem key={p} value={p}>{p}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
 
@@ -751,10 +771,11 @@ export default function TimelinePage() {
         {/* Table */}
         {viewMode === 'table' && <div className="rounded-xl border bg-white overflow-hidden shadow-sm">
           <div className="overflow-x-auto">
-            <table className="w-full text-xs" style={{ minWidth: '1600px' }}>
+            <table className="w-full text-xs" style={{ minWidth: '1800px' }}>
               <thead>
                 <tr className="bg-[#1e293b] text-white">
                   {showGroups && <th className="px-2 py-3 text-left w-32">Phase</th>}
+                  <th className="px-2 py-3 text-left w-24 bg-teal-900/40">Key</th>
                   <th className="px-2 py-3 text-left" style={{ minWidth: '200px' }}>Activity</th>
                   <th className="px-2 py-3 text-left w-36">Deliverable</th>
                   <th className="px-2 py-3 text-left w-28">Accountable</th>
@@ -768,13 +789,14 @@ export default function TimelinePage() {
                   <th className="px-2 py-3 text-center w-16 bg-red-900/30">Lag</th>
                   <th className="px-2 py-3 text-left w-24 bg-red-900/30">Delay By</th>
                   <th className="px-2 py-3 text-left w-36 bg-red-900/30">Delay Reason</th>
+                  <th className="px-2 py-3 text-left w-28 bg-teal-900/40">Sprint</th>
                   <th className="px-2 py-3 text-left w-28">Notes</th>
                   <th className="px-2 py-3 w-8"></th>
                 </tr>
               </thead>
               <tbody>
                 {baseList.length === 0 && (
-                  <tr><td colSpan={showGroups ? 16 : 15} className="text-center py-16 text-slate-400">
+                  <tr><td colSpan={showGroups ? 18 : 17} className="text-center py-16 text-slate-400">
                     <div className="flex flex-col items-center gap-3">
                       <p>Chưa có activity nào.</p>
                       <div className="flex gap-2">
@@ -793,7 +815,7 @@ export default function TimelinePage() {
                     <React.Fragment key={phase}>
                       {showGroups && (
                         <tr key={`ph-${phase}`}>
-                          <td colSpan={16} className={`px-4 py-2 font-bold text-xs uppercase tracking-widest border-t-2 border-slate-200 ${style.bg} ${style.text}`}>
+                          <td colSpan={18} className={`px-4 py-2 font-bold text-xs uppercase tracking-widest border-t-2 border-slate-200 ${style.bg} ${style.text}`}>
                             <div className="flex items-center gap-3">
                               <div className={`w-2 h-2 rounded-full ${style.bar}`} />
                               {phase}
@@ -810,12 +832,24 @@ export default function TimelinePage() {
                           <tr key={row.id} className={`border-t hover:bg-slate-50/60 transition-colors ${isOverdue ? 'bg-red-50/20' : ''}`}>
                             {showGroups && (
                               <td className="px-2 py-1.5">
-                                <Select value={row.phase} onValueChange={v => { const val = v ?? ''; updateField(row.id, 'phase', val); saveRow({ ...row, phase: val }); }}>
-                                  <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
-                                  <SelectContent>{PHASES.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent>
-                                </Select>
+                                <input
+                                  list={`phases-${id}`}
+                                  className="h-7 text-xs w-full border border-slate-200 rounded-md px-2 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400"
+                                  value={row.phase}
+                                  onChange={e => updateField(row.id, 'phase', e.target.value)}
+                                  onBlur={() => saveRow(row)}
+                                />
                               </td>
                             )}
+                            <td className="px-2 py-1.5 bg-teal-50/30">
+                              <input
+                                className="h-7 text-xs w-full border border-slate-200 rounded-md px-2 bg-white focus:outline-none focus:ring-1 focus:ring-teal-400 font-mono"
+                                value={row.jira_key ?? ''}
+                                onChange={e => updateField(row.id, 'jira_key', e.target.value)}
+                                onBlur={() => saveRow(row)}
+                                placeholder="KEY-1"
+                              />
+                            </td>
                             <td className="px-2 py-1.5" style={{ minWidth: '200px' }}>
                               <textarea className="text-xs w-full min-h-[48px] px-2 py-1 border border-slate-200 rounded-md resize-y bg-white focus:outline-none focus:ring-1 focus:ring-blue-400 leading-snug" value={row.activity} onChange={e => updateField(row.id, 'activity', e.target.value)} onBlur={() => saveRow(row)} />
                             </td>
@@ -876,6 +910,15 @@ export default function TimelinePage() {
                                   : 'Add reason...'}
                               </button>
                             </td>
+                            <td className="px-2 py-1.5 bg-teal-50/30">
+                              <Input
+                                className="h-7 text-xs bg-white"
+                                value={row.sprint ?? ''}
+                                onChange={e => updateField(row.id, 'sprint', e.target.value)}
+                                onBlur={() => saveRow(row)}
+                                placeholder="Sprint name..."
+                              />
+                            </td>
                             <td className="px-2 py-1.5">
                               <Input className="h-7 text-xs" value={row.notes} onChange={e => updateField(row.id, 'notes', e.target.value)} onBlur={() => saveRow(row)} />
                             </td>
@@ -910,9 +953,12 @@ export default function TimelinePage() {
         )}
       </main>
 
-      {/* Datalist */}
+      {/* Datalists */}
       <datalist id={`team-${id}`}>
         {teamMembers.map(m => <option key={m.id} value={m.name}>{m.role} — {m.domain}</option>)}
+      </datalist>
+      <datalist id={`phases-${id}`}>
+        {allPhases.map(p => <option key={p} value={p} />)}
       </datalist>
 
       {/* Holiday Dialog */}
