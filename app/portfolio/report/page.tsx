@@ -556,6 +556,276 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
   return lines.join('\n');
 }
 
+// ─── Markdown → HTML (for AI output) ─────────────────────────────────────────
+function mdToHtml(text: string): string {
+  const fmt = (s: string) => s
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g,'<em>$1</em>');
+  const lines = text.split('\n');
+  let html = '<div style="font-family:Arial,Helvetica,sans-serif;max-width:860px;margin:0 auto;color:#1e293b;font-size:14px;line-height:1.75;padding:28px;background:white;">';
+  let inUl = false; let inOl = false;
+  lines.forEach(line => {
+    const isBullet = /^[-*]\s/.test(line); const isOrdered = /^\d+\.\s/.test(line);
+    if (!isBullet && inUl) { html += '</ul>'; inUl = false; }
+    if (!isOrdered && inOl) { html += '</ol>'; inOl = false; }
+    if (/^###\s/.test(line)) {
+      html += `<h3 style="font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.8px;margin:18px 0 6px;">${fmt(line.replace(/^###\s/,''))}</h3>`;
+    } else if (/^##\s/.test(line)) {
+      html += `<h2 style="font-size:16px;font-weight:700;color:#1e293b;border-bottom:2px solid #e2e8f0;padding-bottom:6px;margin:24px 0 10px;">${fmt(line.replace(/^##\s/,''))}</h2>`;
+    } else if (/^#\s/.test(line)) {
+      html += `<h1 style="font-size:20px;font-weight:700;color:#1e293b;margin:0 0 16px;">${fmt(line.replace(/^#\s/,''))}</h1>`;
+    } else if (isBullet) {
+      if (!inUl) { html += '<ul style="margin:6px 0;padding-left:22px;">'; inUl = true; }
+      html += `<li style="margin:4px 0;color:#334155;">${fmt(line.replace(/^[-*]\s/,''))}</li>`;
+    } else if (isOrdered) {
+      if (!inOl) { html += '<ol style="margin:6px 0;padding-left:22px;">'; inOl = true; }
+      html += `<li style="margin:4px 0;color:#334155;">${fmt(line.replace(/^\d+\.\s/,''))}</li>`;
+    } else if (line.trim() === '') {
+      html += '<div style="height:8px;"></div>';
+    } else {
+      html += `<p style="margin:5px 0;color:#334155;">${fmt(line)}</p>`;
+    }
+  });
+  if (inUl) html += '</ul>'; if (inOl) html += '</ol>';
+  html += '</div>'; return html;
+}
+
+// ─── Build HTML Report ────────────────────────────────────────────────────────
+function buildHtmlReport(data: PortfolioReportData, language: string, periodStart: string, periodEnd: string, companyName = 'PM Tool'): string {
+  const isVN = language === 'Vietnamese';
+  const today = new Date().toLocaleDateString(isVN ? 'vi-VN' : 'en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+  const yyyymm = new Date().toISOString().slice(0, 7).replace('-', '');
+
+  const allProjects = [...data.customers.flatMap(c => c.projects), ...data.noCustomerProjects];
+  const red = allProjects.filter(p => p.rag === 'red');
+  const amber = allProjects.filter(p => p.rag === 'amber');
+  const green = allProjects.filter(p => p.rag === 'green');
+  const overdue = allProjects.filter(p => p.days_until_deadline !== null && p.days_until_deadline < 0);
+  const sorted = [...allProjects].sort((a, b) => ({ red:0, amber:1, green:2 } as Record<string,number>)[a.rag] - ({ red:0, amber:1, green:2 } as Record<string,number>)[b.rag]);
+  const portfolioStatus = isVN ? (red.length > 0 ? 'ĐỎ' : amber.length > 0 ? 'VÀNG' : 'XANH') : (red.length > 0 ? 'RED' : amber.length > 0 ? 'AMBER' : 'GREEN');
+  const statusColor = red.length > 0 ? '#dc2626' : amber.length > 0 ? '#d97706' : '#16a34a';
+  const statusBg = red.length > 0 ? '#fef2f2' : amber.length > 0 ? '#fffbeb' : '#f0fdf4';
+
+  const rc = (r: string) => r === 'red' ? '#dc2626' : r === 'amber' ? '#d97706' : '#16a34a';
+  const rb = (r: string) => r === 'red' ? '#fef2f2' : r === 'amber' ? '#fffbeb' : '#f0fdf4';
+  const rl = (r: string) => isVN ? (r === 'red' ? 'ĐỎ' : r === 'amber' ? 'VÀNG' : 'XANH') : r.toUpperCase();
+  const pc = (p: string) => p === 'Critical' ? '#dc2626' : p === 'High' ? '#ea580c' : p === 'Medium' ? '#d97706' : '#64748b';
+  const pb = (p: string) => p === 'Critical' ? '#fef2f2' : p === 'High' ? '#fff7ed' : p === 'Medium' ? '#fffbeb' : '#f8fafc';
+  const barColor = (pct: number) => pct >= 70 ? '#16a34a' : pct >= 40 ? '#3b82f6' : pct >= 20 ? '#d97706' : '#ef4444';
+
+  const TH = 'background:#f1f5f9;padding:8px 14px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;border-bottom:2px solid #e2e8f0;';
+  const TD = 'padding:10px 14px;border-bottom:1px solid #f1f5f9;font-size:13px;vertical-align:middle;';
+  const SH = 'background:#1e293b;color:white;padding:11px 22px;font-size:13px;font-weight:700;letter-spacing:0.6px;';
+  const completedGroups = Object.values(data.completedByProject);
+
+  let h = `<div style="font-family:Arial,Helvetica,sans-serif;max-width:920px;margin:0 auto;color:#1e293b;font-size:14px;line-height:1.6;background:#f8fafc;padding:20px;">`;
+
+  // Header
+  h += `<div style="background:#1e293b;color:white;padding:28px 32px;border-radius:8px 8px 0 0;text-align:center;">`;
+  h += `<h1 style="margin:0;font-size:17px;font-weight:700;letter-spacing:1.2px;">${isVN ? 'BÁO CÁO TÌNH TRẠNG PORTFOLIO — CHARTERTECH GLOBAL' : 'PORTFOLIO STATUS REPORT — CHARTERTECH GLOBAL'}</h1>`;
+  h += `<p style="margin:7px 0 0;font-size:12px;opacity:0.6;">Program Management Office (PMO)</p></div>`;
+
+  // Meta row
+  h += `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-top:none;padding:11px 28px;display:flex;flex-wrap:wrap;gap:6px 28px;font-size:12px;color:#475569;border-radius:0 0 0 0;">`;
+  h += `<span><strong>${isVN ? 'Ngày báo cáo' : 'Report Date'}:</strong> ${today}</span>`;
+  h += `<span><strong>Ref:</strong> PMO-${yyyymm}-001</span>`;
+  h += `<span><strong>${isVN ? 'Kỳ báo cáo' : 'Period'}:</strong> ${periodStart} → ${periodEnd}</span>`;
+  h += `<span style="margin-left:auto;"><strong>${isVN ? 'Phân loại' : 'Classification'}:</strong> ${isVN ? 'Bảo mật — Nội bộ' : 'Confidential — Internal Only'}</span></div>`;
+
+  // ── I. Executive Summary
+  h += `<div style="margin-top:18px;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08);">`;
+  h += `<div style="${SH}">I. ${isVN ? 'TÓM TẮT ĐIỀU HÀNH' : 'EXECUTIVE SUMMARY'}</div>`;
+  h += `<div style="background:white;padding:20px 24px;">`;
+  h += `<div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;flex-wrap:wrap;">`;
+  h += `<span style="font-size:13px;font-weight:600;color:#475569;">${isVN ? 'Trạng thái tổng thể:' : 'Overall Portfolio Status:'}</span>`;
+  h += `<span style="display:inline-flex;align-items:center;gap:7px;padding:5px 14px;border-radius:20px;background:${statusBg};border:1px solid ${statusColor};font-weight:700;color:${statusColor};font-size:13px;"><span style="width:10px;height:10px;border-radius:50%;background:${statusColor};display:inline-block;"></span>${portfolioStatus}</span>`;
+  h += `<span style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:14px;background:#f0fdf4;border:1px solid #16a34a;color:#16a34a;font-size:11px;font-weight:700;">${green.length} ${isVN ? 'XANH' : 'GREEN'}</span>`;
+  h += `<span style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:14px;background:#fffbeb;border:1px solid #d97706;color:#d97706;font-size:11px;font-weight:700;">${amber.length} ${isVN ? 'VÀNG' : 'AMBER'}</span>`;
+  h += `<span style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:14px;background:#fef2f2;border:1px solid #dc2626;color:#dc2626;font-size:11px;font-weight:700;">${red.length} ${isVN ? 'ĐỎ' : 'RED'}</span></div>`;
+  const sumText = isVN
+    ? (red.length > 0 ? `Portfolio hiện có ${red.length} dự án ở mức ĐỎ cần xử lý khẩn cấp. Tổng cộng ${data.kpi.totalProjects} dự án trên ${data.kpi.totalCustomers} khách hàng, tiến độ trung bình ${data.kpi.avgCompletion}% (tính theo trọng số trạng thái).`
+      : amber.length > 0 ? `Portfolio ở mức VÀNG với ${amber.length} dự án cần theo dõi sát sao. Tổng cộng ${data.kpi.totalProjects} dự án, tiến độ TB ${data.kpi.avgCompletion}%.`
+      : `Portfolio đang ở trạng thái tốt — toàn bộ dự án đều xanh. Tổng cộng ${data.kpi.totalProjects} dự án trên ${data.kpi.totalCustomers} khách hàng, tiến độ TB ${data.kpi.avgCompletion}%.`)
+    : (red.length > 0 ? `Portfolio is at RED status with ${red.length} project(s) requiring immediate attention. ${data.kpi.totalProjects} projects across ${data.kpi.totalCustomers} accounts, average completion ${data.kpi.avgCompletion}% (weighted).`
+      : amber.length > 0 ? `Portfolio is AMBER with ${amber.length} project(s) under close monitoring. ${data.kpi.totalProjects} projects, avg completion ${data.kpi.avgCompletion}%.`
+      : `Portfolio is in good health — all projects tracking GREEN. ${data.kpi.totalProjects} projects across ${data.kpi.totalCustomers} accounts, avg completion ${data.kpi.avgCompletion}%.`);
+  h += `<p style="margin:0 0 14px;color:#334155;font-size:13px;">${sumText}</p>`;
+  if (overdue.length > 0) h += `<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:10px 14px;margin-bottom:14px;color:#dc2626;font-size:13px;font-weight:600;">⚠ ${isVN ? `CẢNH BÁO: ${overdue.length} dự án đã vượt hạn chót — cần hành động ngay lập tức.` : `ALERT: ${overdue.length} project(s) past deadline — immediate action required.`}</div>`;
+  h += `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px;">`;
+  const kpis = isVN
+    ? [{l:'Tổng dự án',v:data.kpi.totalProjects,a:false},{l:'Đang hoạt động',v:data.kpi.activeProjects,a:false},{l:'Tiến độ TB',v:`${data.kpi.avgCompletion}%`,a:false},{l:'Khách hàng',v:data.kpi.totalCustomers,a:false},{l:'Rủi ro đang mở',v:data.kpi.totalOpenRisks,a:data.kpi.totalOpenRisks>0},{l:'Vấn đề đang mở',v:data.kpi.totalOpenIssues,a:data.kpi.totalOpenIssues>0},{l:'Dự án quá hạn',v:overdue.length,a:overdue.length>0}]
+    : [{l:'Total Projects',v:data.kpi.totalProjects,a:false},{l:'Active',v:data.kpi.activeProjects,a:false},{l:'Avg Completion',v:`${data.kpi.avgCompletion}%`,a:false},{l:'Customers',v:data.kpi.totalCustomers,a:false},{l:'Open Risks',v:data.kpi.totalOpenRisks,a:data.kpi.totalOpenRisks>0},{l:'Open Issues',v:data.kpi.totalOpenIssues,a:data.kpi.totalOpenIssues>0},{l:'Overdue',v:overdue.length,a:overdue.length>0}];
+  kpis.forEach(k => {
+    h += `<div style="background:${k.a?'#fef2f2':'#f8fafc'};border:1px solid ${k.a?'#fecaca':'#e2e8f0'};border-radius:8px;padding:12px 16px;">`;
+    h += `<div style="font-size:22px;font-weight:700;color:${k.a?'#dc2626':'#1e293b'};">${k.v}</div>`;
+    h += `<div style="font-size:11px;color:#94a3b8;margin-top:2px;">${k.l}</div></div>`;
+  });
+  h += `</div></div></div>`;
+
+  // ── II. Health Matrix
+  h += `<div style="margin-top:16px;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08);">`;
+  h += `<div style="${SH}">II. ${isVN ? 'MA TRẬN SỨC KHỎE PORTFOLIO' : 'PORTFOLIO HEALTH MATRIX'}</div>`;
+  h += `<div style="background:white;overflow-x:auto;"><table style="width:100%;border-collapse:collapse;">`;
+  h += `<thead><tr>${['#',isVN?'TRẠNG THÁI':'STATUS',isVN?'TÊN DỰ ÁN':'PROJECT',isVN?'KHÁCH HÀNG':'CUSTOMER','PHASE',isVN?'TIẾN ĐỘ':'PROGRESS','DEADLINE'].map(col=>`<th style="${TH}">${col}</th>`).join('')}</tr></thead><tbody>`;
+  sorted.forEach((p, i) => {
+    const dl = p.days_until_deadline;
+    const dlStr = dl===null?'—':dl<0?(isVN?`QUÁ HẠN ${Math.abs(dl)}d`:`OVERDUE ${Math.abs(dl)}d`):isVN?`Còn ${dl}d`:`${dl}d left`;
+    const dlColor = dl===null?'#94a3b8':dl<0?'#dc2626':dl<=7?'#ef4444':dl<=14?'#d97706':'#475569';
+    h += `<tr style="border-bottom:1px solid #f1f5f9;${i%2===1?'background:#fafafa;':''}">`;
+    h += `<td style="${TD}color:#94a3b8;">${i+1}</td>`;
+    h += `<td style="${TD}"><span style="display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:12px;background:${rb(p.rag)};border:1px solid ${rc(p.rag)};color:${rc(p.rag)};font-size:11px;font-weight:700;"><span style="width:8px;height:8px;border-radius:50%;background:${rc(p.rag)};flex-shrink:0;"></span>${rl(p.rag)}</span></td>`;
+    h += `<td style="${TD}font-weight:600;color:#1e293b;">${p.name}</td>`;
+    h += `<td style="${TD}color:#64748b;font-size:12px;">${p.customer_name||p.client||'—'}</td>`;
+    h += `<td style="${TD}"><span style="font-size:11px;padding:2px 8px;border-radius:10px;background:#e0f2fe;color:#0369a1;font-weight:600;">${p.current_phase}</span></td>`;
+    h += `<td style="${TD}min-width:130px;">`;
+    h += `<div style="display:flex;align-items:center;gap:8px;"><div style="flex:1;height:6px;background:#e2e8f0;border-radius:3px;overflow:hidden;min-width:60px;"><div style="height:100%;width:${p.completion_pct}%;background:${barColor(p.completion_pct)};border-radius:3px;"></div></div><span style="font-size:12px;font-weight:700;color:#334155;width:36px;text-align:right;">${p.completion_pct}%</span></div>`;
+    if (p.total_activities>0) h += `<div style="display:flex;gap:8px;margin-top:4px;font-size:10px;"><span style="color:#16a34a;font-weight:600;">✓${p.done_activities}</span><span style="color:#d97706;font-weight:600;">⟳${p.in_progress_activities}</span><span style="color:#94a3b8;">○${p.not_started_activities}</span><span style="color:#cbd5e1;">/${p.total_activities}</span></div>`;
+    h += `</td>`;
+    h += `<td style="${TD}font-size:12px;font-weight:${dl!==null&&dl<0?'700':'400'};color:${dlColor};">${dlStr}</td></tr>`;
+    if (p.epicStats&&p.epicStats.length>0) {
+      h += `<tr style="background:#fafafa;border-bottom:1px solid #f1f5f9;"><td></td><td colspan="6" style="padding:6px 14px 10px;">`;
+      h += `<div style="display:flex;flex-wrap:wrap;gap:10px;">`;
+      p.epicStats.forEach(e => {
+        h += `<div style="display:flex;align-items:center;gap:6px;font-size:11px;color:#475569;">`;
+        h += `<span style="font-weight:600;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${e.phase}</span>`;
+        h += `<div style="width:64px;height:4px;background:#e2e8f0;border-radius:2px;"><div style="height:100%;width:${e.pct}%;background:${barColor(e.pct)};border-radius:2px;"></div></div>`;
+        h += `<span style="color:#94a3b8;white-space:nowrap;">${e.pct}% (${e.done}/${e.total})</span></div>`;
+      });
+      h += `</div></td></tr>`;
+    }
+  });
+  h += `</tbody></table></div></div>`;
+
+  // ── III. Completed in Period
+  h += `<div style="margin-top:16px;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08);">`;
+  h += `<div style="${SH}">III. ${isVN?'TIẾN ĐỘ THEO KỲ — HOÀN THÀNH TRONG GIAI ĐOẠN':'PROGRESS REPORT — COMPLETED IN PERIOD'} <span style="font-weight:400;opacity:0.65;font-size:12px;">(${periodStart} → ${periodEnd})</span></div>`;
+  h += `<div style="background:white;padding:18px 24px;">`;
+  if (completedGroups.length===0) {
+    h += `<p style="color:#94a3b8;font-style:italic;margin:0;">${isVN?'Không có hoạt động nào hoàn thành trong giai đoạn này.':'No activities completed in this period.'}</p>`;
+  } else {
+    completedGroups.forEach((g,gi) => {
+      if (gi>0) h += `<div style="height:1px;background:#f1f5f9;margin:14px 0;"></div>`;
+      h += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;">`;
+      h += `<span style="font-weight:700;color:#1e293b;font-size:13px;">${g.project_name}</span>`;
+      if (g.customer_name) h += `<span style="font-size:11px;color:#94a3b8;">${g.customer_name}</span>`;
+      h += `<span style="margin-left:auto;font-size:11px;padding:2px 8px;border-radius:10px;background:#e0f2fe;color:#0369a1;font-weight:600;">${g.current_phase}</span></div>`;
+      h += `<ul style="margin:0;padding:0;list-style:none;">`;
+      g.activities.forEach(a => {
+        h += `<li style="display:flex;align-items:baseline;gap:8px;padding:4px 0;font-size:12px;">`;
+        h += `<span style="color:#16a34a;font-weight:700;flex-shrink:0;">✓</span>`;
+        h += `<span style="color:#334155;">${a.activity}${a.deliverable?` <span style="color:#94a3b8;">→ ${a.deliverable}</span>`:''}`;
+        if (a.actual_end) h += ` <span style="color:#cbd5e1;">[${a.actual_end}]</span>`;
+        h += `</span></li>`;
+      });
+      h += `</ul>`;
+    });
+  }
+  h += `</div></div>`;
+
+  // ── IV. Risks & Issues
+  h += `<div style="margin-top:16px;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08);">`;
+  h += `<div style="${SH}">IV. ${isVN?'RỦI RO & VẤN ĐỀ NGHIÊM TRỌNG':'CRITICAL RISKS & ISSUES'}</div>`;
+  h += `<div style="background:white;padding:18px 24px;">`;
+  h += `<div style="font-weight:700;color:#475569;font-size:11px;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:10px;">A. ${isVN?'RỦI RO ĐANG MỞ':'OPEN RISKS'}</div>`;
+  if (data.topRisks.length===0) {
+    h += `<p style="color:#16a34a;font-size:13px;margin:0 0 16px;">✓ ${isVN?'Không có rủi ro mở ở cấp portfolio.':'No open risks at portfolio level.'}</p>`;
+  } else {
+    data.topRisks.slice(0,6).forEach(r => {
+      h += `<div style="display:flex;gap:10px;margin-bottom:10px;padding:11px 14px;border:1px solid #f1f5f9;border-radius:6px;background:#fafafa;">`;
+      h += `<span style="flex-shrink:0;font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;background:${pb(r.priority)};color:${pc(r.priority)};border:1px solid ${pc(r.priority)};height:fit-content;margin-top:1px;white-space:nowrap;">${r.priority.toUpperCase()}</span>`;
+      h += `<div><p style="margin:0 0 3px;font-size:13px;font-weight:600;color:#1e293b;">${r.description}</p>`;
+      h += `<p style="margin:0;font-size:11px;color:#94a3b8;">${r.project_name}${r.customer_name?` · ${r.customer_name}`:''}${r.category?` · ${r.category}`:''}</p>`;
+      if (r.mitigation) h += `<p style="margin:5px 0 0;font-size:12px;color:#64748b;font-style:italic;">${isVN?'Giảm thiểu':'Mitigation'}: ${r.mitigation}</p>`;
+      h += `</div></div>`;
+    });
+  }
+  h += `<div style="font-weight:700;color:#475569;font-size:11px;text-transform:uppercase;letter-spacing:0.6px;margin:18px 0 10px;">B. ${isVN?'VẤN ĐỀ ĐANG MỞ':'OPEN ISSUES'}</div>`;
+  if (data.topIssues.length===0) {
+    h += `<p style="color:#16a34a;font-size:13px;margin:0;">✓ ${isVN?'Không có vấn đề mở ở cấp portfolio.':'No open issues at portfolio level.'}</p>`;
+  } else {
+    data.topIssues.slice(0,6).forEach(r => {
+      h += `<div style="display:flex;gap:10px;margin-bottom:10px;padding:11px 14px;border:1px solid #f1f5f9;border-radius:6px;background:#fafafa;">`;
+      h += `<span style="flex-shrink:0;font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;background:${pb(r.priority)};color:${pc(r.priority)};border:1px solid ${pc(r.priority)};height:fit-content;margin-top:1px;white-space:nowrap;">${r.priority.toUpperCase()}</span>`;
+      h += `<div><p style="margin:0 0 3px;font-size:13px;font-weight:600;color:#1e293b;">${r.description}</p>`;
+      h += `<p style="margin:0;font-size:11px;color:#94a3b8;">${r.project_name}${r.customer_name?` · ${r.customer_name}`:''}</p>`;
+      if (r.mitigation) h += `<p style="margin:5px 0 0;font-size:12px;color:#64748b;font-style:italic;">${isVN?'Xử lý':'Resolution'}: ${r.mitigation}</p>`;
+      h += `</div></div>`;
+    });
+  }
+  h += `</div></div>`;
+
+  // ── V. Milestones
+  h += `<div style="margin-top:16px;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08);">`;
+  h += `<div style="${SH}">V. ${isVN?'MILESTONE SẮP TỚI — 30 NGÀY TỚI':'UPCOMING MILESTONES — Next 30 Days'}</div>`;
+  h += `<div style="background:white;overflow-x:auto;">`;
+  if (data.upcomingMilestones.length===0) {
+    h += `<p style="color:#94a3b8;font-style:italic;margin:16px 24px;">${isVN?'Không có milestone quan trọng nào trong 30 ngày tới.':'No significant milestones in the next 30 days.'}</p>`;
+  } else {
+    h += `<table style="width:100%;border-collapse:collapse;"><thead><tr>${[isVN?'NGÀY':'DATE',isVN?'HOẠT ĐỘNG / DELIVERABLE':'MILESTONE / DELIVERABLE',isVN?'DỰ ÁN':'PROJECT','%'].map(c=>`<th style="${TH}">${c}</th>`).join('')}</tr></thead><tbody>`;
+    data.upcomingMilestones.forEach((m,i) => {
+      const label = m.deliverable?`${m.activity} / ${m.deliverable}`:m.activity;
+      h += `<tr style="${i%2===1?'background:#fafafa;':''}border-bottom:1px solid #f1f5f9;">`;
+      h += `<td style="${TD}"><span style="font-size:11px;padding:2px 8px;border-radius:4px;background:#e0f2fe;color:#0369a1;font-weight:600;white-space:nowrap;">${m.plan_end||'—'}</span></td>`;
+      h += `<td style="${TD}color:#334155;">${label}</td>`;
+      h += `<td style="${TD}font-size:12px;color:#64748b;">${m.project_name}</td>`;
+      h += `<td style="${TD}font-size:12px;font-weight:600;color:#475569;">${m.completion_pct??0}%</td></tr>`;
+    });
+    h += `</tbody></table>`;
+  }
+  h += `</div></div>`;
+
+  // ── VI. Customer Scorecard
+  h += `<div style="margin-top:16px;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08);">`;
+  h += `<div style="${SH}">VI. ${isVN?'BẢNG ĐIỂM KHÁCH HÀNG':'CUSTOMER PORTFOLIO SCORECARD'}</div>`;
+  h += `<div style="background:white;overflow-x:auto;"><table style="width:100%;border-collapse:collapse;"><thead><tr>${[isVN?'KHÁCH HÀNG':'CUSTOMER',isVN?'DA':'PROJ',isVN?'ACTIVE':'ACTIVE',isVN?'TB %':'AVG %',isVN?'SỨC KHỎE':'HEALTH',isVN?'RỦI RO':'RISKS',isVN?'VẤN ĐỀ':'ISSUES'].map(c=>`<th style="${TH}">${c}</th>`).join('')}</tr></thead><tbody>`;
+  data.customers.filter(c=>c.projects.length>0).forEach((c,i) => {
+    const avgPct = Math.round(c.projects.reduce((s,p)=>s+p.completion_pct,0)/c.projects.length);
+    const activeCount = c.projects.filter(p=>p.current_phase!=='Closing').length;
+    const wr = c.projects.some(p=>p.rag==='red')?'red':c.projects.some(p=>p.rag==='amber')?'amber':'green';
+    const risks = c.projects.reduce((s,p)=>s+p.open_risks,0);
+    const issues = c.projects.reduce((s,p)=>s+p.open_issues,0);
+    h += `<tr style="${i%2===1?'background:#fafafa;':''}border-bottom:1px solid #f1f5f9;">`;
+    h += `<td style="${TD}font-weight:700;color:#1e293b;">${c.name}</td>`;
+    h += `<td style="${TD}text-align:center;color:#475569;">${c.projects.length}</td>`;
+    h += `<td style="${TD}text-align:center;color:#475569;">${activeCount}</td>`;
+    h += `<td style="${TD}min-width:100px;"><div style="display:flex;align-items:center;gap:8px;"><div style="flex:1;height:5px;background:#e2e8f0;border-radius:3px;overflow:hidden;"><div style="height:100%;width:${avgPct}%;background:${barColor(avgPct)};border-radius:3px;"></div></div><span style="font-size:12px;font-weight:600;color:#334155;">${avgPct}%</span></div></td>`;
+    h += `<td style="${TD}"><span style="display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:10px;background:${rb(wr)};border:1px solid ${rc(wr)};color:${rc(wr)};font-size:11px;font-weight:700;"><span style="width:7px;height:7px;border-radius:50%;background:${rc(wr)};"></span>${rl(wr)}</span></td>`;
+    h += `<td style="${TD}text-align:center;font-weight:600;color:${risks>0?'#dc2626':'#94a3b8'};">${risks}</td>`;
+    h += `<td style="${TD}text-align:center;font-weight:600;color:${issues>0?'#d97706':'#94a3b8'};">${issues}</td></tr>`;
+  });
+  h += `</tbody></table>`;
+  if (data.noCustomerProjects.length>0) h += `<p style="padding:8px 16px;font-size:11px;color:#94a3b8;font-style:italic;margin:0;">${isVN?`Lưu ý: ${data.noCustomerProjects.length} dự án chưa được gán cho khách hàng.`:`Note: ${data.noCustomerProjects.length} project(s) not assigned to any customer.`}</p>`;
+  h += `</div></div>`;
+
+  // ── VII. Actions Required
+  h += `<div style="margin-top:16px;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08);">`;
+  h += `<div style="${SH}">VII. ${isVN?'HÀNH ĐỘNG CẦN THIẾT — Steering Committee / CEO':'ACTIONS REQUIRED — Steering Committee / CEO'}</div>`;
+  h += `<div style="background:white;padding:18px 24px;">`;
+  const critRisks = data.topRisks.filter(r=>r.priority==='Critical');
+  const actions: string[] = [];
+  red.forEach(p => {
+    const dl = p.days_until_deadline;
+    const dlDesc = isVN?(dl!==null&&dl<0?`quá hạn ${Math.abs(dl)} ngày`:'đang gặp rủi ro nghiêm trọng'):(dl!==null&&dl<0?`OVERDUE ${Math.abs(dl)} days`:'at critical risk');
+    const rec = isVN?'Đưa vào chương trình nghị sự Steering Committee gần nhất, xem xét bổ sung nguồn lực hoặc điều chỉnh phạm vi.':'Steering Committee review at next session. Assess resource injection or scope revision.';
+    actions.push(`<div style="margin-bottom:12px;padding:13px 16px;border-radius:6px;background:#fef2f2;border:1px solid #fecaca;"><div style="font-weight:700;color:#dc2626;font-size:13px;">[${isVN?'KHẨN CẤP — LEO THANG':'URGENT — ESCALATION'}]  ${p.name} (${p.customer_name||'N/A'}) ${dlDesc}</div><div style="margin-top:7px;font-size:12px;color:#475569;">→ ${isVN?'Đề xuất':'Recommend'}: ${rec}</div></div>`);
+  });
+  critRisks.forEach(r => {
+    const rec = r.mitigation||(isVN?'Đánh giá và ban hành quyết định xử lý ngay lập tức':'Immediate assessment and corrective action required');
+    actions.push(`<div style="margin-bottom:12px;padding:13px 16px;border-radius:6px;background:#fef2f2;border:1px solid #fecaca;"><div style="font-weight:700;color:#dc2626;font-size:13px;">[${isVN?'KHẨN CẤP — QUYẾT ĐỊNH':'URGENT — DECISION'}]  ${r.description} — ${r.project_name}</div><div style="margin-top:7px;font-size:12px;color:#475569;">→ ${isVN?'Đề xuất':'Recommend'}: ${rec}</div></div>`);
+  });
+  if (actions.length===0) {
+    h += `<div style="color:#16a34a;font-size:13px;">✓ ${isVN?'Không có leo thang nào cần CEO xử lý ngay. Portfolio đang trong tầm kiểm soát.':'No immediate CEO escalations required. Portfolio is under control.'}</div>`;
+  } else { actions.forEach(a => { h += a; }); }
+  h += `</div></div>`;
+
+  // Footer
+  h += `<div style="margin-top:16px;background:#1e293b;color:#94a3b8;padding:12px 24px;border-radius:8px;text-align:center;font-size:11px;">`;
+  h += `${companyName} · Program Management Office · ${isVN?'Tài liệu bảo mật — Nội bộ':'Confidential — Internal Only'}</div>`;
+  h += `</div>`;
+  return h;
+}
+
 function getThisMonday() {
   const d = new Date();
   const day = d.getDay();
@@ -591,6 +861,8 @@ export default function PortfolioReportPage() {
   const [periodStart, setPeriodStart] = useState(getThisMonday);
   const [periodEnd, setPeriodEnd] = useState(getThisSunday);
   const [companyName, setCompanyName] = useState('PM Tool');
+  const [viewMode, setViewMode] = useState<'preview' | 'source'>('preview');
+  const [htmlReport, setHtmlReport] = useState('');
 
   const loadConfig = useCallback(async () => {
     const res = await fetch('/api/config');
@@ -607,7 +879,7 @@ export default function PortfolioReportPage() {
       const res = await fetch(`/api/portfolio/report?start=${periodStart}&end=${periodEnd}`);
       const d = await res.json();
       setData(d);
-      setReport('');
+      setReport(''); setHtmlReport('');
     } finally {
       setLoading(false);
     }
@@ -638,6 +910,8 @@ export default function PortfolioReportPage() {
   const generateManual = () => {
     if (!data) return;
     setReport(buildTemplateReport(data, language, periodStart, periodEnd, companyName));
+    setHtmlReport(buildHtmlReport(data, language, periodStart, periodEnd, companyName));
+    setViewMode('preview');
     toast.success('Portfolio report generated!');
   };
 
@@ -687,6 +961,8 @@ export default function PortfolioReportPage() {
         return;
       }
       setReport(d.report);
+      setHtmlReport(mdToHtml(d.report));
+      setViewMode('preview');
       toast.success('AI portfolio report generated!');
     } finally {
       setGenerating(false);
@@ -706,6 +982,16 @@ export default function PortfolioReportPage() {
     a.download = `PortfolioReport_${new Date().toISOString().slice(0, 10)}.txt`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const exportHtml = () => {
+    if (!htmlReport) return;
+    const full = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Portfolio Report</title></head><body style="margin:0;background:#f8fafc;">${htmlReport}</body></html>`;
+    const blob = new Blob([full], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `PortfolioReport_${new Date().toISOString().slice(0, 10)}.html`;
+    a.click(); URL.revokeObjectURL(url);
   };
 
   const sendEmail = () => {
@@ -1260,9 +1546,26 @@ export default function PortfolioReportPage() {
                 Generate Report for CEO
               </h2>
               {report && (
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <div className="flex items-center bg-slate-700 rounded-md p-0.5 mr-1">
+                    <button
+                      onClick={() => setViewMode('preview')}
+                      className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${viewMode === 'preview' ? 'bg-white text-slate-800' : 'text-slate-300 hover:text-white'}`}
+                    >
+                      <Eye className="h-3 w-3 inline mr-1" />Preview
+                    </button>
+                    <button
+                      onClick={() => setViewMode('source')}
+                      className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${viewMode === 'source' ? 'bg-white text-slate-800' : 'text-slate-300 hover:text-white'}`}
+                    >
+                      Plain Text
+                    </button>
+                  </div>
                   <Button variant="outline" onClick={copyReport} className="h-7 text-xs gap-1 px-2 border-slate-600 text-slate-200 hover:text-slate-900 bg-transparent hover:bg-white">
                     <Copy className="h-3 w-3" /> Copy
+                  </Button>
+                  <Button variant="outline" onClick={exportHtml} className="h-7 text-xs gap-1 px-2 border-slate-600 text-slate-200 hover:text-slate-900 bg-transparent hover:bg-white">
+                    <Download className="h-3 w-3" /> .html
                   </Button>
                   <Button variant="outline" onClick={exportTxt} className="h-7 text-xs gap-1 px-2 border-slate-600 text-slate-200 hover:text-slate-900 bg-transparent hover:bg-white">
                     <Download className="h-3 w-3" /> .txt
@@ -1312,11 +1615,18 @@ export default function PortfolioReportPage() {
 
             {report && !generating && (
               <div className="p-4">
-                <Textarea
-                  className="w-full min-h-[500px] text-sm leading-relaxed border border-slate-200 rounded-lg resize-none focus-visible:ring-1 focus-visible:ring-blue-400 p-4 text-slate-700 font-mono"
-                  value={report}
-                  onChange={e => setReport(e.target.value)}
-                />
+                {viewMode === 'preview' ? (
+                  <div
+                    className="border border-slate-200 rounded-lg overflow-auto bg-white"
+                    dangerouslySetInnerHTML={{ __html: htmlReport }}
+                  />
+                ) : (
+                  <Textarea
+                    className="w-full min-h-[500px] text-sm leading-relaxed border border-slate-200 rounded-lg resize-none focus-visible:ring-1 focus-visible:ring-blue-400 p-4 text-slate-700 font-mono"
+                    value={report}
+                    onChange={e => setReport(e.target.value)}
+                  />
+                )}
               </div>
             )}
           </div>
