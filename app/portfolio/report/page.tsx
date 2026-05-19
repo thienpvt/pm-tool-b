@@ -971,7 +971,22 @@ export default function PortfolioReportPage() {
 
   const handleGenerate = () => mode === 'ai' ? generateAI() : generateManual();
 
-  const copyReport = () => { navigator.clipboard.writeText(report); toast.success('Copied to clipboard!'); };
+  const copyReport = async () => {
+    if (viewMode === 'preview' && htmlReport) {
+      try {
+        // Wrap in a full HTML document so email clients render inline styles correctly
+        const fullHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0;padding:0;background:#f8fafc;">${htmlReport}</body></html>`;
+        const blob = new Blob([fullHtml], { type: 'text/html' });
+        await navigator.clipboard.write([new ClipboardItem({ 'text/html': blob })]);
+        toast.success('Copied with formatting — paste directly into email!');
+        return;
+      } catch {
+        // ClipboardItem not supported, fall through to plain text
+      }
+    }
+    navigator.clipboard.writeText(report);
+    toast.success('Copied to clipboard!');
+  };
 
   const exportTxt = () => {
     if (!report) return;
@@ -994,15 +1009,26 @@ export default function PortfolioReportPage() {
     a.click(); URL.revokeObjectURL(url);
   };
 
-  const sendEmail = () => {
+  const sendEmail = async () => {
     if (!report) { toast.error('Generate a report first'); return; }
     const subject = encodeURIComponent(`[${companyName}] Portfolio Status Report — ${new Date().toLocaleDateString('en-GB', { month: 'long', day: 'numeric', year: 'numeric' })}`);
-    navigator.clipboard.writeText(report).catch(() => {});
+    // Try to copy HTML to clipboard so paste into email body preserves formatting
+    if (htmlReport) {
+      try {
+        const fullHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0;padding:0;background:#f8fafc;">${htmlReport}</body></html>`;
+        const blob = new Blob([fullHtml], { type: 'text/html' });
+        await navigator.clipboard.write([new ClipboardItem({ 'text/html': blob })]);
+      } catch {
+        navigator.clipboard.writeText(report).catch(() => {});
+      }
+    } else {
+      navigator.clipboard.writeText(report).catch(() => {});
+    }
     const shortBody = encodeURIComponent(
       `${language === 'Vietnamese' ? 'Kính gửi,' : 'Dear CEO,'}\n\nPlease find the portfolio status report below.\n\n[Report content copied to clipboard — paste here]\n\n---\nSent via ${companyName} PM Tool`
     );
     window.open(`mailto:${ceoEmail}?subject=${subject}&body=${shortBody}`, '_self');
-    toast.success('Email client opened. Full report copied to clipboard.');
+    toast.success('Email client opened. Report copied — paste into email body to keep formatting.');
   };
 
   const allProjects = data ? [...data.customers.flatMap(c => c.projects), ...data.noCustomerProjects] : [];
@@ -1561,8 +1587,8 @@ export default function PortfolioReportPage() {
                       Plain Text
                     </button>
                   </div>
-                  <Button variant="outline" onClick={copyReport} className="h-7 text-xs gap-1 px-2 border-slate-600 text-slate-200 hover:text-slate-900 bg-transparent hover:bg-white">
-                    <Copy className="h-3 w-3" /> Copy
+                  <Button variant="outline" onClick={copyReport} title={viewMode === 'preview' ? 'Copy HTML — paste into email to keep formatting' : 'Copy plain text'} className="h-7 text-xs gap-1 px-2 border-slate-600 text-slate-200 hover:text-slate-900 bg-transparent hover:bg-white">
+                    <Copy className="h-3 w-3" /> {viewMode === 'preview' ? 'Copy for Email' : 'Copy'}
                   </Button>
                   <Button variant="outline" onClick={exportHtml} className="h-7 text-xs gap-1 px-2 border-slate-600 text-slate-200 hover:text-slate-900 bg-transparent hover:bg-white">
                     <Download className="h-3 w-3" /> .html
