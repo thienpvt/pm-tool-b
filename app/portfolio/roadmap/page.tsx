@@ -48,17 +48,28 @@ const MIN_M_W = 72; // min width per month column
 
 const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
+// ─── Quick-view presets ───────────────────────────────────────────────────────
+const QUICK_VIEWS: { label: string; v: [number, number] }[] = [
+  { label: 'Full', v: [0, 11] },
+  { label: 'Q1',   v: [0, 2]  },
+  { label: 'Q2',   v: [3, 5]  },
+  { label: 'Q3',   v: [6, 8]  },
+  { label: 'Q4',   v: [9, 11] },
+];
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-function buildYearTimeline(year: number) {
-  const rStart  = new Date(year, 0, 1, 0, 0, 0);
-  const rEnd    = new Date(year, 11, 31, 23, 59, 59);
+function buildYearTimeline(year: number, startMonth = 0, endMonth = 11) {
+  const rStart  = new Date(year, startMonth, 1, 0, 0, 0);
+  const rEnd    = new Date(year, endMonth + 1, 0, 23, 59, 59);
   const totalMs = rEnd.getTime() - rStart.getTime();
-  const months  = MONTH_NAMES.map((label, m) => ({
-    label,
-    quarter: `Q${Math.floor(m / 3) + 1}`,
-    start: new Date(year, m, 1),
-    end:   new Date(year, m + 1, 0, 23, 59, 59),
-  }));
+  const months  = MONTH_NAMES
+    .map((label, m) => ({
+      label,
+      quarter: `Q${Math.floor(m / 3) + 1}`,
+      start: new Date(year, m, 1),
+      end:   new Date(year, m + 1, 0, 23, 59, 59),
+    }))
+    .filter((_, m) => m >= startMonth && m <= endMonth);
   const todayPct = Math.max(0, Math.min(100, (Date.now() - rStart.getTime()) / totalMs * 100));
   return { rStart, rEnd, totalMs, months, todayPct };
 }
@@ -90,6 +101,7 @@ export default function PortfolioRoadmap() {
   const [loading, setLoading]     = useState(true);
   const [openSet, setOpenSet]     = useState<Set<number>>(new Set());
   const [selectedYear, setYear]   = useState(() => new Date().getFullYear());
+  const [viewMonths, setViewMonths] = useState<[number, number]>([0, 11]);
   const [exporting, setExporting] = useState(false);
   const roadmapRef = useRef<HTMLDivElement>(null);
 
@@ -126,7 +138,7 @@ export default function PortfolioRoadmap() {
     return years;
   }, [data]);
 
-  const tl = useMemo(() => buildYearTimeline(selectedYear), [selectedYear]);
+  const tl = useMemo(() => buildYearTimeline(selectedYear, viewMonths[0], viewMonths[1]), [selectedYear, viewMonths]);
 
   // Convert date string → unclamped % within selected year
   const rawPct = useCallback((dateStr: string, eod = false) => {
@@ -147,6 +159,11 @@ export default function PortfolioRoadmap() {
       })()),
     ];
   }, [data, selectedYear]);
+
+  const setYearAndReset = useCallback((y: number) => {
+    setYear(y);
+    setViewMonths([0, 11]);
+  }, []);
 
   const toggleCustomer = useCallback((id: number) => {
     setOpenSet((prev: Set<number>) => {
@@ -216,7 +233,7 @@ export default function PortfolioRoadmap() {
           {/* Year selector */}
           <div className="flex items-center gap-2">
             <button
-              onClick={() => curYearIdx > 0 && setYear(availableYears[curYearIdx - 1])}
+              onClick={() => curYearIdx > 0 && setYearAndReset(availableYears[curYearIdx - 1])}
               disabled={curYearIdx <= 0}
               className="p-1.5 rounded-lg border hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             >
@@ -226,7 +243,7 @@ export default function PortfolioRoadmap() {
               {availableYears.map(y => (
                 <button
                   key={y}
-                  onClick={() => setYear(y)}
+                  onClick={() => setYearAndReset(y)}
                   className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-colors ${
                     y === selectedYear
                       ? 'bg-white shadow-sm text-blue-600'
@@ -238,7 +255,7 @@ export default function PortfolioRoadmap() {
               ))}
             </div>
             <button
-              onClick={() => curYearIdx < availableYears.length - 1 && setYear(availableYears[curYearIdx + 1])}
+              onClick={() => curYearIdx < availableYears.length - 1 && setYearAndReset(availableYears[curYearIdx + 1])}
               disabled={curYearIdx >= availableYears.length - 1}
               className="p-1.5 rounded-lg border hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             >
@@ -257,6 +274,63 @@ export default function PortfolioRoadmap() {
             </button>
             <Link href="/" className="text-sm text-blue-600 hover:underline">← Dashboard</Link>
           </div>
+        </div>
+
+        {/* ── View range controls ── */}
+        <div className="shrink-0 px-6 py-2 bg-slate-50 border-b flex items-center gap-3 flex-wrap">
+          <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider shrink-0">View:</span>
+
+          {/* Quick presets */}
+          <div className="flex items-center gap-1">
+            {QUICK_VIEWS.map(opt => {
+              const active = viewMonths[0] === opt.v[0] && viewMonths[1] === opt.v[1];
+              return (
+                <button
+                  key={opt.label}
+                  onClick={() => setViewMonths(opt.v)}
+                  className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-colors ${
+                    active
+                      ? 'bg-blue-600 text-white shadow-sm'
+                      : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
+
+          <span className="text-slate-300">|</span>
+
+          {/* Custom month range */}
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11px] text-slate-500 shrink-0">From</span>
+            <select
+              value={viewMonths[0]}
+              onChange={e => {
+                const s = +e.target.value;
+                setViewMonths([s, Math.max(s, viewMonths[1])]);
+              }}
+              className="text-xs border border-slate-200 rounded-md px-1.5 py-1 text-slate-700 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400"
+            >
+              {MONTH_NAMES.map((m, i) => <option key={i} value={i}>{m}</option>)}
+            </select>
+            <span className="text-slate-400 text-xs">→</span>
+            <select
+              value={viewMonths[1]}
+              onChange={e => {
+                const e2 = +e.target.value;
+                setViewMonths([Math.min(viewMonths[0], e2), e2]);
+              }}
+              className="text-xs border border-slate-200 rounded-md px-1.5 py-1 text-slate-700 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400"
+            >
+              {MONTH_NAMES.map((m, i) => <option key={i} value={i}>{m}</option>)}
+            </select>
+          </div>
+
+          <span className="text-[11px] text-slate-400 ml-1">
+            {tl.months.length} month{tl.months.length !== 1 ? 's' : ''} shown
+          </span>
         </div>
 
         {/* ── Legend ── */}
@@ -287,7 +361,7 @@ export default function PortfolioRoadmap() {
           <div
             ref={roadmapRef}
             className="bg-white rounded-xl border shadow-sm overflow-hidden"
-            style={{ minWidth: LABEL_W + 12 * MIN_M_W }}
+            style={{ minWidth: LABEL_W + tl.months.length * MIN_M_W }}
           >
 
             {/* Month header */}
