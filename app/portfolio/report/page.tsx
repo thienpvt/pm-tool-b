@@ -614,6 +614,17 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
   const pb = (p: string) => p === 'Critical' ? '#fef2f2' : p === 'High' ? '#fff7ed' : p === 'Medium' ? '#fffbeb' : '#f8fafc';
   const barColor = (pct: number) => pct >= 70 ? '#16a34a' : pct >= 40 ? '#3b82f6' : pct >= 20 ? '#d97706' : '#ef4444';
 
+  // Outlook-safe table-based progress bar
+  const pBar = (pct: number, w = 100) => {
+    const c = barColor(pct);
+    const filled = Math.min(100, Math.max(0, Math.round(pct)));
+    const empty = 100 - filled;
+    return `<table width="${w}" height="6" cellpadding="0" cellspacing="0" border="0" bgcolor="#e2e8f0" style="background:#e2e8f0;"><tr>` +
+      (filled > 0 ? `<td width="${filled}%" height="6" bgcolor="${c}" style="background:${c};font-size:0;line-height:0;">&nbsp;</td>` : '') +
+      (empty > 0 ? `<td width="${empty}%" height="6" bgcolor="#e2e8f0" style="background:#e2e8f0;font-size:0;line-height:0;">&nbsp;</td>` : '') +
+      `</tr></table>`;
+  };
+
   const TH = 'background:#f1f5f9;padding:8px 14px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;border-bottom:2px solid #e2e8f0;';
   const TD = 'padding:10px 14px;border-bottom:1px solid #f1f5f9;font-size:13px;vertical-align:middle;';
   const SH = 'background:#1e293b;color:white;padding:11px 22px;font-size:13px;font-weight:700;letter-spacing:0.6px;';
@@ -624,25 +635,30 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
   // Header
   h += `<div style="background:#1e293b;color:white;padding:28px 32px;border-radius:8px 8px 0 0;text-align:center;">`;
   h += `<h1 style="margin:0;font-size:17px;font-weight:700;letter-spacing:1.2px;">${isVN ? 'BÁO CÁO TÌNH TRẠNG PORTFOLIO' : 'PORTFOLIO STATUS REPORT'}</h1>`;
-  h += `<p style="margin:7px 0 0;font-size:12px;opacity:0.6;">Program Management Office (PMO)</p></div>`;
+  h += `<p style="margin:7px 0 0;font-size:12px;color:#94a3b8;">Program Management Office (PMO)</p></div>`;
 
-  // Meta row
-  h += `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-top:none;padding:11px 28px;display:flex;flex-wrap:wrap;gap:6px 28px;font-size:12px;color:#475569;border-radius:0 0 0 0;">`;
-  h += `<span><strong>${isVN ? 'Ngày báo cáo' : 'Report Date'}:</strong> ${today}</span>`;
-  h += `<span><strong>Ref:</strong> PMO-${yyyymm}-001</span>`;
-  h += `<span><strong>${isVN ? 'Kỳ báo cáo' : 'Period'}:</strong> ${periodStart} → ${periodEnd}</span>`;
-  h += `<span style="margin-left:auto;"><strong>${isVN ? 'Phân loại' : 'Classification'}:</strong> ${isVN ? 'Bảo mật — Nội bộ' : 'Confidential — Internal Only'}</span></div>`;
+  // Meta row — table-based (no flex/gap for Outlook)
+  h += `<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f8fafc;border:1px solid #e2e8f0;border-top:none;"><tr>`;
+  h += `<td style="padding:11px 14px;font-size:12px;color:#475569;"><strong>${isVN ? 'Ngày báo cáo' : 'Report Date'}:</strong> ${today}</td>`;
+  h += `<td style="padding:11px 10px;font-size:12px;color:#475569;"><strong>Ref:</strong> PMO-${yyyymm}-001</td>`;
+  h += `<td style="padding:11px 10px;font-size:12px;color:#475569;"><strong>${isVN ? 'Kỳ báo cáo' : 'Period'}:</strong> ${periodStart} &#8594; ${periodEnd}</td>`;
+  h += `<td align="right" style="padding:11px 14px;font-size:12px;color:#475569;"><strong>${isVN ? 'Phân loại' : 'Classification'}:</strong> ${isVN ? 'Bảo mật — Nội bộ' : 'Confidential — Internal Only'}</td>`;
+  h += `</tr></table>`;
 
   // ── I. Executive Summary
-  h += `<div style="margin-top:18px;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08);">`;
+  h += `<div style="margin-top:18px;border-radius:8px;border:1px solid #e2e8f0;">`;
   h += `<div style="${SH}">I. ${isVN ? 'TÓM TẮT ĐIỀU HÀNH' : 'EXECUTIVE SUMMARY'}</div>`;
   h += `<div style="background:white;padding:20px 24px;">`;
-  h += `<div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;flex-wrap:wrap;">`;
-  h += `<span style="font-size:13px;font-weight:600;color:#475569;">${isVN ? 'Trạng thái tổng thể:' : 'Overall Portfolio Status:'}</span>`;
-  h += `<span style="display:inline-flex;align-items:center;gap:7px;padding:5px 14px;border-radius:20px;background:${statusBg};border:1px solid ${statusColor};font-weight:700;color:${statusColor};font-size:13px;"><span style="width:10px;height:10px;border-radius:50%;background:${statusColor};display:inline-block;"></span>${portfolioStatus}</span>`;
-  h += `<span style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:14px;background:#f0fdf4;border:1px solid #16a34a;color:#16a34a;font-size:11px;font-weight:700;">${green.length} ${isVN ? 'XANH' : 'GREEN'}</span>`;
-  h += `<span style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:14px;background:#fffbeb;border:1px solid #d97706;color:#d97706;font-size:11px;font-weight:700;">${amber.length} ${isVN ? 'VÀNG' : 'AMBER'}</span>`;
-  h += `<span style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:14px;background:#fef2f2;border:1px solid #dc2626;color:#dc2626;font-size:11px;font-weight:700;">${red.length} ${isVN ? 'ĐỎ' : 'RED'}</span></div>`;
+
+  // Status badge row — table-based (no flex/inline-flex for Outlook)
+  h += `<table cellpadding="0" cellspacing="0" border="0" style="margin-bottom:14px;"><tr>`;
+  h += `<td style="padding-right:14px;font-size:13px;font-weight:600;color:#475569;vertical-align:middle;">${isVN ? 'Trạng thái tổng thể:' : 'Overall Portfolio Status:'}</td>`;
+  h += `<td style="padding-right:8px;vertical-align:middle;"><span style="display:inline-block;padding:5px 14px;border-radius:20px;background:${statusBg};border:1px solid ${statusColor};font-weight:700;color:${statusColor};font-size:13px;">&#9679; ${portfolioStatus}</span></td>`;
+  h += `<td style="padding-right:6px;vertical-align:middle;"><span style="display:inline-block;padding:4px 10px;border-radius:14px;background:#f0fdf4;border:1px solid #16a34a;color:#16a34a;font-size:11px;font-weight:700;">${green.length} ${isVN ? 'XANH' : 'GREEN'}</span></td>`;
+  h += `<td style="padding-right:6px;vertical-align:middle;"><span style="display:inline-block;padding:4px 10px;border-radius:14px;background:#fffbeb;border:1px solid #d97706;color:#d97706;font-size:11px;font-weight:700;">${amber.length} ${isVN ? 'VÀNG' : 'AMBER'}</span></td>`;
+  h += `<td style="vertical-align:middle;"><span style="display:inline-block;padding:4px 10px;border-radius:14px;background:#fef2f2;border:1px solid #dc2626;color:#dc2626;font-size:11px;font-weight:700;">${red.length} ${isVN ? 'ĐỎ' : 'RED'}</span></td>`;
+  h += `</tr></table>`;
+
   const sumText = isVN
     ? (red.length > 0 ? `Portfolio hiện có ${red.length} dự án ở mức ĐỎ cần xử lý khẩn cấp. Tổng cộng ${data.kpi.totalProjects} dự án trên ${data.kpi.totalPrograms} chương trình, tiến độ trung bình ${data.kpi.avgCompletion}% (tính theo trọng số trạng thái).`
       : amber.length > 0 ? `Portfolio ở mức VÀNG với ${amber.length} dự án cần theo dõi sát sao. Tổng cộng ${data.kpi.totalProjects} dự án, tiến độ TB ${data.kpi.avgCompletion}%.`
@@ -651,20 +667,26 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
       : amber.length > 0 ? `Portfolio is AMBER with ${amber.length} project(s) under close monitoring. ${data.kpi.totalProjects} projects, avg completion ${data.kpi.avgCompletion}%.`
       : `Portfolio is in good health — all projects tracking GREEN. ${data.kpi.totalProjects} projects across ${data.kpi.totalPrograms} programs, avg completion ${data.kpi.avgCompletion}%.`);
   h += `<p style="margin:0 0 14px;color:#334155;font-size:13px;">${sumText}</p>`;
-  if (overdue.length > 0) h += `<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:10px 14px;margin-bottom:14px;color:#dc2626;font-size:13px;font-weight:600;">⚠ ${isVN ? `CẢNH BÁO: ${overdue.length} dự án đã vượt hạn chót — cần hành động ngay lập tức.` : `ALERT: ${overdue.length} project(s) past deadline — immediate action required.`}</div>`;
-  h += `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px;">`;
+  if (overdue.length > 0) h += `<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:10px 14px;margin-bottom:14px;color:#dc2626;font-size:13px;font-weight:600;">&#9888; ${isVN ? `CẢNH BÁO: ${overdue.length} dự án đã vượt hạn chót — cần hành động ngay lập tức.` : `ALERT: ${overdue.length} project(s) past deadline — immediate action required.`}</div>`;
+
+  // KPI cards — table-based grid (no CSS grid for Outlook)
   const kpis = isVN
     ? [{l:'Tổng dự án',v:data.kpi.totalProjects,a:false},{l:'Đang hoạt động',v:data.kpi.activeProjects,a:false},{l:'Tiến độ TB',v:`${data.kpi.avgCompletion}%`,a:false},{l:'Chương trình',v:data.kpi.totalPrograms,a:false},{l:'Rủi ro đang mở',v:data.kpi.totalOpenRisks,a:data.kpi.totalOpenRisks>0},{l:'Vấn đề đang mở',v:data.kpi.totalOpenIssues,a:data.kpi.totalOpenIssues>0},{l:'Dự án quá hạn',v:overdue.length,a:overdue.length>0}]
     : [{l:'Total Projects',v:data.kpi.totalProjects,a:false},{l:'Active',v:data.kpi.activeProjects,a:false},{l:'Avg Completion',v:`${data.kpi.avgCompletion}%`,a:false},{l:'Programs',v:data.kpi.totalPrograms,a:false},{l:'Open Risks',v:data.kpi.totalOpenRisks,a:data.kpi.totalOpenRisks>0},{l:'Open Issues',v:data.kpi.totalOpenIssues,a:data.kpi.totalOpenIssues>0},{l:'Overdue',v:overdue.length,a:overdue.length>0}];
-  kpis.forEach(k => {
-    h += `<div style="background:${k.a?'#fef2f2':'#f8fafc'};border:1px solid ${k.a?'#fecaca':'#e2e8f0'};border-radius:8px;padding:12px 16px;">`;
-    h += `<div style="font-size:22px;font-weight:700;color:${k.a?'#dc2626':'#1e293b'};">${k.v}</div>`;
-    h += `<div style="font-size:11px;color:#94a3b8;margin-top:2px;">${k.l}</div></div>`;
-  });
-  h += `</div></div></div>`;
+  const kpiCell = (k: {l:string,v:string|number,a:boolean}) =>
+    `<table width="100%" cellpadding="12" cellspacing="0" border="0" bgcolor="${k.a?'#fef2f2':'#f8fafc'}" style="background:${k.a?'#fef2f2':'#f8fafc'};border:1px solid ${k.a?'#fecaca':'#e2e8f0'};border-radius:8px;">` +
+    `<tr><td><div style="font-size:22px;font-weight:700;color:${k.a?'#dc2626':'#1e293b'};">${k.v}</div>` +
+    `<div style="font-size:11px;color:#94a3b8;margin-top:2px;">${k.l}</div></td></tr></table>`;
+  h += `<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:14px;"><tr>`;
+  kpis.slice(0, 4).forEach(k => { h += `<td width="25%" valign="top" style="padding:4px;">${kpiCell(k)}</td>`; });
+  h += `</tr><tr>`;
+  kpis.slice(4).forEach(k => { h += `<td width="25%" valign="top" style="padding:4px;">${kpiCell(k)}</td>`; });
+  for (let i = kpis.slice(4).length; i < 4; i++) { h += `<td width="25%"></td>`; }
+  h += `</tr></table>`;
+  h += `</div></div>`;
 
   // ── II. Health Matrix
-  h += `<div style="margin-top:16px;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08);">`;
+  h += `<div style="margin-top:16px;border-radius:8px;border:1px solid #e2e8f0;">`;
   h += `<div style="${SH}">II. ${isVN ? 'MA TRẬN SỨC KHỎE PORTFOLIO' : 'PORTFOLIO HEALTH MATRIX'}</div>`;
   h += `<div style="background:white;overflow-x:auto;"><table style="width:100%;border-collapse:collapse;">`;
   h += `<thead><tr>${['#',isVN?'TRẠNG THÁI':'STATUS',isVN?'TÊN DỰ ÁN':'PROJECT',isVN?'CHƯƠNG TRÌNH':'PROGRAM','PHASE',isVN?'TIẾN ĐỘ':'PROGRESS','DEADLINE'].map(col=>`<th style="${TH}">${col}</th>`).join('')}</tr></thead><tbody>`;
@@ -674,47 +696,53 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
     const dlColor = dl===null?'#94a3b8':dl<0?'#dc2626':dl<=7?'#ef4444':dl<=14?'#d97706':'#475569';
     h += `<tr style="border-bottom:1px solid #f1f5f9;${i%2===1?'background:#fafafa;':''}">`;
     h += `<td style="${TD}color:#94a3b8;">${i+1}</td>`;
-    h += `<td style="${TD}"><span style="display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:12px;background:${rb(p.rag)};border:1px solid ${rc(p.rag)};color:${rc(p.rag)};font-size:11px;font-weight:700;"><span style="width:8px;height:8px;border-radius:50%;background:${rc(p.rag)};flex-shrink:0;"></span>${rl(p.rag)}</span></td>`;
+    h += `<td style="${TD}"><span style="display:inline-block;padding:3px 9px;border-radius:12px;background:${rb(p.rag)};border:1px solid ${rc(p.rag)};color:${rc(p.rag)};font-size:11px;font-weight:700;">&#9679; ${rl(p.rag)}</span></td>`;
     h += `<td style="${TD}font-weight:600;color:#1e293b;">${p.name}</td>`;
     h += `<td style="${TD}color:#64748b;font-size:12px;">${p.program_name||p.client||'—'}</td>`;
     h += `<td style="${TD}"><span style="font-size:11px;padding:2px 8px;border-radius:10px;background:#e0f2fe;color:#0369a1;font-weight:600;">${p.current_phase}</span></td>`;
-    h += `<td style="${TD}min-width:130px;">`;
-    h += `<div style="display:flex;align-items:center;gap:8px;"><div style="flex:1;height:6px;background:#e2e8f0;border-radius:3px;overflow:hidden;min-width:60px;"><div style="height:100%;width:${p.completion_pct}%;background:${barColor(p.completion_pct)};border-radius:3px;"></div></div><span style="font-size:12px;font-weight:700;color:#334155;width:36px;text-align:right;">${p.completion_pct}%</span></div>`;
-    if (p.total_activities>0) h += `<div style="display:flex;gap:8px;margin-top:4px;font-size:10px;"><span style="color:#16a34a;font-weight:600;">✓${p.done_activities}</span><span style="color:#d97706;font-weight:600;">⟳${p.in_progress_activities}</span><span style="color:#94a3b8;">○${p.not_started_activities}</span><span style="color:#cbd5e1;">/${p.total_activities}</span></div>`;
+    h += `<td style="${TD}">`;
+    h += `<table cellpadding="0" cellspacing="0" border="0"><tr>`;
+    h += `<td valign="middle" style="padding-right:8px;">${pBar(p.completion_pct, 90)}</td>`;
+    h += `<td valign="middle" style="font-size:12px;font-weight:700;color:#334155;width:36px;">${p.completion_pct}%</td>`;
+    h += `</tr></table>`;
+    if (p.total_activities>0) h += `<div style="margin-top:4px;font-size:10px;"><span style="color:#16a34a;font-weight:600;">&#10003;${p.done_activities}</span>&nbsp;<span style="color:#d97706;font-weight:600;">&#8635;${p.in_progress_activities}</span>&nbsp;<span style="color:#94a3b8;">&#9675;${p.not_started_activities}</span>&nbsp;<span style="color:#cbd5e1;">/${p.total_activities}</span></div>`;
     h += `</td>`;
     h += `<td style="${TD}font-size:12px;font-weight:${dl!==null&&dl<0?'700':'400'};color:${dlColor};">${dlStr}</td></tr>`;
     if (p.epicStats&&p.epicStats.length>0) {
       h += `<tr style="background:#fafafa;border-bottom:1px solid #f1f5f9;"><td></td><td colspan="6" style="padding:6px 14px 10px;">`;
-      h += `<div style="display:flex;flex-wrap:wrap;gap:10px;">`;
+      h += `<table cellpadding="0" cellspacing="4" border="0"><tr>`;
       p.epicStats.forEach(e => {
-        h += `<div style="display:flex;align-items:center;gap:6px;font-size:11px;color:#475569;">`;
-        h += `<span style="font-weight:600;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${e.phase}</span>`;
-        h += `<div style="width:64px;height:4px;background:#e2e8f0;border-radius:2px;"><div style="height:100%;width:${e.pct}%;background:${barColor(e.pct)};border-radius:2px;"></div></div>`;
-        h += `<span style="color:#94a3b8;white-space:nowrap;">${e.pct}% (${e.done}/${e.total})</span></div>`;
+        h += `<td valign="middle" style="padding-right:14px;font-size:11px;color:#475569;white-space:nowrap;">`;
+        h += `<span style="font-weight:600;">${e.phase}</span>&nbsp;${pBar(e.pct, 60)}&nbsp;<span style="color:#94a3b8;">${e.pct}% (${e.done}/${e.total})</span>`;
+        h += `</td>`;
       });
-      h += `</div></td></tr>`;
+      h += `</tr></table>`;
+      h += `</td></tr>`;
     }
   });
   h += `</tbody></table></div></div>`;
 
   // ── III. Completed in Period
-  h += `<div style="margin-top:16px;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08);">`;
-  h += `<div style="${SH}">III. ${isVN?'TIẾN ĐỘ THEO KỲ — HOÀN THÀNH TRONG GIAI ĐOẠN':'PROGRESS REPORT — COMPLETED IN PERIOD'} <span style="font-weight:400;opacity:0.65;font-size:12px;">(${periodStart} → ${periodEnd})</span></div>`;
+  h += `<div style="margin-top:16px;border-radius:8px;border:1px solid #e2e8f0;">`;
+  h += `<div style="${SH}">III. ${isVN?'TIẾN ĐỘ THEO KỲ — HOÀN THÀNH TRONG GIAI ĐOẠN':'PROGRESS REPORT — COMPLETED IN PERIOD'} <span style="font-weight:400;color:#94a3b8;font-size:12px;">(${periodStart} &#8594; ${periodEnd})</span></div>`;
   h += `<div style="background:white;padding:18px 24px;">`;
   if (completedGroups.length===0) {
     h += `<p style="color:#94a3b8;font-style:italic;margin:0;">${isVN?'Không có hoạt động nào hoàn thành trong giai đoạn này.':'No activities completed in this period.'}</p>`;
   } else {
     completedGroups.forEach((g,gi) => {
       if (gi>0) h += `<div style="height:1px;background:#f1f5f9;margin:14px 0;"></div>`;
-      h += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;">`;
-      h += `<span style="font-weight:700;color:#1e293b;font-size:13px;">${g.project_name}</span>`;
-      if (g.program_name) h += `<span style="font-size:11px;color:#94a3b8;">${g.program_name}</span>`;
-      h += `<span style="margin-left:auto;font-size:11px;padding:2px 8px;border-radius:10px;background:#e0f2fe;color:#0369a1;font-weight:600;">${g.current_phase}</span></div>`;
+      // Project header — table-based (no flex for Outlook)
+      h += `<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:8px;"><tr>`;
+      h += `<td valign="middle"><span style="font-weight:700;color:#1e293b;font-size:13px;">${g.project_name}</span>`;
+      if (g.program_name) h += `&nbsp;<span style="font-size:11px;color:#94a3b8;">${g.program_name}</span>`;
+      h += `</td>`;
+      h += `<td align="right" valign="middle"><span style="font-size:11px;padding:2px 8px;border-radius:10px;background:#e0f2fe;color:#0369a1;font-weight:600;">${g.current_phase}</span></td>`;
+      h += `</tr></table>`;
       h += `<ul style="margin:0;padding:0;list-style:none;">`;
       g.activities.forEach(a => {
-        h += `<li style="display:flex;align-items:baseline;gap:8px;padding:4px 0;font-size:12px;">`;
-        h += `<span style="color:#16a34a;font-weight:700;flex-shrink:0;">✓</span>`;
-        h += `<span style="color:#334155;">${a.activity}${a.deliverable?` <span style="color:#94a3b8;">→ ${a.deliverable}</span>`:''}`;
+        h += `<li style="padding:4px 0;font-size:12px;">`;
+        h += `<span style="color:#16a34a;font-weight:700;">&#10003;</span>&nbsp;`;
+        h += `<span style="color:#334155;">${a.activity}${a.deliverable?` <span style="color:#94a3b8;">&#8594; ${a.deliverable}</span>`:''}`;
         if (a.actual_end) h += ` <span style="color:#cbd5e1;">[${a.actual_end}]</span>`;
         h += `</span></li>`;
       });
@@ -724,39 +752,40 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
   h += `</div></div>`;
 
   // ── IV. Risks & Issues
-  h += `<div style="margin-top:16px;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08);">`;
+  h += `<div style="margin-top:16px;border-radius:8px;border:1px solid #e2e8f0;">`;
   h += `<div style="${SH}">IV. ${isVN?'RỦI RO & VẤN ĐỀ NGHIÊM TRỌNG':'CRITICAL RISKS & ISSUES'}</div>`;
   h += `<div style="background:white;padding:18px 24px;">`;
   h += `<div style="font-weight:700;color:#475569;font-size:11px;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:10px;">A. ${isVN?'RỦI RO ĐANG MỞ':'OPEN RISKS'}</div>`;
   if (data.topRisks.length===0) {
-    h += `<p style="color:#16a34a;font-size:13px;margin:0 0 16px;">✓ ${isVN?'Không có rủi ro mở ở cấp portfolio.':'No open risks at portfolio level.'}</p>`;
+    h += `<p style="color:#16a34a;font-size:13px;margin:0 0 16px;">&#10003; ${isVN?'Không có rủi ro mở ở cấp portfolio.':'No open risks at portfolio level.'}</p>`;
   } else {
     data.topRisks.slice(0,6).forEach(r => {
-      h += `<div style="display:flex;gap:10px;margin-bottom:10px;padding:11px 14px;border:1px solid #f1f5f9;border-radius:6px;background:#fafafa;">`;
-      h += `<span style="flex-shrink:0;font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;background:${pb(r.priority)};color:${pc(r.priority)};border:1px solid ${pc(r.priority)};height:fit-content;margin-top:1px;white-space:nowrap;">${r.priority.toUpperCase()}</span>`;
-      h += `<div><p style="margin:0 0 3px;font-size:13px;font-weight:600;color:#1e293b;">${r.description}</p>`;
+      // Risk card — table-based (no flex for Outlook)
+      h += `<table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#fafafa" style="margin-bottom:10px;background:#fafafa;border:1px solid #f1f5f9;border-radius:6px;"><tr>`;
+      h += `<td valign="top" style="padding:11px 0 11px 14px;width:1%;white-space:nowrap;"><span style="display:inline-block;font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;background:${pb(r.priority)};color:${pc(r.priority)};border:1px solid ${pc(r.priority)};">${r.priority.toUpperCase()}</span></td>`;
+      h += `<td valign="top" style="padding:11px 14px;"><p style="margin:0 0 3px;font-size:13px;font-weight:600;color:#1e293b;">${r.description}</p>`;
       h += `<p style="margin:0;font-size:11px;color:#94a3b8;">${r.project_name}${r.program_name?` · ${r.program_name}`:''}${r.category?` · ${r.category}`:''}</p>`;
       if (r.mitigation) h += `<p style="margin:5px 0 0;font-size:12px;color:#64748b;font-style:italic;">${isVN?'Giảm thiểu':'Mitigation'}: ${r.mitigation}</p>`;
-      h += `</div></div>`;
+      h += `</td></tr></table>`;
     });
   }
   h += `<div style="font-weight:700;color:#475569;font-size:11px;text-transform:uppercase;letter-spacing:0.6px;margin:18px 0 10px;">B. ${isVN?'VẤN ĐỀ ĐANG MỞ':'OPEN ISSUES'}</div>`;
   if (data.topIssues.length===0) {
-    h += `<p style="color:#16a34a;font-size:13px;margin:0;">✓ ${isVN?'Không có vấn đề mở ở cấp portfolio.':'No open issues at portfolio level.'}</p>`;
+    h += `<p style="color:#16a34a;font-size:13px;margin:0;">&#10003; ${isVN?'Không có vấn đề mở ở cấp portfolio.':'No open issues at portfolio level.'}</p>`;
   } else {
     data.topIssues.slice(0,6).forEach(r => {
-      h += `<div style="display:flex;gap:10px;margin-bottom:10px;padding:11px 14px;border:1px solid #f1f5f9;border-radius:6px;background:#fafafa;">`;
-      h += `<span style="flex-shrink:0;font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;background:${pb(r.priority)};color:${pc(r.priority)};border:1px solid ${pc(r.priority)};height:fit-content;margin-top:1px;white-space:nowrap;">${r.priority.toUpperCase()}</span>`;
-      h += `<div><p style="margin:0 0 3px;font-size:13px;font-weight:600;color:#1e293b;">${r.description}</p>`;
+      h += `<table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#fafafa" style="margin-bottom:10px;background:#fafafa;border:1px solid #f1f5f9;border-radius:6px;"><tr>`;
+      h += `<td valign="top" style="padding:11px 0 11px 14px;width:1%;white-space:nowrap;"><span style="display:inline-block;font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;background:${pb(r.priority)};color:${pc(r.priority)};border:1px solid ${pc(r.priority)};">${r.priority.toUpperCase()}</span></td>`;
+      h += `<td valign="top" style="padding:11px 14px;"><p style="margin:0 0 3px;font-size:13px;font-weight:600;color:#1e293b;">${r.description}</p>`;
       h += `<p style="margin:0;font-size:11px;color:#94a3b8;">${r.project_name}${r.program_name?` · ${r.program_name}`:''}</p>`;
       if (r.mitigation) h += `<p style="margin:5px 0 0;font-size:12px;color:#64748b;font-style:italic;">${isVN?'Xử lý':'Resolution'}: ${r.mitigation}</p>`;
-      h += `</div></div>`;
+      h += `</td></tr></table>`;
     });
   }
   h += `</div></div>`;
 
   // ── V. Milestones
-  h += `<div style="margin-top:16px;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08);">`;
+  h += `<div style="margin-top:16px;border-radius:8px;border:1px solid #e2e8f0;">`;
   h += `<div style="${SH}">V. ${isVN?'MILESTONE SẮP TỚI — 30 NGÀY TỚI':'UPCOMING MILESTONES — Next 30 Days'}</div>`;
   h += `<div style="background:white;overflow-x:auto;">`;
   if (data.upcomingMilestones.length===0) {
@@ -776,7 +805,7 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
   h += `</div></div>`;
 
   // ── VI. Program Scorecard
-  h += `<div style="margin-top:16px;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08);">`;
+  h += `<div style="margin-top:16px;border-radius:8px;border:1px solid #e2e8f0;">`;
   h += `<div style="${SH}">VI. ${isVN?'BẢNG ĐIỂM CHƯƠNG TRÌNH':'PROGRAM PORTFOLIO SCORECARD'}</div>`;
   h += `<div style="background:white;overflow-x:auto;"><table style="width:100%;border-collapse:collapse;"><thead><tr>${[isVN?'CHƯƠNG TRÌNH':'PROGRAM',isVN?'DA':'PROJ',isVN?'ACTIVE':'ACTIVE',isVN?'TB %':'AVG %',isVN?'SỨC KHỎE':'HEALTH',isVN?'RỦI RO':'RISKS',isVN?'VẤN ĐỀ':'ISSUES'].map(c=>`<th style="${TH}">${c}</th>`).join('')}</tr></thead><tbody>`;
   data.programs.filter(c=>c.projects.length>0).forEach((c,i) => {
@@ -789,8 +818,11 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
     h += `<td style="${TD}font-weight:700;color:#1e293b;">${c.name}</td>`;
     h += `<td style="${TD}text-align:center;color:#475569;">${c.projects.length}</td>`;
     h += `<td style="${TD}text-align:center;color:#475569;">${activeCount}</td>`;
-    h += `<td style="${TD}min-width:100px;"><div style="display:flex;align-items:center;gap:8px;"><div style="flex:1;height:5px;background:#e2e8f0;border-radius:3px;overflow:hidden;"><div style="height:100%;width:${avgPct}%;background:${barColor(avgPct)};border-radius:3px;"></div></div><span style="font-size:12px;font-weight:600;color:#334155;">${avgPct}%</span></div></td>`;
-    h += `<td style="${TD}"><span style="display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:10px;background:${rb(wr)};border:1px solid ${rc(wr)};color:${rc(wr)};font-size:11px;font-weight:700;"><span style="width:7px;height:7px;border-radius:50%;background:${rc(wr)};"></span>${rl(wr)}</span></td>`;
+    h += `<td style="${TD}"><table cellpadding="0" cellspacing="0" border="0"><tr>`;
+    h += `<td valign="middle" style="padding-right:8px;">${pBar(avgPct, 80)}</td>`;
+    h += `<td valign="middle" style="font-size:12px;font-weight:600;color:#334155;">${avgPct}%</td>`;
+    h += `</tr></table></td>`;
+    h += `<td style="${TD}"><span style="display:inline-block;padding:2px 9px;border-radius:10px;background:${rb(wr)};border:1px solid ${rc(wr)};color:${rc(wr)};font-size:11px;font-weight:700;">&#9679; ${rl(wr)}</span></td>`;
     h += `<td style="${TD}text-align:center;font-weight:600;color:${risks>0?'#dc2626':'#94a3b8'};">${risks}</td>`;
     h += `<td style="${TD}text-align:center;font-weight:600;color:${issues>0?'#d97706':'#94a3b8'};">${issues}</td></tr>`;
   });
@@ -799,7 +831,7 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
   h += `</div></div>`;
 
   // ── VII. Actions Required
-  h += `<div style="margin-top:16px;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08);">`;
+  h += `<div style="margin-top:16px;border-radius:8px;border:1px solid #e2e8f0;">`;
   h += `<div style="${SH}">VII. ${isVN?'HÀNH ĐỘNG CẦN THIẾT — Steering Committee / CEO':'ACTIONS REQUIRED — Steering Committee / CEO'}</div>`;
   h += `<div style="background:white;padding:18px 24px;">`;
   const critRisks = data.topRisks.filter(r=>r.priority==='Critical');
@@ -808,14 +840,14 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
     const dl = p.days_until_deadline;
     const dlDesc = isVN?(dl!==null&&dl<0?`quá hạn ${Math.abs(dl)} ngày`:'đang gặp rủi ro nghiêm trọng'):(dl!==null&&dl<0?`OVERDUE ${Math.abs(dl)} days`:'at critical risk');
     const rec = isVN?'Đưa vào chương trình nghị sự Steering Committee gần nhất, xem xét bổ sung nguồn lực hoặc điều chỉnh phạm vi.':'Steering Committee review at next session. Assess resource injection or scope revision.';
-    actions.push(`<div style="margin-bottom:12px;padding:13px 16px;border-radius:6px;background:#fef2f2;border:1px solid #fecaca;"><div style="font-weight:700;color:#dc2626;font-size:13px;">[${isVN?'KHẨN CẤP — LEO THANG':'URGENT — ESCALATION'}]  ${p.name} (${p.program_name||'N/A'}) ${dlDesc}</div><div style="margin-top:7px;font-size:12px;color:#475569;">→ ${isVN?'Đề xuất':'Recommend'}: ${rec}</div></div>`);
+    actions.push(`<div style="margin-bottom:12px;padding:13px 16px;border-radius:6px;background:#fef2f2;border:1px solid #fecaca;"><div style="font-weight:700;color:#dc2626;font-size:13px;">[${isVN?'KHẨN CẤP — LEO THANG':'URGENT — ESCALATION'}] ${p.name} (${p.program_name||'N/A'}) ${dlDesc}</div><div style="margin-top:7px;font-size:12px;color:#475569;">&#8594; ${isVN?'Đề xuất':'Recommend'}: ${rec}</div></div>`);
   });
   critRisks.forEach(r => {
     const rec = r.mitigation||(isVN?'Đánh giá và ban hành quyết định xử lý ngay lập tức':'Immediate assessment and corrective action required');
-    actions.push(`<div style="margin-bottom:12px;padding:13px 16px;border-radius:6px;background:#fef2f2;border:1px solid #fecaca;"><div style="font-weight:700;color:#dc2626;font-size:13px;">[${isVN?'KHẨN CẤP — QUYẾT ĐỊNH':'URGENT — DECISION'}]  ${r.description} — ${r.project_name}</div><div style="margin-top:7px;font-size:12px;color:#475569;">→ ${isVN?'Đề xuất':'Recommend'}: ${rec}</div></div>`);
+    actions.push(`<div style="margin-bottom:12px;padding:13px 16px;border-radius:6px;background:#fef2f2;border:1px solid #fecaca;"><div style="font-weight:700;color:#dc2626;font-size:13px;">[${isVN?'KHẨN CẤP — QUYẾT ĐỊNH':'URGENT — DECISION'}] ${r.description} — ${r.project_name}</div><div style="margin-top:7px;font-size:12px;color:#475569;">&#8594; ${isVN?'Đề xuất':'Recommend'}: ${rec}</div></div>`);
   });
   if (actions.length===0) {
-    h += `<div style="color:#16a34a;font-size:13px;">✓ ${isVN?'Không có leo thang nào cần CEO xử lý ngay. Portfolio đang trong tầm kiểm soát.':'No immediate CEO escalations required. Portfolio is under control.'}</div>`;
+    h += `<div style="color:#16a34a;font-size:13px;">&#10003; ${isVN?'Không có leo thang nào cần CEO xử lý ngay. Portfolio đang trong tầm kiểm soát.':'No immediate CEO escalations required. Portfolio is under control.'}</div>`;
   } else { actions.forEach(a => { h += a; }); }
   h += `</div></div>`;
 
