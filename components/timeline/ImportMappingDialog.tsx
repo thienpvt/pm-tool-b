@@ -474,11 +474,17 @@ export default function ImportMappingDialog({
       return idx >= 0 ? (row[idx]?.trim() ?? '') : '';
     };
 
+    const issueTypeMapCol = jiraMode && mapping['_issue_type'] && mapping['_issue_type'] !== SKIP
+      ? mapping['_issue_type'] : null;
+    const issueTypeColIdx2 = issueTypeMapCol ? fileData.columns.indexOf(issueTypeMapCol) : -1;
+    const isEpicRow = (row: string[]) =>
+      issueTypeColIdx2 >= 0 && row[issueTypeColIdx2]?.trim().toLowerCase() === 'epic';
+
     const activities = rows
       .filter(row => row[activityIdx]?.trim())
       .map(row => ({
         phase:         jiraMode ? getRowPhase(row) : (get(row, 'phase') || 'General'),
-        no:            get(row, 'no'),
+        no:            (jiraMode && isEpicRow(row)) ? 'EPIC' : get(row, 'no'),
         activity:      get(row, 'activity'),
         deliverable:   get(row, 'deliverable'),
         sign_off_doc:  get(row, 'sign_off_doc'),

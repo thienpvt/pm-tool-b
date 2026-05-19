@@ -827,7 +827,9 @@ export default function TimelinePage() {
   useEffect(() => { setCurrentPage(1); }, [filterPhase, rowsPerPage]);
 
   const visibleTableActivities = useMemo(() =>
-    phaseGroups.flatMap(({ phase, acts }) => collapsedTablePhases.has(phase) ? [] : acts),
+    phaseGroups.flatMap(({ phase, acts }) =>
+      collapsedTablePhases.has(phase) ? [] : acts.filter(a => a.no !== 'EPIC')
+    ),
   [phaseGroups, collapsedTablePhases]);
 
   const totalTableRows = visibleTableActivities.length;
@@ -1033,119 +1035,188 @@ export default function TimelinePage() {
                   {phaseGroups.map(({ phase, acts }) => {
                     const style = getPhaseStyle(phase);
                     const isCollapsed = collapsedTablePhases.has(phase);
-                    const phaseLag = Math.max(0, ...acts.map(a => calcLag(a.plan_end, a.actual_end, a.status)));
-                    const pageActs = isCollapsed ? [] : acts.filter(a => pagedActivityIds.has(a.id));
-                    if (!isCollapsed && pageActs.length === 0) return null;
+                    const epicRow = acts.find(a => a.no === 'EPIC');
+                    const childActs = acts.filter(a => a.no !== 'EPIC');
+                    const epicLag = epicRow ? calcLag(epicRow.plan_end, epicRow.actual_end, epicRow.status) : 0;
+                    const phaseLag = Math.max(0, epicLag, ...childActs.map(a => calcLag(a.plan_end, a.actual_end, a.status)));
+                    const pageChildActs = isCollapsed ? [] : childActs.filter(a => pagedActivityIds.has(a.id));
+                    if (!isCollapsed && childActs.length > 0 && pageChildActs.length === 0) return null;
+
+                    const renderActivityRow = (row: Activity) => {
+                      const lag = calcLag(row.plan_end, row.actual_end, row.status);
+                      const isOverdue = lag > 0 && row.status !== 'Done';
+                      return (
+                        <tr key={row.id} className={`border-t hover:bg-slate-50/60 transition-colors ${isOverdue ? 'bg-red-50/20' : ''}`}>
+                          <td className="px-2 py-1.5 bg-teal-50/30" style={{ minWidth: '200px' }}>
+                            <input className="h-7 text-xs w-full border border-slate-200 rounded-md px-2 bg-white focus:outline-none focus:ring-1 focus:ring-teal-400 font-mono"
+                              value={row.jira_key ?? ''} onChange={e => updateField(row.id, 'jira_key', e.target.value)} onBlur={() => saveRow(row)} placeholder="KEY-1" />
+                          </td>
+                          <td className="px-2 py-1.5" style={{ minWidth: '240px' }}>
+                            <textarea className="text-xs w-full min-h-[48px] px-2 py-1 border border-slate-200 rounded-md resize-y bg-white focus:outline-none focus:ring-1 focus:ring-blue-400 leading-snug" value={row.activity} onChange={e => updateField(row.id, 'activity', e.target.value)} onBlur={() => saveRow(row)} />
+                          </td>
+                          <td className="px-2 py-1.5">
+                            <input list={`team-${id}`} className="h-7 text-xs w-full border border-slate-200 rounded-md px-2 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400" value={row.accountable} onChange={e => updateField(row.id, 'accountable', e.target.value)} onBlur={() => saveRow(row)} placeholder="Chọn..." />
+                          </td>
+                          <td className="px-2 py-1.5">
+                            <input list={`team-${id}`} className="h-7 text-xs w-full border border-slate-200 rounded-md px-2 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400" value={row.responsible} onChange={e => updateField(row.id, 'responsible', e.target.value)} onBlur={() => saveRow(row)} placeholder="Chọn..." />
+                          </td>
+                          <td className="px-2 py-1.5">
+                            <DateCell value={row.plan_start} warn={getDateWarn(row.plan_start)} onChange={v => updateField(row.id, 'plan_start', v)} onBlur={() => saveRow(row)} />
+                          </td>
+                          <td className="px-2 py-1.5">
+                            <DateCell value={row.plan_end} warn={getDateWarn(row.plan_end)} onChange={v => updateField(row.id, 'plan_end', v)} onBlur={() => saveRow(row)} extraClass={isOverdue ? 'border-red-300' : ''} />
+                          </td>
+                          <td className="px-2 py-1.5">
+                            <DateCell value={row.actual_start} warn={getDateWarn(row.actual_start)} onChange={v => updateField(row.id, 'actual_start', v)} onBlur={() => saveRow(row)} />
+                          </td>
+                          <td className="px-2 py-1.5">
+                            <DateCell value={row.actual_end} warn={getDateWarn(row.actual_end)} onChange={v => updateField(row.id, 'actual_end', v)} onBlur={() => saveRow(row)} />
+                          </td>
+                          <td className="px-2 py-1.5">
+                            <Select value={row.status} onValueChange={v => { const val = v ?? ''; updateField(row.id, 'status', val); saveRow({ ...row, status: val }); }}>
+                              <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+                              <SelectContent>{STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+                            </Select>
+                          </td>
+                          <td className="px-2 py-1.5 text-center">
+                            <Input className="h-7 text-xs w-12 px-1 text-center mx-auto" type="number" min={0} max={100} value={row.completion_pct} onChange={e => updateField(row.id, 'completion_pct', Number(e.target.value))} onBlur={() => saveRow(row)} />
+                          </td>
+                          <td className="px-2 py-1.5 text-center bg-slate-50/50"><LagBadge lag={lag} /></td>
+                          <td className="px-2 py-1.5 bg-slate-50/50">
+                            <Select value={row.delay_owner || 'N/A'} onValueChange={v => { const val = v ?? 'N/A'; updateField(row.id, 'delay_owner', val); saveRow({ ...row, delay_owner: val }); }}>
+                              <SelectTrigger className={`h-7 text-xs ${row.delay_owner && row.delay_owner !== 'N/A' ? DELAY_OWNER_COLOR[row.delay_owner] : ''}`}><SelectValue /></SelectTrigger>
+                              <SelectContent>{DELAY_OWNERS.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
+                            </Select>
+                          </td>
+                          <td className="px-2 py-1.5 bg-slate-50/50">
+                            <button onClick={() => setDelayEdit({ row, reason: row.delay_reason || '' })}
+                              className={`w-full h-7 text-left text-xs px-2 rounded border transition-colors truncate ${row.delay_reason ? 'border-slate-200 text-slate-700 hover:border-blue-400 hover:bg-blue-50' : 'border-dashed border-slate-200 text-slate-400 hover:border-blue-400 hover:text-blue-500'}`}>
+                              {row.delay_reason
+                                ? <span className="flex items-center gap-1"><MessageSquare className="h-3 w-3 shrink-0" /><span className="truncate">{row.delay_reason}</span></span>
+                                : 'Add reason...'}
+                            </button>
+                          </td>
+                          <td className="px-2 py-1.5 bg-teal-50/30" style={{ minWidth: '180px' }}>
+                            <Input className="h-7 text-xs bg-white" value={row.sprint ?? ''} onChange={e => updateField(row.id, 'sprint', e.target.value)} onBlur={() => saveRow(row)} placeholder="Sprint name..." />
+                          </td>
+                          <td className="px-2 py-1.5">
+                            <div className="flex items-center gap-1">
+                              {saving === row.id && <Save className="h-3 w-3 text-blue-400 animate-pulse" />}
+                              <button onClick={() => deleteRow(row.id)} className="text-slate-300 hover:text-red-500"><Trash2 className="h-3.5 w-3.5" /></button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    };
+
                     return (
                       <React.Fragment key={phase}>
+                        {/* Epic / Phase header row — full data row */}
                         {showGroups && (
-                          <tr>
-                            <td colSpan={15} className={`px-3 py-2 font-bold text-xs uppercase tracking-widest border-t-2 border-slate-200 ${style.bg} ${style.text}`}>
-                              <div className="flex items-center gap-2">
-                                <button
-                                  onClick={() => toggleTablePhase(phase)}
-                                  className="flex items-center justify-center w-5 h-5 rounded hover:bg-black/10 transition-colors shrink-0"
-                                >
-                                  {isCollapsed
-                                    ? <ChevronRight className="w-3.5 h-3.5" />
-                                    : <ChevronDown className="w-3.5 h-3.5" />}
+                          <tr className={`border-t-2 border-slate-200 ${style.bg}`}>
+                            {/* Key — Epic jira_key */}
+                            <td className="px-2 py-2" style={{ minWidth: '200px', borderLeft: `3px solid ${style.hex}80` }}>
+                              {epicRow ? (
+                                <input className="h-7 text-xs w-full border border-slate-300/60 rounded-md px-2 bg-white/90 focus:outline-none focus:ring-1 focus:ring-teal-400 font-mono font-semibold"
+                                  value={epicRow.jira_key ?? ''} onChange={e => updateField(epicRow.id, 'jira_key', e.target.value)} onBlur={() => saveRow(epicRow)} placeholder="EPIC-KEY" />
+                              ) : <div className="h-7" />}
+                            </td>
+                            {/* Activity — Phase name + collapse */}
+                            <td className={`px-2 py-2 ${style.text}`} style={{ minWidth: '240px' }}>
+                              <div className="flex items-center gap-2 min-w-0">
+                                <button onClick={() => toggleTablePhase(phase)}
+                                  className="flex items-center justify-center w-5 h-5 rounded hover:bg-black/10 transition-colors shrink-0">
+                                  {isCollapsed ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                                 </button>
                                 <div className={`w-2 h-2 rounded-full ${style.bar} shrink-0`} />
-                                {phase}
-                                <span className="font-normal text-slate-400 normal-case tracking-normal text-[11px]">({acts.length} activities)</span>
+                                <span className="text-xs font-bold uppercase tracking-wide truncate">{phase}</span>
+                                <span className="font-normal text-slate-400 text-[11px] shrink-0">({childActs.length})</span>
                                 {phaseLag > 0 && <LagBadge lag={phaseLag} />}
                               </div>
                             </td>
-                          </tr>
-                        )}
-                        {pageActs.map(row => {
-                          const lag = calcLag(row.plan_end, row.actual_end, row.status);
-                          const isOverdue = lag > 0 && row.status !== 'Done';
-                          return (
-                            <tr key={row.id} className={`border-t hover:bg-slate-50/60 transition-colors ${isOverdue ? 'bg-red-50/20' : ''}`}>
-                              <td className="px-2 py-1.5 bg-teal-50/30" style={{ minWidth: '200px' }}>
-                                <input
-                                  className="h-7 text-xs w-full border border-slate-200 rounded-md px-2 bg-white focus:outline-none focus:ring-1 focus:ring-teal-400 font-mono"
-                                  value={row.jira_key ?? ''}
-                                  onChange={e => updateField(row.id, 'jira_key', e.target.value)}
-                                  onBlur={() => saveRow(row)}
-                                  placeholder="KEY-1"
-                                />
-                              </td>
-                              <td className="px-2 py-1.5" style={{ minWidth: '240px' }}>
-                                <textarea className="text-xs w-full min-h-[48px] px-2 py-1 border border-slate-200 rounded-md resize-y bg-white focus:outline-none focus:ring-1 focus:ring-blue-400 leading-snug" value={row.activity} onChange={e => updateField(row.id, 'activity', e.target.value)} onBlur={() => saveRow(row)} />
-                              </td>
-                              <td className="px-2 py-1.5">
-                                <input list={`team-${id}`} className="h-7 text-xs w-full border border-slate-200 rounded-md px-2 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400" value={row.accountable} onChange={e => updateField(row.id, 'accountable', e.target.value)} onBlur={() => saveRow(row)} placeholder="Chọn..." />
-                              </td>
-                              <td className="px-2 py-1.5">
-                                <input list={`team-${id}`} className="h-7 text-xs w-full border border-slate-200 rounded-md px-2 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400" value={row.responsible} onChange={e => updateField(row.id, 'responsible', e.target.value)} onBlur={() => saveRow(row)} placeholder="Chọn..." />
-                              </td>
-                              <td className="px-2 py-1.5">
-                                <DateCell value={row.plan_start} warn={getDateWarn(row.plan_start)}
-                                  onChange={v => updateField(row.id, 'plan_start', v)} onBlur={() => saveRow(row)} />
-                              </td>
-                              <td className="px-2 py-1.5">
-                                <DateCell value={row.plan_end} warn={getDateWarn(row.plan_end)}
-                                  onChange={v => updateField(row.id, 'plan_end', v)} onBlur={() => saveRow(row)}
-                                  extraClass={isOverdue ? 'border-red-300' : ''} />
-                              </td>
-                              <td className="px-2 py-1.5">
-                                <DateCell value={row.actual_start} warn={getDateWarn(row.actual_start)}
-                                  onChange={v => updateField(row.id, 'actual_start', v)} onBlur={() => saveRow(row)} />
-                              </td>
-                              <td className="px-2 py-1.5">
-                                <DateCell value={row.actual_end} warn={getDateWarn(row.actual_end)}
-                                  onChange={v => updateField(row.id, 'actual_end', v)} onBlur={() => saveRow(row)} />
-                              </td>
-                              <td className="px-2 py-1.5">
-                                <Select value={row.status} onValueChange={v => { const val = v ?? ''; updateField(row.id, 'status', val); saveRow({ ...row, status: val }); }}>
-                                  <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+                            {/* Accountable */}
+                            <td className="px-2 py-2">
+                              {epicRow ? (
+                                <input list={`team-${id}`} className="h-7 text-xs w-full border border-slate-300/60 rounded-md px-2 bg-white/90 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                                  value={epicRow.accountable} onChange={e => updateField(epicRow.id, 'accountable', e.target.value)} onBlur={() => saveRow(epicRow)} placeholder="Chọn..." />
+                              ) : <div className="h-7" />}
+                            </td>
+                            {/* Responsible */}
+                            <td className="px-2 py-2">
+                              {epicRow ? (
+                                <input list={`team-${id}`} className="h-7 text-xs w-full border border-slate-300/60 rounded-md px-2 bg-white/90 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                                  value={epicRow.responsible} onChange={e => updateField(epicRow.id, 'responsible', e.target.value)} onBlur={() => saveRow(epicRow)} placeholder="Chọn..." />
+                              ) : <div className="h-7" />}
+                            </td>
+                            {/* Plan Start */}
+                            <td className="px-2 py-2">
+                              {epicRow ? <DateCell value={epicRow.plan_start} warn={getDateWarn(epicRow.plan_start)} onChange={v => updateField(epicRow.id, 'plan_start', v)} onBlur={() => saveRow(epicRow)} /> : <div className="h-7" />}
+                            </td>
+                            {/* Plan End */}
+                            <td className="px-2 py-2">
+                              {epicRow ? <DateCell value={epicRow.plan_end} warn={getDateWarn(epicRow.plan_end)} onChange={v => updateField(epicRow.id, 'plan_end', v)} onBlur={() => saveRow(epicRow)} /> : <div className="h-7" />}
+                            </td>
+                            {/* Actual Start */}
+                            <td className="px-2 py-2">
+                              {epicRow ? <DateCell value={epicRow.actual_start} warn={getDateWarn(epicRow.actual_start)} onChange={v => updateField(epicRow.id, 'actual_start', v)} onBlur={() => saveRow(epicRow)} /> : <div className="h-7" />}
+                            </td>
+                            {/* Actual End */}
+                            <td className="px-2 py-2">
+                              {epicRow ? <DateCell value={epicRow.actual_end} warn={getDateWarn(epicRow.actual_end)} onChange={v => updateField(epicRow.id, 'actual_end', v)} onBlur={() => saveRow(epicRow)} /> : <div className="h-7" />}
+                            </td>
+                            {/* Status */}
+                            <td className="px-2 py-2">
+                              {epicRow ? (
+                                <Select value={epicRow.status} onValueChange={v => { const val = v ?? ''; updateField(epicRow.id, 'status', val); saveRow({ ...epicRow, status: val }); }}>
+                                  <SelectTrigger className="h-7 text-xs bg-white/90"><SelectValue /></SelectTrigger>
                                   <SelectContent>{STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
                                 </Select>
-                              </td>
-                              <td className="px-2 py-1.5 text-center">
-                                <Input className="h-7 text-xs w-12 px-1 text-center mx-auto" type="number" min={0} max={100} value={row.completion_pct} onChange={e => updateField(row.id, 'completion_pct', Number(e.target.value))} onBlur={() => saveRow(row)} />
-                              </td>
-                              <td className="px-2 py-1.5 text-center bg-slate-50/50">
-                                <LagBadge lag={lag} />
-                              </td>
-                              <td className="px-2 py-1.5 bg-slate-50/50">
-                                <Select value={row.delay_owner || 'N/A'} onValueChange={v => { const val = v ?? 'N/A'; updateField(row.id, 'delay_owner', val); saveRow({ ...row, delay_owner: val }); }}>
-                                  <SelectTrigger className={`h-7 text-xs ${row.delay_owner && row.delay_owner !== 'N/A' ? DELAY_OWNER_COLOR[row.delay_owner] : ''}`}><SelectValue /></SelectTrigger>
+                              ) : <div className="h-7" />}
+                            </td>
+                            {/* % */}
+                            <td className="px-2 py-2 text-center">
+                              {epicRow ? (
+                                <Input className="h-7 text-xs w-12 px-1 text-center mx-auto bg-white/90" type="number" min={0} max={100}
+                                  value={epicRow.completion_pct} onChange={e => updateField(epicRow.id, 'completion_pct', Number(e.target.value))} onBlur={() => saveRow(epicRow)} />
+                              ) : <div className="h-7" />}
+                            </td>
+                            {/* Lag */}
+                            <td className="px-2 py-2 text-center">
+                              {epicRow ? <LagBadge lag={epicLag} /> : null}
+                            </td>
+                            {/* Delay By */}
+                            <td className="px-2 py-2">
+                              {epicRow ? (
+                                <Select value={epicRow.delay_owner || 'N/A'} onValueChange={v => { const val = v ?? 'N/A'; updateField(epicRow.id, 'delay_owner', val); saveRow({ ...epicRow, delay_owner: val }); }}>
+                                  <SelectTrigger className={`h-7 text-xs bg-white/90 ${epicRow.delay_owner && epicRow.delay_owner !== 'N/A' ? DELAY_OWNER_COLOR[epicRow.delay_owner] : ''}`}><SelectValue /></SelectTrigger>
                                   <SelectContent>{DELAY_OWNERS.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
                                 </Select>
-                              </td>
-                              <td className="px-2 py-1.5 bg-slate-50/50">
-                                <button
-                                  onClick={() => setDelayEdit({ row, reason: row.delay_reason || '' })}
-                                  className={`w-full h-7 text-left text-xs px-2 rounded border transition-colors truncate ${row.delay_reason ? 'border-slate-200 text-slate-700 hover:border-blue-400 hover:bg-blue-50' : 'border-dashed border-slate-200 text-slate-400 hover:border-blue-400 hover:text-blue-500'}`}
-                                >
-                                  {row.delay_reason
-                                    ? <span className="flex items-center gap-1"><MessageSquare className="h-3 w-3 shrink-0" /><span className="truncate">{row.delay_reason}</span></span>
+                              ) : <div className="h-7" />}
+                            </td>
+                            {/* Delay Reason */}
+                            <td className="px-2 py-2">
+                              {epicRow ? (
+                                <button onClick={() => setDelayEdit({ row: epicRow, reason: epicRow.delay_reason || '' })}
+                                  className={`w-full h-7 text-left text-xs px-2 rounded border transition-colors truncate ${epicRow.delay_reason ? 'border-slate-300/60 text-slate-700 hover:border-blue-400 hover:bg-blue-50/50' : 'border-dashed border-slate-300/60 text-slate-400 hover:border-blue-400 hover:text-blue-500'}`}>
+                                  {epicRow.delay_reason
+                                    ? <span className="flex items-center gap-1"><MessageSquare className="h-3 w-3 shrink-0" /><span className="truncate">{epicRow.delay_reason}</span></span>
                                     : 'Add reason...'}
                                 </button>
-                              </td>
-                              <td className="px-2 py-1.5 bg-teal-50/30" style={{ minWidth: '180px' }}>
-                                <Input
-                                  className="h-7 text-xs bg-white"
-                                  value={row.sprint ?? ''}
-                                  onChange={e => updateField(row.id, 'sprint', e.target.value)}
-                                  onBlur={() => saveRow(row)}
-                                  placeholder="Sprint name..."
-                                />
-                              </td>
-                              <td className="px-2 py-1.5">
-                                <div className="flex items-center gap-1">
-                                  {saving === row.id && <Save className="h-3 w-3 text-blue-400 animate-pulse" />}
-                                  <button onClick={() => deleteRow(row.id)} className="text-slate-300 hover:text-red-500">
-                                    <Trash2 className="h-3.5 w-3.5" />
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          );
-                        })}
+                              ) : <div className="h-7" />}
+                            </td>
+                            {/* Sprint */}
+                            <td className="px-2 py-2" style={{ minWidth: '180px' }}>
+                              {epicRow ? (
+                                <Input className="h-7 text-xs bg-white/90" value={epicRow.sprint ?? ''} onChange={e => updateField(epicRow.id, 'sprint', e.target.value)} onBlur={() => saveRow(epicRow)} placeholder="Sprint name..." />
+                              ) : <div className="h-7" />}
+                            </td>
+                            {/* Actions */}
+                            <td className="px-2 py-2">
+                              {epicRow && saving === epicRow.id && <Save className="h-3 w-3 text-blue-400 animate-pulse" />}
+                            </td>
+                          </tr>
+                        )}
+                        {pageChildActs.map(row => renderActivityRow(row))}
                       </React.Fragment>
                     );
                   })}
