@@ -1,5 +1,5 @@
 ﻿'use client';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import Sidebar from '@/components/layout/Sidebar';
 import { Button } from '@/components/ui/button';
@@ -896,6 +896,7 @@ export default function PortfolioReportPage() {
   const [viewMode, setViewMode] = useState<'preview' | 'source'>('preview');
   const [htmlReport, setHtmlReport] = useState('');
   const [exporting, setExporting] = useState<'png' | 'pdf' | null>(null);
+  const previewRef = useRef<HTMLDivElement>(null);
 
   const loadConfig = useCallback(async () => {
     const res = await fetch('/api/config');
@@ -1042,42 +1043,41 @@ export default function PortfolioReportPage() {
   };
 
   const exportPng = async () => {
-    if (!htmlReport) return;
+    if (!htmlReport || !previewRef.current) return;
     setExporting('png');
-    const container = document.createElement('div');
-    container.style.cssText = 'position:fixed;left:-99999px;top:0;width:960px;background:#f8fafc;';
-    container.innerHTML = htmlReport;
-    document.body.appendChild(container);
+    const el = previewRef.current;
+    const prevOverflow = el.style.overflow;
+    el.style.overflow = 'visible';
     try {
       const { toPng } = await import('html-to-image');
-      const dataUrl = await toPng(container, { pixelRatio: 2, backgroundColor: '#f8fafc', cacheBust: true });
+      const dataUrl = await toPng(el, { pixelRatio: 2, backgroundColor: '#f8fafc', cacheBust: true });
+      el.style.overflow = prevOverflow;
       const a = document.createElement('a');
       a.download = `PortfolioReport_${new Date().toISOString().slice(0, 10)}.png`;
       a.href = dataUrl;
       a.click();
       toast.success('Đã xuất PNG!');
     } catch {
+      el.style.overflow = prevOverflow;
       toast.error('Xuất PNG thất bại');
     } finally {
-      document.body.removeChild(container);
       setExporting(null);
     }
   };
 
   const exportPdf = async () => {
-    if (!htmlReport) return;
+    if (!htmlReport || !previewRef.current) return;
     setExporting('pdf');
-    const container = document.createElement('div');
-    container.style.cssText = 'position:fixed;left:-99999px;top:0;width:960px;background:#f8fafc;';
-    container.innerHTML = htmlReport;
-    document.body.appendChild(container);
+    const el = previewRef.current;
+    const prevOverflow = el.style.overflow;
+    el.style.overflow = 'visible';
     try {
       const { toPng } = await import('html-to-image');
-      const dataUrl = await toPng(container, { pixelRatio: 2, backgroundColor: '#f8fafc', cacheBust: true });
+      const dataUrl = await toPng(el, { pixelRatio: 2, backgroundColor: '#f8fafc', cacheBust: true });
+      el.style.overflow = prevOverflow;
       const { jsPDF } = await import('jspdf');
-      // Use container dimensions × pixelRatio instead of loading Image to avoid type conflict
-      const imgW = container.offsetWidth * 2;
-      const imgH = container.scrollHeight * 2;
+      const imgW = el.scrollWidth * 2;
+      const imgH = el.scrollHeight * 2;
       const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
       const pdfW = pdf.internal.pageSize.getWidth();
       const pdfH = pdf.internal.pageSize.getHeight();
@@ -1094,9 +1094,9 @@ export default function PortfolioReportPage() {
       pdf.save(`PortfolioReport_${new Date().toISOString().slice(0, 10)}.pdf`);
       toast.success('Đã xuất PDF!');
     } catch {
+      el.style.overflow = prevOverflow;
       toast.error('Xuất PDF thất bại');
     } finally {
-      document.body.removeChild(container);
       setExporting(null);
     }
   };
@@ -1741,6 +1741,7 @@ export default function PortfolioReportPage() {
               <div className="p-4">
                 {viewMode === 'preview' ? (
                   <div
+                    ref={previewRef}
                     className="border border-slate-200 rounded-lg overflow-auto bg-white"
                     dangerouslySetInnerHTML={{ __html: htmlReport }}
                   />
