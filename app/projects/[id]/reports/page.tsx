@@ -18,6 +18,7 @@ import {
 type DocRecord = { id: number; type: string; title: string; content_json: string; created_at: string; updated_at: string; };
 type Activity = { id: number; activity: string; deliverable: string; completion_pct: number; plan_start: string; plan_end: string; actual_end: string; status: string; };
 type RiskIssue = { id: number; description: string; priority: string; status: string; mitigation: string; };
+type EpicStat = { phase: string; total: number; done: number; pct: number };
 type ReportData = {
   project: { name: string; customer_name: string; client: string; current_phase: string; pm_name: string; };
   weekRange: { start: string; end: string };
@@ -26,7 +27,8 @@ type ReportData = {
   nextWeekPlan: Activity[];
   openRisks: RiskIssue[];
   openIssues: RiskIssue[];
-  stats: { total: number; done: number; completion_pct: number };
+  stats: { total: number; done: number; inProgress: number; notStarted: number; completion_pct: number };
+  epicStats: EpicStat[];
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -106,7 +108,7 @@ function buildManualReport(data: ReportData, language: string, startDate: string
     lines.push(`PM        : ${project.pm_name || 'N/A'}`);
     lines.push('═══════════════════════════════════════');
     lines.push('');
-    lines.push(`📊 TỔNG TIẾN ĐỘ: ${stats.completion_pct}% (${stats.done}/${stats.total} công việc hoàn thành)`);
+    lines.push(`📊 TỔNG TIẾN ĐỘ: ${stats.completion_pct}% (Hoàn thành: ${stats.done} | Đang làm: ${stats.inProgress} | Chưa làm: ${stats.notStarted} | Tổng: ${stats.total} US)`);
     lines.push(`🚦 TÌNH TRẠNG: ${health}`);
     lines.push('');
     lines.push('───────────────────────────────────────');
@@ -169,7 +171,7 @@ function buildManualReport(data: ReportData, language: string, startDate: string
     lines.push(`PM       : ${project.pm_name || 'N/A'}`);
     lines.push('═══════════════════════════════════════');
     lines.push('');
-    lines.push(`📊 OVERALL PROGRESS: ${stats.completion_pct}% (${stats.done}/${stats.total} activities done)`);
+    lines.push(`📊 OVERALL PROGRESS: ${stats.completion_pct}% (Done: ${stats.done} | In-Progress: ${stats.inProgress} | Not Started: ${stats.notStarted} | Total: ${stats.total} US)`);
     lines.push(`🚦 STATUS: ${health}`);
     lines.push('');
     lines.push('───────────────────────────────────────');
@@ -640,18 +642,64 @@ export default function ReportsPage() {
                     <h3 className="text-sm font-bold text-slate-700">Project Health</h3>
                     <span className={`px-3 py-1 rounded-full text-xs font-bold border ${hs.cls}`}>{hs.label}</span>
                   </div>
-                  <div className="flex gap-6 text-sm mb-3">
-                    <div><p className="text-2xl font-bold text-slate-800">{reportData.stats.completion_pct}%</p><p className="text-xs text-slate-400">Overall</p></div>
-                    <div><p className="text-2xl font-bold text-slate-800">{reportData.stats.done}/{reportData.stats.total}</p><p className="text-xs text-slate-400">Done</p></div>
-                    <div><p className="text-2xl font-bold text-red-500">{reportData.openRisks.length}</p><p className="text-xs text-slate-400">Open risks</p></div>
-                    <div><p className="text-2xl font-bold text-violet-500">{reportData.openIssues.length}</p><p className="text-xs text-slate-400">Open issues</p></div>
+
+                  {/* Overall % + risk/issue counts */}
+                  <div className="flex gap-5 text-sm mb-3">
+                    <div><p className="text-2xl font-bold text-slate-800">{reportData.stats.completion_pct}%</p><p className="text-xs text-slate-400">Weighted</p></div>
+                    <div><p className="text-2xl font-bold text-red-500">{reportData.openRisks.length}</p><p className="text-xs text-slate-400">Risks</p></div>
+                    <div><p className="text-2xl font-bold text-violet-500">{reportData.openIssues.length}</p><p className="text-xs text-slate-400">Issues</p></div>
                   </div>
-                  <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+
+                  {/* Progress bar */}
+                  <div className="h-2 bg-slate-100 rounded-full overflow-hidden mb-4">
                     <div
                       className={`h-full rounded-full ${reportData.stats.completion_pct >= 70 ? 'bg-green-500' : reportData.stats.completion_pct >= 40 ? 'bg-blue-500' : 'bg-amber-400'}`}
                       style={{ width: `${reportData.stats.completion_pct}%` }}
                     />
                   </div>
+
+                  {/* 3-group US stats */}
+                  <div className="grid grid-cols-3 gap-2 mb-4">
+                    <div className="bg-green-50 rounded-lg p-2 text-center">
+                      <p className="text-lg font-bold text-green-700">{reportData.stats.done}</p>
+                      <p className="text-[10px] text-green-600">{language === 'Vietnamese' ? 'Hoàn thành' : 'Done'}</p>
+                    </div>
+                    <div className="bg-blue-50 rounded-lg p-2 text-center">
+                      <p className="text-lg font-bold text-blue-700">{reportData.stats.inProgress}</p>
+                      <p className="text-[10px] text-blue-600">{language === 'Vietnamese' ? 'Đang làm' : 'In Progress'}</p>
+                    </div>
+                    <div className="bg-slate-50 rounded-lg p-2 text-center">
+                      <p className="text-lg font-bold text-slate-500">{reportData.stats.notStarted}</p>
+                      <p className="text-[10px] text-slate-400">{language === 'Vietnamese' ? 'Chưa làm' : 'Not Started'}</p>
+                    </div>
+                  </div>
+
+                  {/* Epic breakdown */}
+                  {reportData.epicStats?.length > 0 && (
+                    <div>
+                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
+                        {language === 'Vietnamese' ? 'Tiến độ theo Epic' : 'Progress by Epic'}
+                      </p>
+                      <div className="space-y-2">
+                        {reportData.epicStats.map(e => (
+                          <div key={e.phase}>
+                            <div className="flex items-center justify-between mb-0.5">
+                              <span className="text-xs text-slate-600 truncate max-w-[70%]">{e.phase}</span>
+                              <span className="text-xs font-medium text-slate-700 shrink-0">
+                                {e.pct}% <span className="text-slate-400 font-normal">({e.done}/{e.total})</span>
+                              </span>
+                            </div>
+                            <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                              <div
+                                className={`h-full rounded-full ${e.pct >= 70 ? 'bg-green-400' : e.pct >= 40 ? 'bg-blue-400' : 'bg-amber-400'}`}
+                                style={{ width: `${e.pct}%` }}
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 

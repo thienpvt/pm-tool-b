@@ -7,6 +7,20 @@ type Params = { params: Promise<{ id: string }> };
 type ActivityRow = { activity: string; deliverable: string; completion_pct: number; plan_start: string; plan_end: string; };
 type RiskRow = { priority: string; description: string; mitigation: string; };
 
+const STATUS_WEIGHTS: Record<string, number> = {
+  'ANBM': 1, 'STAGING-READY4TEST': 0.6, 'Deployed': 1, 'Done': 1,
+  'In Dev': 0.2, 'In development': 0.2, 'In Progress': 0.3, 'In Review': 0.5,
+  'In Testing': 0.6, 'New': 0, 'PENDING': 0.5, 'UAT': 1, 'QC Done': 1,
+  'Ready For Dev': 0.2, 'Ready for Test': 0.6, 'Testing': 0.6, 'To Do': 0.1,
+  'To-do': 0.1, 'REFINEMENT': 0.1, 'Re-Open': 0.7, 'READY TO RELEASE': 1,
+  'Passed QC': 1, 'READY4TEST': 0.6, 'READY FOR RELEASE': 1, 'Blocked': 0,
+};
+
+function statusWeight(s: string): number { return STATUS_WEIGHTS[s] ?? 0; }
+
+const DONE_STATUSES = Object.entries(STATUS_WEIGHTS).filter(([, w]) => w >= 1).map(([s]) => s);
+const IN_PROGRESS_STATUSES = Object.entries(STATUS_WEIGHTS).filter(([, w]) => w > 0 && w < 1).map(([s]) => s);
+
 function getWeekBounds(weekStart?: string): { start: Date; end: Date } {
   let start: Date;
   if (weekStart) {
@@ -52,16 +66,21 @@ export async function GET(req: NextRequest, { params }: Params) {
   `, id) as any;
   if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
+  const donePlaceholders = DONE_STATUSES.map(() => '?').join(',');
   const doneThisWeek = await db.all(
     `SELECT * FROM activities WHERE project_id = ?
-     AND actual_end >= ? AND actual_end <= ? AND status = 'Done'
+     AND actual_end >= ? AND actual_end <= ?
+     AND status IN (${donePlaceholders})
      ORDER BY actual_end`,
-    id, startStr, endStr
+    id, startStr, endStr, ...DONE_STATUSES
   ) as any[];
 
+  const inProgressPlaceholders = IN_PROGRESS_STATUSES.map(() => '?').join(',');
   const inProgress = await db.all(
-    `SELECT * FROM activities WHERE project_id = ? AND status = 'In Progress' ORDER BY plan_end`,
-    id
+    `SELECT * FROM activities WHERE project_id = ?
+     AND status IN (${inProgressPlaceholders})
+     ORDER BY plan_end`,
+    id, ...IN_PROGRESS_STATUSES
   ) as any[];
 
   const endDate = new Date(endStr + 'T23:59:59');
@@ -69,9 +88,10 @@ export async function GET(req: NextRequest, { params }: Params) {
   const nextEnd = fmt(new Date(endDate.getTime() + 7 * 86400000));
   const nextWeekPlan = await db.all(
     `SELECT * FROM activities WHERE project_id = ?
-     AND plan_start >= ? AND plan_start <= ? AND status != 'Done'
+     AND plan_start >= ? AND plan_start <= ?
+     AND status NOT IN (${donePlaceholders})
      ORDER BY plan_start`,
-    id, nextStart, nextEnd
+    id, nextStart, nextEnd, ...DONE_STATUSES
   ) as any[];
 
   const openRisks = await db.all(
@@ -84,11 +104,43 @@ export async function GET(req: NextRequest, { params }: Params) {
     id
   ) as any[];
 
-  const stats = await db.get(
-    `SELECT COUNT(*) as total, SUM(CASE WHEN status='Done' THEN 1 ELSE 0 END) as done, AVG(completion_pct) as avg_pct
-     FROM activities WHERE project_id = ?`,
-    id
-  ) as any;
+  // Weighted stats from all US activities
+  const allActivities = await db.all(
+    `SELECT status, phase FROM activities WHERE project_id = ?`, id
+  ) as { status: string; phase: string }[];
+
+  const total = allActivities.length;
+  let weightedSum = 0;
+  let doneCount = 0;
+  let inProgressCount = 0;
+  let notStartedCount = 0;
+
+  for (const act of allActivities) {
+    const w = statusWeight(act.status);
+    weightedSum += w;
+    if (w >= 1) doneCount++;
+    else if (w > 0) inProgressCount++;
+    else notStartedCount++;
+  }
+
+  const completion_pct = total > 0 ? Math.round((weightedSum / total) * 100) : 0;
+
+  // Epic stats: group by phase, pct = done_US / total_US
+  const phaseMap: Record<string, { total: number; done: number }> = {};
+  for (const act of allActivities) {
+    const phase = act.phase || 'General';
+    if (!phaseMap[phase]) phaseMap[phase] = { total: 0, done: 0 };
+    phaseMap[phase].total++;
+    if (statusWeight(act.status) >= 1) phaseMap[phase].done++;
+  }
+  const epicStats = Object.entries(phaseMap)
+    .map(([phase, { total: t, done: d }]) => ({
+      phase,
+      total: t,
+      done: d,
+      pct: t > 0 ? Math.round((d / t) * 100) : 0,
+    }))
+    .sort((a, b) => a.phase.localeCompare(b.phase));
 
   return NextResponse.json({
     project,
@@ -99,10 +151,13 @@ export async function GET(req: NextRequest, { params }: Params) {
     openRisks,
     openIssues,
     stats: {
-      total: stats.total ?? 0,
-      done: stats.done ?? 0,
-      completion_pct: Math.round(stats.avg_pct ?? 0),
+      total,
+      done: doneCount,
+      inProgress: inProgressCount,
+      notStarted: notStartedCount,
+      completion_pct,
     },
+    epicStats,
   });
 }
 
@@ -122,7 +177,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   }
 
   const { reportData, language = 'Vietnamese' } = body;
-  const { project, weekRange, doneThisWeek, inProgress, nextWeekPlan, openRisks, openIssues, stats } = reportData;
+  const { project, weekRange, doneThisWeek, inProgress, nextWeekPlan, openRisks, openIssues, stats, epicStats } = reportData;
   const lang = language === 'English' ? 'English' : 'Vietnamese';
 
   const doneLines = doneThisWeek.length === 0
@@ -145,6 +200,12 @@ export async function POST(req: NextRequest, { params }: Params) {
     ? '- None'
     : openIssues.map((r: RiskRow) => `- [${r.priority}] ${r.description}${r.mitigation ? ` → Resolution: ${r.mitigation}` : ''}`).join('\n');
 
+  const epicLines = epicStats?.length
+    ? '\nEPIC PROGRESS:\n' + epicStats.map((e: { phase: string; done: number; total: number; pct: number }) =>
+        `- ${e.phase}: ${e.pct}% (${e.done}/${e.total} US done)`
+      ).join('\n')
+    : '';
+
   const prompt = [
     'You are a senior project manager at CharterTech Global. Generate a concise weekly status report for the CEO.',
     '',
@@ -152,7 +213,8 @@ export async function POST(req: NextRequest, { params }: Params) {
     `Customer: ${project.customer_name || project.client || 'N/A'}`,
     `Phase: ${project.current_phase}`,
     `Report Week: ${weekRange.start} to ${weekRange.end}`,
-    `Overall Progress: ${stats.completion_pct}% (${stats.done}/${stats.total} activities done)`,
+    `Overall Progress: ${stats.completion_pct}% weighted (Done: ${stats.done}, In-Progress: ${stats.inProgress}, Not Started: ${stats.notStarted}, Total: ${stats.total} US)`,
+    epicLines,
     '',
     `COMPLETED THIS WEEK (${doneThisWeek.length}):`,
     doneLines,
