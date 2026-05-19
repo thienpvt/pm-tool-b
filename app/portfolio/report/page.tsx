@@ -1075,13 +1075,13 @@ export default function PortfolioReportPage() {
       const { toPng } = await import('html-to-image');
       const dataUrl = await toPng(container, { pixelRatio: 2, backgroundColor: '#f8fafc', cacheBust: true });
       const { jsPDF } = await import('jspdf');
-      const img = new Image();
-      img.src = dataUrl;
-      await new Promise<void>(r => { img.onload = () => r(); });
+      // Use container dimensions × pixelRatio instead of loading Image to avoid type conflict
+      const imgW = container.offsetWidth * 2;
+      const imgH = container.scrollHeight * 2;
       const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
       const pdfW = pdf.internal.pageSize.getWidth();
       const pdfH = pdf.internal.pageSize.getHeight();
-      const scaledH = pdfW * (img.height / img.width);
+      const scaledH = pdfW * (imgH / imgW);
       let y = 0;
       pdf.addImage(dataUrl, 'PNG', 0, y, pdfW, scaledH);
       let remaining = scaledH - pdfH;
