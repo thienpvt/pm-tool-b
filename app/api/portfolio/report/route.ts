@@ -3,6 +3,20 @@ import { getDb } from '@/lib/db';
 import { getSessionFromRequest } from '@/lib/auth';
 import Anthropic from '@anthropic-ai/sdk';
 
+// ─── Status weights (same as project weekly report) ───────────────────────────
+const STATUS_WEIGHTS: Record<string, number> = {
+  'ANBM': 1, 'STAGING-READY4TEST': 0.6, 'Deployed': 1, 'Done': 1,
+  'In Dev': 0.2, 'In development': 0.2, 'In Progress': 0.3, 'In Review': 0.5,
+  'In Testing': 0.6, 'New': 0, 'PENDING': 0.5, 'UAT': 1, 'QC Done': 1,
+  'Ready For Dev': 0.2, 'Ready for Test': 0.6, 'Testing': 0.6, 'To Do': 0.1,
+  'To-do': 0.1, 'REFINEMENT': 0.1, 'Re-Open': 0.7, 'READY TO RELEASE': 1,
+  'Passed QC': 1, 'READY4TEST': 0.6, 'READY FOR RELEASE': 1, 'Blocked': 0,
+};
+
+function statusWeight(s: string): number { return STATUS_WEIGHTS[s] ?? 0; }
+
+const DONE_STATUSES = Object.entries(STATUS_WEIGHTS).filter(([, w]) => w >= 1).map(([s]) => s);
+
 // ─── GET: Full portfolio report data ─────────────────────────────────────────
 export async function GET(req: NextRequest) {
   const user = await getSessionFromRequest(req);
@@ -11,7 +25,7 @@ export async function GET(req: NextRequest) {
   const db = await getDb();
   const { searchParams } = new URL(req.url);
 
-  // Date range for "completed in period" section (defaults to this Monday → Sunday)
+  // Default to current Mon–Sun week
   const today = new Date();
   const dayOfWeek = today.getDay();
   const monday = new Date(today);
@@ -19,6 +33,7 @@ export async function GET(req: NextRequest) {
   monday.setHours(0, 0, 0, 0);
   const sunday = new Date(monday);
   sunday.setDate(monday.getDate() + 6);
+  sunday.setHours(23, 59, 59, 999);
 
   const startParam = searchParams.get('start') ?? monday.toISOString().slice(0, 10);
   const endParam   = searchParams.get('end')   ?? sunday.toISOString().slice(0, 10);
@@ -41,20 +56,58 @@ export async function GET(req: NextRequest) {
 
   const riskCounts = await db.all(`SELECT project_id, COUNT(*) as total, SUM(CASE WHEN status='Open' OR status='In Progress' THEN 1 ELSE 0 END) as open FROM risks GROUP BY project_id`) as any[];
   const issueCounts = await db.all(`SELECT project_id, COUNT(*) as total, SUM(CASE WHEN status='Open' OR status='In Progress' THEN 1 ELSE 0 END) as open FROM issues GROUP BY project_id`) as any[];
-  const activityStats = await db.all(`SELECT project_id, COUNT(*) as total, AVG(completion_pct) as avg_pct, SUM(CASE WHEN status='Done' THEN 1 ELSE 0 END) as done FROM activities GROUP BY project_id`) as any[];
+
+  // Fetch all activity statuses for weighted completion calculation
+  const allActivityRows = await db.all(
+    'SELECT project_id, status, phase FROM activities'
+  ) as { project_id: number; status: string; phase: string }[];
+
+  // Build weighted stats per project (matching project weekly report logic)
+  type ProjectStats = {
+    total: number; weightedSum: number; done: number; inProgress: number; notStarted: number;
+    phases: Record<string, { total: number; done: number }>;
+  };
+  const actWeightMap: Record<number, ProjectStats> = {};
+  for (const row of allActivityRows) {
+    if (!actWeightMap[row.project_id]) {
+      actWeightMap[row.project_id] = { total: 0, weightedSum: 0, done: 0, inProgress: 0, notStarted: 0, phases: {} };
+    }
+    const w = statusWeight(row.status);
+    const s = actWeightMap[row.project_id];
+    s.total++;
+    s.weightedSum += w;
+    if (w >= 1) s.done++;
+    else if (w > 0) s.inProgress++;
+    else s.notStarted++;
+
+    const phase = row.phase || 'General';
+    if (!s.phases[phase]) s.phases[phase] = { total: 0, done: 0 };
+    s.phases[phase].total++;
+    if (w >= 1) s.phases[phase].done++;
+  }
 
   const riskMap = Object.fromEntries(riskCounts.map((r: any) => [r.project_id, r]));
   const issueMap = Object.fromEntries(issueCounts.map((r: any) => [r.project_id, r]));
-  const actMap = Object.fromEntries(activityStats.map((r: any) => [r.project_id, r]));
 
   const nowMs = Date.now();
+  const donePlaceholders = DONE_STATUSES.map(() => '?').join(',');
 
   const enrichedProjects = projects.map((p: any) => {
     const open_risks: number = riskMap[p.id]?.open ?? 0;
     const open_issues: number = issueMap[p.id]?.open ?? 0;
-    const completion_pct = Math.round(actMap[p.id]?.avg_pct ?? 0);
-    const total_activities: number = actMap[p.id]?.total ?? 0;
-    const done_activities: number = actMap[p.id]?.done ?? 0;
+
+    const actStats = actWeightMap[p.id] ?? { total: 0, weightedSum: 0, done: 0, inProgress: 0, notStarted: 0, phases: {} };
+    const completion_pct = actStats.total > 0 ? Math.round((actStats.weightedSum / actStats.total) * 100) : 0;
+    const total_activities = actStats.total;
+    const done_activities = actStats.done;
+    const in_progress_activities = actStats.inProgress;
+    const not_started_activities = actStats.notStarted;
+    const epicStats = Object.entries(actStats.phases)
+      .map(([phase, { total: t, done: d }]) => ({
+        phase, total: t, done: d,
+        pct: t > 0 ? Math.round((d / t) * 100) : 0,
+      }))
+      .sort((a, b) => a.phase.localeCompare(b.phase));
 
     const endMs = p.end_date ? new Date(p.end_date + 'T23:59:59').getTime() : null;
     const days_until_deadline = endMs ? Math.ceil((endMs - nowMs) / 86400000) : null;
@@ -77,6 +130,7 @@ export async function GET(req: NextRequest) {
       open_risks, total_risks: riskMap[p.id]?.total ?? 0,
       open_issues, total_issues: issueMap[p.id]?.total ?? 0,
       completion_pct, total_activities, done_activities,
+      in_progress_activities, not_started_activities, epicStats,
       days_until_deadline, rag,
     };
   });
@@ -131,39 +185,41 @@ export async function GET(req: NextRequest) {
   const plus30 = new Date(now.getTime() + 30 * 86400000).toISOString().slice(0, 10);
   const minus14 = new Date(now.getTime() - 14 * 86400000).toISOString().slice(0, 10);
 
+  // Upcoming milestones: not in any done status
   const upcomingMilestones = await db.all(`
     SELECT a.*, p.name as project_name, c.name as customer_name
     FROM activities a
     JOIN projects p ON a.project_id = p.id
     LEFT JOIN customers c ON p.customer_id = c.id
     WHERE a.plan_end BETWEEN ? AND ?
-      AND a.status != 'Done' ${cc}
+      AND a.status NOT IN (${donePlaceholders}) ${cc}
     ORDER BY a.plan_end ASC
     LIMIT 15
-  `, todayStr, plus30, ...cp) as any[];
+  `, todayStr, plus30, ...DONE_STATUSES, ...cp) as any[];
 
+  // Recently completed: any done status, using actual_end
   const recentlyCompleted = await db.all(`
     SELECT a.*, p.name as project_name, c.name as customer_name
     FROM activities a
     JOIN projects p ON a.project_id = p.id
     LEFT JOIN customers c ON p.customer_id = c.id
-    WHERE a.status = 'Done'
+    WHERE a.status IN (${donePlaceholders})
       AND a.actual_end >= ? ${cc}
     ORDER BY a.actual_end DESC
     LIMIT 10
-  `, minus14, ...cp) as any[];
+  `, ...DONE_STATUSES, minus14, ...cp) as any[];
 
-  // ─── Completed activities in selected date range, grouped by project ─────────
+  // Completed in selected date range: any done status + actual_end in range
   const completedInRange = await db.all(`
     SELECT a.*, p.name as project_name, p.current_phase, c.name as customer_name
     FROM activities a
     JOIN projects p ON a.project_id = p.id
     LEFT JOIN customers c ON p.customer_id = c.id
-    WHERE a.status = 'Done'
+    WHERE a.status IN (${donePlaceholders})
       AND a.actual_end >= ?
       AND a.actual_end <= ? ${cc}
     ORDER BY a.project_id, a.actual_end
-  `, startParam, endParam, ...cp) as any[];
+  `, ...DONE_STATUSES, startParam, endParam, ...cp) as any[];
 
   // Group by project_id
   const completedByProject: Record<number, { project_name: string; customer_name: string; current_phase: string; activities: any[] }> = {};
@@ -205,11 +261,14 @@ export async function GET(req: NextRequest) {
 }
 
 // ─── POST: AI report generation ───────────────────────────────────────────────
+type EpicStat = { phase: string; pct: number; done: number; total: number };
 type ProjectSummary = {
   name: string; customer_name: string; current_phase: string;
   completion_pct: number; open_risks: number; open_issues: number;
   days_until_deadline: number | null; rag: 'red' | 'amber' | 'green';
   pm_name: string;
+  done_activities?: number; in_progress_activities?: number; not_started_activities?: number; total_activities?: number;
+  epicStats?: EpicStat[];
 };
 type CustomerGroup = { name: string; industry: string; projects: ProjectSummary[]; };
 type RiskSummary = { priority: string; description: string; project_name: string; customer_name: string; };
@@ -250,7 +309,15 @@ export async function POST(req: NextRequest) {
     const lines = [`${c.name}${c.industry ? ` (${c.industry})` : ''} — ${c.projects.length} project(s):`];
     c.projects.forEach(p => {
       const deadline = p.days_until_deadline === null ? '' : p.days_until_deadline < 0 ? ` OVERDUE ${Math.abs(p.days_until_deadline)}d` : ` ${p.days_until_deadline}d left`;
-      lines.push(`  - [${p.rag.toUpperCase()}] ${p.name} | ${p.current_phase} | ${p.completion_pct}% | risks:${p.open_risks} issues:${p.open_issues}${deadline}`);
+      const statsLine = p.total_activities
+        ? ` (${p.done_activities ?? 0}✓ ${p.in_progress_activities ?? 0}⟳ ${p.not_started_activities ?? 0}○ / ${p.total_activities} US)`
+        : '';
+      lines.push(`  - [${p.rag.toUpperCase()}] ${p.name} | ${p.current_phase} | ${p.completion_pct}%${statsLine} | risks:${p.open_risks} issues:${p.open_issues}${deadline}`);
+      if (p.epicStats && p.epicStats.length > 0) {
+        p.epicStats.forEach(e => {
+          lines.push(`      ${e.phase}: ${e.pct}% (${e.done}/${e.total} US done)`);
+        });
+      }
     });
     return lines.join('\n');
   }).join('\n\n');
@@ -286,11 +353,11 @@ export async function POST(req: NextRequest) {
     `Report Date: ${reportDate}`,
     periodLabel ? `Reporting Period: ${periodLabel}` : '',
     `Total Projects: ${kpi.totalProjects} across ${kpi.totalCustomers} customers`,
-    `Active: ${kpi.activeProjects} | Avg Completion: ${kpi.avgCompletion}%`,
+    `Active: ${kpi.activeProjects} | Avg Completion: ${kpi.avgCompletion}% (weighted by status)`,
     `Portfolio Health: ${redProjects.length} RED, ${amberProjects.length} AMBER, ${greenProjects.length} GREEN`,
     `Total Open Risks: ${kpi.totalOpenRisks} | Total Open Issues: ${kpi.totalOpenIssues}`,
     '',
-    'PROJECTS BY CUSTOMER:',
+    'PROJECTS BY CUSTOMER (weighted progress | Done✓ InProgress⟳ NotStarted○):',
     customerLines,
     '',
     'PROJECTS REQUIRING ATTENTION (RED):',
@@ -314,12 +381,13 @@ export async function POST(req: NextRequest) {
     'III. Progress Report — Completed in Period (per-project bullet list of what was delivered during the reporting period)',
     'IV. Critical Risks & Issues (list top risks and issues with project context and recommended mitigations)',
     'V. Upcoming Milestones (key deliverables due within 30 days, highlight any at-risk ones)',
-    'VI. Customer Scorecard (one paragraph per customer: their project health, progress, concerns)',
+    'VI. Customer Scorecard (one paragraph per customer: their project health, weighted progress, concerns)',
     'VII. Recommended Actions (3-5 concrete CEO/steering committee decisions or escalations required)',
     '',
     'Target length: 700-900 words total. CEO-appropriate: direct, data-driven, action-oriented.',
     'Use professional PMO language. No filler phrases. Be specific with numbers and deadlines.',
     'For each RED project, explicitly recommend a specific action (escalation, resource injection, scope change, etc.).',
+    'Note: completion % is weighted by status (Done=1.0, In Testing=0.6, In Progress=0.3, etc.) — not a simple done/total count.',
   ].filter(Boolean).join('\n');
 
   try {

@@ -29,11 +29,14 @@ type RecentDone = {
 };
 type CompletedActivity = { id: number; activity: string; deliverable: string; actual_end: string; };
 type CompletedGroup = { project_name: string; customer_name: string; current_phase: string; activities: CompletedActivity[]; };
+type EpicStat = { phase: string; total: number; done: number; pct: number };
 type ProjectRow = {
   id: number; name: string; customer_name: string; client: string; pm_name: string;
   current_phase: string; completion_pct: number; open_risks: number; open_issues: number;
   days_until_deadline: number | null; rag: 'red' | 'amber' | 'green';
   total_activities: number; done_activities: number;
+  in_progress_activities: number; not_started_activities: number;
+  epicStats: EpicStat[];
 };
 type CustomerGroup = { id: number; name: string; industry: string; projects: ProjectRow[]; };
 type PortfolioReportData = {
@@ -174,6 +177,15 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
       const dl = p.days_until_deadline;
       const dlStr = dl === null ? '—' : dl < 0 ? `QUÁ HẠN ${Math.abs(dl)}d` : `${dl}d còn`;
       lines.push(`  ${String(i + 1).padStart(3)}  ${ragLabel} ${pad(p.name, 31)} ${pad(p.customer_name || '—', 16)} ${pad(p.current_phase, 11)} ${String(p.completion_pct).padStart(3)}% ${dlStr}`);
+      if (p.total_activities > 0) {
+        lines.push(`         ✓${p.done_activities} ⟳${p.in_progress_activities} ○${p.not_started_activities} / ${p.total_activities} US`);
+      }
+      if (p.epicStats && p.epicStats.length > 0) {
+        p.epicStats.forEach(e => {
+          const bar = '█'.repeat(Math.round(e.pct / 10)) + '░'.repeat(10 - Math.round(e.pct / 10));
+          lines.push(`         ${pad(e.phase, 20)} [${bar}] ${e.pct}% (${e.done}/${e.total})`);
+        });
+      }
     });
     lines.push('');
     lines.push(`  Portfolio: ${green.length} 🟢 XANH  │  ${amber.length} 🟡 VÀNG  │  ${red.length} 🔴 ĐỎ`);
@@ -339,6 +351,15 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
       const dl = p.days_until_deadline;
       const dlStr = dl === null ? '—' : dl < 0 ? `OVERDUE ${Math.abs(dl)}d` : `${dl}d left`;
       lines.push(`  ${String(i + 1).padStart(3)}  ${ragLabel} ${pad(p.name, 31)} ${pad(p.customer_name || '—', 16)} ${pad(p.current_phase, 11)} ${String(p.completion_pct).padStart(3)}% ${dlStr}`);
+      if (p.total_activities > 0) {
+        lines.push(`         ✓${p.done_activities} ⟳${p.in_progress_activities} ○${p.not_started_activities} / ${p.total_activities} US`);
+      }
+      if (p.epicStats && p.epicStats.length > 0) {
+        p.epicStats.forEach(e => {
+          const bar = '█'.repeat(Math.round(e.pct / 10)) + '░'.repeat(10 - Math.round(e.pct / 10));
+          lines.push(`         ${pad(e.phase, 20)} [${bar}] ${e.pct}% (${e.done}/${e.total})`);
+        });
+      }
     });
     lines.push('');
     lines.push(`  Portfolio: ${green.length} 🟢 GREEN  │  ${amber.length} 🟡 AMBER  │  ${red.length} 🔴 RED`);
@@ -560,12 +581,18 @@ export default function PortfolioReportPage() {
             name: p.name, customer_name: p.customer_name, current_phase: p.current_phase,
             completion_pct: p.completion_pct, open_risks: p.open_risks, open_issues: p.open_issues,
             days_until_deadline: p.days_until_deadline, rag: p.rag, pm_name: p.pm_name,
+            done_activities: p.done_activities, in_progress_activities: p.in_progress_activities,
+            not_started_activities: p.not_started_activities, total_activities: p.total_activities,
+            epicStats: p.epicStats,
           })),
         })),
         noCustomerProjects: data.noCustomerProjects.map(p => ({
           name: p.name, customer_name: '', current_phase: p.current_phase,
           completion_pct: p.completion_pct, open_risks: p.open_risks, open_issues: p.open_issues,
           days_until_deadline: p.days_until_deadline, rag: p.rag, pm_name: p.pm_name,
+          done_activities: p.done_activities, in_progress_activities: p.in_progress_activities,
+          not_started_activities: p.not_started_activities, total_activities: p.total_activities,
+          epicStats: p.epicStats,
         })),
         topRisks: data.topRisks.map(r => ({ priority: r.priority, description: r.description, project_name: r.project_name, customer_name: r.customer_name || '' })),
         topIssues: data.topIssues.map(i => ({ priority: i.priority, description: i.description, project_name: i.project_name, customer_name: i.customer_name || '' })),
@@ -905,6 +932,14 @@ export default function PortfolioReportPage() {
                             </div>
                             <span className="text-xs text-slate-600 font-medium w-8 text-right">{p.completion_pct}%</span>
                           </div>
+                          {p.total_activities > 0 && (
+                            <div className="flex items-center gap-2 mt-0.5 text-[10px]">
+                              <span className="text-green-600 font-medium">✓{p.done_activities}</span>
+                              <span className="text-amber-500 font-medium">⟳{p.in_progress_activities}</span>
+                              <span className="text-slate-400">○{p.not_started_activities}</span>
+                              <span className="text-slate-300">/{p.total_activities}</span>
+                            </div>
+                          )}
                         </td>
                         <td className={`px-4 py-3 text-xs ${deadlineColor(p.days_until_deadline)}`}>
                           {fmtDeadline(p.days_until_deadline, isVN)}
