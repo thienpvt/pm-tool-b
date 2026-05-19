@@ -1,8 +1,9 @@
 'use client';
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import Sidebar from '@/components/layout/Sidebar';
-import { ChevronDown, ChevronRight, ChevronLeft, Building2, Map, CalendarDays } from 'lucide-react';
+import { ChevronDown, ChevronRight, ChevronLeft, Building2, Map, CalendarDays, Download } from 'lucide-react';
+import { toPng } from 'html-to-image';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type PhaseInfo = {
@@ -84,10 +85,12 @@ function projectInYear(p: ProjectRow, year: number): boolean {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function PortfolioRoadmap() {
-  const [data, setData]         = useState<RoadmapData | null>(null);
-  const [loading, setLoading]   = useState(true);
-  const [openSet, setOpenSet]   = useState<Set<number>>(new Set());
-  const [selectedYear, setYear] = useState(() => new Date().getFullYear());
+  const [data, setData]           = useState<RoadmapData | null>(null);
+  const [loading, setLoading]     = useState(true);
+  const [openSet, setOpenSet]     = useState<Set<number>>(new Set());
+  const [selectedYear, setYear]   = useState(() => new Date().getFullYear());
+  const [exporting, setExporting] = useState(false);
+  const roadmapRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetch('/api/portfolio/roadmap').then(r => r.json()).then((d: RoadmapData) => {
@@ -151,6 +154,28 @@ export default function PortfolioRoadmap() {
       return next;
     });
   }, []);
+
+  const handleExportPng = useCallback(async () => {
+    if (!roadmapRef.current) return;
+    setExporting(true);
+    try {
+      const el = roadmapRef.current;
+      const dataUrl = await toPng(el, {
+        width: el.scrollWidth,
+        height: el.scrollHeight,
+        style: { overflow: 'visible' },
+        pixelRatio: 2,
+      });
+      const a = document.createElement('a');
+      a.download = `portfolio-roadmap-${selectedYear}.png`;
+      a.href = dataUrl;
+      a.click();
+    } catch (err) {
+      console.error('PNG export failed', err);
+    } finally {
+      setExporting(false);
+    }
+  }, [selectedYear]);
 
   // ── Loading ─────────────────────────────────────────────────────────────────
   if (loading) {
@@ -220,7 +245,17 @@ export default function PortfolioRoadmap() {
             </button>
           </div>
 
-          <Link href="/" className="text-sm text-blue-600 hover:underline shrink-0">← Dashboard</Link>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={handleExportPng}
+              disabled={exporting}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              <Download className="h-3.5 w-3.5" />
+              {exporting ? 'Exporting…' : 'Export PNG'}
+            </button>
+            <Link href="/" className="text-sm text-blue-600 hover:underline">← Dashboard</Link>
+          </div>
         </div>
 
         {/* ── Legend ── */}
@@ -249,6 +284,7 @@ export default function PortfolioRoadmap() {
         {/* ── Roadmap ── */}
         <div className="flex-1 overflow-auto p-4">
           <div
+            ref={roadmapRef}
             className="bg-white rounded-xl border shadow-sm overflow-hidden"
             style={{ minWidth: LABEL_W + 12 * MIN_M_W }}
           >

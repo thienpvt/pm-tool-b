@@ -155,7 +155,7 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
   if (isVN) {
     // ── Header ───────────────────────────────────────────────────────────────
     lines.push(box1);
-    lines.push(boxL('BÁO CÁO TÌNH TRẠNG PORTFOLIO — CHARTERTECH GLOBAL'));
+    lines.push(boxL('BÁO CÁO TÌNH TRẠNG PORTFOLIO'));
     lines.push(boxL('Program Management Office (PMO)'));
     lines.push(box2);
     lines.push('');
@@ -355,7 +355,7 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
   } else {
     // ── Header ───────────────────────────────────────────────────────────────
     lines.push(box1);
-    lines.push(boxL('PORTFOLIO STATUS REPORT — CHARTERTECH GLOBAL'));
+    lines.push(boxL('PORTFOLIO STATUS REPORT'));
     lines.push(boxL('Program Management Office (PMO)'));
     lines.push(box2);
     lines.push('');
@@ -623,7 +623,7 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
 
   // Header
   h += `<div style="background:#1e293b;color:white;padding:28px 32px;border-radius:8px 8px 0 0;text-align:center;">`;
-  h += `<h1 style="margin:0;font-size:17px;font-weight:700;letter-spacing:1.2px;">${isVN ? 'BÁO CÁO TÌNH TRẠNG PORTFOLIO — CHARTERTECH GLOBAL' : 'PORTFOLIO STATUS REPORT — CHARTERTECH GLOBAL'}</h1>`;
+  h += `<h1 style="margin:0;font-size:17px;font-weight:700;letter-spacing:1.2px;">${isVN ? 'BÁO CÁO TÌNH TRẠNG PORTFOLIO' : 'PORTFOLIO STATUS REPORT'}</h1>`;
   h += `<p style="margin:7px 0 0;font-size:12px;opacity:0.6;">Program Management Office (PMO)</p></div>`;
 
   // Meta row

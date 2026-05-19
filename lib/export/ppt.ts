@@ -118,8 +118,7 @@ export async function generateKickoffPPT(
     // Teal accent stripe
     s.addShape('rect', { x: 0, y: 3.1, w: W, h: 0.12, fill: { color: ACCENT } });
 
-    // CharterTech logo text
-    s.addText('CHARTERTECH GLOBAL', {
+    s.addText('PROJECT MANAGEMENT OFFICE', {
       x: 0.5, y: 0.35, w: W - 1, h: 0.5,
       fontSize: 13, bold: true, color: 'DBEAFE', align: 'center',
     });

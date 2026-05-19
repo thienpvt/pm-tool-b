@@ -54,7 +54,7 @@ function tableRow(cells: string[], isHeader = false) {
 function logoBlock(projectName: string) {
   return [
     new Paragraph({
-      children: [new TextRun({ text: 'CHARTERTECH GLOBAL', bold: true, size: 36, color: '1E40AF' })],
+      children: [new TextRun({ text: 'PROJECT MANAGEMENT OFFICE', bold: true, size: 36, color: '1E40AF' })],
       alignment: AlignmentType.CENTER,
     }),
     new Paragraph({
