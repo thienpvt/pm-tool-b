@@ -159,7 +159,7 @@ export default function NewProjectPage() {
                 </div>
                 <div>
                   <Label htmlFor="pm_email">PM Email</Label>
-                  <Input id="pm_email" className="mt-1.5" type="email" placeholder="pm@chartertech.com" value={form.pm_email} onChange={e => set('pm_email', e.target.value)} />
+                  <Input id="pm_email" className="mt-1.5" type="email" placeholder="pm@example.com" value={form.pm_email} onChange={e => set('pm_email', e.target.value)} />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">

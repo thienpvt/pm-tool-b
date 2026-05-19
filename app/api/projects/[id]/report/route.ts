@@ -207,7 +207,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     : '';
 
   const prompt = [
-    'You are a senior project manager at CharterTech Global. Generate a concise weekly status report for the CEO.',
+    'You are a senior project manager. Generate a concise weekly status report for the CEO.',
     '',
     `Project: ${project.name}`,
     `Customer: ${project.customer_name || project.client || 'N/A'}`,

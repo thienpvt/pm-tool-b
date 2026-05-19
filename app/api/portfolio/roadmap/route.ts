@@ -26,8 +26,12 @@ export async function GET(req: NextRequest) {
   const issueCounts = await db.all(
     `SELECT project_id, SUM(CASE WHEN status='Open' OR status='In Progress' THEN 1 ELSE 0 END) as open FROM issues GROUP BY project_id`
   ) as any[];
+  const DONE_STATUSES_SQL = "'ANBM','Deployed','Done','UAT','QC Done','READY TO RELEASE','Passed QC','READY FOR RELEASE'";
+
   const activityTotals = await db.all(
-    `SELECT project_id, COUNT(*) as total, AVG(completion_pct) as avg_pct FROM activities GROUP BY project_id`
+    `SELECT project_id, COUNT(*) as total,
+      SUM(CASE WHEN status IN (${DONE_STATUSES_SQL}) THEN 1 ELSE 0 END) as done
+     FROM activities GROUP BY project_id`
   ) as any[];
 
   // Phase-level date range + completion per project
@@ -37,8 +41,7 @@ export async function GET(req: NextRequest) {
       MIN(CASE WHEN plan_start IS NOT NULL AND plan_start <> '' THEN plan_start END) AS phase_start,
       MAX(CASE WHEN plan_end   IS NOT NULL AND plan_end   <> '' THEN plan_end   END) AS phase_end,
       COUNT(*) AS total,
-      SUM(CASE WHEN status = 'Done' THEN 1 ELSE 0 END) AS done,
-      ROUND(AVG(completion_pct)) AS avg_completion
+      SUM(CASE WHEN status IN (${DONE_STATUSES_SQL}) THEN 1 ELSE 0 END) AS done
     FROM activities
     GROUP BY project_id, phase
   `) as any[];
@@ -59,7 +62,8 @@ export async function GET(req: NextRequest) {
   const enriched = projects.map((p: any) => {
     const open_risks   = riskMap[p.id]  ?? 0;
     const open_issues  = issueMap[p.id] ?? 0;
-    const completion_pct = Math.round(actMap[p.id]?.avg_pct ?? 0);
+    const actEntry = actMap[p.id];
+    const completion_pct = actEntry?.total > 0 ? Math.round((actEntry.done / actEntry.total) * 100) : 0;
     const endMs = p.end_date ? new Date(p.end_date + 'T23:59:59').getTime() : null;
     const days_until_deadline = endMs ? Math.ceil((endMs - nowMs) / 86400000) : null;
 
@@ -83,7 +87,7 @@ export async function GET(req: NextRequest) {
         end_date:       ps.phase_end    ?? null,
         total:          Number(ps.total),
         done:           Number(ps.done),
-        completion_pct: Math.round(Number(ps.avg_completion ?? 0)),
+        completion_pct: Number(ps.total) > 0 ? Math.round((Number(ps.done) / Number(ps.total)) * 100) : 0,
       }))
       .sort((a: any, b: any) => PHASE_ORDER.indexOf(a.phase) - PHASE_ORDER.indexOf(b.phase));
 

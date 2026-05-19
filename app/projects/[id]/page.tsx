@@ -266,7 +266,7 @@ export default function ProjectPage() {
                 <Input className="h-9 text-sm" value={editForm.pm_name ?? ''} onChange={e => set('pm_name', e.target.value)} placeholder="Nguyễn Văn A" />
               </FieldRow>
               <FieldRow label="PM Email">
-                <Input className="h-9 text-sm" type="email" value={editForm.pm_email ?? ''} onChange={e => set('pm_email', e.target.value)} placeholder="pm@chartertech.com" />
+                <Input className="h-9 text-sm" type="email" value={editForm.pm_email ?? ''} onChange={e => set('pm_email', e.target.value)} placeholder="pm@example.com" />
               </FieldRow>
             </div>
 

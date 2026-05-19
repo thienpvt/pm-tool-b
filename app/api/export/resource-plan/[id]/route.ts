@@ -60,7 +60,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
   const totalCols = 3 + months.length + 1; // Domain, Role, Name, months..., Notes
 
   const wb = new ExcelJS.Workbook();
-  wb.creator = 'CharterTech Global PM Tool';
+  wb.creator = 'PM Tool';
   wb.created = new Date();
 
   // ── Sheet 1: Resource Plan ─────────────────────────────────────────────────

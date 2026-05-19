@@ -47,9 +47,9 @@ export async function POST(req: NextRequest) {
     }
 
     const escalations = [
-      { level: 3, level_name: 'Level 3 – Steering Committee', channel: 'Steering Committee (Monthly or CRITICAL ISSUE)', participants: 'Customer: Project Director\nCharterTech Global: Program Manager', input: 'Issue escalation', output: 'Executive Commitment\nIssue resolution\nStrategic Direction' },
-      { level: 2, level_name: 'Level 2 – Project Management', channel: 'Weekly meeting or per request', participants: 'Customer: Head of product, delivery manager\nCharterTech Global: Program Manager, Account Management', input: 'Issue escalation', output: 'Update project plan if needed' },
-      { level: 1, level_name: 'Level 1 – Development team', channel: 'Daily meeting or ad-hoc meeting', participants: 'Customer: team leads\nCharterTech Global: PM, team leads', input: 'Issue/blockers', output: 'Resolution plan' },
+      { level: 3, level_name: 'Level 3 – Steering Committee', channel: 'Steering Committee (Monthly or CRITICAL ISSUE)', participants: 'Customer: Project Director\nVendor: Program Manager', input: 'Issue escalation', output: 'Executive Commitment\nIssue resolution\nStrategic Direction' },
+      { level: 2, level_name: 'Level 2 – Project Management', channel: 'Weekly meeting or per request', participants: 'Customer: Head of product, delivery manager\nVendor: Program Manager, Account Management', input: 'Issue escalation', output: 'Update project plan if needed' },
+      { level: 1, level_name: 'Level 1 – Development team', channel: 'Daily meeting or ad-hoc meeting', participants: 'Customer: team leads\nVendor: PM, team leads', input: 'Issue/blockers', output: 'Resolution plan' },
     ];
     for (const e of escalations) {
       await db.run('INSERT INTO escalation_levels (project_id, level, level_name, channel, participants, input, output) VALUES (?,?,?,?,?,?,?)', result.lastInsertRowid, e.level, e.level_name, e.channel, e.participants, e.input, e.output);

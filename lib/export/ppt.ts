@@ -8,7 +8,7 @@ const DARK      = '0A1628';   // near-black
 const MID       = '475569';   // slate-600
 const LIGHT_BG  = 'F0F6FF';   // very light blue
 const WHITE     = 'FFFFFF';
-const FOOTER_TXT = 'CharterTech — Confidential';
+const FOOTER_TXT = 'Confidential';
 
 // ─── Layout helpers ───────────────────────────────────────────────────────────
 const W = 10;   // slide width (inches)
@@ -444,7 +444,7 @@ Phase 4 — Closing: UAT sign-off, Closure Report, Lessons Learned`;
       fontSize: 16, color: 'BFDBFE', align: 'center',
     });
 
-    s.addText(`${project.pm_name || 'Project Manager'}  |  ${project.pm_email || ''}  |  CharterTech Global`, {
+    s.addText(`${project.pm_name || 'Project Manager'}  |  ${project.pm_email || ''}`, {
       x: 0.5, y: 5, w: W - 1, h: 0.5,
       fontSize: 10, color: '94A3B8', align: 'center',
     });

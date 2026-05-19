@@ -277,7 +277,7 @@ export default function AdminPage() {
             <div>
               <Label>Company Name</Label>
               <Input className="mt-1.5" value={companyName} onChange={e => setCompanyName(e.target.value)}
-                placeholder="e.g. Chartertech Global" autoFocus
+                placeholder="e.g. Acme Corp" autoFocus
                 onKeyDown={e => e.key === 'Enter' && saveCompany()} />
             </div>
           </div>

@@ -271,8 +271,8 @@ async function seedAuthData(db: DbClient) {
   const row = await db.get<{ c: string | number }>('SELECT COUNT(*) as c FROM users');
   if (Number(row?.c ?? 0) > 0) return;
 
-  await db.run('INSERT OR IGNORE INTO companies (name) VALUES (?)', 'Chartertech Global');
-  const company = await db.get<{ id: number }>("SELECT id FROM companies WHERE name = 'Chartertech Global'");
+  await db.run('INSERT OR IGNORE INTO companies (name) VALUES (?)', 'Default Company');
+  const company = await db.get<{ id: number }>("SELECT id FROM companies WHERE name = 'Default Company'");
 
   await db.run(
     'INSERT OR IGNORE INTO users (username, password_hash, display_name, is_admin) VALUES (?, ?, ?, ?)',

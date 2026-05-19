@@ -1644,7 +1644,7 @@ export default function PortfolioReportPage() {
                   <Input
                     type="email"
                     className="h-9 text-sm"
-                    placeholder="ceo@chartertech.com"
+                    placeholder="ceo@example.com"
                     value={ceoEmail}
                     onChange={e => setCeoEmail(e.target.value)}
                   />

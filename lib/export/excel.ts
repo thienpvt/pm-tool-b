@@ -108,7 +108,7 @@ export async function generateProjectPlan(projectId: number): Promise<Buffer> {
   const issues      = await db.all('SELECT * FROM issues WHERE project_id = ? ORDER BY id', projectId) as Record<string, string>[];
 
   const wb = new ExcelJS.Workbook();
-  wb.creator = 'CharterTech Global PM Tool';
+  wb.creator = 'PM Tool';
   wb.created = new Date();
 
   // ═══════════════════════════════════════════════════════════════════════════

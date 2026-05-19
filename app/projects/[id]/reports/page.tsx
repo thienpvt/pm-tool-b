@@ -170,7 +170,7 @@ function buildManualReport(data: ReportData, language: string, startDate: string
     }
     lines.push('');
     lines.push('═══════════════════════════════════════');
-    lines.push(`Báo cáo chuẩn bị bởi: ${project.pm_name || 'PM'} | CharterTech Global`);
+    lines.push(`Báo cáo chuẩn bị bởi: ${project.pm_name || 'PM'}`);
   } else {
     lines.push('WEEKLY PROJECT STATUS REPORT');
     lines.push('═══════════════════════════════════════');
@@ -244,7 +244,7 @@ function buildManualReport(data: ReportData, language: string, startDate: string
     }
     lines.push('');
     lines.push('═══════════════════════════════════════');
-    lines.push(`Prepared by: ${project.pm_name || 'PM'} | CharterTech Global`);
+    lines.push(`Prepared by: ${project.pm_name || 'PM'}`);
   }
   return lines.join('\n');
 }

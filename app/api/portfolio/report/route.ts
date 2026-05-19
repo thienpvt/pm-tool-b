@@ -348,7 +348,7 @@ export async function POST(req: NextRequest) {
     : '  (No completed activities in the selected period)';
 
   const prompt = [
-    `You are a senior PMO director at CharterTech Global. Write a comprehensive, CEO-appropriate portfolio status report.`,
+    `You are a senior PMO director. Write a comprehensive, CEO-appropriate portfolio status report.`,
     '',
     `Report Date: ${reportDate}`,
     periodLabel ? `Reporting Period: ${periodLabel}` : '',

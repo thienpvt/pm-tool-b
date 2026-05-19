@@ -57,7 +57,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   };
 
   const wb = new ExcelJS.Workbook();
-  wb.creator = 'CharterTech Global PM Tool';
+  wb.creator = 'PM Tool';
   wb.created = new Date();
 
   // ── Sheet 1: Report Text ────────────────────────────────────────────────────
