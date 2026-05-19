@@ -115,366 +115,442 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
   const amber = allProjects.filter(p => p.rag === 'amber');
   const green = allProjects.filter(p => p.rag === 'green');
   const overdue = allProjects.filter(p => p.days_until_deadline !== null && p.days_until_deadline < 0);
+  const sorted = [...allProjects].sort((a, b) => ({ red: 0, amber: 1, green: 2 } as Record<string,number>)[a.rag] - ({ red: 0, amber: 1, green: 2 } as Record<string,number>)[b.rag]);
 
-  const portfolioStatus = red.length > 0 ? 'RED' : amber.length > 0 ? 'AMBER' : 'GREEN';
-  const portfolioStatusVN = red.length > 0 ? 'ĐỎ' : amber.length > 0 ? 'VÀNG' : 'XANH';
+  const portfolioStatus = isVN
+    ? (red.length > 0 ? 'ĐỎ' : amber.length > 0 ? 'VÀNG' : 'XANH')
+    : (red.length > 0 ? 'RED' : amber.length > 0 ? 'AMBER' : 'GREEN');
 
-  const pad = (s: string, n: number) => s.length >= n ? s.slice(0, n) : s.padEnd(n);
+  // Text helpers
+  const rp = (s: string, n: number) => (s.length > n ? s.slice(0, n - 1) + '…' : s).padEnd(n);
+  const lp = (s: string | number, n: number) => String(s).padStart(n);
+
+  // Health matrix table — column widths
+  const W = { n: 3, st: 10, nm: 22, cu: 15, ph: 10, pc: 5, dl: 14 } as const;
+  const tHL = (l: string, m: string, r: string) =>
+    `  ${l}${'─'.repeat(W.n+2)}${m}${'─'.repeat(W.st+2)}${m}${'─'.repeat(W.nm+2)}${m}${'─'.repeat(W.cu+2)}${m}${'─'.repeat(W.ph+2)}${m}${'─'.repeat(W.pc+2)}${m}${'─'.repeat(W.dl+2)}${r}`;
+  const tRow = (n: string|number, st: string, nm: string, cu: string, ph: string, pc: string, dl: string) =>
+    `  │ ${lp(n, W.n)} │ ${rp(st, W.st)} │ ${rp(nm, W.nm)} │ ${rp(cu, W.cu)} │ ${rp(ph, W.ph)} │ ${lp(pc, W.pc)} │ ${rp(dl, W.dl)} │`;
+
+  // Customer scorecard table — column widths
+  const CS = { nm: 22, pr: 6, ac: 6, pct: 6, hl: 10, rk: 6, is: 6 } as const;
+  const csHL = (l: string, m: string, r: string) =>
+    `  ${l}${'─'.repeat(CS.nm+2)}${m}${'─'.repeat(CS.pr+2)}${m}${'─'.repeat(CS.ac+2)}${m}${'─'.repeat(CS.pct+2)}${m}${'─'.repeat(CS.hl+2)}${m}${'─'.repeat(CS.rk+2)}${m}${'─'.repeat(CS.is+2)}${r}`;
+  const csRow = (nm: string, pr: string, ac: string, pct: string, hl: string, rk: string, is: string) =>
+    `  │ ${rp(nm, CS.nm)} │ ${lp(pr, CS.pr)} │ ${lp(ac, CS.ac)} │ ${lp(pct, CS.pct)} │ ${rp(hl, CS.hl)} │ ${lp(rk, CS.rk)} │ ${lp(is, CS.is)} │`;
+
+  // Milestone table — column widths
+  const ML = { dt: 11, ms: 32, pj: 22, pc: 5 } as const;
+  const mlHL = (l: string, m: string, r: string) =>
+    `  ${l}${'─'.repeat(ML.dt+2)}${m}${'─'.repeat(ML.ms+2)}${m}${'─'.repeat(ML.pj+2)}${m}${'─'.repeat(ML.pc+2)}${r}`;
+  const mlRow = (dt: string, ms: string, pj: string, pc: string) =>
+    `  │ ${rp(dt, ML.dt)} │ ${rp(ms, ML.ms)} │ ${rp(pj, ML.pj)} │ ${lp(pc, ML.pc)} │`;
 
   const lines: string[] = [];
-
-  const divider = '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━';
-  const box1 =   '╔══════════════════════════════════════════════════════════════════╗';
-  const box2 =   '╚══════════════════════════════════════════════════════════════════╝';
+  const D = '  ' + '━'.repeat(94);
+  const box1 = '  ╔' + '═'.repeat(92) + '╗';
+  const box2 = '  ╚' + '═'.repeat(92) + '╝';
+  const boxL = (s: string) => { const p = 92 - s.length; return `  ║${' '.repeat(Math.floor(p/2))}${s}${' '.repeat(p - Math.floor(p/2))}║`; };
 
   if (isVN) {
+    // ── Header ───────────────────────────────────────────────────────────────
     lines.push(box1);
-    lines.push('║      BÁO CÁO TÌNH TRẠNG PORTFOLIO — CHARTERTECH GLOBAL          ║');
-    lines.push('║               Program Management Office (PMO)                   ║');
+    lines.push(boxL('BÁO CÁO TÌNH TRẠNG PORTFOLIO — CHARTERTECH GLOBAL'));
+    lines.push(boxL('Program Management Office (PMO)'));
     lines.push(box2);
-    lines.push(`  Ngày báo cáo  : ${today}`);
-    lines.push(`  Mã tham chiếu : PMO-${yyyymm}-001`);
-    lines.push(`  Phân loại     : Bảo mật — Chỉ dành cho nội bộ`);
-    lines.push(`  Phân phối     : CEO, Steering Committee, Portfolio Manager`);
     lines.push('');
-    lines.push(divider);
-    lines.push('  I. TÓM TẮT ĐIỀU HÀNH');
-    lines.push(divider);
-    lines.push('');
-    lines.push(`  Trạng thái tổng thể: ● ${portfolioStatusVN}`);
+    lines.push(`  Ngày báo cáo   : ${today}              Mã tham chiếu : PMO-${yyyymm}-001`);
+    lines.push(`  Kỳ báo cáo    : ${periodStart} → ${periodEnd}`);
+    lines.push(`  Phân loại      : Bảo mật — Chỉ dành cho nội bộ`);
+    lines.push(`  Phân phối      : CEO, Steering Committee, Portfolio Manager`);
     lines.push('');
 
-    const summaryStatus = red.length > 0
+    // ── I. Executive Summary ─────────────────────────────────────────────────
+    lines.push(D);
+    lines.push('  I.  TÓM TẮT ĐIỀU HÀNH');
+    lines.push(D);
+    lines.push('');
+    lines.push(`  Trạng thái tổng thể portfolio: ● ${portfolioStatus}`);
+    lines.push('');
+    const summaryVN = red.length > 0
       ? `Portfolio hiện có ${red.length} dự án ở mức ĐỎ cần xử lý khẩn cấp.`
-      : amber.length > 0 ? `Portfolio ở mức VÀNG với ${amber.length} dự án cần theo dõi.`
-        : 'Portfolio đang ở trạng thái tốt — tất cả dự án đều xanh.';
-    lines.push(`  ${summaryStatus} Tổng cộng ${data.kpi.totalProjects} dự án trên ${data.kpi.totalCustomers} khách hàng,`);
-    lines.push(`  tiến độ trung bình ${data.kpi.avgCompletion}%. Phân bố: ${red.length} ĐỎ, ${amber.length} VÀNG, ${green.length} XANH.`);
-    if (overdue.length > 0) lines.push(`  CẢNH BÁO: ${overdue.length} dự án đã quá hạn — cần hành động ngay.`);
-    if (data.kpi.totalOpenRisks === 0 && data.kpi.totalOpenIssues === 0) lines.push(`  Tốt: Hiện không có rủi ro hoặc vấn đề nào mở.`);
+      : amber.length > 0 ? `Portfolio ở mức VÀNG với ${amber.length} dự án cần theo dõi sát sao.`
+        : 'Portfolio đang ở trạng thái tốt — toàn bộ dự án đều xanh.';
+    lines.push(`  ${summaryVN} Tổng cộng ${data.kpi.totalProjects} dự án trên ${data.kpi.totalCustomers} khách hàng,`);
+    lines.push(`  tiến độ trung bình ${data.kpi.avgCompletion}% (tính theo trọng số trạng thái).`);
+    lines.push(`  Phân bố sức khỏe: ${green.length} XANH  ·  ${amber.length} VÀNG  ·  ${red.length} ĐỎ.`);
+    if (overdue.length > 0) lines.push(`\n  [!] CẢNH BÁO: ${overdue.length} dự án đã vượt hạn chót — cần hành động ngay lập tức.`);
+    if (data.kpi.totalOpenRisks === 0 && data.kpi.totalOpenIssues === 0) lines.push('  [+] Tích cực: Hiện không có rủi ro hoặc vấn đề nào đang mở ở cấp portfolio.');
     lines.push('');
     lines.push('  CHỈ SỐ CHÍNH:');
-    lines.push(`  ├── Dự án đang hoạt động : ${data.kpi.activeProjects} / ${data.kpi.totalProjects} tổng cộng`);
-    lines.push(`  ├── Khách hàng           : ${data.kpi.totalCustomers}`);
-    lines.push(`  ├── Tiến độ trung bình   : ${data.kpi.avgCompletion}%`);
-    lines.push(`  ├── Rủi ro mở            : ${data.kpi.totalOpenRisks}`);
-    lines.push(`  ├── Vấn đề mở            : ${data.kpi.totalOpenIssues}`);
-    lines.push(`  └── Dự án quá hạn        : ${overdue.length}`);
+    lines.push(`  ${'─'.repeat(50)}`);
+    lines.push(`  Dự án tổng cộng        : ${data.kpi.totalProjects}      Đang hoạt động   : ${data.kpi.activeProjects}`);
+    lines.push(`  Tiến độ TB (trọng số)  : ${data.kpi.avgCompletion}%    Khách hàng        : ${data.kpi.totalCustomers}`);
+    lines.push(`  Rủi ro đang mở         : ${data.kpi.totalOpenRisks}      Vấn đề đang mở   : ${data.kpi.totalOpenIssues}`);
+    lines.push(`  Dự án quá hạn          : ${overdue.length}`);
+    lines.push(`  ${'─'.repeat(50)}`);
     lines.push('');
 
-    lines.push(divider);
+    // ── II. Portfolio Health Matrix ──────────────────────────────────────────
+    lines.push(D);
     lines.push('  II. MA TRẬN SỨC KHỎE PORTFOLIO');
-    lines.push(divider);
+    lines.push(D);
     lines.push('');
-    lines.push(`  #   Trạng thái    ${'Tên dự án'.padEnd(31)} ${'Khách hàng'.padEnd(16)} ${'Phase'.padEnd(11)} ${'%'.padEnd(4)} Deadline`);
-    lines.push(`  ─── ─────────────${'─'.repeat(32)} ${'─'.repeat(16)} ${'─'.repeat(11)} ${'─'.repeat(4)} ──────────`);
-    const sorted = [...allProjects].sort((a, b) => {
-      const o: Record<string, number> = { red: 0, amber: 1, green: 2 };
-      return o[a.rag] - o[b.rag];
-    });
+    lines.push(tHL('┌', '┬', '┐'));
+    lines.push(tRow('#', 'TRẠNG THÁI', 'TÊN DỰ ÁN', 'KHÁCH HÀNG', 'PHASE', '%', 'DEADLINE'));
+    lines.push(tHL('├', '┼', '┤'));
     sorted.forEach((p, i) => {
-      const ragLabel = p.rag === 'red' ? '🔴 ĐỎ     ' : p.rag === 'amber' ? '🟡 VÀNG   ' : '🟢 XANH   ';
+      const stLabel = p.rag === 'red' ? '● ĐỎ' : p.rag === 'amber' ? '● VÀNG' : '● XANH';
       const dl = p.days_until_deadline;
       const dlStr = dl === null ? '—' : dl < 0 ? `QUÁ HẠN ${Math.abs(dl)}d` : `${dl}d còn`;
-      lines.push(`  ${String(i + 1).padStart(3)}  ${ragLabel} ${pad(p.name, 31)} ${pad(p.customer_name || '—', 16)} ${pad(p.current_phase, 11)} ${String(p.completion_pct).padStart(3)}% ${dlStr}`);
-      if (p.total_activities > 0) {
-        lines.push(`         ✓${p.done_activities} ⟳${p.in_progress_activities} ○${p.not_started_activities} / ${p.total_activities} US`);
-      }
-      if (p.epicStats && p.epicStats.length > 0) {
-        p.epicStats.forEach(e => {
-          const bar = '█'.repeat(Math.round(e.pct / 10)) + '░'.repeat(10 - Math.round(e.pct / 10));
-          lines.push(`         ${pad(e.phase, 20)} [${bar}] ${e.pct}% (${e.done}/${e.total})`);
-        });
-      }
+      lines.push(tRow(String(i + 1), stLabel, p.name, p.customer_name || '—', p.current_phase, String(p.completion_pct) + '%', dlStr));
     });
+    lines.push(tHL('└', '┴', '┘'));
     lines.push('');
-    lines.push(`  Portfolio: ${green.length} 🟢 XANH  │  ${amber.length} 🟡 VÀNG  │  ${red.length} 🔴 ĐỎ`);
+    lines.push(`  Tổng kết:  ${green.length} XANH   ·   ${amber.length} VÀNG   ·   ${red.length} ĐỎ`);
     lines.push('');
 
-    lines.push(divider);
+    // Per-project US progress details
+    if (allProjects.some(p => p.total_activities > 0)) {
+      lines.push('  CHI TIẾT TIẾN ĐỘ USER STORY / ACTIVITY:');
+      lines.push(`  ${'─'.repeat(80)}`);
+      sorted.forEach((p, i) => {
+        if (p.total_activities === 0) return;
+        lines.push(`  ${String(i+1).padStart(2)}. ${p.name}${p.customer_name ? ` (${p.customer_name})` : ''} — ${p.current_phase}`);
+        lines.push(`      Tiến độ (TT): ${String(p.completion_pct).padStart(3)}%   |   Hoàn thành: ${p.done_activities}   Đang thực hiện: ${p.in_progress_activities}   Chưa bắt đầu: ${p.not_started_activities}   Tổng: ${p.total_activities} US`);
+        if (p.epicStats && p.epicStats.length > 0) {
+          p.epicStats.forEach(e => {
+            const bar = '█'.repeat(Math.round(e.pct / 10)) + '░'.repeat(10 - Math.round(e.pct / 10));
+            lines.push(`      ▸ ${rp(e.phase, 20)}  [${bar}]  ${String(e.pct).padStart(3)}%  (${String(e.done).padStart(2)}/${String(e.total).padStart(2)} US done)`);
+          });
+        }
+        if (i < sorted.length - 1) lines.push('');
+      });
+      lines.push('');
+    }
+
+    // ── III. Completed in Period ──────────────────────────────────────────────
+    lines.push(D);
     lines.push('  III. TIẾN ĐỘ THEO KỲ — HOÀN THÀNH TRONG GIAI ĐOẠN');
-    lines.push(divider);
+    lines.push(D);
     lines.push(`  Kỳ báo cáo: ${periodStart} → ${periodEnd}`);
     lines.push('');
     const completedGroups = Object.values(data.completedByProject);
     if (completedGroups.length === 0) {
       lines.push('  Không có hoạt động nào hoàn thành trong giai đoạn này trên toàn portfolio.');
     } else {
-      completedGroups.forEach(g => {
-        lines.push(`  ▶ ${g.project_name}${g.customer_name ? ` (${g.customer_name})` : ''} — ${g.current_phase}:`);
+      completedGroups.forEach((g, i) => {
+        lines.push(`  ${String(i+1).padStart(2)}. ${g.project_name}${g.customer_name ? ` (${g.customer_name})` : ''} — ${g.current_phase}`);
         g.activities.forEach(a => {
-          lines.push(`    ✓ ${a.activity}${a.deliverable ? ` → ${a.deliverable}` : ''}${a.actual_end ? ` [${a.actual_end}]` : ''}`);
+          lines.push(`      [+]  ${a.activity}${a.deliverable ? `  →  ${a.deliverable}` : ''}${a.actual_end ? `  [${a.actual_end}]` : ''}`);
         });
-        lines.push('');
+        if (i < completedGroups.length - 1) lines.push('');
       });
     }
     lines.push('');
 
-    lines.push(divider);
+    // ── IV. Risks & Issues ───────────────────────────────────────────────────
+    lines.push(D);
     lines.push('  IV. RỦI RO & VẤN ĐỀ NGHIÊM TRỌNG');
-    lines.push(divider);
+    lines.push(D);
     lines.push('');
-    lines.push('  RỦI RO MỞ:');
+    lines.push('  A. RỦI RO ĐANG MỞ:');
     if (data.topRisks.length === 0) {
-      lines.push('  Không có rủi ro mở ở cấp portfolio.');
+      lines.push('     Không có rủi ro mở ở cấp portfolio.');
     } else {
-      data.topRisks.slice(0, 6).forEach(r => {
-        lines.push(`  ┌─ [${r.priority}] ${r.description}`);
-        lines.push(`  │   Dự án     : ${r.project_name} (${r.customer_name || 'N/A'})`);
-        lines.push(`  │   Danh mục  : ${r.category || '—'}`);
-        lines.push(`  │   Giảm thiểu: ${r.mitigation || 'Đang đánh giá'}`);
-        lines.push(`  │`);
+      data.topRisks.slice(0, 6).forEach((r, i) => {
+        lines.push(`     ${String(i+1).padStart(2)}.  [${r.priority.toUpperCase()}]  ${r.description}`);
+        lines.push(`          Dự án     : ${r.project_name}${r.customer_name ? ` (${r.customer_name})` : ''}`);
+        lines.push(`          Danh mục  : ${r.category || '—'}`);
+        lines.push(`          Giảm thiểu: ${r.mitigation || 'Đang đánh giá'}`);
+        if (i < Math.min(data.topRisks.length, 6) - 1) lines.push('');
       });
     }
     lines.push('');
-    lines.push('  VẤN ĐỀ MỞ:');
+    lines.push('  B. VẤN ĐỀ ĐANG MỞ:');
     if (data.topIssues.length === 0) {
-      lines.push('  Không có vấn đề mở ở cấp portfolio.');
+      lines.push('     Không có vấn đề mở ở cấp portfolio.');
     } else {
-      data.topIssues.slice(0, 6).forEach(i => {
-        lines.push(`  ┌─ [${i.priority}] ${i.description}`);
-        lines.push(`  │   Dự án     : ${i.project_name} (${i.customer_name || 'N/A'})`);
-        lines.push(`  │   Xử lý     : ${i.mitigation || 'Đang điều tra'}`);
-        lines.push(`  │`);
+      data.topIssues.slice(0, 6).forEach((r, i) => {
+        lines.push(`     ${String(i+1).padStart(2)}.  [${r.priority.toUpperCase()}]  ${r.description}`);
+        lines.push(`          Dự án  : ${r.project_name}${r.customer_name ? ` (${r.customer_name})` : ''}`);
+        lines.push(`          Xử lý  : ${r.mitigation || 'Đang điều tra'}`);
+        if (i < Math.min(data.topIssues.length, 6) - 1) lines.push('');
       });
     }
     lines.push('');
 
-    lines.push(divider);
-    lines.push('  V. MILESTONE SẮP TỚI — 30 NGÀY');
-    lines.push(divider);
+    // ── V. Upcoming Milestones ───────────────────────────────────────────────
+    lines.push(D);
+    lines.push('  V.  MILESTONE SẮP TỚI — 30 NGÀY TỚI');
+    lines.push(D);
     lines.push('');
     if (data.upcomingMilestones.length === 0) {
       lines.push('  Không có milestone quan trọng nào trong 30 ngày tới.');
     } else {
-      lines.push(`  ${'Ngày'.padEnd(12)} ${'Hoạt động'.padEnd(38)} ${'Dự án'.padEnd(26)} ${'%'.padEnd(4)}`);
-      lines.push(`  ${'─'.repeat(12)} ${'─'.repeat(38)} ${'─'.repeat(26)} ${'─'.repeat(4)}`);
+      lines.push(mlHL('┌', '┬', '┐'));
+      lines.push(mlRow('NGÀY', 'HOẠT ĐỘNG / DELIVERABLE', 'DỰ ÁN', '%'));
+      lines.push(mlHL('├', '┼', '┤'));
       data.upcomingMilestones.forEach(m => {
-        const label = m.deliverable ? `${m.activity} → ${m.deliverable}` : m.activity;
-        lines.push(`  ${pad(m.plan_end || '—', 12)} ${pad(label, 38)} ${pad(m.project_name, 26)} ${String(m.completion_pct ?? 0).padStart(3)}%`);
+        const label = m.deliverable ? `${m.activity} / ${m.deliverable}` : m.activity;
+        lines.push(mlRow(m.plan_end || '—', label, m.project_name, String(m.completion_pct ?? 0) + '%'));
       });
+      lines.push(mlHL('└', '┴', '┘'));
     }
     lines.push('');
 
-    lines.push(divider);
+    // ── VI. Customer Scorecard ───────────────────────────────────────────────
+    lines.push(D);
     lines.push('  VI. BẢNG ĐIỂM KHÁCH HÀNG');
-    lines.push(divider);
+    lines.push(D);
     lines.push('');
-    lines.push(`  ${'Khách hàng'.padEnd(23)} │ ${'DA'.padEnd(8)} │ ${'Active'.padEnd(6)} │ ${'TB%'.padEnd(6)} │ ${'Sức khỏe'.padEnd(8)} │ ${'Rủi ro'.padEnd(5)} │ Vấn đề`);
-    lines.push(`  ${'─'.repeat(23)} ┼ ${'─'.repeat(8)} ┼ ${'─'.repeat(6)} ┼ ${'─'.repeat(6)} ┼ ${'─'.repeat(8)} ┼ ${'─'.repeat(5)} ┼ ${'─'.repeat(6)}`);
+    lines.push(csHL('┌', '┬', '┐'));
+    lines.push(csRow('KHÁCH HÀNG', 'DA', 'ACTIVE', 'TB %', 'SỨC KHỎE', 'RỦI RO', 'VẤN ĐỀ'));
+    lines.push(csHL('├', '┼', '┤'));
     data.customers.forEach(c => {
       if (c.projects.length === 0) return;
       const avgPct = Math.round(c.projects.reduce((s, p) => s + p.completion_pct, 0) / c.projects.length);
       const activeCount = c.projects.filter(p => p.current_phase !== 'Closing').length;
-      const worstRag = c.projects.some(p => p.rag === 'red') ? '🔴 ĐỎ' : c.projects.some(p => p.rag === 'amber') ? '🟡 VÀNG' : '🟢 XANH';
+      const worstRag = c.projects.some(p => p.rag === 'red') ? '● ĐỎ' : c.projects.some(p => p.rag === 'amber') ? '● VÀNG' : '● XANH';
       const risks = c.projects.reduce((s, p) => s + p.open_risks, 0);
       const issues = c.projects.reduce((s, p) => s + p.open_issues, 0);
-      lines.push(`  ${pad(c.name, 23)} │ ${String(c.projects.length).padEnd(8)} │ ${String(activeCount).padEnd(6)} │ ${String(avgPct).padStart(4)}%  │ ${pad(worstRag, 8)} │ ${String(risks).padStart(5)} │ ${String(issues).padStart(6)}`);
+      lines.push(csRow(c.name, String(c.projects.length), String(activeCount), String(avgPct) + '%', worstRag, String(risks), String(issues)));
     });
+    lines.push(csHL('└', '┴', '┘'));
     if (data.noCustomerProjects.length > 0) {
-      lines.push('');
-      lines.push(`  ${data.noCustomerProjects.length} dự án chưa gán khách hàng`);
+      lines.push(`\n  Lưu ý: ${data.noCustomerProjects.length} dự án chưa được gán cho khách hàng.`);
     }
     lines.push('');
 
-    lines.push(divider);
+    // ── VII. Actions Required ────────────────────────────────────────────────
+    lines.push(D);
     lines.push('  VII. HÀNH ĐỘNG CẦN THIẾT — Steering Committee / CEO');
-    lines.push(divider);
+    lines.push(D);
     lines.push('');
-    const criticalRisks = data.topRisks.filter(r => r.priority === 'Critical');
-    const actions: string[] = [];
+    const criticalRisksVN = data.topRisks.filter(r => r.priority === 'Critical');
+    let actionIdxVN = 0;
+    const actionsVN: string[] = [];
     red.forEach(p => {
+      actionIdxVN++;
       const dl = p.days_until_deadline;
-      const dlDesc = dl !== null && dl < 0 ? `QUÁ HẠN ${Math.abs(dl)}d` : 'Đang gặp rủi ro';
-      actions.push(`  • CẦN LEO THANG — ${p.name} (${p.customer_name || 'N/A'}) ${dlDesc}. Đề xuất: xem xét tại steering, bổ sung nguồn lực. Ưu tiên: KHẨN CẤP`);
+      const dlDesc = dl !== null && dl < 0 ? `quá hạn ${Math.abs(dl)} ngày` : 'đang gặp rủi ro nghiêm trọng';
+      actionsVN.push(`  ${actionIdxVN}. [KHẨN CẤP — LEO THANG]  ${p.name} (${p.customer_name || 'N/A'}) đang ${dlDesc}.`);
+      actionsVN.push(`     → Đề xuất: Đưa vào chương trình nghị sự Steering Committee gần nhất, xem xét bổ sung nguồn lực hoặc điều chỉnh phạm vi.`);
     });
-    criticalRisks.forEach(r => {
-      actions.push(`  • CẦN QUYẾT ĐỊNH — ${r.description} tại ${r.project_name}. Đề xuất: ${r.mitigation || 'Đánh giá và hành động ngay'}. Ưu tiên: KHẨN CẤP`);
+    criticalRisksVN.forEach(r => {
+      actionIdxVN++;
+      actionsVN.push(`  ${actionIdxVN}. [KHẨN CẤP — QUYẾT ĐỊNH]  ${r.description} tại dự án ${r.project_name}.`);
+      actionsVN.push(`     → Đề xuất: ${r.mitigation || 'Đánh giá và ban hành quyết định xử lý ngay lập tức'}.`);
     });
-    if (actions.length === 0) {
+    if (actionsVN.length === 0) {
       lines.push('  Không có leo thang nào cần CEO xử lý ngay. Portfolio đang trong tầm kiểm soát.');
     } else {
-      actions.forEach(a => lines.push(a));
+      actionsVN.forEach(a => lines.push(a));
     }
     lines.push('');
-    lines.push(divider);
-    lines.push(`  ${companyName}  │  Program Management Office`);
-    lines.push('  Bảo mật — Chỉ dành cho nội bộ');
-    lines.push(divider);
+    lines.push(D);
+    lines.push(`  ${companyName}   ·   Program Management Office   ·   Tài liệu bảo mật — Nội bộ`);
+    lines.push(D);
+
   } else {
+    // ── Header ───────────────────────────────────────────────────────────────
     lines.push(box1);
-    lines.push('║      PORTFOLIO STATUS REPORT — CHARTERTECH GLOBAL              ║');
-    lines.push('║               Program Management Office (PMO)                  ║');
+    lines.push(boxL('PORTFOLIO STATUS REPORT — CHARTERTECH GLOBAL'));
+    lines.push(boxL('Program Management Office (PMO)'));
     lines.push(box2);
-    lines.push(`  Report Date    : ${today}`);
-    lines.push(`  Report Ref     : PMO-${yyyymm}-001`);
+    lines.push('');
+    lines.push(`  Report Date    : ${today}              Reference : PMO-${yyyymm}-001`);
+    lines.push(`  Reporting Period: ${periodStart} → ${periodEnd}`);
     lines.push(`  Classification : Confidential — Internal Distribution Only`);
     lines.push(`  Distribution   : CEO, Steering Committee, Portfolio Manager`);
     lines.push('');
-    lines.push(divider);
-    lines.push('  I. EXECUTIVE SUMMARY');
-    lines.push(divider);
+
+    // ── I. Executive Summary ─────────────────────────────────────────────────
+    lines.push(D);
+    lines.push('  I.  EXECUTIVE SUMMARY');
+    lines.push(D);
     lines.push('');
     lines.push(`  Overall Portfolio Status: ● ${portfolioStatus}`);
     lines.push('');
-
-    const summaryStatus = red.length > 0
+    const summaryEN = red.length > 0
       ? `Portfolio is at RED status with ${red.length} project(s) requiring immediate attention.`
       : amber.length > 0 ? `Portfolio is at AMBER status with ${amber.length} project(s) under close monitoring.`
         : 'Portfolio is in good health — all projects are tracking GREEN.';
-    lines.push(`  ${summaryStatus} A total of ${data.kpi.totalProjects} projects are active across ${data.kpi.totalCustomers} customer`);
-    lines.push(`  accounts, with an average completion rate of ${data.kpi.avgCompletion}%. Status distribution: ${red.length} RED, ${amber.length} AMBER, ${green.length} GREEN.`);
-    if (overdue.length > 0) lines.push(`  ALERT: ${overdue.length} project(s) are past their deadline — immediate action required.`);
-    if (data.kpi.totalOpenRisks === 0 && data.kpi.totalOpenIssues === 0) lines.push(`  Positive: No open risks or issues recorded at the portfolio level.`);
+    lines.push(`  ${summaryEN} A total of ${data.kpi.totalProjects} projects are active across`);
+    lines.push(`  ${data.kpi.totalCustomers} customer accounts, with an average completion rate of ${data.kpi.avgCompletion}% (weighted by status).`);
+    lines.push(`  Status distribution: ${green.length} GREEN  ·  ${amber.length} AMBER  ·  ${red.length} RED.`);
+    if (overdue.length > 0) lines.push(`\n  [!] ALERT: ${overdue.length} project(s) are past their deadline — immediate action required.`);
+    if (data.kpi.totalOpenRisks === 0 && data.kpi.totalOpenIssues === 0) lines.push('  [+] Positive: No open risks or issues recorded at the portfolio level.');
     lines.push('');
     lines.push('  KEY METRICS:');
-    lines.push(`  ├── Active Projects     : ${data.kpi.activeProjects} of ${data.kpi.totalProjects} total`);
-    lines.push(`  ├── Customers Served    : ${data.kpi.totalCustomers}`);
-    lines.push(`  ├── Avg. Completion     : ${data.kpi.avgCompletion}%`);
-    lines.push(`  ├── Open Risks          : ${data.kpi.totalOpenRisks}`);
-    lines.push(`  ├── Open Issues         : ${data.kpi.totalOpenIssues}`);
-    lines.push(`  └── Overdue Projects    : ${overdue.length}`);
+    lines.push(`  ${'─'.repeat(50)}`);
+    lines.push(`  Total Projects          : ${data.kpi.totalProjects}      Active Projects   : ${data.kpi.activeProjects}`);
+    lines.push(`  Avg. Completion (wtd)   : ${data.kpi.avgCompletion}%    Customers Served  : ${data.kpi.totalCustomers}`);
+    lines.push(`  Open Risks              : ${data.kpi.totalOpenRisks}      Open Issues       : ${data.kpi.totalOpenIssues}`);
+    lines.push(`  Overdue Projects        : ${overdue.length}`);
+    lines.push(`  ${'─'.repeat(50)}`);
     lines.push('');
 
-    lines.push(divider);
+    // ── II. Portfolio Health Matrix ──────────────────────────────────────────
+    lines.push(D);
     lines.push('  II. PORTFOLIO HEALTH MATRIX');
-    lines.push(divider);
+    lines.push(D);
     lines.push('');
-    lines.push(`  #   ${'Status'.padEnd(11)} ${'Project Name'.padEnd(31)} ${'Customer'.padEnd(16)} ${'Phase'.padEnd(11)} ${'%'.padEnd(4)} Deadline`);
-    lines.push(`  ─── ${'─'.repeat(11)} ${'─'.repeat(31)} ${'─'.repeat(16)} ${'─'.repeat(11)} ${'─'.repeat(4)} ──────────`);
-    const sorted = [...allProjects].sort((a, b) => {
-      const o: Record<string, number> = { red: 0, amber: 1, green: 2 };
-      return o[a.rag] - o[b.rag];
-    });
+    lines.push(tHL('┌', '┬', '┐'));
+    lines.push(tRow('#', 'STATUS', 'PROJECT NAME', 'CUSTOMER', 'PHASE', 'PCT', 'DEADLINE'));
+    lines.push(tHL('├', '┼', '┤'));
     sorted.forEach((p, i) => {
-      const ragLabel = p.rag === 'red' ? '🔴 RED    ' : p.rag === 'amber' ? '🟡 AMBER  ' : '🟢 GREEN  ';
+      const stLabel = p.rag === 'red' ? '● RED' : p.rag === 'amber' ? '● AMBER' : '● GREEN';
       const dl = p.days_until_deadline;
       const dlStr = dl === null ? '—' : dl < 0 ? `OVERDUE ${Math.abs(dl)}d` : `${dl}d left`;
-      lines.push(`  ${String(i + 1).padStart(3)}  ${ragLabel} ${pad(p.name, 31)} ${pad(p.customer_name || '—', 16)} ${pad(p.current_phase, 11)} ${String(p.completion_pct).padStart(3)}% ${dlStr}`);
-      if (p.total_activities > 0) {
-        lines.push(`         ✓${p.done_activities} ⟳${p.in_progress_activities} ○${p.not_started_activities} / ${p.total_activities} US`);
-      }
-      if (p.epicStats && p.epicStats.length > 0) {
-        p.epicStats.forEach(e => {
-          const bar = '█'.repeat(Math.round(e.pct / 10)) + '░'.repeat(10 - Math.round(e.pct / 10));
-          lines.push(`         ${pad(e.phase, 20)} [${bar}] ${e.pct}% (${e.done}/${e.total})`);
-        });
-      }
+      lines.push(tRow(String(i + 1), stLabel, p.name, p.customer_name || '—', p.current_phase, String(p.completion_pct) + '%', dlStr));
     });
+    lines.push(tHL('└', '┴', '┘'));
     lines.push('');
-    lines.push(`  Portfolio: ${green.length} 🟢 GREEN  │  ${amber.length} 🟡 AMBER  │  ${red.length} 🔴 RED`);
+    lines.push(`  Summary:  ${green.length} GREEN   ·   ${amber.length} AMBER   ·   ${red.length} RED`);
     lines.push('');
 
-    lines.push(divider);
+    // Per-project US progress details
+    if (allProjects.some(p => p.total_activities > 0)) {
+      lines.push('  PROJECT PROGRESS DETAILS:');
+      lines.push(`  ${'─'.repeat(80)}`);
+      sorted.forEach((p, i) => {
+        if (p.total_activities === 0) return;
+        lines.push(`  ${String(i+1).padStart(2)}. ${p.name}${p.customer_name ? ` (${p.customer_name})` : ''} — ${p.current_phase}`);
+        lines.push(`      Progress (weighted): ${String(p.completion_pct).padStart(3)}%   |   Done: ${p.done_activities}   In Progress: ${p.in_progress_activities}   Not Started: ${p.not_started_activities}   Total: ${p.total_activities} US`);
+        if (p.epicStats && p.epicStats.length > 0) {
+          p.epicStats.forEach(e => {
+            const bar = '█'.repeat(Math.round(e.pct / 10)) + '░'.repeat(10 - Math.round(e.pct / 10));
+            lines.push(`      ▸ ${rp(e.phase, 20)}  [${bar}]  ${String(e.pct).padStart(3)}%  (${String(e.done).padStart(2)}/${String(e.total).padStart(2)} US done)`);
+          });
+        }
+        if (i < sorted.length - 1) lines.push('');
+      });
+      lines.push('');
+    }
+
+    // ── III. Completed in Period ──────────────────────────────────────────────
+    lines.push(D);
     lines.push('  III. PROGRESS REPORT — COMPLETED IN PERIOD');
-    lines.push(divider);
+    lines.push(D);
     lines.push(`  Reporting Period: ${periodStart} → ${periodEnd}`);
     lines.push('');
     const completedGroupsEN = Object.values(data.completedByProject);
     if (completedGroupsEN.length === 0) {
       lines.push('  No activities completed in this period across the portfolio.');
     } else {
-      completedGroupsEN.forEach(g => {
-        lines.push(`  ▶ ${g.project_name}${g.customer_name ? ` (${g.customer_name})` : ''} — ${g.current_phase}:`);
+      completedGroupsEN.forEach((g, i) => {
+        lines.push(`  ${String(i+1).padStart(2)}. ${g.project_name}${g.customer_name ? ` (${g.customer_name})` : ''} — ${g.current_phase}`);
         g.activities.forEach(a => {
-          lines.push(`    ✓ ${a.activity}${a.deliverable ? ` → ${a.deliverable}` : ''}${a.actual_end ? ` [${a.actual_end}]` : ''}`);
+          lines.push(`      [+]  ${a.activity}${a.deliverable ? `  →  ${a.deliverable}` : ''}${a.actual_end ? `  [${a.actual_end}]` : ''}`);
         });
-        lines.push('');
+        if (i < completedGroupsEN.length - 1) lines.push('');
       });
     }
     lines.push('');
 
-    lines.push(divider);
+    // ── IV. Critical Risks & Issues ──────────────────────────────────────────
+    lines.push(D);
     lines.push('  IV. CRITICAL RISKS & ISSUES');
-    lines.push(divider);
+    lines.push(D);
     lines.push('');
-    lines.push('  OPEN RISKS:');
+    lines.push('  A. OPEN RISKS:');
     if (data.topRisks.length === 0) {
-      lines.push('  No open risks at portfolio level.');
+      lines.push('     No open risks at portfolio level.');
     } else {
-      data.topRisks.slice(0, 6).forEach(r => {
-        lines.push(`  ┌─ [${r.priority}] ${r.description}`);
-        lines.push(`  │   Project   : ${r.project_name} (${r.customer_name || 'N/A'})`);
-        lines.push(`  │   Category  : ${r.category || '—'}`);
-        lines.push(`  │   Mitigation: ${r.mitigation || 'Under assessment'}`);
-        lines.push(`  │`);
+      data.topRisks.slice(0, 6).forEach((r, i) => {
+        lines.push(`     ${String(i+1).padStart(2)}.  [${r.priority.toUpperCase()}]  ${r.description}`);
+        lines.push(`          Project    : ${r.project_name}${r.customer_name ? ` (${r.customer_name})` : ''}`);
+        lines.push(`          Category   : ${r.category || '—'}`);
+        lines.push(`          Mitigation : ${r.mitigation || 'Under assessment'}`);
+        if (i < Math.min(data.topRisks.length, 6) - 1) lines.push('');
       });
     }
     lines.push('');
-    lines.push('  OPEN ISSUES:');
+    lines.push('  B. OPEN ISSUES:');
     if (data.topIssues.length === 0) {
-      lines.push('  No open issues at portfolio level.');
+      lines.push('     No open issues at portfolio level.');
     } else {
-      data.topIssues.slice(0, 6).forEach(i => {
-        lines.push(`  ┌─ [${i.priority}] ${i.description}`);
-        lines.push(`  │   Project   : ${i.project_name} (${i.customer_name || 'N/A'})`);
-        lines.push(`  │   Resolution: ${i.mitigation || 'Under investigation'}`);
-        lines.push(`  │`);
+      data.topIssues.slice(0, 6).forEach((r, i) => {
+        lines.push(`     ${String(i+1).padStart(2)}.  [${r.priority.toUpperCase()}]  ${r.description}`);
+        lines.push(`          Project    : ${r.project_name}${r.customer_name ? ` (${r.customer_name})` : ''}`);
+        lines.push(`          Resolution : ${r.mitigation || 'Under investigation'}`);
+        if (i < Math.min(data.topIssues.length, 6) - 1) lines.push('');
       });
     }
     lines.push('');
 
-    lines.push(divider);
-    lines.push('  V. UPCOMING MILESTONES — Next 30 Days');
-    lines.push(divider);
+    // ── V. Upcoming Milestones ───────────────────────────────────────────────
+    lines.push(D);
+    lines.push('  V.  UPCOMING MILESTONES — Next 30 Days');
+    lines.push(D);
     lines.push('');
     if (data.upcomingMilestones.length === 0) {
       lines.push('  No significant milestones in the next 30 days.');
     } else {
-      lines.push(`  ${'DATE'.padEnd(12)} ${'MILESTONE'.padEnd(38)} ${'PROJECT'.padEnd(26)} ${'PCT'.padEnd(4)}`);
-      lines.push(`  ${'─'.repeat(12)} ${'─'.repeat(38)} ${'─'.repeat(26)} ${'─'.repeat(4)}`);
+      lines.push(mlHL('┌', '┬', '┐'));
+      lines.push(mlRow('DATE', 'MILESTONE / DELIVERABLE', 'PROJECT', 'PCT'));
+      lines.push(mlHL('├', '┼', '┤'));
       data.upcomingMilestones.forEach(m => {
-        const label = m.deliverable ? `${m.activity} → ${m.deliverable}` : m.activity;
-        lines.push(`  ${pad(m.plan_end || '—', 12)} ${pad(label, 38)} ${pad(m.project_name, 26)} ${String(m.completion_pct ?? 0).padStart(3)}%`);
+        const label = m.deliverable ? `${m.activity} / ${m.deliverable}` : m.activity;
+        lines.push(mlRow(m.plan_end || '—', label, m.project_name, String(m.completion_pct ?? 0) + '%'));
       });
+      lines.push(mlHL('└', '┴', '┘'));
     }
     lines.push('');
 
-    lines.push(divider);
+    // ── VI. Customer Scorecard ───────────────────────────────────────────────
+    lines.push(D);
     lines.push('  VI. CUSTOMER PORTFOLIO SCORECARD');
-    lines.push(divider);
+    lines.push(D);
     lines.push('');
-    lines.push(`  ${'Customer'.padEnd(23)} │ ${'Projects'.padEnd(8)} │ ${'Active'.padEnd(6)} │ ${'Avg%'.padEnd(6)} │ ${'Health'.padEnd(8)} │ ${'Risks'.padEnd(5)} │ Issues`);
-    lines.push(`  ${'─'.repeat(23)} ┼ ${'─'.repeat(8)} ┼ ${'─'.repeat(6)} ┼ ${'─'.repeat(6)} ┼ ${'─'.repeat(8)} ┼ ${'─'.repeat(5)} ┼ ${'─'.repeat(6)}`);
+    lines.push(csHL('┌', '┬', '┐'));
+    lines.push(csRow('CUSTOMER', 'PROJ', 'ACTIVE', 'AVG %', 'HEALTH', 'RISKS', 'ISSUES'));
+    lines.push(csHL('├', '┼', '┤'));
     data.customers.forEach(c => {
       if (c.projects.length === 0) return;
       const avgPct = Math.round(c.projects.reduce((s, p) => s + p.completion_pct, 0) / c.projects.length);
       const activeCount = c.projects.filter(p => p.current_phase !== 'Closing').length;
-      const worstRag = c.projects.some(p => p.rag === 'red') ? '🔴 RED' : c.projects.some(p => p.rag === 'amber') ? '🟡 AMBER' : '🟢 GREEN';
+      const worstRag = c.projects.some(p => p.rag === 'red') ? '● RED' : c.projects.some(p => p.rag === 'amber') ? '● AMBER' : '● GREEN';
       const risks = c.projects.reduce((s, p) => s + p.open_risks, 0);
       const issues = c.projects.reduce((s, p) => s + p.open_issues, 0);
-      lines.push(`  ${pad(c.name, 23)} │ ${String(c.projects.length).padEnd(8)} │ ${String(activeCount).padEnd(6)} │ ${String(avgPct).padStart(4)}%  │ ${pad(worstRag, 8)} │ ${String(risks).padStart(5)} │ ${String(issues).padStart(6)}`);
+      lines.push(csRow(c.name, String(c.projects.length), String(activeCount), String(avgPct) + '%', worstRag, String(risks), String(issues)));
     });
+    lines.push(csHL('└', '┴', '┘'));
     if (data.noCustomerProjects.length > 0) {
-      lines.push('');
-      lines.push(`  ${data.noCustomerProjects.length} project(s) not assigned to any customer`);
+      lines.push(`\n  Note: ${data.noCustomerProjects.length} project(s) not assigned to any customer.`);
     }
     lines.push('');
 
-    lines.push(divider);
+    // ── VII. Actions Required ────────────────────────────────────────────────
+    lines.push(D);
     lines.push('  VII. ACTIONS REQUIRED — Steering Committee / CEO');
-    lines.push(divider);
+    lines.push(D);
     lines.push('');
-    const criticalRisks = data.topRisks.filter(r => r.priority === 'Critical');
-    const actions: string[] = [];
+    const criticalRisksEN = data.topRisks.filter(r => r.priority === 'Critical');
+    let actionIdxEN = 0;
+    const actionsEN: string[] = [];
     red.forEach(p => {
+      actionIdxEN++;
       const dl = p.days_until_deadline;
-      const dlDesc = dl !== null && dl < 0 ? `OVERDUE ${Math.abs(dl)}d` : 'At Risk';
-      actions.push(`  • ESCALATION REQUIRED — ${p.name} (${p.customer_name || 'N/A'}) is ${dlDesc}. Recommend: steering committee review and resource injection. Priority: URGENT`);
+      const dlDesc = dl !== null && dl < 0 ? `OVERDUE ${Math.abs(dl)} days` : 'at critical risk';
+      actionsEN.push(`  ${actionIdxEN}. [URGENT — ESCALATION]  ${p.name} (${p.customer_name || 'N/A'}) is ${dlDesc}.`);
+      actionsEN.push(`     → Recommend: Steering Committee review at next session. Assess resource injection or scope revision.`);
     });
-    criticalRisks.forEach(r => {
-      actions.push(`  • DECISION NEEDED — ${r.description} in ${r.project_name}. Recommend: ${r.mitigation || 'Immediate assessment and action'}. Priority: URGENT`);
+    criticalRisksEN.forEach(r => {
+      actionIdxEN++;
+      actionsEN.push(`  ${actionIdxEN}. [URGENT — DECISION]  ${r.description} in project ${r.project_name}.`);
+      actionsEN.push(`     → Recommend: ${r.mitigation || 'Immediate assessment and corrective action required'}.`);
     });
-    if (actions.length === 0) {
+    if (actionsEN.length === 0) {
       lines.push('  No immediate CEO escalations required at this time. Portfolio is under control.');
     } else {
-      actions.forEach(a => lines.push(a));
+      actionsEN.forEach(a => lines.push(a));
     }
     lines.push('');
-    lines.push(divider);
-    lines.push(`  ${companyName}  │  Program Management Office`);
-    lines.push('  Confidential — For Internal Distribution Only');
-    lines.push(divider);
+    lines.push(D);
+    lines.push(`  ${companyName}   ·   Program Management Office   ·   Confidential — Internal Only`);
+    lines.push(D);
   }
 
   return lines.join('\n');
