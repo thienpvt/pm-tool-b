@@ -23,8 +23,8 @@ type ProjectRow = {
   rag: 'red' | 'amber' | 'green';
   phases: PhaseInfo[];
 };
-type CustomerGroup = { id: number; name: string; industry: string; projects: ProjectRow[] };
-type RoadmapData = { customers: CustomerGroup[]; noCustomerProjects: ProjectRow[] };
+type ProgramGroup = { id: number; name: string; industry: string; projects: ProjectRow[] };
+type RoadmapData = { programs: ProgramGroup[]; noProgramProjects: ProjectRow[] };
 
 // ─── Phase colours (vivid, clearly distinct) ──────────────────────────────────
 type PhaseStyle = { labelBg: string; bg: string; border: string; fill: string; textColor: string };
@@ -108,7 +108,7 @@ export default function PortfolioRoadmap() {
   useEffect(() => {
     fetch('/api/portfolio/roadmap').then(r => r.json()).then((d: RoadmapData) => {
       setData(d);
-      setOpenSet(new Set([...d.customers.map(c => c.id), 0]));
+      setOpenSet(new Set([...d.programs.map((c: ProgramGroup) => c.id), 0]));
       setLoading(false);
     });
   }, []);
@@ -121,7 +121,7 @@ export default function PortfolioRoadmap() {
     let maxY = cur + 2;
 
     if (data) {
-      const all = [...data.customers.flatMap((c: CustomerGroup) => c.projects), ...data.noCustomerProjects];
+      const all = [...data.programs.flatMap((c: ProgramGroup) => c.projects), ...data.noProgramProjects];
       for (const p of all) {
         const toY = (s: string) => new Date(s + 'T00:00:00').getFullYear();
         if (p.start_date) { minY = Math.min(minY, toY(p.start_date) - 1); maxY = Math.max(maxY, toY(p.start_date) + 1); }
@@ -146,15 +146,15 @@ export default function PortfolioRoadmap() {
     return (ms - tl.rStart.getTime()) / tl.totalMs * 100;
   }, [tl]);
 
-  const groups = useMemo((): CustomerGroup[] => {
+  const groups = useMemo((): ProgramGroup[] => {
     if (!data) return [];
     const filter = (ps: ProjectRow[]) => ps.filter(p => projectInYear(p, selectedYear));
     return [
-      ...data.customers
-        .map((c: CustomerGroup) => ({ ...c, projects: filter(c.projects) }))
-        .filter((c: CustomerGroup) => c.projects.length > 0),
+      ...data.programs
+        .map((c: ProgramGroup) => ({ ...c, projects: filter(c.projects) }))
+        .filter((c: ProgramGroup) => c.projects.length > 0),
       ...((() => {
-        const ps = filter(data.noCustomerProjects);
+        const ps = filter(data.noProgramProjects);
         return ps.length ? [{ id: 0, name: 'Unassigned', industry: '', projects: ps }] : [];
       })()),
     ];
@@ -165,7 +165,7 @@ export default function PortfolioRoadmap() {
     setViewMonths([0, 11]);
   }, []);
 
-  const toggleCustomer = useCallback((id: number) => {
+  const toggleProgram = useCallback((id: number) => {
     setOpenSet((prev: Set<number>) => {
       const next = new Set(prev);
       next.has(id) ? next.delete(id) : next.add(id);
@@ -370,7 +370,7 @@ export default function PortfolioRoadmap() {
                 className="shrink-0 bg-slate-50 border-r flex items-end px-4 pb-2 pt-3"
                 style={{ width: LABEL_W, minWidth: LABEL_W, position: 'sticky', left: 0, zIndex: 30 }}
               >
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Customer / Project</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Program / Project</span>
               </div>
               <div className="flex flex-1">
                 {tl.months.map((m: { label: string; quarter: string; start: Date; end: Date }, idx: number) => (
@@ -395,15 +395,15 @@ export default function PortfolioRoadmap() {
               </div>
             )}
 
-            {/* Customer groups */}
-            {groups.map(customer => {
-              const isOpen = openSet.has(customer.id);
+            {/* Program groups */}
+            {groups.map(program => {
+              const isOpen = openSet.has(program.id);
               return (
-                <div key={customer.id} className="border-b last:border-b-0">
+                <div key={program.id} className="border-b last:border-b-0">
 
-                  {/* Customer header */}
+                  {/* Program header */}
                   <button
-                    onClick={() => toggleCustomer(customer.id)}
+                    onClick={() => toggleProgram(program.id)}
                     className="w-full flex items-stretch border-b bg-slate-50/90 hover:bg-slate-100/80 transition-colors text-left"
                   >
                     <div
@@ -414,12 +414,12 @@ export default function PortfolioRoadmap() {
                         ? <ChevronDown  className="h-3.5 w-3.5 text-slate-400 shrink-0" />
                         : <ChevronRight className="h-3.5 w-3.5 text-slate-400 shrink-0" />}
                       <Building2 className="h-3.5 w-3.5 text-slate-500 shrink-0" />
-                      <span className="text-xs font-bold text-slate-700 truncate">{customer.name}</span>
+                      <span className="text-xs font-bold text-slate-700 truncate">{program.name}</span>
                     </div>
                     <div className="flex-1 flex items-center gap-3 px-4 py-2.5 text-xs text-slate-400 flex-wrap">
-                      <span>{customer.projects.length} project{customer.projects.length !== 1 ? 's' : ''}</span>
+                      <span>{program.projects.length} project{program.projects.length !== 1 ? 's' : ''}</span>
                       {PHASES.map(ph => {
-                        const cnt = customer.projects.filter(p => p.current_phase === ph).length;
+                        const cnt = program.projects.filter(p => p.current_phase === ph).length;
                         if (!cnt) return null;
                         return (
                           <span
@@ -435,7 +435,7 @@ export default function PortfolioRoadmap() {
                   </button>
 
                   {/* Project rows */}
-                  {isOpen && customer.projects.map((project, pIdx) => {
+                  {isOpen && program.projects.map((project, pIdx) => {
                     // Determine which phase bars overlap with selected year
                     const barsToShow = project.phases
                       .filter(ph => {

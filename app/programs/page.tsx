@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import Sidebar from '@/components/layout/Sidebar';
@@ -14,7 +14,7 @@ import {
   FolderKanban, ChevronRight, Search,
 } from 'lucide-react';
 
-type Customer = {
+type Program = {
   id: number; name: string; industry: string;
   contact_name: string; contact_email: string; contact_phone: string;
   website: string; notes: string; created_at: string;
@@ -62,26 +62,26 @@ function FieldRow({ label, children }: { label: string; children: React.ReactNod
   );
 }
 
-const EMPTY: Partial<Customer> = {
+const EMPTY: Partial<Program> = {
   name: '', industry: '', contact_name: '', contact_email: '',
   contact_phone: '', website: '', notes: '',
 };
 
-export default function CustomersPage() {
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [editing, setEditing] = useState<Partial<Customer> | null>(null);
+export default function ProgramsPage() {
+  const [programs, setPrograms] = useState<Program[]>([]);
+  const [editing, setEditing] = useState<Partial<Program> | null>(null);
   const [search, setSearch] = useState('');
-  const [deleting, setDeleting] = useState<Customer | null>(null);
+  const [deleting, setDeleting] = useState<Program | null>(null);
 
   const load = useCallback(() => {
-    fetch('/api/customers').then(r => r.json()).then(setCustomers);
+    fetch('/api/programs').then(r => r.json()).then(setPrograms);
   }, []);
   useEffect(() => { load(); }, [load]);
 
   const save = async () => {
     if (!editing?.name?.trim()) { toast.error('Name is required'); return; }
     const isNew = !editing.id;
-    const res = await fetch(isNew ? '/api/customers' : `/api/customers/${editing.id}`, {
+    const res = await fetch(isNew ? '/api/programs' : `/api/programs/${editing.id}`, {
       method: isNew ? 'POST' : 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(editing),
@@ -89,23 +89,23 @@ export default function CustomersPage() {
     if (!res.ok) { toast.error('Failed to save'); return; }
     load();
     setEditing(null);
-    toast.success(isNew ? 'Customer created' : 'Customer updated');
+    toast.success(isNew ? 'Program created' : 'Program updated');
   };
 
-  const del = async (c: Customer) => {
-    await fetch(`/api/customers/${c.id}`, { method: 'DELETE' });
-    setCustomers(cs => cs.filter(x => x.id !== c.id));
+  const del = async (c: Program) => {
+    await fetch(`/api/programs/${c.id}`, { method: 'DELETE' });
+    setPrograms(ps => ps.filter(x => x.id !== c.id));
     setDeleting(null);
-    toast.success('Customer deleted');
+    toast.success('Program deleted');
   };
 
-  const filtered = customers.filter(c =>
+  const filtered = programs.filter(c =>
     c.name.toLowerCase().includes(search.toLowerCase()) ||
     c.industry.toLowerCase().includes(search.toLowerCase()) ||
     c.contact_name.toLowerCase().includes(search.toLowerCase())
   );
 
-  const totalProjects = customers.reduce((s, c) => s + c.project_count, 0);
+  const totalProjects = programs.reduce((s, c) => s + c.project_count, 0);
 
   return (
     <div className="flex flex-col lg:flex-row min-h-screen bg-slate-50">
@@ -116,14 +116,14 @@ export default function CustomersPage() {
           <div className="flex items-start justify-between gap-3 flex-wrap mb-8">
             <div>
               <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-                <Building2 className="h-6 w-6 text-blue-600" /> Customer Management
+                <Building2 className="h-6 w-6 text-blue-600" /> Program Management
               </h1>
               <p className="text-slate-500 text-sm mt-1">
-                {customers.length} customers · {totalProjects} projects total
+                {programs.length} programs · {totalProjects} projects total
               </p>
             </div>
             <Button onClick={() => setEditing({ ...EMPTY })} className="bg-blue-600 hover:bg-blue-700 gap-2">
-              <Plus className="h-4 w-4" /> Add Customer
+              <Plus className="h-4 w-4" /> Add Program
             </Button>
           </div>
 
@@ -143,12 +143,12 @@ export default function CustomersPage() {
             <div className="text-center py-24 rounded-2xl border bg-white">
               <Building2 className="h-12 w-12 mx-auto mb-3 text-slate-200" />
               <p className="text-slate-400 text-sm">
-                {search ? 'No customers match your search.' : 'No customers yet. Add your first customer!'}
+                {search ? 'No programs match your search.' : 'No programs yet. Add your first program!'}
               </p>
             </div>
           )}
 
-          {/* Customer grid */}
+          {/* Program grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
             {filtered.map(c => (
               <div key={c.id} className="bg-white rounded-2xl border hover:shadow-md transition-shadow flex flex-col">
@@ -211,7 +211,7 @@ export default function CustomersPage() {
                     <span className="font-semibold text-blue-600">{c.project_count}</span>
                     <span>{c.project_count === 1 ? 'project' : 'projects'}</span>
                   </div>
-                  <Link href={`/?customer=${c.id}`} className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-0.5">
+                  <Link href={`/?program=${c.id}`} className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-0.5">
                     View projects <ChevronRight className="h-3 w-3" />
                   </Link>
                 </div>
@@ -227,15 +227,15 @@ export default function CustomersPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Building2 className="h-4 w-4 text-blue-500" />
-              {editing?.id ? 'Edit Customer' : 'Add New Customer'}
+              {editing?.id ? 'Edit Program' : 'Add New Program'}
             </DialogTitle>
           </DialogHeader>
           {editing && (
             <div className="space-y-4 py-1">
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
-                  <FieldRow label="Company Name *">
-                    <Input className="h-9" value={editing.name ?? ''} onChange={e => setEditing(x => ({ ...x!, name: e.target.value }))} placeholder="e.g. VPBank" />
+                  <FieldRow label="Program Name *">
+                    <Input className="h-9" value={editing.name ?? ''} onChange={e => setEditing(x => ({ ...x!, name: e.target.value }))} placeholder="e.g. VPBank Digital Transformation" />
                   </FieldRow>
                 </div>
                 <FieldRow label="Industry">
@@ -264,7 +264,7 @@ export default function CustomersPage() {
                 </div>
                 <div className="col-span-2">
                   <FieldRow label="Notes">
-                    <Textarea className="text-sm min-h-[72px]" value={editing.notes ?? ''} onChange={e => setEditing(x => ({ ...x!, notes: e.target.value }))} placeholder="Ghi chú thêm về khách hàng..." />
+                    <Textarea className="text-sm min-h-[72px]" value={editing.notes ?? ''} onChange={e => setEditing(x => ({ ...x!, notes: e.target.value }))} placeholder="Ghi chú thêm về chương trình..." />
                   </FieldRow>
                 </div>
               </div>
@@ -273,7 +273,7 @@ export default function CustomersPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditing(null)}>Hủy</Button>
             <Button className="bg-blue-600 hover:bg-blue-700" onClick={save}>
-              {editing?.id ? 'Cập nhật' : 'Tạo Customer'}
+              {editing?.id ? 'Cập nhật' : 'Tạo Program'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -283,11 +283,11 @@ export default function CustomersPage() {
       <Dialog open={!!deleting} onOpenChange={o => { if (!o) setDeleting(null); }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Xóa customer?</DialogTitle>
+            <DialogTitle>Xóa program?</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-slate-600 py-2">
             Bạn có chắc muốn xóa <span className="font-semibold">{deleting?.name}</span>?
-            Các projects của customer này sẽ không bị xóa nhưng sẽ mất liên kết.
+            Các projects của chương trình này sẽ không bị xóa nhưng sẽ mất liên kết.
           </p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleting(null)}>Hủy</Button>

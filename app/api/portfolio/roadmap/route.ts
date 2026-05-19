@@ -9,14 +9,14 @@ export async function GET(req: NextRequest) {
   const db = await getDb();
 
   const projects = user.is_admin
-    ? await db.all(`SELECT p.*, c.name as customer_name, c.industry as customer_industry
+    ? await db.all(`SELECT p.*, c.name as program_name, c.industry as program_industry
                     FROM projects p LEFT JOIN customers c ON p.customer_id = c.id
                     ORDER BY p.created_at DESC`) as any[]
-    : await db.all(`SELECT p.*, c.name as customer_name, c.industry as customer_industry
+    : await db.all(`SELECT p.*, c.name as program_name, c.industry as program_industry
                     FROM projects p LEFT JOIN customers c ON p.customer_id = c.id
                     WHERE p.company_id = ? ORDER BY p.created_at DESC`, user.company_id) as any[];
 
-  const customers = user.is_admin
+  const programs = user.is_admin
     ? await db.all('SELECT * FROM customers ORDER BY name') as any[]
     : await db.all('SELECT * FROM customers WHERE company_id = ? ORDER BY name', user.company_id) as any[];
 
@@ -96,11 +96,11 @@ export async function GET(req: NextRequest) {
     return { ...p, open_risks, open_issues, completion_pct, days_until_deadline, rag, phases };
   });
 
-  const byCustomer = customers.map((c: any) => ({
+  const byProgram = programs.map((c: any) => ({
     ...c,
     projects: enriched.filter((p: any) => p.customer_id === c.id),
   }));
-  const noCustomerProjects = enriched.filter((p: any) => !p.customer_id);
+  const noProgramProjects = enriched.filter((p: any) => !p.customer_id);
 
-  return NextResponse.json({ customers: byCustomer, noCustomerProjects });
+  return NextResponse.json({ programs: byProgram, noProgramProjects });
 }

@@ -18,7 +18,7 @@ import {
   Download, Pencil, Trash2, Building2, ClipboardList,
 } from 'lucide-react';
 
-type Customer = { id: number; name: string; industry: string; };
+type Program = { id: number; name: string; industry: string; };
 type Project = {
   id: number; name: string; client: string; customer_id: number | null;
   pm_name: string; pm_email: string;
@@ -48,7 +48,7 @@ export default function ProjectPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const [project, setProject] = useState<Project | null>(null);
-  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [programs, setPrograms] = useState<Program[]>([]);
   const [exporting, setExporting] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editForm, setEditForm] = useState<Partial<Project>>({});
@@ -59,7 +59,7 @@ export default function ProjectPage() {
 
   useEffect(() => { loadProject(); }, [loadProject]);
   useEffect(() => {
-    fetch('/api/customers').then(r => r.json()).then(setCustomers);
+    fetch('/api/programs').then(r => r.json()).then(setPrograms);
   }, []);
 
   const openEdit = () => {
@@ -122,7 +122,7 @@ export default function ProjectPage() {
   const set = (key: keyof Project, value: string | number | null) =>
     setEditForm(f => ({ ...f, [key]: value }));
 
-  const selectedCustomer = customers.find(c => c.id === (editForm.customer_id ?? project?.customer_id));
+  const selectedProgram = programs.find(c => c.id === (editForm.customer_id ?? project?.customer_id));
 
   if (!project) return (
     <div className="flex flex-col lg:flex-row min-h-screen">
@@ -218,19 +218,19 @@ export default function ProjectPage() {
           </DialogHeader>
 
           <div className="space-y-4 py-1">
-            {/* Customer */}
-            <FieldRow label="Customer">
+            {/* Program */}
+            <FieldRow label="Program">
               <div className="flex gap-2">
                 <Select
                   value={editForm.customer_id ? String(editForm.customer_id) : 'none'}
                   onValueChange={v => set('customer_id', v === 'none' ? null : Number(v))}
                 >
                   <SelectTrigger className="h-9 text-sm flex-1">
-                    <SelectValue placeholder="Select customer..." />
+                    <SelectValue placeholder="Select program..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none"><span className="text-slate-400 italic">— No customer —</span></SelectItem>
-                    {customers.map(c => (
+                    <SelectItem value="none"><span className="text-slate-400 italic">— No program —</span></SelectItem>
+                    {programs.map(c => (
                       <SelectItem key={c.id} value={String(c.id)}>
                         <div className="flex items-center gap-2">
                           <Building2 className="h-3.5 w-3.5 text-slate-400" />
@@ -242,10 +242,10 @@ export default function ProjectPage() {
                   </SelectContent>
                 </Select>
               </div>
-              {selectedCustomer && (
+              {selectedProgram && (
                 <p className="text-xs text-blue-600 mt-1 flex items-center gap-1">
-                  <Building2 className="h-3 w-3" /> {selectedCustomer.name}
-                  {selectedCustomer.industry && ` · ${selectedCustomer.industry}`}
+                  <Building2 className="h-3 w-3" /> {selectedProgram.name}
+                  {selectedProgram.industry && ` · ${selectedProgram.industry}`}
                 </p>
               )}
             </FieldRow>

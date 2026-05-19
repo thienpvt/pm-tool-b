@@ -6,10 +6,10 @@ type Params = { params: Promise<{ id: string }> };
 export async function GET(_req: NextRequest, { params }: Params) {
   const { id } = await params;
   const db = await getDb();
-  const customer = await db.get('SELECT * FROM customers WHERE id = ?', id);
-  if (!customer) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  const program = await db.get('SELECT * FROM customers WHERE id = ?', id);
+  if (!program) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   const projects = await db.all('SELECT * FROM projects WHERE customer_id = ? ORDER BY created_at DESC', id);
-  return NextResponse.json({ customer, projects });
+  return NextResponse.json({ program, projects });
 }
 
 export async function PUT(req: NextRequest, { params }: Params) {

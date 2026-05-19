@@ -17,34 +17,34 @@ import {
 // ─── Types ────────────────────────────────────────────────────────────────────
 type RiskItem = {
   id: number; description: string; priority: string; category: string;
-  mitigation: string; owner: string; project_name: string; customer_name: string;
+  mitigation: string; owner: string; project_name: string; program_name: string;
 };
 type MilestoneItem = {
   id: number; activity: string; deliverable: string; plan_end: string;
-  completion_pct: number; project_name: string; customer_name: string;
+  completion_pct: number; project_name: string; program_name: string;
 };
 type RecentDone = {
   id: number; activity: string; deliverable: string; actual_end: string;
-  project_name: string; customer_name: string;
+  project_name: string; program_name: string;
 };
 type CompletedActivity = { id: number; activity: string; deliverable: string; actual_end: string; };
-type CompletedGroup = { project_name: string; customer_name: string; current_phase: string; activities: CompletedActivity[]; };
+type CompletedGroup = { project_name: string; program_name: string; current_phase: string; activities: CompletedActivity[]; };
 type EpicStat = { phase: string; total: number; done: number; pct: number };
 type ProjectRow = {
-  id: number; name: string; customer_name: string; client: string; pm_name: string;
+  id: number; name: string; program_name: string; client: string; pm_name: string;
   current_phase: string; completion_pct: number; open_risks: number; open_issues: number;
   days_until_deadline: number | null; rag: 'red' | 'amber' | 'green';
   total_activities: number; done_activities: number;
   in_progress_activities: number; not_started_activities: number;
   epicStats: EpicStat[];
 };
-type CustomerGroup = { id: number; name: string; industry: string; projects: ProjectRow[]; };
+type ProgramGroup = { id: number; name: string; industry: string; projects: ProjectRow[]; };
 type PortfolioReportData = {
   projects: ProjectRow[];
-  customers: CustomerGroup[];
-  noCustomerProjects: ProjectRow[];
+  programs: ProgramGroup[];
+  noProgramProjects: ProjectRow[];
   kpi: {
-    totalProjects: number; totalCustomers: number; avgCompletion: number;
+    totalProjects: number; totalPrograms: number; avgCompletion: number;
     activeProjects: number; totalOpenRisks: number; totalOpenIssues: number;
   };
   topRisks: RiskItem[];
@@ -110,7 +110,7 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
   const today = new Date().toLocaleDateString(isVN ? 'vi-VN' : 'en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
   const yyyymm = new Date().toISOString().slice(0, 7).replace('-', '');
 
-  const allProjects = [...data.customers.flatMap(c => c.projects), ...data.noCustomerProjects];
+  const allProjects = [...data.programs.flatMap(c => c.projects), ...data.noProgramProjects];
   const red = allProjects.filter(p => p.rag === 'red');
   const amber = allProjects.filter(p => p.rag === 'amber');
   const green = allProjects.filter(p => p.rag === 'green');
@@ -132,7 +132,7 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
   const tRow = (n: string|number, st: string, nm: string, cu: string, ph: string, pc: string, dl: string) =>
     `  │ ${lp(n, W.n)} │ ${rp(st, W.st)} │ ${rp(nm, W.nm)} │ ${rp(cu, W.cu)} │ ${rp(ph, W.ph)} │ ${lp(pc, W.pc)} │ ${rp(dl, W.dl)} │`;
 
-  // Customer scorecard table — column widths
+  // Program scorecard table — column widths
   const CS = { nm: 22, pr: 6, ac: 6, pct: 6, hl: 10, rk: 6, is: 6 } as const;
   const csHL = (l: string, m: string, r: string) =>
     `  ${l}${'─'.repeat(CS.nm+2)}${m}${'─'.repeat(CS.pr+2)}${m}${'─'.repeat(CS.ac+2)}${m}${'─'.repeat(CS.pct+2)}${m}${'─'.repeat(CS.hl+2)}${m}${'─'.repeat(CS.rk+2)}${m}${'─'.repeat(CS.is+2)}${r}`;
@@ -176,7 +176,7 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
       ? `Portfolio hiện có ${red.length} dự án ở mức ĐỎ cần xử lý khẩn cấp.`
       : amber.length > 0 ? `Portfolio ở mức VÀNG với ${amber.length} dự án cần theo dõi sát sao.`
         : 'Portfolio đang ở trạng thái tốt — toàn bộ dự án đều xanh.';
-    lines.push(`  ${summaryVN} Tổng cộng ${data.kpi.totalProjects} dự án trên ${data.kpi.totalCustomers} khách hàng,`);
+    lines.push(`  ${summaryVN} Tổng cộng ${data.kpi.totalProjects} dự án trên ${data.kpi.totalPrograms} chương trình,`);
     lines.push(`  tiến độ trung bình ${data.kpi.avgCompletion}% (tính theo trọng số trạng thái).`);
     lines.push(`  Phân bố sức khỏe: ${green.length} XANH  ·  ${amber.length} VÀNG  ·  ${red.length} ĐỎ.`);
     if (overdue.length > 0) lines.push(`\n  [!] CẢNH BÁO: ${overdue.length} dự án đã vượt hạn chót — cần hành động ngay lập tức.`);
@@ -185,7 +185,7 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
     lines.push('  CHỈ SỐ CHÍNH:');
     lines.push(`  ${'─'.repeat(50)}`);
     lines.push(`  Dự án tổng cộng        : ${data.kpi.totalProjects}      Đang hoạt động   : ${data.kpi.activeProjects}`);
-    lines.push(`  Tiến độ TB (trọng số)  : ${data.kpi.avgCompletion}%    Khách hàng        : ${data.kpi.totalCustomers}`);
+    lines.push(`  Tiến độ TB (trọng số)  : ${data.kpi.avgCompletion}%    Chương trình      : ${data.kpi.totalPrograms}`);
     lines.push(`  Rủi ro đang mở         : ${data.kpi.totalOpenRisks}      Vấn đề đang mở   : ${data.kpi.totalOpenIssues}`);
     lines.push(`  Dự án quá hạn          : ${overdue.length}`);
     lines.push(`  ${'─'.repeat(50)}`);
@@ -197,13 +197,13 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
     lines.push(D);
     lines.push('');
     lines.push(tHL('┌', '┬', '┐'));
-    lines.push(tRow('#', 'TRẠNG THÁI', 'TÊN DỰ ÁN', 'KHÁCH HÀNG', 'PHASE', '%', 'DEADLINE'));
+    lines.push(tRow('#', 'TRẠNG THÁI', 'TÊN DỰ ÁN', 'CHƯƠNG TRÌNH', 'PHASE', '%', 'DEADLINE'));
     lines.push(tHL('├', '┼', '┤'));
     sorted.forEach((p, i) => {
       const stLabel = p.rag === 'red' ? '● ĐỎ' : p.rag === 'amber' ? '● VÀNG' : '● XANH';
       const dl = p.days_until_deadline;
       const dlStr = dl === null ? '—' : dl < 0 ? `QUÁ HẠN ${Math.abs(dl)}d` : `${dl}d còn`;
-      lines.push(tRow(String(i + 1), stLabel, p.name, p.customer_name || '—', p.current_phase, String(p.completion_pct) + '%', dlStr));
+      lines.push(tRow(String(i + 1), stLabel, p.name, p.program_name || '—', p.current_phase, String(p.completion_pct) + '%', dlStr));
     });
     lines.push(tHL('└', '┴', '┘'));
     lines.push('');
@@ -216,7 +216,7 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
       lines.push(`  ${'─'.repeat(80)}`);
       sorted.forEach((p, i) => {
         if (p.total_activities === 0) return;
-        lines.push(`  ${String(i+1).padStart(2)}. ${p.name}${p.customer_name ? ` (${p.customer_name})` : ''} — ${p.current_phase}`);
+        lines.push(`  ${String(i+1).padStart(2)}. ${p.name}${p.program_name ? ` (${p.program_name})` : ''} — ${p.current_phase}`);
         lines.push(`      Tiến độ (TT): ${String(p.completion_pct).padStart(3)}%   |   Hoàn thành: ${p.done_activities}   Đang thực hiện: ${p.in_progress_activities}   Chưa bắt đầu: ${p.not_started_activities}   Tổng: ${p.total_activities} US`);
         if (p.epicStats && p.epicStats.length > 0) {
           p.epicStats.forEach(e => {
@@ -240,7 +240,7 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
       lines.push('  Không có hoạt động nào hoàn thành trong giai đoạn này trên toàn portfolio.');
     } else {
       completedGroups.forEach((g, i) => {
-        lines.push(`  ${String(i+1).padStart(2)}. ${g.project_name}${g.customer_name ? ` (${g.customer_name})` : ''} — ${g.current_phase}`);
+        lines.push(`  ${String(i+1).padStart(2)}. ${g.project_name}${g.program_name ? ` (${g.program_name})` : ''} — ${g.current_phase}`);
         g.activities.forEach(a => {
           lines.push(`      [+]  ${a.activity}${a.deliverable ? `  →  ${a.deliverable}` : ''}${a.actual_end ? `  [${a.actual_end}]` : ''}`);
         });
@@ -260,7 +260,7 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
     } else {
       data.topRisks.slice(0, 6).forEach((r, i) => {
         lines.push(`     ${String(i+1).padStart(2)}.  [${r.priority.toUpperCase()}]  ${r.description}`);
-        lines.push(`          Dự án     : ${r.project_name}${r.customer_name ? ` (${r.customer_name})` : ''}`);
+        lines.push(`          Dự án     : ${r.project_name}${r.program_name ? ` (${r.program_name})` : ''}`);
         lines.push(`          Danh mục  : ${r.category || '—'}`);
         lines.push(`          Giảm thiểu: ${r.mitigation || 'Đang đánh giá'}`);
         if (i < Math.min(data.topRisks.length, 6) - 1) lines.push('');
@@ -273,7 +273,7 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
     } else {
       data.topIssues.slice(0, 6).forEach((r, i) => {
         lines.push(`     ${String(i+1).padStart(2)}.  [${r.priority.toUpperCase()}]  ${r.description}`);
-        lines.push(`          Dự án  : ${r.project_name}${r.customer_name ? ` (${r.customer_name})` : ''}`);
+        lines.push(`          Dự án  : ${r.project_name}${r.program_name ? ` (${r.program_name})` : ''}`);
         lines.push(`          Xử lý  : ${r.mitigation || 'Đang điều tra'}`);
         if (i < Math.min(data.topIssues.length, 6) - 1) lines.push('');
       });
@@ -299,15 +299,15 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
     }
     lines.push('');
 
-    // ── VI. Customer Scorecard ───────────────────────────────────────────────
+    // ── VI. Program Scorecard ───────────────────────────────────────────────
     lines.push(D);
-    lines.push('  VI. BẢNG ĐIỂM KHÁCH HÀNG');
+    lines.push('  VI. BẢNG ĐIỂM CHƯƠNG TRÌNH');
     lines.push(D);
     lines.push('');
     lines.push(csHL('┌', '┬', '┐'));
-    lines.push(csRow('KHÁCH HÀNG', 'DA', 'ACTIVE', 'TB %', 'SỨC KHỎE', 'RỦI RO', 'VẤN ĐỀ'));
+    lines.push(csRow('CHƯƠNG TRÌNH', 'DA', 'ACTIVE', 'TB %', 'SỨC KHỎE', 'RỦI RO', 'VẤN ĐỀ'));
     lines.push(csHL('├', '┼', '┤'));
-    data.customers.forEach(c => {
+    data.programs.forEach(c => {
       if (c.projects.length === 0) return;
       const avgPct = Math.round(c.projects.reduce((s, p) => s + p.completion_pct, 0) / c.projects.length);
       const activeCount = c.projects.filter(p => p.current_phase !== 'Closing').length;
@@ -317,8 +317,8 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
       lines.push(csRow(c.name, String(c.projects.length), String(activeCount), String(avgPct) + '%', worstRag, String(risks), String(issues)));
     });
     lines.push(csHL('└', '┴', '┘'));
-    if (data.noCustomerProjects.length > 0) {
-      lines.push(`\n  Lưu ý: ${data.noCustomerProjects.length} dự án chưa được gán cho khách hàng.`);
+    if (data.noProgramProjects.length > 0) {
+      lines.push(`\n  Lưu ý: ${data.noProgramProjects.length} dự án chưa được gán cho chương trình.`);
     }
     lines.push('');
 
@@ -334,7 +334,7 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
       actionIdxVN++;
       const dl = p.days_until_deadline;
       const dlDesc = dl !== null && dl < 0 ? `quá hạn ${Math.abs(dl)} ngày` : 'đang gặp rủi ro nghiêm trọng';
-      actionsVN.push(`  ${actionIdxVN}. [KHẨN CẤP — LEO THANG]  ${p.name} (${p.customer_name || 'N/A'}) đang ${dlDesc}.`);
+      actionsVN.push(`  ${actionIdxVN}. [KHẨN CẤP — LEO THANG]  ${p.name} (${p.program_name || 'N/A'}) đang ${dlDesc}.`);
       actionsVN.push(`     → Đề xuất: Đưa vào chương trình nghị sự Steering Committee gần nhất, xem xét bổ sung nguồn lực hoặc điều chỉnh phạm vi.`);
     });
     criticalRisksVN.forEach(r => {
@@ -377,7 +377,7 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
       : amber.length > 0 ? `Portfolio is at AMBER status with ${amber.length} project(s) under close monitoring.`
         : 'Portfolio is in good health — all projects are tracking GREEN.';
     lines.push(`  ${summaryEN} A total of ${data.kpi.totalProjects} projects are active across`);
-    lines.push(`  ${data.kpi.totalCustomers} customer accounts, with an average completion rate of ${data.kpi.avgCompletion}% (weighted by status).`);
+    lines.push(`  ${data.kpi.totalPrograms} programs, with an average completion rate of ${data.kpi.avgCompletion}% (weighted by status).`);
     lines.push(`  Status distribution: ${green.length} GREEN  ·  ${amber.length} AMBER  ·  ${red.length} RED.`);
     if (overdue.length > 0) lines.push(`\n  [!] ALERT: ${overdue.length} project(s) are past their deadline — immediate action required.`);
     if (data.kpi.totalOpenRisks === 0 && data.kpi.totalOpenIssues === 0) lines.push('  [+] Positive: No open risks or issues recorded at the portfolio level.');
@@ -385,7 +385,7 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
     lines.push('  KEY METRICS:');
     lines.push(`  ${'─'.repeat(50)}`);
     lines.push(`  Total Projects          : ${data.kpi.totalProjects}      Active Projects   : ${data.kpi.activeProjects}`);
-    lines.push(`  Avg. Completion (wtd)   : ${data.kpi.avgCompletion}%    Customers Served  : ${data.kpi.totalCustomers}`);
+    lines.push(`  Avg. Completion (wtd)   : ${data.kpi.avgCompletion}%    Programs          : ${data.kpi.totalPrograms}`);
     lines.push(`  Open Risks              : ${data.kpi.totalOpenRisks}      Open Issues       : ${data.kpi.totalOpenIssues}`);
     lines.push(`  Overdue Projects        : ${overdue.length}`);
     lines.push(`  ${'─'.repeat(50)}`);
@@ -397,13 +397,13 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
     lines.push(D);
     lines.push('');
     lines.push(tHL('┌', '┬', '┐'));
-    lines.push(tRow('#', 'STATUS', 'PROJECT NAME', 'CUSTOMER', 'PHASE', 'PCT', 'DEADLINE'));
+    lines.push(tRow('#', 'STATUS', 'PROJECT NAME', 'PROGRAM', 'PHASE', 'PCT', 'DEADLINE'));
     lines.push(tHL('├', '┼', '┤'));
     sorted.forEach((p, i) => {
       const stLabel = p.rag === 'red' ? '● RED' : p.rag === 'amber' ? '● AMBER' : '● GREEN';
       const dl = p.days_until_deadline;
       const dlStr = dl === null ? '—' : dl < 0 ? `OVERDUE ${Math.abs(dl)}d` : `${dl}d left`;
-      lines.push(tRow(String(i + 1), stLabel, p.name, p.customer_name || '—', p.current_phase, String(p.completion_pct) + '%', dlStr));
+      lines.push(tRow(String(i + 1), stLabel, p.name, p.program_name || '—', p.current_phase, String(p.completion_pct) + '%', dlStr));
     });
     lines.push(tHL('└', '┴', '┘'));
     lines.push('');
@@ -416,7 +416,7 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
       lines.push(`  ${'─'.repeat(80)}`);
       sorted.forEach((p, i) => {
         if (p.total_activities === 0) return;
-        lines.push(`  ${String(i+1).padStart(2)}. ${p.name}${p.customer_name ? ` (${p.customer_name})` : ''} — ${p.current_phase}`);
+        lines.push(`  ${String(i+1).padStart(2)}. ${p.name}${p.program_name ? ` (${p.program_name})` : ''} — ${p.current_phase}`);
         lines.push(`      Progress (weighted): ${String(p.completion_pct).padStart(3)}%   |   Done: ${p.done_activities}   In Progress: ${p.in_progress_activities}   Not Started: ${p.not_started_activities}   Total: ${p.total_activities} US`);
         if (p.epicStats && p.epicStats.length > 0) {
           p.epicStats.forEach(e => {
@@ -440,7 +440,7 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
       lines.push('  No activities completed in this period across the portfolio.');
     } else {
       completedGroupsEN.forEach((g, i) => {
-        lines.push(`  ${String(i+1).padStart(2)}. ${g.project_name}${g.customer_name ? ` (${g.customer_name})` : ''} — ${g.current_phase}`);
+        lines.push(`  ${String(i+1).padStart(2)}. ${g.project_name}${g.program_name ? ` (${g.program_name})` : ''} — ${g.current_phase}`);
         g.activities.forEach(a => {
           lines.push(`      [+]  ${a.activity}${a.deliverable ? `  →  ${a.deliverable}` : ''}${a.actual_end ? `  [${a.actual_end}]` : ''}`);
         });
@@ -460,7 +460,7 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
     } else {
       data.topRisks.slice(0, 6).forEach((r, i) => {
         lines.push(`     ${String(i+1).padStart(2)}.  [${r.priority.toUpperCase()}]  ${r.description}`);
-        lines.push(`          Project    : ${r.project_name}${r.customer_name ? ` (${r.customer_name})` : ''}`);
+        lines.push(`          Project    : ${r.project_name}${r.program_name ? ` (${r.program_name})` : ''}`);
         lines.push(`          Category   : ${r.category || '—'}`);
         lines.push(`          Mitigation : ${r.mitigation || 'Under assessment'}`);
         if (i < Math.min(data.topRisks.length, 6) - 1) lines.push('');
@@ -473,7 +473,7 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
     } else {
       data.topIssues.slice(0, 6).forEach((r, i) => {
         lines.push(`     ${String(i+1).padStart(2)}.  [${r.priority.toUpperCase()}]  ${r.description}`);
-        lines.push(`          Project    : ${r.project_name}${r.customer_name ? ` (${r.customer_name})` : ''}`);
+        lines.push(`          Project    : ${r.project_name}${r.program_name ? ` (${r.program_name})` : ''}`);
         lines.push(`          Resolution : ${r.mitigation || 'Under investigation'}`);
         if (i < Math.min(data.topIssues.length, 6) - 1) lines.push('');
       });
@@ -499,15 +499,15 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
     }
     lines.push('');
 
-    // ── VI. Customer Scorecard ───────────────────────────────────────────────
+    // ── VI. Program Scorecard ───────────────────────────────────────────────
     lines.push(D);
-    lines.push('  VI. CUSTOMER PORTFOLIO SCORECARD');
+    lines.push('  VI. PROGRAM PORTFOLIO SCORECARD');
     lines.push(D);
     lines.push('');
     lines.push(csHL('┌', '┬', '┐'));
-    lines.push(csRow('CUSTOMER', 'PROJ', 'ACTIVE', 'AVG %', 'HEALTH', 'RISKS', 'ISSUES'));
+    lines.push(csRow('PROGRAM', 'PROJ', 'ACTIVE', 'AVG %', 'HEALTH', 'RISKS', 'ISSUES'));
     lines.push(csHL('├', '┼', '┤'));
-    data.customers.forEach(c => {
+    data.programs.forEach(c => {
       if (c.projects.length === 0) return;
       const avgPct = Math.round(c.projects.reduce((s, p) => s + p.completion_pct, 0) / c.projects.length);
       const activeCount = c.projects.filter(p => p.current_phase !== 'Closing').length;
@@ -517,8 +517,8 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
       lines.push(csRow(c.name, String(c.projects.length), String(activeCount), String(avgPct) + '%', worstRag, String(risks), String(issues)));
     });
     lines.push(csHL('└', '┴', '┘'));
-    if (data.noCustomerProjects.length > 0) {
-      lines.push(`\n  Note: ${data.noCustomerProjects.length} project(s) not assigned to any customer.`);
+    if (data.noProgramProjects.length > 0) {
+      lines.push(`\n  Note: ${data.noProgramProjects.length} project(s) not assigned to any program.`);
     }
     lines.push('');
 
@@ -534,7 +534,7 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
       actionIdxEN++;
       const dl = p.days_until_deadline;
       const dlDesc = dl !== null && dl < 0 ? `OVERDUE ${Math.abs(dl)} days` : 'at critical risk';
-      actionsEN.push(`  ${actionIdxEN}. [URGENT — ESCALATION]  ${p.name} (${p.customer_name || 'N/A'}) is ${dlDesc}.`);
+      actionsEN.push(`  ${actionIdxEN}. [URGENT — ESCALATION]  ${p.name} (${p.program_name || 'N/A'}) is ${dlDesc}.`);
       actionsEN.push(`     → Recommend: Steering Committee review at next session. Assess resource injection or scope revision.`);
     });
     criticalRisksEN.forEach(r => {
@@ -597,7 +597,7 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
   const today = new Date().toLocaleDateString(isVN ? 'vi-VN' : 'en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
   const yyyymm = new Date().toISOString().slice(0, 7).replace('-', '');
 
-  const allProjects = [...data.customers.flatMap(c => c.projects), ...data.noCustomerProjects];
+  const allProjects = [...data.programs.flatMap(c => c.projects), ...data.noProgramProjects];
   const red = allProjects.filter(p => p.rag === 'red');
   const amber = allProjects.filter(p => p.rag === 'amber');
   const green = allProjects.filter(p => p.rag === 'green');
@@ -644,18 +644,18 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
   h += `<span style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:14px;background:#fffbeb;border:1px solid #d97706;color:#d97706;font-size:11px;font-weight:700;">${amber.length} ${isVN ? 'VÀNG' : 'AMBER'}</span>`;
   h += `<span style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:14px;background:#fef2f2;border:1px solid #dc2626;color:#dc2626;font-size:11px;font-weight:700;">${red.length} ${isVN ? 'ĐỎ' : 'RED'}</span></div>`;
   const sumText = isVN
-    ? (red.length > 0 ? `Portfolio hiện có ${red.length} dự án ở mức ĐỎ cần xử lý khẩn cấp. Tổng cộng ${data.kpi.totalProjects} dự án trên ${data.kpi.totalCustomers} khách hàng, tiến độ trung bình ${data.kpi.avgCompletion}% (tính theo trọng số trạng thái).`
+    ? (red.length > 0 ? `Portfolio hiện có ${red.length} dự án ở mức ĐỎ cần xử lý khẩn cấp. Tổng cộng ${data.kpi.totalProjects} dự án trên ${data.kpi.totalPrograms} chương trình, tiến độ trung bình ${data.kpi.avgCompletion}% (tính theo trọng số trạng thái).`
       : amber.length > 0 ? `Portfolio ở mức VÀNG với ${amber.length} dự án cần theo dõi sát sao. Tổng cộng ${data.kpi.totalProjects} dự án, tiến độ TB ${data.kpi.avgCompletion}%.`
-      : `Portfolio đang ở trạng thái tốt — toàn bộ dự án đều xanh. Tổng cộng ${data.kpi.totalProjects} dự án trên ${data.kpi.totalCustomers} khách hàng, tiến độ TB ${data.kpi.avgCompletion}%.`)
-    : (red.length > 0 ? `Portfolio is at RED status with ${red.length} project(s) requiring immediate attention. ${data.kpi.totalProjects} projects across ${data.kpi.totalCustomers} accounts, average completion ${data.kpi.avgCompletion}% (weighted).`
+      : `Portfolio đang ở trạng thái tốt — toàn bộ dự án đều xanh. Tổng cộng ${data.kpi.totalProjects} dự án trên ${data.kpi.totalPrograms} chương trình, tiến độ TB ${data.kpi.avgCompletion}%.`)
+    : (red.length > 0 ? `Portfolio is at RED status with ${red.length} project(s) requiring immediate attention. ${data.kpi.totalProjects} projects across ${data.kpi.totalPrograms} programs, average completion ${data.kpi.avgCompletion}% (weighted).`
       : amber.length > 0 ? `Portfolio is AMBER with ${amber.length} project(s) under close monitoring. ${data.kpi.totalProjects} projects, avg completion ${data.kpi.avgCompletion}%.`
-      : `Portfolio is in good health — all projects tracking GREEN. ${data.kpi.totalProjects} projects across ${data.kpi.totalCustomers} accounts, avg completion ${data.kpi.avgCompletion}%.`);
+      : `Portfolio is in good health — all projects tracking GREEN. ${data.kpi.totalProjects} projects across ${data.kpi.totalPrograms} programs, avg completion ${data.kpi.avgCompletion}%.`);
   h += `<p style="margin:0 0 14px;color:#334155;font-size:13px;">${sumText}</p>`;
   if (overdue.length > 0) h += `<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:10px 14px;margin-bottom:14px;color:#dc2626;font-size:13px;font-weight:600;">⚠ ${isVN ? `CẢNH BÁO: ${overdue.length} dự án đã vượt hạn chót — cần hành động ngay lập tức.` : `ALERT: ${overdue.length} project(s) past deadline — immediate action required.`}</div>`;
   h += `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px;">`;
   const kpis = isVN
-    ? [{l:'Tổng dự án',v:data.kpi.totalProjects,a:false},{l:'Đang hoạt động',v:data.kpi.activeProjects,a:false},{l:'Tiến độ TB',v:`${data.kpi.avgCompletion}%`,a:false},{l:'Khách hàng',v:data.kpi.totalCustomers,a:false},{l:'Rủi ro đang mở',v:data.kpi.totalOpenRisks,a:data.kpi.totalOpenRisks>0},{l:'Vấn đề đang mở',v:data.kpi.totalOpenIssues,a:data.kpi.totalOpenIssues>0},{l:'Dự án quá hạn',v:overdue.length,a:overdue.length>0}]
-    : [{l:'Total Projects',v:data.kpi.totalProjects,a:false},{l:'Active',v:data.kpi.activeProjects,a:false},{l:'Avg Completion',v:`${data.kpi.avgCompletion}%`,a:false},{l:'Customers',v:data.kpi.totalCustomers,a:false},{l:'Open Risks',v:data.kpi.totalOpenRisks,a:data.kpi.totalOpenRisks>0},{l:'Open Issues',v:data.kpi.totalOpenIssues,a:data.kpi.totalOpenIssues>0},{l:'Overdue',v:overdue.length,a:overdue.length>0}];
+    ? [{l:'Tổng dự án',v:data.kpi.totalProjects,a:false},{l:'Đang hoạt động',v:data.kpi.activeProjects,a:false},{l:'Tiến độ TB',v:`${data.kpi.avgCompletion}%`,a:false},{l:'Chương trình',v:data.kpi.totalPrograms,a:false},{l:'Rủi ro đang mở',v:data.kpi.totalOpenRisks,a:data.kpi.totalOpenRisks>0},{l:'Vấn đề đang mở',v:data.kpi.totalOpenIssues,a:data.kpi.totalOpenIssues>0},{l:'Dự án quá hạn',v:overdue.length,a:overdue.length>0}]
+    : [{l:'Total Projects',v:data.kpi.totalProjects,a:false},{l:'Active',v:data.kpi.activeProjects,a:false},{l:'Avg Completion',v:`${data.kpi.avgCompletion}%`,a:false},{l:'Programs',v:data.kpi.totalPrograms,a:false},{l:'Open Risks',v:data.kpi.totalOpenRisks,a:data.kpi.totalOpenRisks>0},{l:'Open Issues',v:data.kpi.totalOpenIssues,a:data.kpi.totalOpenIssues>0},{l:'Overdue',v:overdue.length,a:overdue.length>0}];
   kpis.forEach(k => {
     h += `<div style="background:${k.a?'#fef2f2':'#f8fafc'};border:1px solid ${k.a?'#fecaca':'#e2e8f0'};border-radius:8px;padding:12px 16px;">`;
     h += `<div style="font-size:22px;font-weight:700;color:${k.a?'#dc2626':'#1e293b'};">${k.v}</div>`;
@@ -667,7 +667,7 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
   h += `<div style="margin-top:16px;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08);">`;
   h += `<div style="${SH}">II. ${isVN ? 'MA TRẬN SỨC KHỎE PORTFOLIO' : 'PORTFOLIO HEALTH MATRIX'}</div>`;
   h += `<div style="background:white;overflow-x:auto;"><table style="width:100%;border-collapse:collapse;">`;
-  h += `<thead><tr>${['#',isVN?'TRẠNG THÁI':'STATUS',isVN?'TÊN DỰ ÁN':'PROJECT',isVN?'KHÁCH HÀNG':'CUSTOMER','PHASE',isVN?'TIẾN ĐỘ':'PROGRESS','DEADLINE'].map(col=>`<th style="${TH}">${col}</th>`).join('')}</tr></thead><tbody>`;
+  h += `<thead><tr>${['#',isVN?'TRẠNG THÁI':'STATUS',isVN?'TÊN DỰ ÁN':'PROJECT',isVN?'CHƯƠNG TRÌNH':'PROGRAM','PHASE',isVN?'TIẾN ĐỘ':'PROGRESS','DEADLINE'].map(col=>`<th style="${TH}">${col}</th>`).join('')}</tr></thead><tbody>`;
   sorted.forEach((p, i) => {
     const dl = p.days_until_deadline;
     const dlStr = dl===null?'—':dl<0?(isVN?`QUÁ HẠN ${Math.abs(dl)}d`:`OVERDUE ${Math.abs(dl)}d`):isVN?`Còn ${dl}d`:`${dl}d left`;
@@ -676,7 +676,7 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
     h += `<td style="${TD}color:#94a3b8;">${i+1}</td>`;
     h += `<td style="${TD}"><span style="display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:12px;background:${rb(p.rag)};border:1px solid ${rc(p.rag)};color:${rc(p.rag)};font-size:11px;font-weight:700;"><span style="width:8px;height:8px;border-radius:50%;background:${rc(p.rag)};flex-shrink:0;"></span>${rl(p.rag)}</span></td>`;
     h += `<td style="${TD}font-weight:600;color:#1e293b;">${p.name}</td>`;
-    h += `<td style="${TD}color:#64748b;font-size:12px;">${p.customer_name||p.client||'—'}</td>`;
+    h += `<td style="${TD}color:#64748b;font-size:12px;">${p.program_name||p.client||'—'}</td>`;
     h += `<td style="${TD}"><span style="font-size:11px;padding:2px 8px;border-radius:10px;background:#e0f2fe;color:#0369a1;font-weight:600;">${p.current_phase}</span></td>`;
     h += `<td style="${TD}min-width:130px;">`;
     h += `<div style="display:flex;align-items:center;gap:8px;"><div style="flex:1;height:6px;background:#e2e8f0;border-radius:3px;overflow:hidden;min-width:60px;"><div style="height:100%;width:${p.completion_pct}%;background:${barColor(p.completion_pct)};border-radius:3px;"></div></div><span style="font-size:12px;font-weight:700;color:#334155;width:36px;text-align:right;">${p.completion_pct}%</span></div>`;
@@ -708,7 +708,7 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
       if (gi>0) h += `<div style="height:1px;background:#f1f5f9;margin:14px 0;"></div>`;
       h += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;">`;
       h += `<span style="font-weight:700;color:#1e293b;font-size:13px;">${g.project_name}</span>`;
-      if (g.customer_name) h += `<span style="font-size:11px;color:#94a3b8;">${g.customer_name}</span>`;
+      if (g.program_name) h += `<span style="font-size:11px;color:#94a3b8;">${g.program_name}</span>`;
       h += `<span style="margin-left:auto;font-size:11px;padding:2px 8px;border-radius:10px;background:#e0f2fe;color:#0369a1;font-weight:600;">${g.current_phase}</span></div>`;
       h += `<ul style="margin:0;padding:0;list-style:none;">`;
       g.activities.forEach(a => {
@@ -735,7 +735,7 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
       h += `<div style="display:flex;gap:10px;margin-bottom:10px;padding:11px 14px;border:1px solid #f1f5f9;border-radius:6px;background:#fafafa;">`;
       h += `<span style="flex-shrink:0;font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;background:${pb(r.priority)};color:${pc(r.priority)};border:1px solid ${pc(r.priority)};height:fit-content;margin-top:1px;white-space:nowrap;">${r.priority.toUpperCase()}</span>`;
       h += `<div><p style="margin:0 0 3px;font-size:13px;font-weight:600;color:#1e293b;">${r.description}</p>`;
-      h += `<p style="margin:0;font-size:11px;color:#94a3b8;">${r.project_name}${r.customer_name?` · ${r.customer_name}`:''}${r.category?` · ${r.category}`:''}</p>`;
+      h += `<p style="margin:0;font-size:11px;color:#94a3b8;">${r.project_name}${r.program_name?` · ${r.program_name}`:''}${r.category?` · ${r.category}`:''}</p>`;
       if (r.mitigation) h += `<p style="margin:5px 0 0;font-size:12px;color:#64748b;font-style:italic;">${isVN?'Giảm thiểu':'Mitigation'}: ${r.mitigation}</p>`;
       h += `</div></div>`;
     });
@@ -748,7 +748,7 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
       h += `<div style="display:flex;gap:10px;margin-bottom:10px;padding:11px 14px;border:1px solid #f1f5f9;border-radius:6px;background:#fafafa;">`;
       h += `<span style="flex-shrink:0;font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;background:${pb(r.priority)};color:${pc(r.priority)};border:1px solid ${pc(r.priority)};height:fit-content;margin-top:1px;white-space:nowrap;">${r.priority.toUpperCase()}</span>`;
       h += `<div><p style="margin:0 0 3px;font-size:13px;font-weight:600;color:#1e293b;">${r.description}</p>`;
-      h += `<p style="margin:0;font-size:11px;color:#94a3b8;">${r.project_name}${r.customer_name?` · ${r.customer_name}`:''}</p>`;
+      h += `<p style="margin:0;font-size:11px;color:#94a3b8;">${r.project_name}${r.program_name?` · ${r.program_name}`:''}</p>`;
       if (r.mitigation) h += `<p style="margin:5px 0 0;font-size:12px;color:#64748b;font-style:italic;">${isVN?'Xử lý':'Resolution'}: ${r.mitigation}</p>`;
       h += `</div></div>`;
     });
@@ -775,11 +775,11 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
   }
   h += `</div></div>`;
 
-  // ── VI. Customer Scorecard
+  // ── VI. Program Scorecard
   h += `<div style="margin-top:16px;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08);">`;
-  h += `<div style="${SH}">VI. ${isVN?'BẢNG ĐIỂM KHÁCH HÀNG':'CUSTOMER PORTFOLIO SCORECARD'}</div>`;
-  h += `<div style="background:white;overflow-x:auto;"><table style="width:100%;border-collapse:collapse;"><thead><tr>${[isVN?'KHÁCH HÀNG':'CUSTOMER',isVN?'DA':'PROJ',isVN?'ACTIVE':'ACTIVE',isVN?'TB %':'AVG %',isVN?'SỨC KHỎE':'HEALTH',isVN?'RỦI RO':'RISKS',isVN?'VẤN ĐỀ':'ISSUES'].map(c=>`<th style="${TH}">${c}</th>`).join('')}</tr></thead><tbody>`;
-  data.customers.filter(c=>c.projects.length>0).forEach((c,i) => {
+  h += `<div style="${SH}">VI. ${isVN?'BẢNG ĐIỂM CHƯƠNG TRÌNH':'PROGRAM PORTFOLIO SCORECARD'}</div>`;
+  h += `<div style="background:white;overflow-x:auto;"><table style="width:100%;border-collapse:collapse;"><thead><tr>${[isVN?'CHƯƠNG TRÌNH':'PROGRAM',isVN?'DA':'PROJ',isVN?'ACTIVE':'ACTIVE',isVN?'TB %':'AVG %',isVN?'SỨC KHỎE':'HEALTH',isVN?'RỦI RO':'RISKS',isVN?'VẤN ĐỀ':'ISSUES'].map(c=>`<th style="${TH}">${c}</th>`).join('')}</tr></thead><tbody>`;
+  data.programs.filter(c=>c.projects.length>0).forEach((c,i) => {
     const avgPct = Math.round(c.projects.reduce((s,p)=>s+p.completion_pct,0)/c.projects.length);
     const activeCount = c.projects.filter(p=>p.current_phase!=='Closing').length;
     const wr = c.projects.some(p=>p.rag==='red')?'red':c.projects.some(p=>p.rag==='amber')?'amber':'green';
@@ -795,7 +795,7 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
     h += `<td style="${TD}text-align:center;font-weight:600;color:${issues>0?'#d97706':'#94a3b8'};">${issues}</td></tr>`;
   });
   h += `</tbody></table>`;
-  if (data.noCustomerProjects.length>0) h += `<p style="padding:8px 16px;font-size:11px;color:#94a3b8;font-style:italic;margin:0;">${isVN?`Lưu ý: ${data.noCustomerProjects.length} dự án chưa được gán cho khách hàng.`:`Note: ${data.noCustomerProjects.length} project(s) not assigned to any customer.`}</p>`;
+  if (data.noProgramProjects.length>0) h += `<p style="padding:8px 16px;font-size:11px;color:#94a3b8;font-style:italic;margin:0;">${isVN?`Lưu ý: ${data.noProgramProjects.length} dự án chưa được gán cho chương trình.`:`Note: ${data.noProgramProjects.length} project(s) not assigned to any program.`}</p>`;
   h += `</div></div>`;
 
   // ── VII. Actions Required
@@ -808,7 +808,7 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
     const dl = p.days_until_deadline;
     const dlDesc = isVN?(dl!==null&&dl<0?`quá hạn ${Math.abs(dl)} ngày`:'đang gặp rủi ro nghiêm trọng'):(dl!==null&&dl<0?`OVERDUE ${Math.abs(dl)} days`:'at critical risk');
     const rec = isVN?'Đưa vào chương trình nghị sự Steering Committee gần nhất, xem xét bổ sung nguồn lực hoặc điều chỉnh phạm vi.':'Steering Committee review at next session. Assess resource injection or scope revision.';
-    actions.push(`<div style="margin-bottom:12px;padding:13px 16px;border-radius:6px;background:#fef2f2;border:1px solid #fecaca;"><div style="font-weight:700;color:#dc2626;font-size:13px;">[${isVN?'KHẨN CẤP — LEO THANG':'URGENT — ESCALATION'}]  ${p.name} (${p.customer_name||'N/A'}) ${dlDesc}</div><div style="margin-top:7px;font-size:12px;color:#475569;">→ ${isVN?'Đề xuất':'Recommend'}: ${rec}</div></div>`);
+    actions.push(`<div style="margin-bottom:12px;padding:13px 16px;border-radius:6px;background:#fef2f2;border:1px solid #fecaca;"><div style="font-weight:700;color:#dc2626;font-size:13px;">[${isVN?'KHẨN CẤP — LEO THANG':'URGENT — ESCALATION'}]  ${p.name} (${p.program_name||'N/A'}) ${dlDesc}</div><div style="margin-top:7px;font-size:12px;color:#475569;">→ ${isVN?'Đề xuất':'Recommend'}: ${rec}</div></div>`);
   });
   critRisks.forEach(r => {
     const rec = r.mitigation||(isVN?'Đánh giá và ban hành quyết định xử lý ngay lập tức':'Immediate assessment and corrective action required');
@@ -925,10 +925,10 @@ export default function PortfolioReportPage() {
         periodStart,
         periodEnd,
         kpi: data.kpi,
-        customers: data.customers.map(c => ({
+        programs: data.programs.map(c => ({
           name: c.name, industry: c.industry,
           projects: c.projects.map(p => ({
-            name: p.name, customer_name: p.customer_name, current_phase: p.current_phase,
+            name: p.name, program_name: p.program_name, current_phase: p.current_phase,
             completion_pct: p.completion_pct, open_risks: p.open_risks, open_issues: p.open_issues,
             days_until_deadline: p.days_until_deadline, rag: p.rag, pm_name: p.pm_name,
             done_activities: p.done_activities, in_progress_activities: p.in_progress_activities,
@@ -936,16 +936,16 @@ export default function PortfolioReportPage() {
             epicStats: p.epicStats,
           })),
         })),
-        noCustomerProjects: data.noCustomerProjects.map(p => ({
-          name: p.name, customer_name: '', current_phase: p.current_phase,
+        noProgramProjects: data.noProgramProjects.map(p => ({
+          name: p.name, program_name: '', current_phase: p.current_phase,
           completion_pct: p.completion_pct, open_risks: p.open_risks, open_issues: p.open_issues,
           days_until_deadline: p.days_until_deadline, rag: p.rag, pm_name: p.pm_name,
           done_activities: p.done_activities, in_progress_activities: p.in_progress_activities,
           not_started_activities: p.not_started_activities, total_activities: p.total_activities,
           epicStats: p.epicStats,
         })),
-        topRisks: data.topRisks.map(r => ({ priority: r.priority, description: r.description, project_name: r.project_name, customer_name: r.customer_name || '' })),
-        topIssues: data.topIssues.map(i => ({ priority: i.priority, description: i.description, project_name: i.project_name, customer_name: i.customer_name || '' })),
+        topRisks: data.topRisks.map(r => ({ priority: r.priority, description: r.description, project_name: r.project_name, program_name: r.program_name || '' })),
+        topIssues: data.topIssues.map(i => ({ priority: i.priority, description: i.description, project_name: i.project_name, program_name: i.program_name || '' })),
         upcomingMilestones: data.upcomingMilestones.map(m => ({ plan_end: m.plan_end, activity: m.activity, project_name: m.project_name })),
         completedByProject: data.completedByProject,
         language,
@@ -1031,7 +1031,7 @@ export default function PortfolioReportPage() {
     toast.success('Email client opened. Report copied — paste into email body to keep formatting.');
   };
 
-  const allProjects = data ? [...data.customers.flatMap(c => c.projects), ...data.noCustomerProjects] : [];
+  const allProjects = data ? [...data.programs.flatMap(c => c.projects), ...data.noProgramProjects] : [];
   const red = allProjects.filter(p => p.rag === 'red');
   const amber = allProjects.filter(p => p.rag === 'amber');
   const green = allProjects.filter(p => p.rag === 'green');
@@ -1077,8 +1077,8 @@ export default function PortfolioReportPage() {
                 <div className="text-[11px] text-slate-400 mt-0.5">Active</div>
               </div>
               <div className="bg-white border rounded-xl px-4 py-3">
-                <div className="text-2xl font-bold text-slate-800">{data.kpi.totalCustomers}</div>
-                <div className="text-[11px] text-slate-400 mt-0.5">Customers</div>
+                <div className="text-2xl font-bold text-slate-800">{data.kpi.totalPrograms}</div>
+                <div className="text-[11px] text-slate-400 mt-0.5">Programs</div>
               </div>
               <div className="bg-white border rounded-xl px-4 py-3">
                 <div className="text-2xl font-bold text-slate-800">{data.kpi.avgCompletion}%</div>
@@ -1167,9 +1167,9 @@ export default function PortfolioReportPage() {
                     <div key={i} className="px-4 py-3">
                       <div className="flex items-center gap-2 mb-2">
                         <span className="text-xs font-bold text-slate-700">{group.project_name}</span>
-                        {group.customer_name && (
+                        {group.program_name && (
                           <span className="text-[10px] text-slate-400 flex items-center gap-0.5">
-                            <Building2 className="h-3 w-3" />{group.customer_name}
+                            <Building2 className="h-3 w-3" />{group.program_name}
                           </span>
                         )}
                         <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 ml-auto">{group.current_phase}</span>
@@ -1282,7 +1282,7 @@ export default function PortfolioReportPage() {
                       <th className="px-4 py-2.5 text-left w-8">#</th>
                       <th className="px-4 py-2.5 text-left">Status</th>
                       <th className="px-4 py-2.5 text-left">Project</th>
-                      <th className="px-4 py-2.5 text-left">Customer</th>
+                      <th className="px-4 py-2.5 text-left">Program</th>
                       <th className="px-4 py-2.5 text-left">Phase</th>
                       <th className="px-4 py-2.5 text-left w-32">Progress</th>
                       <th className="px-4 py-2.5 text-left">Deadline</th>
@@ -1307,7 +1307,7 @@ export default function PortfolioReportPage() {
                             <ChevronRight className="h-3 w-3 text-slate-300 group-hover:text-blue-400 transition-colors" />
                           </Link>
                         </td>
-                        <td className="px-4 py-3 text-slate-500 text-xs">{p.customer_name || p.client || '—'}</td>
+                        <td className="px-4 py-3 text-slate-500 text-xs">{p.program_name || p.client || '—'}</td>
                         <td className="px-4 py-3">
                           <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${PHASE_COLOR[p.current_phase] ?? 'bg-slate-100 text-slate-600 border-slate-200'}`}>
                             {p.current_phase}
@@ -1374,7 +1374,7 @@ export default function PortfolioReportPage() {
                             <p className="text-sm text-slate-700 font-medium leading-snug">{r.description}</p>
                             <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-1">
                               <Building2 className="h-3 w-3" />
-                              {r.project_name}{r.customer_name ? ` · ${r.customer_name}` : ''}
+                              {r.project_name}{r.program_name ? ` · ${r.program_name}` : ''}
                             </p>
                             {r.mitigation && (
                               <p className="text-xs text-slate-400 italic mt-1">{r.mitigation}</p>
@@ -1411,7 +1411,7 @@ export default function PortfolioReportPage() {
                             <p className="text-sm text-slate-700 font-medium leading-snug">{i.description}</p>
                             <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-1">
                               <Building2 className="h-3 w-3" />
-                              {i.project_name}{i.customer_name ? ` · ${i.customer_name}` : ''}
+                              {i.project_name}{i.program_name ? ` · ${i.program_name}` : ''}
                             </p>
                             {i.mitigation && (
                               <p className="text-xs text-slate-400 italic mt-1">{i.mitigation}</p>
@@ -1497,21 +1497,21 @@ export default function PortfolioReportPage() {
             </div>
           )}
 
-          {/* ── 7. Customer Scorecard ── */}
+          {/* ── 7. Program Scorecard ── */}
           {data && (
             <div className="bg-white border rounded-xl overflow-hidden">
               <div className="flex items-center justify-between px-5 py-3.5 bg-slate-800">
                 <h2 className="text-sm font-bold text-white flex items-center gap-2">
                   <Building2 className="h-4 w-4 text-slate-300" />
-                  VI. Customer Portfolio Scorecard
+                  VI. Program Portfolio Scorecard
                 </h2>
-                <Badge className="bg-slate-600 text-slate-200 border-0 text-xs">{data.customers.length} customers</Badge>
+                <Badge className="bg-slate-600 text-slate-200 border-0 text-xs">{data.programs.length} programs</Badge>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-slate-100 text-slate-500 text-xs uppercase tracking-wide">
-                      <th className="px-4 py-2.5 text-left">Customer</th>
+                      <th className="px-4 py-2.5 text-left">Program</th>
                       <th className="px-4 py-2.5 text-left">Industry</th>
                       <th className="px-4 py-2.5 text-center">Projects</th>
                       <th className="px-4 py-2.5 text-center">Active</th>
@@ -1522,7 +1522,7 @@ export default function PortfolioReportPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {data.customers.filter(c => c.projects.length > 0).map(c => {
+                    {data.programs.filter(c => c.projects.length > 0).map(c => {
                       const avgPct = Math.round(c.projects.reduce((s, p) => s + p.completion_pct, 0) / c.projects.length);
                       const activeCount = c.projects.filter(p => p.current_phase !== 'Closing').length;
                       const worstRag: 'red' | 'amber' | 'green' = c.projects.some(p => p.rag === 'red') ? 'red' : c.projects.some(p => p.rag === 'amber') ? 'amber' : 'green';
@@ -1555,9 +1555,9 @@ export default function PortfolioReportPage() {
                     })}
                   </tbody>
                 </table>
-                {data.noCustomerProjects.length > 0 && (
+                {data.noProgramProjects.length > 0 && (
                   <div className="px-5 py-3 border-t text-xs text-slate-400 italic">
-                    {data.noCustomerProjects.length} project(s) not assigned to any customer
+                    {data.noProgramProjects.length} project(s) not assigned to any program
                   </div>
                 )}
               </div>

@@ -20,7 +20,7 @@ type Activity = { id: number; activity: string; deliverable: string; completion_
 type RiskIssue = { id: number; description: string; priority: string; status: string; mitigation: string; };
 type EpicStat = { phase: string; total: number; done: number; pct: number };
 type ReportData = {
-  project: { name: string; customer_name: string; client: string; current_phase: string; pm_name: string; };
+  project: { name: string; program_name: string; client: string; current_phase: string; pm_name: string; };
   weekRange: { start: string; end: string };
   doneThisWeek: Activity[];
   inProgress: Activity[];
@@ -101,7 +101,7 @@ function buildManualReport(data: ReportData, language: string, startDate: string
     lines.push('BÁO CÁO TIẾN ĐỘ DỰ ÁN HÀNG TUẦN');
     lines.push('═══════════════════════════════════════');
     lines.push(`Dự án     : ${project.name}`);
-    lines.push(`Khách hàng: ${project.customer_name || project.client || 'N/A'}`);
+    lines.push(`Chương trình: ${project.program_name || project.client || 'N/A'}`);
     lines.push(`Phase     : ${project.current_phase}`);
     lines.push(`Kỳ báo cáo: ${fmtDateLong(startDate)} – ${fmtDateLong(endDate)}`);
     lines.push(`Ngày tạo  : ${today}`);
@@ -175,7 +175,7 @@ function buildManualReport(data: ReportData, language: string, startDate: string
     lines.push('WEEKLY PROJECT STATUS REPORT');
     lines.push('═══════════════════════════════════════');
     lines.push(`Project  : ${project.name}`);
-    lines.push(`Customer : ${project.customer_name || project.client || 'N/A'}`);
+    lines.push(`Program  : ${project.program_name || project.client || 'N/A'}`);
     lines.push(`Phase    : ${project.current_phase}`);
     lines.push(`Period   : ${fmtDateLong(startDate)} – ${fmtDateLong(endDate)}`);
     lines.push(`Date     : ${today}`);
@@ -530,8 +530,8 @@ export default function ReportsPage() {
             {reportData && (
               <p className="text-sm text-slate-500 mt-0.5">
                 {reportData.project.name}
-                {(reportData.project.customer_name || reportData.project.client) && (
-                  <> · <span className="text-blue-600">{reportData.project.customer_name || reportData.project.client}</span></>
+                {(reportData.project.program_name || reportData.project.client) && (
+                  <> · <span className="text-blue-600">{reportData.project.program_name || reportData.project.client}</span></>
                 )}
               </p>
             )}

@@ -9,10 +9,10 @@ export async function GET(req: NextRequest) {
   const db = await getDb();
 
   const projects = user.is_admin
-    ? await db.all(`SELECT p.*, c.name as customer_name, c.industry as customer_industry FROM projects p LEFT JOIN customers c ON p.customer_id = c.id ORDER BY p.created_at DESC`) as any[]
-    : await db.all(`SELECT p.*, c.name as customer_name, c.industry as customer_industry FROM projects p LEFT JOIN customers c ON p.customer_id = c.id WHERE p.company_id = ? ORDER BY p.created_at DESC`, user.company_id) as any[];
+    ? await db.all(`SELECT p.*, c.name as program_name, c.industry as program_industry FROM projects p LEFT JOIN customers c ON p.customer_id = c.id ORDER BY p.created_at DESC`) as any[]
+    : await db.all(`SELECT p.*, c.name as program_name, c.industry as program_industry FROM projects p LEFT JOIN customers c ON p.customer_id = c.id WHERE p.company_id = ? ORDER BY p.created_at DESC`, user.company_id) as any[];
 
-  const customers = user.is_admin
+  const programs = user.is_admin
     ? await db.all('SELECT * FROM customers ORDER BY name') as any[]
     : await db.all('SELECT * FROM customers WHERE company_id = ? ORDER BY name', user.company_id) as any[];
 
@@ -57,11 +57,11 @@ export async function GET(req: NextRequest) {
     };
   });
 
-  const byCustomer = customers.map((c: any) => ({
+  const byProgram = programs.map((c: any) => ({
     ...c,
     projects: enrichedProjects.filter((p: any) => p.customer_id === c.id),
   }));
-  const noCustomer = enrichedProjects.filter((p: any) => !p.customer_id);
+  const noProgram = enrichedProjects.filter((p: any) => !p.customer_id);
 
   const phases = ['Initiation', 'Planning', 'Execution', 'Closing'];
   const phaseDist = phases.map(phase => ({
@@ -69,7 +69,7 @@ export async function GET(req: NextRequest) {
     count: projects.filter((p: any) => p.current_phase === phase).length,
   }));
 
-  const customerBar = byCustomer.map((c: any) => ({
+  const programBar = byProgram.map((c: any) => ({
     name: c.name,
     count: c.projects.length,
     active: c.projects.filter((p: any) => p.current_phase !== 'Closing').length,
@@ -83,13 +83,13 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     projects: enrichedProjects,
-    customers: byCustomer,
-    noCustomerProjects: noCustomer,
+    programs: byProgram,
+    noProgramProjects: noProgram,
     phaseDist,
-    customerBar,
+    programBar,
     kpi: {
       totalProjects: projects.length,
-      totalCustomers: customers.length,
+      totalPrograms: programs.length,
       totalOpenRisks,
       totalOpenIssues,
       avgCompletion,

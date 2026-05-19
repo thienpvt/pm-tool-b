@@ -43,14 +43,14 @@ export async function GET(req: NextRequest) {
   const cp = user.is_admin ? [] : [user.company_id];
 
   const projects = await db.all(`
-    SELECT p.*, c.name as customer_name, c.industry as customer_industry
+    SELECT p.*, c.name as program_name, c.industry as program_industry
     FROM projects p
     LEFT JOIN customers c ON p.customer_id = c.id
     WHERE 1=1 ${cc}
     ORDER BY p.created_at DESC
   `, ...cp) as any[];
 
-  const customers = user.is_admin
+  const programs = user.is_admin
     ? await db.all('SELECT * FROM customers ORDER BY name') as any[]
     : await db.all('SELECT * FROM customers WHERE company_id = ? ORDER BY name', user.company_id) as any[];
 
@@ -135,11 +135,11 @@ export async function GET(req: NextRequest) {
     };
   });
 
-  const byCustomer = customers.map((c: any) => ({
+  const byProgram = programs.map((c: any) => ({
     ...c,
     projects: enrichedProjects.filter((p: any) => p.customer_id === c.id),
   }));
-  const noCustomer = enrichedProjects.filter((p: any) => !p.customer_id);
+  const noProgram = enrichedProjects.filter((p: any) => !p.customer_id);
 
   const phases = ['Initiation', 'Planning', 'Execution', 'Closing'];
   const phaseDist = phases.map(phase => ({
@@ -147,7 +147,7 @@ export async function GET(req: NextRequest) {
     count: projects.filter((p: any) => p.current_phase === phase).length,
   }));
 
-  const customerBar = byCustomer.map((c: any) => ({
+  const programBar = byProgram.map((c: any) => ({
     name: c.name,
     count: c.projects.length,
     active: c.projects.filter((p: any) => p.current_phase !== 'Closing').length,
@@ -161,7 +161,7 @@ export async function GET(req: NextRequest) {
 
   // ─── Additional report data ────────────────────────────────────────────────
   const topRisks = await db.all(`
-    SELECT r.*, p.name as project_name, c.name as customer_name
+    SELECT r.*, p.name as project_name, c.name as program_name
     FROM risks r
     JOIN projects p ON r.project_id = p.id
     LEFT JOIN customers c ON p.customer_id = c.id
@@ -171,7 +171,7 @@ export async function GET(req: NextRequest) {
   `, ...cp) as any[];
 
   const topIssues = await db.all(`
-    SELECT i.*, p.name as project_name, c.name as customer_name
+    SELECT i.*, p.name as project_name, c.name as program_name
     FROM issues i
     JOIN projects p ON i.project_id = p.id
     LEFT JOIN customers c ON p.customer_id = c.id
@@ -187,7 +187,7 @@ export async function GET(req: NextRequest) {
 
   // Upcoming milestones: not in any done status
   const upcomingMilestones = await db.all(`
-    SELECT a.*, p.name as project_name, c.name as customer_name
+    SELECT a.*, p.name as project_name, c.name as program_name
     FROM activities a
     JOIN projects p ON a.project_id = p.id
     LEFT JOIN customers c ON p.customer_id = c.id
@@ -199,7 +199,7 @@ export async function GET(req: NextRequest) {
 
   // Recently completed: any done status, using actual_end
   const recentlyCompleted = await db.all(`
-    SELECT a.*, p.name as project_name, c.name as customer_name
+    SELECT a.*, p.name as project_name, c.name as program_name
     FROM activities a
     JOIN projects p ON a.project_id = p.id
     LEFT JOIN customers c ON p.customer_id = c.id
@@ -211,7 +211,7 @@ export async function GET(req: NextRequest) {
 
   // Completed in selected date range: any done status + actual_end in range
   const completedInRange = await db.all(`
-    SELECT a.*, p.name as project_name, p.current_phase, c.name as customer_name
+    SELECT a.*, p.name as project_name, p.current_phase, c.name as program_name
     FROM activities a
     JOIN projects p ON a.project_id = p.id
     LEFT JOIN customers c ON p.customer_id = c.id
@@ -222,12 +222,12 @@ export async function GET(req: NextRequest) {
   `, ...DONE_STATUSES, startParam, endParam, ...cp) as any[];
 
   // Group by project_id
-  const completedByProject: Record<number, { project_name: string; customer_name: string; current_phase: string; activities: any[] }> = {};
+  const completedByProject: Record<number, { project_name: string; program_name: string; current_phase: string; activities: any[] }> = {};
   for (const act of completedInRange) {
     if (!completedByProject[act.project_id]) {
       completedByProject[act.project_id] = {
         project_name: act.project_name,
-        customer_name: act.customer_name ?? '',
+        program_name: act.program_name ?? '',
         current_phase: act.current_phase,
         activities: [],
       };
@@ -237,13 +237,13 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     projects: enrichedProjects,
-    customers: byCustomer,
-    noCustomerProjects: noCustomer,
+    programs: byProgram,
+    noProgramProjects: noProgram,
     phaseDist,
-    customerBar,
+    programBar,
     kpi: {
       totalProjects: projects.length,
-      totalCustomers: customers.length,
+      totalPrograms: programs.length,
       totalOpenRisks,
       totalOpenIssues,
       avgCompletion,
@@ -263,25 +263,25 @@ export async function GET(req: NextRequest) {
 // ─── POST: AI report generation ───────────────────────────────────────────────
 type EpicStat = { phase: string; pct: number; done: number; total: number };
 type ProjectSummary = {
-  name: string; customer_name: string; current_phase: string;
+  name: string; program_name: string; current_phase: string;
   completion_pct: number; open_risks: number; open_issues: number;
   days_until_deadline: number | null; rag: 'red' | 'amber' | 'green';
   pm_name: string;
   done_activities?: number; in_progress_activities?: number; not_started_activities?: number; total_activities?: number;
   epicStats?: EpicStat[];
 };
-type CustomerGroup = { name: string; industry: string; projects: ProjectSummary[]; };
-type RiskSummary = { priority: string; description: string; project_name: string; customer_name: string; };
+type ProgramGroup = { name: string; industry: string; projects: ProjectSummary[]; };
+type RiskSummary = { priority: string; description: string; project_name: string; program_name: string; };
 type MilestoneSummary = { plan_end: string; activity: string; project_name: string; };
 type CompletedActivity = { activity: string; deliverable?: string; actual_end?: string; };
-type CompletedGroup = { project_name: string; customer_name: string; activities: CompletedActivity[]; };
+type CompletedGroup = { project_name: string; program_name: string; activities: CompletedActivity[]; };
 type PortfolioPayload = {
   reportDate: string;
   periodStart?: string;
   periodEnd?: string;
-  kpi: { totalProjects: number; totalCustomers: number; avgCompletion: number; activeProjects: number; totalOpenRisks: number; totalOpenIssues: number; };
-  customers: CustomerGroup[];
-  noCustomerProjects: ProjectSummary[];
+  kpi: { totalProjects: number; totalPrograms: number; avgCompletion: number; activeProjects: number; totalOpenRisks: number; totalOpenIssues: number; };
+  programs: ProgramGroup[];
+  noProgramProjects: ProjectSummary[];
   topRisks?: RiskSummary[];
   topIssues?: RiskSummary[];
   upcomingMilestones?: MilestoneSummary[];
@@ -299,13 +299,13 @@ export async function POST(req: NextRequest) {
   const apiKey = process.env.ANTHROPIC_API_KEY || dbKey;
   if (!apiKey) return NextResponse.json({ error: 'NO_API_KEY' }, { status: 503 });
 
-  const { kpi, customers, noCustomerProjects, reportDate, topRisks, topIssues, upcomingMilestones, completedByProject, periodStart, periodEnd } = portfolioData;
-  const allProjects = [...customers.flatMap(c => c.projects), ...noCustomerProjects];
+  const { kpi, programs, noProgramProjects, reportDate, topRisks, topIssues, upcomingMilestones, completedByProject, periodStart, periodEnd } = portfolioData;
+  const allProjects = [...programs.flatMap(c => c.projects), ...noProgramProjects];
   const redProjects = allProjects.filter(p => p.rag === 'red');
   const amberProjects = allProjects.filter(p => p.rag === 'amber');
   const greenProjects = allProjects.filter(p => p.rag === 'green');
 
-  const customerLines = customers.map(c => {
+  const programLines = programs.map(c => {
     const lines = [`${c.name}${c.industry ? ` (${c.industry})` : ''} — ${c.projects.length} project(s):`];
     c.projects.forEach(p => {
       const deadline = p.days_until_deadline === null ? '' : p.days_until_deadline < 0 ? ` OVERDUE ${Math.abs(p.days_until_deadline)}d` : ` ${p.days_until_deadline}d left`;
@@ -324,15 +324,15 @@ export async function POST(req: NextRequest) {
 
   const redLines = redProjects.length === 0 ? '- None' : redProjects.map(p => {
     const dl = p.days_until_deadline;
-    return `- ${p.name} (${p.customer_name || 'N/A'}) — ${p.completion_pct}%${dl !== null && dl < 0 ? ` | OVERDUE ${Math.abs(dl)} days` : dl !== null ? ` | Due in ${dl} days` : ''} | ${p.open_risks} risks, ${p.open_issues} issues`;
+    return `- ${p.name} (${p.program_name || 'N/A'}) — ${p.completion_pct}%${dl !== null && dl < 0 ? ` | OVERDUE ${Math.abs(dl)} days` : dl !== null ? ` | Due in ${dl} days` : ''} | ${p.open_risks} risks, ${p.open_issues} issues`;
   }).join('\n');
 
   const riskLines = topRisks && topRisks.length > 0
-    ? topRisks.slice(0, 8).map(r => `- [${r.priority}] ${r.description} — ${r.project_name} (${r.customer_name || 'N/A'})`).join('\n')
+    ? topRisks.slice(0, 8).map(r => `- [${r.priority}] ${r.description} — ${r.project_name} (${r.program_name || 'N/A'})`).join('\n')
     : '- None';
 
   const issueLines = topIssues && topIssues.length > 0
-    ? topIssues.slice(0, 8).map(i => `- [${i.priority}] ${i.description} — ${i.project_name} (${i.customer_name || 'N/A'})`).join('\n')
+    ? topIssues.slice(0, 8).map(i => `- [${i.priority}] ${i.description} — ${i.project_name} (${i.program_name || 'N/A'})`).join('\n')
     : '- None';
 
   const milestoneLines = upcomingMilestones && upcomingMilestones.length > 0
@@ -343,7 +343,7 @@ export async function POST(req: NextRequest) {
   const completedLines = completedByProject && Object.keys(completedByProject).length > 0
     ? Object.values(completedByProject).map(g => {
         const actLines = g.activities.slice(0, 5).map(a => `    • ${a.activity}${a.deliverable ? ` → ${a.deliverable}` : ''}${a.actual_end ? ` (${a.actual_end})` : ''}`).join('\n');
-        return `  ${g.project_name}${g.customer_name ? ` (${g.customer_name})` : ''}:\n${actLines}`;
+        return `  ${g.project_name}${g.program_name ? ` (${g.program_name})` : ''}:\n${actLines}`;
       }).join('\n\n')
     : '  (No completed activities in the selected period)';
 
@@ -352,13 +352,13 @@ export async function POST(req: NextRequest) {
     '',
     `Report Date: ${reportDate}`,
     periodLabel ? `Reporting Period: ${periodLabel}` : '',
-    `Total Projects: ${kpi.totalProjects} across ${kpi.totalCustomers} customers`,
+    `Total Projects: ${kpi.totalProjects} across ${kpi.totalPrograms} programs`,
     `Active: ${kpi.activeProjects} | Avg Completion: ${kpi.avgCompletion}% (weighted by status)`,
     `Portfolio Health: ${redProjects.length} RED, ${amberProjects.length} AMBER, ${greenProjects.length} GREEN`,
     `Total Open Risks: ${kpi.totalOpenRisks} | Total Open Issues: ${kpi.totalOpenIssues}`,
     '',
-    'PROJECTS BY CUSTOMER (weighted progress | Done✓ InProgress⟳ NotStarted○):',
-    customerLines,
+    'PROJECTS BY PROGRAM (weighted progress | Done✓ InProgress⟳ NotStarted○):',
+    programLines,
     '',
     'PROJECTS REQUIRING ATTENTION (RED):',
     redLines,
@@ -381,7 +381,7 @@ export async function POST(req: NextRequest) {
     'III. Progress Report — Completed in Period (per-project bullet list of what was delivered during the reporting period)',
     'IV. Critical Risks & Issues (list top risks and issues with project context and recommended mitigations)',
     'V. Upcoming Milestones (key deliverables due within 30 days, highlight any at-risk ones)',
-    'VI. Customer Scorecard (one paragraph per customer: their project health, weighted progress, concerns)',
+    'VI. Program Scorecard (one paragraph per program: their project health, weighted progress, concerns)',
     'VII. Recommended Actions (3-5 concrete CEO/steering committee decisions or escalations required)',
     '',
     'Target length: 700-900 words total. CEO-appropriate: direct, data-driven, action-oriented.',

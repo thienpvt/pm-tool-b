@@ -7,13 +7,13 @@ export async function GET(req: NextRequest) {
   if (!user) return NextResponse.json([], { status: 401 });
 
   const db = await getDb();
-  const customers = user.is_admin
+  const programs = user.is_admin
     ? await db.all('SELECT * FROM customers ORDER BY name')
     : await db.all('SELECT * FROM customers WHERE company_id = ? ORDER BY name', user.company_id);
 
   const projectCounts = await db.all('SELECT customer_id, COUNT(*) as count FROM projects WHERE customer_id IS NOT NULL GROUP BY customer_id') as { customer_id: number; count: number }[];
   const countMap = Object.fromEntries(projectCounts.map(r => [r.customer_id, r.count]));
-  return NextResponse.json(customers.map((c: any) => ({ ...c, project_count: countMap[c.id] ?? 0 })));
+  return NextResponse.json(programs.map((c: any) => ({ ...c, project_count: countMap[c.id] ?? 0 })));
 }
 
 export async function POST(req: NextRequest) {

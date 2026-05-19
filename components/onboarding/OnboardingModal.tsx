@@ -107,8 +107,8 @@ function WelcomeStep({
           {
             icon: Building2,
             color: 'text-blue-600 bg-blue-50 border-blue-100',
-            label: 'Customer Management',
-            desc: 'Organize clients and link all their projects.',
+            label: 'Program Management',
+            desc: 'Organize programs and link all their projects.',
           },
           {
             icon: FolderKanban,
@@ -186,8 +186,8 @@ function CustomerStep({
             <Building2 className="h-5 w-5 text-blue-600" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-slate-800">Add your first customer</h2>
-            <p className="text-xs text-slate-500">Link your projects to a client organization</p>
+            <h2 className="text-lg font-bold text-slate-800">Add your first program</h2>
+            <p className="text-xs text-slate-500">Link your projects to a program</p>
           </div>
         </div>
       </div>
@@ -196,7 +196,7 @@ function CustomerStep({
       <div className="px-6 sm:px-8 pb-2 space-y-3.5 flex-1 overflow-y-auto">
         <div>
           <Label className="text-xs font-semibold text-slate-600">
-            Company Name <span className="text-red-500">*</span>
+            Program Name <span className="text-red-500">*</span>
           </Label>
           <Input
             className="mt-1.5 h-9"
@@ -257,13 +257,13 @@ function CustomerStep({
           disabled={saving}
           className="w-full bg-blue-600 hover:bg-blue-700 gap-2 h-10"
         >
-          {saving ? 'Creating…' : <><span>Create Customer</span><ChevronRight className="h-4 w-4" /></>}
+          {saving ? 'Creating…' : <><span>Create Program</span><ChevronRight className="h-4 w-4" /></>}
         </Button>
         <button
           onClick={onSkip}
           className="text-xs text-slate-400 hover:text-slate-600 transition-colors py-1.5"
         >
-          Skip — I&apos;ll add customers later
+          Skip — I&apos;ll add programs later
         </button>
       </div>
     </>
@@ -404,7 +404,7 @@ function DoneStep({
       <p className="text-slate-500 text-sm mb-6 max-w-xs leading-relaxed">
         {hasCreated
           ? "Here's what was created. You can always add more from the dashboard."
-          : "No worries — you can always add customers and projects from the dashboard anytime."}
+          : "No worries — you can always add programs and projects from the dashboard anytime."}
       </p>
 
       {/* Created items summary */}
@@ -416,7 +416,7 @@ function DoneStep({
                 <Building2 className="h-3.5 w-3.5 text-blue-600" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-[10px] text-blue-500 font-semibold uppercase tracking-wide">Customer created</p>
+                <p className="text-[10px] text-blue-500 font-semibold uppercase tracking-wide">Program created</p>
                 <p className="text-sm font-bold text-blue-800 truncate">{createdCustomer.name}</p>
               </div>
               <Check className="h-4 w-4 text-blue-500 shrink-0" />
@@ -478,18 +478,18 @@ export default function OnboardingModal({
   }, [onComplete]);
 
   const handleCreateCustomer = async () => {
-    if (!customerForm.name.trim()) { toast.error('Company name is required'); return; }
+    if (!customerForm.name.trim()) { toast.error('Program name is required'); return; }
     setSavingCustomer(true);
-    const res = await fetch('/api/customers', {
+    const res = await fetch('/api/programs', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(customerForm),
     });
     setSavingCustomer(false);
-    if (!res.ok) { toast.error('Failed to create customer'); return; }
+    if (!res.ok) { toast.error('Failed to create program'); return; }
     const data = await res.json();
     setCreatedCustomer({ id: data.id, name: customerForm.name });
-    toast.success('Customer created!');
+    toast.success('Program created!');
     setStep('project');
   };
 

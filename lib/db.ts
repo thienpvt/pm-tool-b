@@ -314,7 +314,7 @@ export async function getDb(): Promise<DbClient> {
 }
 
 // ── Types ──────────────────────────────────────────────────────────────────────
-export type Customer = {
+export type Program = {
   id: number; name: string; industry: string; contact_name: string;
   contact_email: string; contact_phone: string; website: string;
   notes: string; created_at: string;

@@ -18,7 +18,7 @@ import {
 // ─── Types ────────────────────────────────────────────────────────────────────
 type ProjectRow = {
   id: number; name: string; client: string; customer_id: number | null;
-  customer_name: string; customer_industry: string;
+  program_name: string; program_industry: string;
   pm_name: string; start_date: string; end_date: string;
   current_phase: string; description: string;
   open_risks: number; open_issues: number;
@@ -26,15 +26,15 @@ type ProjectRow = {
   rag: 'red' | 'amber' | 'green';
   days_until_deadline: number | null;
 };
-type CustomerGroup = { id: number; name: string; industry: string; projects: ProjectRow[] };
+type ProgramGroup = { id: number; name: string; industry: string; projects: ProjectRow[] };
 type PortfolioData = {
   projects: ProjectRow[];
-  customers: CustomerGroup[];
-  noCustomerProjects: ProjectRow[];
+  programs: ProgramGroup[];
+  noProgramProjects: ProjectRow[];
   phaseDist: { phase: string; count: number }[];
-  customerBar: { name: string; count: number; active: number }[];
+  programBar: { name: string; count: number; active: number }[];
   kpi: {
-    totalProjects: number; totalCustomers: number;
+    totalProjects: number; totalPrograms: number;
     totalOpenRisks: number; totalOpenIssues: number;
     avgCompletion: number; activeProjects: number;
   };
@@ -158,9 +158,9 @@ function ProjectListRow({ p }: { p: ProjectRow }) {
         <div className="w-16 shrink-0"><RagBadge rag={p.rag} /></div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-slate-800 truncate group-hover:text-blue-700">{p.name}</p>
-          {(p.customer_name || p.client) && (
+          {(p.program_name || p.client) && (
             <p className="text-[11px] text-slate-400 truncate flex items-center gap-1">
-              <Building2 className="h-2.5 w-2.5" />{p.customer_name || p.client}
+              <Building2 className="h-2.5 w-2.5" />{p.program_name || p.client}
             </p>
           )}
         </div>
@@ -244,25 +244,25 @@ function ProjectCard({ p }: { p: ProjectRow }) {
   );
 }
 
-// ─── Customer section ─────────────────────────────────────────────────────────
-function CustomerSection({ customer, defaultOpen }: { customer: CustomerGroup; defaultOpen: boolean }) {
+// ─── Program section ──────────────────────────────────────────────────────────
+function ProgramSection({ program, defaultOpen }: { program: ProgramGroup; defaultOpen: boolean }) {
   const [open, setOpen] = useState(defaultOpen);
   const phases = ['Initiation','Planning','Execution','Closing'];
-  const phaseCounts = Object.fromEntries(phases.map(ph => [ph, customer.projects.filter(p => p.current_phase === ph).length]));
-  const openRisks  = customer.projects.reduce((s, p) => s + p.open_risks, 0);
-  const openIssues = customer.projects.reduce((s, p) => s + p.open_issues, 0);
-  const avgPct = customer.projects.length ? Math.round(customer.projects.reduce((s, p) => s + p.completion_pct, 0) / customer.projects.length) : 0;
+  const phaseCounts = Object.fromEntries(phases.map(ph => [ph, program.projects.filter(p => p.current_phase === ph).length]));
+  const openRisks  = program.projects.reduce((s, p) => s + p.open_risks, 0);
+  const openIssues = program.projects.reduce((s, p) => s + p.open_issues, 0);
+  const avgPct = program.projects.length ? Math.round(program.projects.reduce((s, p) => s + p.completion_pct, 0) / program.projects.length) : 0;
   return (
     <div className="rounded-2xl border bg-white overflow-hidden">
       <button onClick={() => setOpen(o => !o)} className="w-full flex items-center gap-4 px-6 py-4 hover:bg-slate-50/80 transition-colors text-left">
-        <div className={`w-10 h-10 rounded-xl ${avatarBg(customer.name)} flex items-center justify-center text-white font-bold shrink-0`}>{initials(customer.name)}</div>
+        <div className={`w-10 h-10 rounded-xl ${avatarBg(program.name)} flex items-center justify-center text-white font-bold shrink-0`}>{initials(program.name)}</div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-bold text-slate-800">{customer.name}</span>
-            {customer.industry && <Badge className={`text-[10px] ${INDUSTRY_COLOR[customer.industry] ?? 'bg-slate-100 text-slate-600'}`}>{customer.industry}</Badge>}
+            <span className="font-bold text-slate-800">{program.name}</span>
+            {program.industry && <Badge className={`text-[10px] ${INDUSTRY_COLOR[program.industry] ?? 'bg-slate-100 text-slate-600'}`}>{program.industry}</Badge>}
           </div>
           <div className="flex items-center gap-3 mt-1 text-xs text-slate-400 flex-wrap">
-            <span className="flex items-center gap-1"><FolderOpen className="h-3 w-3" />{customer.projects.length} projects</span>
+            <span className="flex items-center gap-1"><FolderOpen className="h-3 w-3" />{program.projects.length} projects</span>
             {phases.map(ph => phaseCounts[ph] > 0 && <span key={ph} className={`px-1.5 py-px rounded text-[10px] font-semibold ${PHASE_COLOR[ph]}`}>{phaseCounts[ph]} {ph}</span>)}
             {openRisks > 0 && <span className="flex items-center gap-1 text-red-400"><ShieldAlert className="h-3 w-3" />{openRisks}</span>}
             {openIssues > 0 && <span className="flex items-center gap-1 text-violet-400"><Bug className="h-3 w-3" />{openIssues}</span>}
@@ -274,7 +274,7 @@ function CustomerSection({ customer, defaultOpen }: { customer: CustomerGroup; d
       {open && (
         <div className="px-6 pb-5 border-t bg-slate-50/40">
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 pt-4">
-            {customer.projects.map(p => <ProjectCard key={p.id} p={p} />)}
+            {program.projects.map(p => <ProjectCard key={p.id} p={p} />)}
             <Link href="/projects/new">
               <div className="rounded-xl border-2 border-dashed border-slate-200 hover:border-blue-300 transition-colors p-4 flex items-center justify-center gap-2 text-sm text-slate-400 hover:text-blue-500 cursor-pointer h-full min-h-[120px]">
                 <Plus className="h-4 w-4" /> New Project
@@ -292,7 +292,7 @@ export default function PortfolioDashboard() {
   const [data, setData] = useState<PortfolioData | null>(null);
   const [loading, setLoading] = useState(true);
   const [companyName, setCompanyName] = useState('');
-  const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(null);
+  const [selectedProgramId, setSelectedProgramId] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<'cards' | 'list'>('cards');
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [meUser, setMeUser] = useState<{ display_name: string; username: string; onboarding_completed: number } | null>(null);
@@ -318,17 +318,17 @@ export default function PortfolioDashboard() {
     }
   }, [loading, data, meUser]);
 
-  const activeCustomer = useMemo(() => {
-    if (selectedCustomerId === null || !data) return null;
-    return data.customers.find(c => c.id === selectedCustomerId) ?? null;
-  }, [data, selectedCustomerId]);
+  const activeProgram = useMemo(() => {
+    if (selectedProgramId === null || !data) return null;
+    return data.programs.find(c => c.id === selectedProgramId) ?? null;
+  }, [data, selectedProgramId]);
 
   const filteredProjects = useMemo(() => {
     if (!data) return [];
-    if (selectedCustomerId === null) return data.projects;
-    if (selectedCustomerId === 0) return data.noCustomerProjects;
-    return activeCustomer?.projects ?? [];
-  }, [data, selectedCustomerId, activeCustomer]);
+    if (selectedProgramId === null) return data.projects;
+    if (selectedProgramId === 0) return data.noProgramProjects;
+    return activeProgram?.projects ?? [];
+  }, [data, selectedProgramId, activeProgram]);
 
   // ── Derived analytics ──────────────────────────────────────────────────────
   const analytics = useMemo(() => {
@@ -369,7 +369,7 @@ export default function PortfolioDashboard() {
       totalActivities, doneActivities, inProgress, planning, initiation, closing,
       totalOpenRisks, totalOpenIssues, avgCompletion, overdueCount,
       byHealthScore, topRiskyProjects,
-      totalCustomers: data?.kpi.totalCustomers ?? 0,
+      totalPrograms: data?.kpi.totalPrograms ?? 0,
     };
   }, [filteredProjects, data]);
 
@@ -394,9 +394,9 @@ export default function PortfolioDashboard() {
 
   const today = new Date();
   const dateStr = today.toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-  const showAllCustomers   = selectedCustomerId === null;
-  const showSingleCustomer = selectedCustomerId !== null && selectedCustomerId !== 0 && activeCustomer;
-  const showNoCustomer     = selectedCustomerId === 0;
+  const showAllPrograms   = selectedProgramId === null;
+  const showSingleProgram = selectedProgramId !== null && selectedProgramId !== 0 && activeProgram;
+  const showNoProgram     = selectedProgramId === 0;
 
   // Fake sparkline seeds (visual only — based on health score)
   const riskSpark  = [3,5,4,7,6,analytics.totalOpenRisks || 4];
@@ -422,7 +422,7 @@ export default function PortfolioDashboard() {
               <h1 className="text-2xl font-bold text-slate-900">Portfolio Health Check</h1>
               <p className="text-sm text-slate-500 mt-0.5">
                 AI-powered workspace analysis · {companyName || 'All Projects'}
-                {activeCustomer && <> · <span className="text-blue-600 font-semibold">{activeCustomer.name}</span></>}
+                {activeProgram && <> · <span className="text-blue-600 font-semibold">{activeProgram.name}</span></>}
               </p>
             </div>
             <div className="flex gap-2 flex-wrap">
@@ -431,9 +431,9 @@ export default function PortfolioDashboard() {
                   <FileBarChart2 className="h-4 w-4 text-blue-500" /> Portfolio Report
                 </Button>
               </Link>
-              <Link href="/customers">
+              <Link href="/programs">
                 <Button variant="outline" className="h-9 text-sm gap-2">
-                  <Building2 className="h-4 w-4" /> Customers
+                  <Building2 className="h-4 w-4" /> Programs
                 </Button>
               </Link>
               <Link href="/projects/new">
@@ -444,21 +444,21 @@ export default function PortfolioDashboard() {
             </div>
           </div>
 
-          {/* ── Customer tabs ── */}
+          {/* ── Program tabs ── */}
           <div className="bg-white rounded-2xl border p-2">
             <div className="flex items-center gap-1 overflow-x-auto">
               <button
-                onClick={() => setSelectedCustomerId(null)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-colors shrink-0 ${selectedCustomerId === null ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-100'}`}
+                onClick={() => setSelectedProgramId(null)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-colors shrink-0 ${selectedProgramId === null ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-100'}`}
               >
                 <LayoutGrid className="h-4 w-4" /> All
-                <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${selectedCustomerId === null ? 'bg-blue-500 text-white' : 'bg-slate-100 text-slate-500'}`}>{data.projects.length}</span>
+                <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${selectedProgramId === null ? 'bg-blue-500 text-white' : 'bg-slate-100 text-slate-500'}`}>{data.projects.length}</span>
               </button>
-              {data.customers.length > 0 && <div className="w-px h-5 bg-slate-200 shrink-0 mx-1" />}
-              {data.customers.map(c => {
-                const isActive = selectedCustomerId === c.id;
+              {data.programs.length > 0 && <div className="w-px h-5 bg-slate-200 shrink-0 mx-1" />}
+              {data.programs.map(c => {
+                const isActive = selectedProgramId === c.id;
                 return (
-                  <button key={c.id} onClick={() => setSelectedCustomerId(isActive ? null : c.id)}
+                  <button key={c.id} onClick={() => setSelectedProgramId(isActive ? null : c.id)}
                     className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-colors shrink-0 ${isActive ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-100'}`}>
                     <div className={`w-5 h-5 rounded-md ${avatarBg(c.name)} flex items-center justify-center text-white text-[9px] font-bold shrink-0`}>{initials(c.name)}</div>
                     <span className="max-w-[120px] truncate">{c.name}</span>
@@ -466,11 +466,11 @@ export default function PortfolioDashboard() {
                   </button>
                 );
               })}
-              {data.noCustomerProjects.length > 0 && (
-                <button onClick={() => setSelectedCustomerId(selectedCustomerId === 0 ? null : 0)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-colors shrink-0 ${selectedCustomerId === 0 ? 'bg-slate-700 text-white shadow-sm' : 'text-slate-400 hover:bg-slate-100'}`}>
+              {data.noProgramProjects.length > 0 && (
+                <button onClick={() => setSelectedProgramId(selectedProgramId === 0 ? null : 0)}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-colors shrink-0 ${selectedProgramId === 0 ? 'bg-slate-700 text-white shadow-sm' : 'text-slate-400 hover:bg-slate-100'}`}>
                   Unassigned
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${selectedCustomerId === 0 ? 'bg-slate-600 text-white' : 'bg-slate-100 text-slate-500'}`}>{data.noCustomerProjects.length}</span>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${selectedProgramId === 0 ? 'bg-slate-600 text-white' : 'bg-slate-100 text-slate-500'}`}>{data.noProgramProjects.length}</span>
                 </button>
               )}
             </div>
@@ -801,7 +801,7 @@ export default function PortfolioDashboard() {
           <div className="space-y-4" id="projects">
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-                {selectedCustomerId === null ? 'All Customer Portfolios' : selectedCustomerId === 0 ? 'Unassigned Projects' : `${activeCustomer?.name ?? ''} — Projects`}
+                {selectedProgramId === null ? 'All Program Portfolios' : selectedProgramId === 0 ? 'Unassigned Projects' : `${activeProgram?.name ?? ''} — Projects`}
               </h2>
               <div className="flex items-center gap-2 ml-auto">
                 {viewMode === 'list' && filteredProjects.length > 0 && (() => {
@@ -829,7 +829,7 @@ export default function PortfolioDashboard() {
               </div>
             </div>
 
-            {filteredProjects.length === 0 && data.customers.length === 0 && (
+            {filteredProjects.length === 0 && data.programs.length === 0 && (
               <div className="text-center py-20 rounded-2xl border bg-white">
                 <FolderOpen className="h-12 w-12 mx-auto mb-3 text-slate-200" />
                 <p className="text-slate-400 text-sm mb-4">No projects yet.</p>
@@ -861,21 +861,21 @@ export default function PortfolioDashboard() {
               );
             })()}
 
-            {viewMode === 'cards' && showAllCustomers && data.customers.map((c, i) => (
-              <CustomerSection key={c.id} customer={c} defaultOpen={i === 0} />
+            {viewMode === 'cards' && showAllPrograms && data.programs.map((c, i) => (
+              <ProgramSection key={c.id} program={c} defaultOpen={i === 0} />
             ))}
-            {viewMode === 'cards' && showSingleCustomer && activeCustomer && (
+            {viewMode === 'cards' && showSingleProgram && activeProgram && (
               <div className="bg-white rounded-2xl border p-6">
                 <div className="flex items-center gap-4 mb-5">
-                  <div className={`w-12 h-12 rounded-xl ${avatarBg(activeCustomer.name)} flex items-center justify-center text-white font-bold text-lg shrink-0`}>{initials(activeCustomer.name)}</div>
+                  <div className={`w-12 h-12 rounded-xl ${avatarBg(activeProgram.name)} flex items-center justify-center text-white font-bold text-lg shrink-0`}>{initials(activeProgram.name)}</div>
                   <div>
-                    <h3 className="font-bold text-slate-800 text-lg">{activeCustomer.name}</h3>
-                    {activeCustomer.industry && <Badge className={`text-[10px] mt-0.5 ${INDUSTRY_COLOR[activeCustomer.industry] ?? 'bg-slate-100 text-slate-600'}`}>{activeCustomer.industry}</Badge>}
+                    <h3 className="font-bold text-slate-800 text-lg">{activeProgram.name}</h3>
+                    {activeProgram.industry && <Badge className={`text-[10px] mt-0.5 ${INDUSTRY_COLOR[activeProgram.industry] ?? 'bg-slate-100 text-slate-600'}`}>{activeProgram.industry}</Badge>}
                   </div>
-                  <Link href="/customers" className="ml-auto text-xs text-blue-600 hover:underline">Edit customer →</Link>
+                  <Link href="/programs" className="ml-auto text-xs text-blue-600 hover:underline">Edit program →</Link>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-                  {activeCustomer.projects.map(p => <ProjectCard key={p.id} p={p} />)}
+                  {activeProgram.projects.map(p => <ProjectCard key={p.id} p={p} />)}
                   <Link href="/projects/new">
                     <div className="rounded-xl border-2 border-dashed border-slate-200 hover:border-blue-300 transition-colors p-4 flex items-center justify-center gap-2 text-sm text-slate-400 hover:text-blue-500 cursor-pointer h-full min-h-[120px]">
                       <Plus className="h-4 w-4" /> New Project
@@ -884,16 +884,16 @@ export default function PortfolioDashboard() {
                 </div>
               </div>
             )}
-            {viewMode === 'cards' && showNoCustomer && (
+            {viewMode === 'cards' && showNoProgram && (
               <div className="bg-white rounded-2xl border p-6">
                 <h3 className="font-bold text-slate-700 mb-4">Unassigned Projects</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-                  {data.noCustomerProjects.map(p => <ProjectCard key={p.id} p={p} />)}
+                  {data.noProgramProjects.map(p => <ProjectCard key={p.id} p={p} />)}
                 </div>
               </div>
             )}
-            {viewMode === 'cards' && showAllCustomers && data.noCustomerProjects.length > 0 && (
-              <CustomerSection customer={{ id: 0, name: 'Unassigned Projects', industry: '', projects: data.noCustomerProjects }} defaultOpen={false} />
+            {viewMode === 'cards' && showAllPrograms && data.noProgramProjects.length > 0 && (
+              <ProgramSection program={{ id: 0, name: 'Unassigned Projects', industry: '', projects: data.noProgramProjects }} defaultOpen={false} />
             )}
           </div>
 

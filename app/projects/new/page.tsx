@@ -14,13 +14,13 @@ import Link from 'next/link';
 
 const STEPS = ['Project Info', 'Team & Timeline', 'Confirm'];
 
-type Customer = { id: number; name: string; industry: string; };
+type Program = { id: number; name: string; industry: string; };
 
 export default function NewProjectPage() {
   const router = useRouter();
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
-  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [programs, setPrograms] = useState<Program[]>([]);
   const [form, setForm] = useState({
     name: '', client: '', customer_id: '', description: '',
     pm_name: '', pm_email: '',
@@ -29,12 +29,12 @@ export default function NewProjectPage() {
   });
 
   useEffect(() => {
-    fetch('/api/customers').then(r => r.json()).then(setCustomers);
+    fetch('/api/programs').then(r => r.json()).then(setPrograms);
   }, []);
 
   const set = (key: string, value: string) => setForm(f => ({ ...f, [key]: value }));
 
-  const selectedCustomer = customers.find(c => String(c.id) === form.customer_id);
+  const selectedProgram = programs.find(c => String(c.id) === form.customer_id);
 
   const handleSubmit = async () => {
     if (!form.name.trim()) { toast.error('Project name is required'); return; }
@@ -43,7 +43,7 @@ export default function NewProjectPage() {
       const payload = {
         ...form,
         customer_id: form.customer_id ? Number(form.customer_id) : null,
-        client: selectedCustomer?.name || form.client,
+        client: selectedProgram?.name || form.client,
       };
       const res = await fetch('/api/projects', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       const data = await res.json();
@@ -83,25 +83,25 @@ export default function NewProjectPage() {
         <Card className="p-6">
           {step === 0 && (
             <div className="space-y-5">
-              {/* Customer select */}
+              {/* Program select */}
               <div>
-                <Label>Customer *</Label>
+                <Label>Program *</Label>
                 <div className="flex gap-2 mt-1.5">
                   <Select value={form.customer_id} onValueChange={v => set('customer_id', (v ?? '') === 'none' ? '' : (v ?? ''))}>
                     <SelectTrigger className="flex-1">
-                      {selectedCustomer ? (
+                      {selectedProgram ? (
                         <span className="flex items-center gap-1.5 text-sm">
                           <Building2 className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                          <span className="font-medium">{selectedCustomer.name}</span>
-                          {selectedCustomer.industry && <span className="text-xs text-slate-400">· {selectedCustomer.industry}</span>}
+                          <span className="font-medium">{selectedProgram.name}</span>
+                          {selectedProgram.industry && <span className="text-xs text-slate-400">· {selectedProgram.industry}</span>}
                         </span>
                       ) : (
-                        <SelectValue placeholder="Select customer..." />
+                        <SelectValue placeholder="Select program..." />
                       )}
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="none"><span className="text-slate-400 italic">— No customer —</span></SelectItem>
-                      {customers.map(c => (
+                      <SelectItem value="none"><span className="text-slate-400 italic">— No program —</span></SelectItem>
+                      {programs.map(c => (
                         <SelectItem key={c.id} value={String(c.id)}>
                           <div className="flex items-center gap-2">
                             <Building2 className="h-3.5 w-3.5 text-slate-400" />
@@ -112,15 +112,15 @@ export default function NewProjectPage() {
                       ))}
                     </SelectContent>
                   </Select>
-                  <Link href="/customers">
-                    <Button type="button" variant="outline" size="icon" title="Manage customers">
+                  <Link href="/programs">
+                    <Button type="button" variant="outline" size="icon" title="Manage programs">
                       <Plus className="h-4 w-4" />
                     </Button>
                   </Link>
                 </div>
-                {customers.length === 0 && (
+                {programs.length === 0 && (
                   <p className="text-xs text-slate-400 mt-1.5">
-                    No customers yet. <Link href="/customers" className="text-blue-600 hover:underline">Create one first</Link>.
+                    No programs yet. <Link href="/programs" className="text-blue-600 hover:underline">Create one first</Link>.
                   </p>
                 )}
               </div>
@@ -179,8 +179,8 @@ export default function NewProjectPage() {
             <div className="space-y-4">
               <h3 className="font-semibold text-slate-700">Xác nhận thông tin</h3>
               <div className="bg-slate-50 rounded-lg p-4 space-y-2 text-sm">
-                {selectedCustomer && (
-                  <div className="flex gap-2"><span className="text-slate-500 w-36 shrink-0">Customer:</span><span className="font-medium text-blue-700">{selectedCustomer.name}</span></div>
+                {selectedProgram && (
+                  <div className="flex gap-2"><span className="text-slate-500 w-36 shrink-0">Program:</span><span className="font-medium text-blue-700">{selectedProgram.name}</span></div>
                 )}
                 <div className="flex gap-2"><span className="text-slate-500 w-36 shrink-0">Project Name:</span><span className="font-medium">{form.name}</span></div>
                 <div className="flex gap-2"><span className="text-slate-500 w-36 shrink-0">Phase:</span><span>{form.current_phase}</span></div>
