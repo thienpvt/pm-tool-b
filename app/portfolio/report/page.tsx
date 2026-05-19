@@ -11,7 +11,7 @@ import { toast } from 'sonner';
 import {
   Sparkles, Eye, Copy, Download, Mail, KeyRound, RefreshCw,
   TrendingUp, FileText, ShieldAlert, Bug, CheckCircle2, AlertCircle,
-  Calendar, ChevronRight, User, Building2, CalendarRange,
+  Calendar, ChevronRight, User, Building2, CalendarRange, Loader2, Image, FileDown,
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -895,6 +895,7 @@ export default function PortfolioReportPage() {
   const [companyName, setCompanyName] = useState('PM Tool');
   const [viewMode, setViewMode] = useState<'preview' | 'source'>('preview');
   const [htmlReport, setHtmlReport] = useState('');
+  const [exporting, setExporting] = useState<'png' | 'pdf' | null>(null);
 
   const loadConfig = useCallback(async () => {
     const res = await fetch('/api/config');
@@ -1038,6 +1039,66 @@ export default function PortfolioReportPage() {
     const a = document.createElement('a');
     a.href = url; a.download = `PortfolioReport_${new Date().toISOString().slice(0, 10)}.html`;
     a.click(); URL.revokeObjectURL(url);
+  };
+
+  const exportPng = async () => {
+    if (!htmlReport) return;
+    setExporting('png');
+    const container = document.createElement('div');
+    container.style.cssText = 'position:fixed;left:-99999px;top:0;width:960px;background:#f8fafc;';
+    container.innerHTML = htmlReport;
+    document.body.appendChild(container);
+    try {
+      const { toPng } = await import('html-to-image');
+      const dataUrl = await toPng(container, { pixelRatio: 2, backgroundColor: '#f8fafc', cacheBust: true });
+      const a = document.createElement('a');
+      a.download = `PortfolioReport_${new Date().toISOString().slice(0, 10)}.png`;
+      a.href = dataUrl;
+      a.click();
+      toast.success('Đã xuất PNG!');
+    } catch {
+      toast.error('Xuất PNG thất bại');
+    } finally {
+      document.body.removeChild(container);
+      setExporting(null);
+    }
+  };
+
+  const exportPdf = async () => {
+    if (!htmlReport) return;
+    setExporting('pdf');
+    const container = document.createElement('div');
+    container.style.cssText = 'position:fixed;left:-99999px;top:0;width:960px;background:#f8fafc;';
+    container.innerHTML = htmlReport;
+    document.body.appendChild(container);
+    try {
+      const { toPng } = await import('html-to-image');
+      const dataUrl = await toPng(container, { pixelRatio: 2, backgroundColor: '#f8fafc', cacheBust: true });
+      const { jsPDF } = await import('jspdf');
+      const img = new Image();
+      img.src = dataUrl;
+      await new Promise<void>(r => { img.onload = () => r(); });
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
+      const pdfW = pdf.internal.pageSize.getWidth();
+      const pdfH = pdf.internal.pageSize.getHeight();
+      const scaledH = pdfW * (img.height / img.width);
+      let y = 0;
+      pdf.addImage(dataUrl, 'PNG', 0, y, pdfW, scaledH);
+      let remaining = scaledH - pdfH;
+      while (remaining > 0) {
+        y -= pdfH;
+        pdf.addPage();
+        pdf.addImage(dataUrl, 'PNG', 0, y, pdfW, scaledH);
+        remaining -= pdfH;
+      }
+      pdf.save(`PortfolioReport_${new Date().toISOString().slice(0, 10)}.pdf`);
+      toast.success('Đã xuất PDF!');
+    } catch {
+      toast.error('Xuất PDF thất bại');
+    } finally {
+      document.body.removeChild(container);
+      setExporting(null);
+    }
   };
 
   const sendEmail = async () => {
@@ -1620,6 +1681,12 @@ export default function PortfolioReportPage() {
                   </div>
                   <Button variant="outline" onClick={copyReport} title={viewMode === 'preview' ? 'Copy HTML — paste into email to keep formatting' : 'Copy plain text'} className="h-7 text-xs gap-1 px-2 border-slate-600 text-slate-200 hover:text-slate-900 bg-transparent hover:bg-white">
                     <Copy className="h-3 w-3" /> {viewMode === 'preview' ? 'Copy for Email' : 'Copy'}
+                  </Button>
+                  <Button variant="outline" onClick={exportPng} disabled={!htmlReport || !!exporting} className="h-7 text-xs gap-1 px-2 border-slate-600 text-slate-200 hover:text-slate-900 bg-transparent hover:bg-white disabled:opacity-50">
+                    {exporting === 'png' ? <Loader2 className="h-3 w-3 animate-spin" /> : <Image className="h-3 w-3" />} .png
+                  </Button>
+                  <Button variant="outline" onClick={exportPdf} disabled={!htmlReport || !!exporting} className="h-7 text-xs gap-1 px-2 border-slate-600 text-slate-200 hover:text-slate-900 bg-transparent hover:bg-white disabled:opacity-50">
+                    {exporting === 'pdf' ? <Loader2 className="h-3 w-3 animate-spin" /> : <FileDown className="h-3 w-3" />} .pdf
                   </Button>
                   <Button variant="outline" onClick={exportHtml} className="h-7 text-xs gap-1 px-2 border-slate-600 text-slate-200 hover:text-slate-900 bg-transparent hover:bg-white">
                     <Download className="h-3 w-3" /> .html
