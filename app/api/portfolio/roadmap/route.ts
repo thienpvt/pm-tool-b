@@ -38,8 +38,14 @@ export async function GET(req: NextRequest) {
   const phaseStats = await db.all(`
     SELECT
       project_id, phase,
-      MIN(CASE WHEN plan_start IS NOT NULL AND plan_start <> '' THEN plan_start END) AS phase_start,
-      MAX(CASE WHEN plan_end   IS NOT NULL AND plan_end   <> '' THEN plan_end   END) AS phase_end,
+      COALESCE(
+        MAX(CASE WHEN no = 'EPIC' AND plan_start IS NOT NULL AND plan_start <> '' THEN plan_start END),
+        MIN(CASE WHEN plan_start IS NOT NULL AND plan_start <> '' THEN plan_start END)
+      ) AS phase_start,
+      COALESCE(
+        MAX(CASE WHEN no = 'EPIC' AND plan_end IS NOT NULL AND plan_end <> '' THEN plan_end END),
+        MAX(CASE WHEN plan_end IS NOT NULL AND plan_end <> '' THEN plan_end END)
+      ) AS phase_end,
       COUNT(*) AS total,
       SUM(CASE WHEN status IN (${DONE_STATUSES_SQL}) THEN 1 ELSE 0 END) AS done,
       MIN(CASE WHEN jira_key IS NOT NULL AND jira_key <> '' THEN jira_key END) AS epic_key

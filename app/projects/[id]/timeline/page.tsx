@@ -400,7 +400,7 @@ function RoadmapView({
   const LEFT  = 268;
   const HDR   = (multiYear ? 22 : 0) + 26 + 22;
   const totalBodyH = phaseGroups.reduce((h, { phase, acts }) =>
-    h + 30 + (collapsedPhases.has(phase) ? 0 : acts.length * ROW), 0);
+    h + 30 + (collapsedPhases.has(phase) ? 0 : acts.filter(a => a.no !== 'EPIC').length * ROW), 0);
 
   return (
     <div className="rounded-xl border bg-white overflow-hidden shadow-sm">
@@ -485,8 +485,18 @@ function RoadmapView({
                           : <ChevronDown  className="w-3.5 h-3.5 shrink-0 opacity-50" />}
                         <div className={`w-2 h-2 rounded-full shrink-0 ${pSt.bar}`} />
                         <span className="text-[11px] font-bold uppercase tracking-widest truncate">{phase}</span>
-                        <span className="text-[10px] font-normal opacity-50 shrink-0 ml-1">({acts.length})</span>
+                        <span className="text-[10px] font-normal opacity-50 shrink-0 ml-1">({acts.filter(a => a.no !== 'EPIC').length})</span>
                         {phaseLag > 0 && <span className="ml-1 text-[9px] font-bold text-red-600 shrink-0 bg-red-100 px-1 rounded">+{phaseLag}d</span>}
+                        {isCollapsed && (() => {
+                          const epic = acts.find(a => a.no === 'EPIC');
+                          if (!epic) return null;
+                          if (!epic.plan_start && !epic.plan_end) return null;
+                          return (
+                            <span className="text-[9px] text-blue-500 tabular-nums shrink-0 ml-1.5 opacity-80 font-medium">
+                              {fmtD(epic.plan_start)}→{fmtD(epic.plan_end)}
+                            </span>
+                          );
+                        })()}
                       </button>
                     </div>
                     <div className="relative flex-1">
@@ -495,11 +505,34 @@ function RoadmapView({
                           style={{ left: wk.sx, borderRight: wi === m.weeks.length - 1 ? '1.5px solid rgba(100,116,139,0.25)' : '1px solid rgba(100,116,139,0.10)' }} />
                       )))}
                       {showToday && <div className="absolute inset-y-0 w-px" style={{ left: todayX, background: '#f87171', opacity: 0.4 }} />}
+                      {(() => {
+                        const epic = acts.find(a => a.no === 'EPIC');
+                        if (!epic) return null;
+                        const eb = pBar(epic);
+                        if (!eb) return null;
+                        return (
+                          <div style={{
+                            position: 'absolute', left: eb.lx, width: eb.w, height: 16,
+                            top: '50%', transform: 'translateY(-50%)',
+                            background: pSt.hex + '28', border: `1.5px solid ${pSt.hex}`,
+                            borderRadius: 9999, zIndex: 1, overflow: 'hidden',
+                            display: 'flex', alignItems: 'center',
+                          }}>
+                            {epic.jira_key && eb.w > 40 && (
+                              <span style={{
+                                fontSize: 8, fontWeight: 700, color: pSt.hex,
+                                padding: '0 5px', overflow: 'hidden',
+                                textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                              }}>{epic.jira_key}</span>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
 
                   {/* Activity rows */}
-                  {!isCollapsed && acts.map((a, ri) => {
+                  {!isCollapsed && acts.filter(a => a.no !== 'EPIC').map((a, ri) => {
                     const pb = pBar(a), ab = aBar(a);
                     const lag     = calcLag(a.plan_end, a.actual_end, a.status);
                     const overdue = lag > 0 && !DONE_STATUSES.has(a.status);
