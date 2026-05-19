@@ -674,9 +674,9 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
     ? [{l:'Tổng dự án',v:data.kpi.totalProjects,a:false},{l:'Đang hoạt động',v:data.kpi.activeProjects,a:false},{l:'Tiến độ TB',v:`${data.kpi.avgCompletion}%`,a:false},{l:'Chương trình',v:data.kpi.totalPrograms,a:false},{l:'Rủi ro đang mở',v:data.kpi.totalOpenRisks,a:data.kpi.totalOpenRisks>0},{l:'Vấn đề đang mở',v:data.kpi.totalOpenIssues,a:data.kpi.totalOpenIssues>0},{l:'Dự án quá hạn',v:overdue.length,a:overdue.length>0}]
     : [{l:'Total Projects',v:data.kpi.totalProjects,a:false},{l:'Active',v:data.kpi.activeProjects,a:false},{l:'Avg Completion',v:`${data.kpi.avgCompletion}%`,a:false},{l:'Programs',v:data.kpi.totalPrograms,a:false},{l:'Open Risks',v:data.kpi.totalOpenRisks,a:data.kpi.totalOpenRisks>0},{l:'Open Issues',v:data.kpi.totalOpenIssues,a:data.kpi.totalOpenIssues>0},{l:'Overdue',v:overdue.length,a:overdue.length>0}];
   const kpiCell = (k: {l:string,v:string|number,a:boolean}) =>
-    `<table width="100%" cellpadding="12" cellspacing="0" border="0" bgcolor="${k.a?'#fef2f2':'#f8fafc'}" style="background:${k.a?'#fef2f2':'#f8fafc'};border:1px solid ${k.a?'#fecaca':'#e2e8f0'};border-radius:8px;">` +
-    `<tr><td><div style="font-size:22px;font-weight:700;color:${k.a?'#dc2626':'#1e293b'};">${k.v}</div>` +
-    `<div style="font-size:11px;color:#94a3b8;margin-top:2px;">${k.l}</div></td></tr></table>`;
+    `<table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${k.a?'#fef2f2':'#f8fafc'}" style="background:${k.a?'#fef2f2':'#f8fafc'};border:1px solid ${k.a?'#fecaca':'#e2e8f0'};border-radius:8px;border-left:4px solid ${k.a?'#dc2626':'#cbd5e1'};">` +
+    `<tr><td style="padding:12px 16px;"><p style="margin:0 0 3px;font-size:24px;font-weight:700;color:${k.a?'#dc2626':'#1e293b'};text-decoration:none;line-height:1.1;">${k.v}</p>` +
+    `<p style="margin:0;font-size:11px;color:#64748b;text-decoration:none;font-weight:500;">${k.l}</p></td></tr></table>`;
   h += `<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:14px;"><tr>`;
   kpis.slice(0, 4).forEach(k => { h += `<td width="25%" valign="top" style="padding:4px;">${kpiCell(k)}</td>`; });
   h += `</tr><tr>`;
@@ -1006,8 +1006,7 @@ export default function PortfolioReportPage() {
   const copyReport = async () => {
     if (viewMode === 'preview' && htmlReport) {
       try {
-        // Wrap in a full HTML document so email clients render inline styles correctly
-        const fullHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0;padding:0;background:#f8fafc;">${htmlReport}</body></html>`;
+        const fullHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="format-detection" content="telephone=no,address=no,email=no,date=no,url=no"><style type="text/css">a,a:link,a:visited,a:hover{color:inherit!important;text-decoration:none!important;}</style></head><body style="margin:0;padding:0;background:#f8fafc;">${htmlReport}</body></html>`;
         const blob = new Blob([fullHtml], { type: 'text/html' });
         await navigator.clipboard.write([new ClipboardItem({ 'text/html': blob })]);
         toast.success('Copied with formatting — paste directly into email!');
@@ -1033,7 +1032,7 @@ export default function PortfolioReportPage() {
 
   const exportHtml = () => {
     if (!htmlReport) return;
-    const full = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Portfolio Report</title></head><body style="margin:0;background:#f8fafc;">${htmlReport}</body></html>`;
+    const full = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="format-detection" content="telephone=no,address=no,email=no,date=no,url=no"><title>Portfolio Report</title><style type="text/css">a,a:link,a:visited,a:hover{color:inherit!important;text-decoration:none!important;}</style></head><body style="margin:0;background:#f8fafc;">${htmlReport}</body></html>`;
     const blob = new Blob([full], { type: 'text/html;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -1047,7 +1046,7 @@ export default function PortfolioReportPage() {
     // Try to copy HTML to clipboard so paste into email body preserves formatting
     if (htmlReport) {
       try {
-        const fullHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0;padding:0;background:#f8fafc;">${htmlReport}</body></html>`;
+        const fullHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="format-detection" content="telephone=no,address=no,email=no,date=no,url=no"><style type="text/css">a,a:link,a:visited,a:hover{color:inherit!important;text-decoration:none!important;}</style></head><body style="margin:0;padding:0;background:#f8fafc;">${htmlReport}</body></html>`;
         const blob = new Blob([fullHtml], { type: 'text/html' });
         await navigator.clipboard.write([new ClipboardItem({ 'text/html': blob })]);
       } catch {
