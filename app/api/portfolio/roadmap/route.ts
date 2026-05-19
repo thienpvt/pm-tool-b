@@ -41,7 +41,8 @@ export async function GET(req: NextRequest) {
       MIN(CASE WHEN plan_start IS NOT NULL AND plan_start <> '' THEN plan_start END) AS phase_start,
       MAX(CASE WHEN plan_end   IS NOT NULL AND plan_end   <> '' THEN plan_end   END) AS phase_end,
       COUNT(*) AS total,
-      SUM(CASE WHEN status IN (${DONE_STATUSES_SQL}) THEN 1 ELSE 0 END) AS done
+      SUM(CASE WHEN status IN (${DONE_STATUSES_SQL}) THEN 1 ELSE 0 END) AS done,
+      MIN(CASE WHEN jira_key IS NOT NULL AND jira_key <> '' THEN jira_key END) AS epic_key
     FROM activities
     GROUP BY project_id, phase
   `) as any[];
@@ -88,6 +89,7 @@ export async function GET(req: NextRequest) {
         total:          Number(ps.total),
         done:           Number(ps.done),
         completion_pct: Number(ps.total) > 0 ? Math.round((Number(ps.done) / Number(ps.total)) * 100) : 0,
+        epic_key:       ps.epic_key     ?? null,
       }))
       .sort((a: any, b: any) => PHASE_ORDER.indexOf(a.phase) - PHASE_ORDER.indexOf(b.phase));
 

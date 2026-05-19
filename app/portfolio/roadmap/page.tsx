@@ -13,6 +13,7 @@ type PhaseInfo = {
   total:      number;
   done:       number;
   completion_pct: number;
+  epic_key:   string | null;
 };
 type ProjectRow = {
   id: number; name: string; pm_name: string;
@@ -474,16 +475,24 @@ export default function PortfolioRoadmap() {
                                     />
                                     {/* Label */}
                                     <div
-                                      className="relative z-10 flex items-center gap-1.5 px-2 min-w-0 w-full"
+                                      className="relative z-10 flex items-center gap-1 px-2 min-w-0 w-full"
                                       style={{ color: s.textColor }}
                                     >
-                                      <span className="text-[10px] font-bold shrink-0">
-                                        {ph.phase.slice(0, 4).toUpperCase()}
+                                      {ph.epic_key && (
+                                        <span
+                                          className="text-[9px] font-mono font-bold shrink-0 px-1 py-px rounded"
+                                          style={{ backgroundColor: 'rgba(255,255,255,0.4)', letterSpacing: '0.02em' }}
+                                        >
+                                          {ph.epic_key}
+                                        </span>
+                                      )}
+                                      <span className="text-[10px] font-semibold truncate flex-1">
+                                        {ph.phase}
                                       </span>
-                                      <span className="text-[10px] truncate flex-1 opacity-80">
+                                      <span className="text-[10px] shrink-0 opacity-80 ml-0.5">
                                         {ph.done}/{ph.total}
                                       </span>
-                                      <span className="text-[10px] font-bold shrink-0">
+                                      <span className="text-[10px] font-bold shrink-0 ml-0.5">
                                         {ph.completion_pct}%
                                       </span>
                                     </div>
@@ -516,13 +525,13 @@ export default function PortfolioRoadmap() {
                                       style={{ width: `${project.completion_pct}%`, backgroundColor: s.fill }}
                                     />
                                     <div
-                                      className="relative z-10 flex items-center gap-1.5 px-2 min-w-0 w-full"
+                                      className="relative z-10 flex items-center gap-1 px-2 min-w-0 w-full"
                                       style={{ color: s.textColor }}
                                     >
-                                      <span className="text-[10px] font-bold shrink-0">
-                                        {project.current_phase.slice(0, 4).toUpperCase()}
+                                      <span className="text-[10px] font-semibold truncate flex-1">
+                                        {project.current_phase}
                                       </span>
-                                      <span className="text-[10px] font-bold shrink-0">
+                                      <span className="text-[10px] font-bold shrink-0 ml-0.5">
                                         {project.completion_pct}%
                                       </span>
                                     </div>
