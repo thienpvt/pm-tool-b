@@ -89,7 +89,7 @@ function healthStatus(pct: number): { label: string; cls: string } {
 
 // ─── Manual report builder ────────────────────────────────────────────────────
 function buildManualReport(data: ReportData, language: string, startDate: string, endDate: string): string {
-  const { project, doneThisWeek, inProgress, nextWeekPlan, openRisks, openIssues, stats } = data;
+  const { project, doneThisWeek, inProgress, nextWeekPlan, openRisks, openIssues, stats, epicStats } = data;
   const isVN = language === 'Vietnamese';
   const today = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
   const health = stats.completion_pct >= 70 ? (isVN ? 'XANH ✓' : 'GREEN ✓')
@@ -110,6 +110,17 @@ function buildManualReport(data: ReportData, language: string, startDate: string
     lines.push('');
     lines.push(`📊 TỔNG TIẾN ĐỘ: ${stats.completion_pct}% (Hoàn thành: ${stats.done} | Đang làm: ${stats.inProgress} | Chưa làm: ${stats.notStarted} | Tổng: ${stats.total} US)`);
     lines.push(`🚦 TÌNH TRẠNG: ${health}`);
+    if (epicStats?.length > 0) {
+      lines.push('');
+      lines.push('───────────────────────────────────────');
+      lines.push('📁 TIẾN ĐỘ THEO EPIC');
+      lines.push('───────────────────────────────────────');
+      epicStats.forEach(e => {
+        const bar = '█'.repeat(Math.round(e.pct / 10)) + '░'.repeat(10 - Math.round(e.pct / 10));
+        lines.push(`   ${e.phase}`);
+        lines.push(`   [${bar}] ${e.pct}%  (${e.done}/${e.total} US hoàn thành)`);
+      });
+    }
     lines.push('');
     lines.push('───────────────────────────────────────');
     lines.push(`✅ HOÀN THÀNH TRONG KỲ (${doneThisWeek.length})`);
@@ -173,6 +184,17 @@ function buildManualReport(data: ReportData, language: string, startDate: string
     lines.push('');
     lines.push(`📊 OVERALL PROGRESS: ${stats.completion_pct}% (Done: ${stats.done} | In-Progress: ${stats.inProgress} | Not Started: ${stats.notStarted} | Total: ${stats.total} US)`);
     lines.push(`🚦 STATUS: ${health}`);
+    if (epicStats?.length > 0) {
+      lines.push('');
+      lines.push('───────────────────────────────────────');
+      lines.push('📁 PROGRESS BY EPIC');
+      lines.push('───────────────────────────────────────');
+      epicStats.forEach(e => {
+        const bar = '█'.repeat(Math.round(e.pct / 10)) + '░'.repeat(10 - Math.round(e.pct / 10));
+        lines.push(`   ${e.phase}`);
+        lines.push(`   [${bar}] ${e.pct}%  (${e.done}/${e.total} US done)`);
+      });
+    }
     lines.push('');
     lines.push('───────────────────────────────────────');
     lines.push(`✅ COMPLETED THIS PERIOD (${doneThisWeek.length})`);
