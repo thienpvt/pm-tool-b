@@ -810,6 +810,36 @@ export default function TimelinePage() {
 
   const allCollapsed = collapsedPhases.size === phaseGroups.length && phaseGroups.length > 0;
 
+  // ─── Table view: collapse + pagination ────────────────────────────────────
+  const [collapsedTablePhases, setCollapsedTablePhases] = useState<Set<string>>(new Set());
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(30);
+
+  const toggleTablePhase = useCallback((phase: string) => {
+    setCollapsedTablePhases(prev => {
+      const next = new Set(prev);
+      if (next.has(phase)) next.delete(phase); else next.add(phase);
+      return next;
+    });
+    setCurrentPage(1);
+  }, []);
+
+  useEffect(() => { setCurrentPage(1); }, [filterPhase, rowsPerPage]);
+
+  const visibleTableActivities = useMemo(() =>
+    phaseGroups.flatMap(({ phase, acts }) => collapsedTablePhases.has(phase) ? [] : acts),
+  [phaseGroups, collapsedTablePhases]);
+
+  const totalTableRows = visibleTableActivities.length;
+  const totalTablePages = Math.max(1, Math.ceil(totalTableRows / rowsPerPage));
+
+  const pagedActivityIds = useMemo(() => {
+    const slice = visibleTableActivities.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
+    return new Set(slice.map(a => a.id));
+  }, [visibleTableActivities, currentPage, rowsPerPage]);
+
+  const allTableCollapsed = collapsedTablePhases.size === phaseGroups.length && phaseGroups.length > 0;
+
   return (
     <div className="flex flex-col lg:flex-row min-h-screen">
       <Sidebar projectId={id} />
@@ -849,6 +879,14 @@ export default function TimelinePage() {
             </Select>
 
             {viewMode === 'table' && <>
+              {phaseGroups.length > 1 && filterPhase === 'All' && (
+                <button
+                  onClick={() => setCollapsedTablePhases(allTableCollapsed ? new Set() : new Set(phaseGroups.map(g => g.phase)))}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 h-9 text-xs font-medium rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">
+                  <ChevronsUpDown className="h-3.5 w-3.5" />
+                  {allTableCollapsed ? 'Expand All' : 'Collapse All'}
+                </button>
+              )}
               <Button variant="outline" size="sm" onClick={handleDownloadTemplate} className="gap-1.5 h-9">
                 <FileDown className="h-3.5 w-3.5" /> Template
               </Button>
@@ -955,170 +993,220 @@ export default function TimelinePage() {
         )}
 
         {/* Table */}
-        {viewMode === 'table' && <div className="rounded-xl border bg-white overflow-hidden shadow-sm">
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs" style={{ minWidth: '1600px' }}>
-              <thead>
-                <tr className="bg-[#1e293b] text-white">
-                  {showGroups && <th className="px-2 py-3 text-left w-32">Phase</th>}
-                  <th className="px-2 py-3 text-left w-36 bg-teal-900/40">Key</th>
-                  <th className="px-2 py-3 text-left" style={{ minWidth: '200px' }}>Activity</th>
-                  <th className="px-2 py-3 text-left w-28">Accountable</th>
-                  <th className="px-2 py-3 text-left w-28">Responsible</th>
-                  <th className="px-2 py-3 text-left w-24">Plan Start</th>
-                  <th className="px-2 py-3 text-left w-24">Plan End</th>
-                  <th className="px-2 py-3 text-left w-24">Actual Start</th>
-                  <th className="px-2 py-3 text-left w-24">Actual End</th>
-                  <th className="px-2 py-3 text-left w-24">Status</th>
-                  <th className="px-2 py-3 text-center w-10">%</th>
-                  <th className="px-2 py-3 text-center w-16 bg-red-900/30">Lag</th>
-                  <th className="px-2 py-3 text-left w-24 bg-red-900/30">Delay By</th>
-                  <th className="px-2 py-3 text-left w-36 bg-red-900/30">Delay Reason</th>
-                  <th className="px-2 py-3 text-left w-28 bg-teal-900/40">Sprint</th>
-                  <th className="px-2 py-3 text-left w-28">Notes</th>
-                  <th className="px-2 py-3 w-8"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {baseList.length === 0 && (
-                  <tr><td colSpan={showGroups ? 17 : 16} className="text-center py-16 text-slate-400">
-                    <div className="flex flex-col items-center gap-3">
-                      <p>Chưa có activity nào.</p>
-                      <div className="flex gap-2">
-                        <Button variant="outline" size="sm" onClick={handleDownloadTemplate} className="gap-1.5"><FileDown className="h-3.5 w-3.5" /> Template</Button>
-                        <Button variant="outline" size="sm" onClick={() => setImportOpen(true)} className="gap-1.5"><Upload className="h-3.5 w-3.5" /> Import</Button>
-                        <Button size="sm" onClick={addActivity} className="bg-blue-600 hover:bg-blue-700 gap-1.5"><Plus className="h-3.5 w-3.5" /> Add</Button>
+        {viewMode === 'table' && (
+          <div className="rounded-xl border bg-white shadow-sm overflow-hidden flex flex-col" style={{ height: 'calc(100vh - 200px)', minHeight: '400px' }}>
+            <div className="overflow-auto flex-1 min-h-0">
+              <table className="w-full text-xs" style={{ minWidth: '1380px' }}>
+                <thead className="sticky top-0 z-10">
+                  <tr className="bg-[#1e293b] text-white">
+                    <th className="px-2 py-3 text-left bg-teal-900/40" style={{ minWidth: '200px' }}>Key</th>
+                    <th className="px-2 py-3 text-left" style={{ minWidth: '240px' }}>Activity</th>
+                    <th className="px-2 py-3 text-left w-28">Accountable</th>
+                    <th className="px-2 py-3 text-left w-28">Responsible</th>
+                    <th className="px-2 py-3 text-left w-24">Plan Start</th>
+                    <th className="px-2 py-3 text-left w-24">Plan End</th>
+                    <th className="px-2 py-3 text-left w-24">Actual Start</th>
+                    <th className="px-2 py-3 text-left w-24">Actual End</th>
+                    <th className="px-2 py-3 text-left w-28">Status</th>
+                    <th className="px-2 py-3 text-center w-10">%</th>
+                    <th className="px-2 py-3 text-center w-16 bg-red-900/30">Lag</th>
+                    <th className="px-2 py-3 text-left w-24 bg-red-900/30">Delay By</th>
+                    <th className="px-2 py-3 text-left w-36 bg-red-900/30">Delay Reason</th>
+                    <th className="px-2 py-3 text-left bg-teal-900/40" style={{ minWidth: '180px' }}>Sprint</th>
+                    <th className="px-2 py-3 w-8"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {baseList.length === 0 && (
+                    <tr><td colSpan={15} className="text-center py-16 text-slate-400">
+                      <div className="flex flex-col items-center gap-3">
+                        <p>Chưa có activity nào.</p>
+                        <div className="flex gap-2">
+                          <Button variant="outline" size="sm" onClick={handleDownloadTemplate} className="gap-1.5"><FileDown className="h-3.5 w-3.5" /> Template</Button>
+                          <Button variant="outline" size="sm" onClick={() => setImportOpen(true)} className="gap-1.5"><Upload className="h-3.5 w-3.5" /> Import</Button>
+                          <Button size="sm" onClick={addActivity} className="bg-blue-600 hover:bg-blue-700 gap-1.5"><Plus className="h-3.5 w-3.5" /> Add</Button>
+                        </div>
                       </div>
-                    </div>
-                  </td></tr>
-                )}
+                    </td></tr>
+                  )}
 
-                {phaseGroups.map(({ phase, acts }) => {
-                  const style = getPhaseStyle(phase);
-                  const phaseLag = Math.max(0, ...acts.map(a => calcLag(a.plan_end, a.actual_end, a.status)));
-                  return (
-                    <React.Fragment key={phase}>
-                      {showGroups && (
-                        <tr key={`ph-${phase}`}>
-                          <td colSpan={17} className={`px-4 py-2 font-bold text-xs uppercase tracking-widest border-t-2 border-slate-200 ${style.bg} ${style.text}`}>
-                            <div className="flex items-center gap-3">
-                              <div className={`w-2 h-2 rounded-full ${style.bar}`} />
-                              {phase}
-                              <span className="font-normal text-slate-400 normal-case tracking-normal text-[11px]">({acts.length} activities)</span>
-                              {phaseLag > 0 && <LagBadge lag={phaseLag} />}
-                            </div>
-                          </td>
-                        </tr>
-                      )}
-                      {acts.map(row => {
-                        const lag = calcLag(row.plan_end, row.actual_end, row.status);
-                        const isOverdue = lag > 0 && row.status !== 'Done';
-                        return (
-                          <tr key={row.id} className={`border-t hover:bg-slate-50/60 transition-colors ${isOverdue ? 'bg-red-50/20' : ''}`}>
-                            {showGroups && (
-                              <td className="px-2 py-1.5">
-                                <input
-                                  list={`phases-${id}`}
-                                  className="h-7 text-xs w-full border border-slate-200 rounded-md px-2 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400"
-                                  value={row.phase}
-                                  onChange={e => updateField(row.id, 'phase', e.target.value)}
-                                  onBlur={() => saveRow(row)}
-                                />
-                              </td>
-                            )}
-                            <td className="px-2 py-1.5 bg-teal-50/30">
-                              <input
-                                className="h-7 text-xs w-full border border-slate-200 rounded-md px-2 bg-white focus:outline-none focus:ring-1 focus:ring-teal-400 font-mono"
-                                value={row.jira_key ?? ''}
-                                onChange={e => updateField(row.id, 'jira_key', e.target.value)}
-                                onBlur={() => saveRow(row)}
-                                placeholder="KEY-1"
-                              />
-                            </td>
-                            <td className="px-2 py-1.5" style={{ minWidth: '200px' }}>
-                              <textarea className="text-xs w-full min-h-[48px] px-2 py-1 border border-slate-200 rounded-md resize-y bg-white focus:outline-none focus:ring-1 focus:ring-blue-400 leading-snug" value={row.activity} onChange={e => updateField(row.id, 'activity', e.target.value)} onBlur={() => saveRow(row)} />
-                            </td>
-                            <td className="px-2 py-1.5">
-                              <input list={`team-${id}`} className="h-7 text-xs w-full border border-slate-200 rounded-md px-2 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400" value={row.accountable} onChange={e => updateField(row.id, 'accountable', e.target.value)} onBlur={() => saveRow(row)} placeholder="Chọn..." />
-                            </td>
-                            <td className="px-2 py-1.5">
-                              <input list={`team-${id}`} className="h-7 text-xs w-full border border-slate-200 rounded-md px-2 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400" value={row.responsible} onChange={e => updateField(row.id, 'responsible', e.target.value)} onBlur={() => saveRow(row)} placeholder="Chọn..." />
-                            </td>
-                            <td className="px-2 py-1.5">
-                              <DateCell value={row.plan_start} warn={getDateWarn(row.plan_start)}
-                                onChange={v => updateField(row.id, 'plan_start', v)} onBlur={() => saveRow(row)} />
-                            </td>
-                            <td className="px-2 py-1.5">
-                              <DateCell value={row.plan_end} warn={getDateWarn(row.plan_end)}
-                                onChange={v => updateField(row.id, 'plan_end', v)} onBlur={() => saveRow(row)}
-                                extraClass={isOverdue ? 'border-red-300' : ''} />
-                            </td>
-                            <td className="px-2 py-1.5">
-                              <DateCell value={row.actual_start} warn={getDateWarn(row.actual_start)}
-                                onChange={v => updateField(row.id, 'actual_start', v)} onBlur={() => saveRow(row)} />
-                            </td>
-                            <td className="px-2 py-1.5">
-                              <DateCell value={row.actual_end} warn={getDateWarn(row.actual_end)}
-                                onChange={v => updateField(row.id, 'actual_end', v)} onBlur={() => saveRow(row)} />
-                            </td>
-                            <td className="px-2 py-1.5">
-                              <Select value={row.status} onValueChange={v => { const val = v ?? ''; updateField(row.id, 'status', val); saveRow({ ...row, status: val }); }}>
-                                <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
-                                <SelectContent>{STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
-                              </Select>
-                            </td>
-                            <td className="px-2 py-1.5 text-center">
-                              <Input className="h-7 text-xs w-12 px-1 text-center mx-auto" type="number" min={0} max={100} value={row.completion_pct} onChange={e => updateField(row.id, 'completion_pct', Number(e.target.value))} onBlur={() => saveRow(row)} />
-                            </td>
-                            <td className="px-2 py-1.5 text-center bg-slate-50/50">
-                              <LagBadge lag={lag} />
-                            </td>
-                            <td className="px-2 py-1.5 bg-slate-50/50">
-                              <Select value={row.delay_owner || 'N/A'} onValueChange={v => { const val = v ?? 'N/A'; updateField(row.id, 'delay_owner', val); saveRow({ ...row, delay_owner: val }); }}>
-                                <SelectTrigger className={`h-7 text-xs ${row.delay_owner && row.delay_owner !== 'N/A' ? DELAY_OWNER_COLOR[row.delay_owner] : ''}`}><SelectValue /></SelectTrigger>
-                                <SelectContent>{DELAY_OWNERS.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
-                              </Select>
-                            </td>
-                            <td className="px-2 py-1.5 bg-slate-50/50">
-                              <button
-                                onClick={() => setDelayEdit({ row, reason: row.delay_reason || '' })}
-                                className={`w-full h-7 text-left text-xs px-2 rounded border transition-colors truncate ${row.delay_reason ? 'border-slate-200 text-slate-700 hover:border-blue-400 hover:bg-blue-50' : 'border-dashed border-slate-200 text-slate-400 hover:border-blue-400 hover:text-blue-500'}`}
-                              >
-                                {row.delay_reason
-                                  ? <span className="flex items-center gap-1"><MessageSquare className="h-3 w-3 shrink-0" /><span className="truncate">{row.delay_reason}</span></span>
-                                  : 'Add reason...'}
-                              </button>
-                            </td>
-                            <td className="px-2 py-1.5 bg-teal-50/30">
-                              <Input
-                                className="h-7 text-xs bg-white"
-                                value={row.sprint ?? ''}
-                                onChange={e => updateField(row.id, 'sprint', e.target.value)}
-                                onBlur={() => saveRow(row)}
-                                placeholder="Sprint name..."
-                              />
-                            </td>
-                            <td className="px-2 py-1.5">
-                              <Input className="h-7 text-xs" value={row.notes} onChange={e => updateField(row.id, 'notes', e.target.value)} onBlur={() => saveRow(row)} />
-                            </td>
-                            <td className="px-2 py-1.5">
-                              <div className="flex items-center gap-1">
-                                {saving === row.id && <Save className="h-3 w-3 text-blue-400 animate-pulse" />}
-                                <button onClick={() => deleteRow(row.id)} className="text-slate-300 hover:text-red-500">
-                                  <Trash2 className="h-3.5 w-3.5" />
+                  {phaseGroups.map(({ phase, acts }) => {
+                    const style = getPhaseStyle(phase);
+                    const isCollapsed = collapsedTablePhases.has(phase);
+                    const phaseLag = Math.max(0, ...acts.map(a => calcLag(a.plan_end, a.actual_end, a.status)));
+                    const pageActs = isCollapsed ? [] : acts.filter(a => pagedActivityIds.has(a.id));
+                    if (!isCollapsed && pageActs.length === 0) return null;
+                    return (
+                      <React.Fragment key={phase}>
+                        {showGroups && (
+                          <tr>
+                            <td colSpan={15} className={`px-3 py-2 font-bold text-xs uppercase tracking-widest border-t-2 border-slate-200 ${style.bg} ${style.text}`}>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => toggleTablePhase(phase)}
+                                  className="flex items-center justify-center w-5 h-5 rounded hover:bg-black/10 transition-colors shrink-0"
+                                >
+                                  {isCollapsed
+                                    ? <ChevronRight className="w-3.5 h-3.5" />
+                                    : <ChevronDown className="w-3.5 h-3.5" />}
                                 </button>
+                                <div className={`w-2 h-2 rounded-full ${style.bar} shrink-0`} />
+                                {phase}
+                                <span className="font-normal text-slate-400 normal-case tracking-normal text-[11px]">({acts.length} activities)</span>
+                                {phaseLag > 0 && <LagBadge lag={phaseLag} />}
                               </div>
                             </td>
                           </tr>
-                        );
-                      })}
-                    </React.Fragment>
-                  );
-                })}
-              </tbody>
-            </table>
+                        )}
+                        {pageActs.map(row => {
+                          const lag = calcLag(row.plan_end, row.actual_end, row.status);
+                          const isOverdue = lag > 0 && row.status !== 'Done';
+                          return (
+                            <tr key={row.id} className={`border-t hover:bg-slate-50/60 transition-colors ${isOverdue ? 'bg-red-50/20' : ''}`}>
+                              <td className="px-2 py-1.5 bg-teal-50/30" style={{ minWidth: '200px' }}>
+                                <input
+                                  className="h-7 text-xs w-full border border-slate-200 rounded-md px-2 bg-white focus:outline-none focus:ring-1 focus:ring-teal-400 font-mono"
+                                  value={row.jira_key ?? ''}
+                                  onChange={e => updateField(row.id, 'jira_key', e.target.value)}
+                                  onBlur={() => saveRow(row)}
+                                  placeholder="KEY-1"
+                                />
+                              </td>
+                              <td className="px-2 py-1.5" style={{ minWidth: '240px' }}>
+                                <textarea className="text-xs w-full min-h-[48px] px-2 py-1 border border-slate-200 rounded-md resize-y bg-white focus:outline-none focus:ring-1 focus:ring-blue-400 leading-snug" value={row.activity} onChange={e => updateField(row.id, 'activity', e.target.value)} onBlur={() => saveRow(row)} />
+                              </td>
+                              <td className="px-2 py-1.5">
+                                <input list={`team-${id}`} className="h-7 text-xs w-full border border-slate-200 rounded-md px-2 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400" value={row.accountable} onChange={e => updateField(row.id, 'accountable', e.target.value)} onBlur={() => saveRow(row)} placeholder="Chọn..." />
+                              </td>
+                              <td className="px-2 py-1.5">
+                                <input list={`team-${id}`} className="h-7 text-xs w-full border border-slate-200 rounded-md px-2 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400" value={row.responsible} onChange={e => updateField(row.id, 'responsible', e.target.value)} onBlur={() => saveRow(row)} placeholder="Chọn..." />
+                              </td>
+                              <td className="px-2 py-1.5">
+                                <DateCell value={row.plan_start} warn={getDateWarn(row.plan_start)}
+                                  onChange={v => updateField(row.id, 'plan_start', v)} onBlur={() => saveRow(row)} />
+                              </td>
+                              <td className="px-2 py-1.5">
+                                <DateCell value={row.plan_end} warn={getDateWarn(row.plan_end)}
+                                  onChange={v => updateField(row.id, 'plan_end', v)} onBlur={() => saveRow(row)}
+                                  extraClass={isOverdue ? 'border-red-300' : ''} />
+                              </td>
+                              <td className="px-2 py-1.5">
+                                <DateCell value={row.actual_start} warn={getDateWarn(row.actual_start)}
+                                  onChange={v => updateField(row.id, 'actual_start', v)} onBlur={() => saveRow(row)} />
+                              </td>
+                              <td className="px-2 py-1.5">
+                                <DateCell value={row.actual_end} warn={getDateWarn(row.actual_end)}
+                                  onChange={v => updateField(row.id, 'actual_end', v)} onBlur={() => saveRow(row)} />
+                              </td>
+                              <td className="px-2 py-1.5">
+                                <Select value={row.status} onValueChange={v => { const val = v ?? ''; updateField(row.id, 'status', val); saveRow({ ...row, status: val }); }}>
+                                  <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+                                  <SelectContent>{STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+                                </Select>
+                              </td>
+                              <td className="px-2 py-1.5 text-center">
+                                <Input className="h-7 text-xs w-12 px-1 text-center mx-auto" type="number" min={0} max={100} value={row.completion_pct} onChange={e => updateField(row.id, 'completion_pct', Number(e.target.value))} onBlur={() => saveRow(row)} />
+                              </td>
+                              <td className="px-2 py-1.5 text-center bg-slate-50/50">
+                                <LagBadge lag={lag} />
+                              </td>
+                              <td className="px-2 py-1.5 bg-slate-50/50">
+                                <Select value={row.delay_owner || 'N/A'} onValueChange={v => { const val = v ?? 'N/A'; updateField(row.id, 'delay_owner', val); saveRow({ ...row, delay_owner: val }); }}>
+                                  <SelectTrigger className={`h-7 text-xs ${row.delay_owner && row.delay_owner !== 'N/A' ? DELAY_OWNER_COLOR[row.delay_owner] : ''}`}><SelectValue /></SelectTrigger>
+                                  <SelectContent>{DELAY_OWNERS.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
+                                </Select>
+                              </td>
+                              <td className="px-2 py-1.5 bg-slate-50/50">
+                                <button
+                                  onClick={() => setDelayEdit({ row, reason: row.delay_reason || '' })}
+                                  className={`w-full h-7 text-left text-xs px-2 rounded border transition-colors truncate ${row.delay_reason ? 'border-slate-200 text-slate-700 hover:border-blue-400 hover:bg-blue-50' : 'border-dashed border-slate-200 text-slate-400 hover:border-blue-400 hover:text-blue-500'}`}
+                                >
+                                  {row.delay_reason
+                                    ? <span className="flex items-center gap-1"><MessageSquare className="h-3 w-3 shrink-0" /><span className="truncate">{row.delay_reason}</span></span>
+                                    : 'Add reason...'}
+                                </button>
+                              </td>
+                              <td className="px-2 py-1.5 bg-teal-50/30" style={{ minWidth: '180px' }}>
+                                <Input
+                                  className="h-7 text-xs bg-white"
+                                  value={row.sprint ?? ''}
+                                  onChange={e => updateField(row.id, 'sprint', e.target.value)}
+                                  onBlur={() => saveRow(row)}
+                                  placeholder="Sprint name..."
+                                />
+                              </td>
+                              <td className="px-2 py-1.5">
+                                <div className="flex items-center gap-1">
+                                  {saving === row.id && <Save className="h-3 w-3 text-blue-400 animate-pulse" />}
+                                  <button onClick={() => deleteRow(row.id)} className="text-slate-300 hover:text-red-500">
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </React.Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination footer */}
+            <div className="border-t px-4 py-2.5 flex items-center justify-between bg-white shrink-0 flex-wrap gap-2">
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-slate-500">
+                  {totalTableRows > 0
+                    ? `Showing ${Math.min((currentPage - 1) * rowsPerPage + 1, totalTableRows)}–${Math.min(currentPage * rowsPerPage, totalTableRows)} of ${totalTableRows} rows`
+                    : '0 rows'}
+                </span>
+                <div className="flex items-center gap-1.5 text-xs text-slate-500">
+                  <span>Rows per page:</span>
+                  <select
+                    value={rowsPerPage}
+                    onChange={e => { setRowsPerPage(Number(e.target.value)); setCurrentPage(1); }}
+                    className="h-7 text-xs border border-slate-200 rounded px-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400"
+                  >
+                    {[10, 20, 30, 50, 100].map(n => <option key={n} value={n}>{n}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              {totalTablePages > 1 && (
+                <div className="flex items-center gap-1">
+                  <button onClick={() => setCurrentPage(1)} disabled={currentPage === 1}
+                    className="px-2 py-1 text-xs rounded border border-slate-200 disabled:opacity-40 hover:bg-slate-50 transition-colors">«</button>
+                  <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}
+                    className="px-2 py-1 text-xs rounded border border-slate-200 disabled:opacity-40 hover:bg-slate-50 transition-colors">‹</button>
+                  {(() => {
+                    const pages: (number | '...')[] = [];
+                    if (totalTablePages <= 7) {
+                      for (let i = 1; i <= totalTablePages; i++) pages.push(i);
+                    } else {
+                      pages.push(1);
+                      if (currentPage > 3) pages.push('...');
+                      for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalTablePages - 1, currentPage + 1); i++) pages.push(i);
+                      if (currentPage < totalTablePages - 2) pages.push('...');
+                      pages.push(totalTablePages);
+                    }
+                    return pages.map((p, i) =>
+                      p === '...'
+                        ? <span key={`el-${i}`} className="px-2 py-1 text-xs text-slate-400">…</span>
+                        : <button key={p} onClick={() => setCurrentPage(p as number)}
+                            className={`px-2.5 py-1 text-xs rounded border transition-colors ${currentPage === p ? 'bg-blue-600 text-white border-blue-600' : 'border-slate-200 hover:bg-slate-50'}`}
+                          >{p}</button>
+                    );
+                  })()}
+                  <button onClick={() => setCurrentPage(p => Math.min(totalTablePages, p + 1))} disabled={currentPage === totalTablePages}
+                    className="px-2 py-1 text-xs rounded border border-slate-200 disabled:opacity-40 hover:bg-slate-50 transition-colors">›</button>
+                  <button onClick={() => setCurrentPage(totalTablePages)} disabled={currentPage === totalTablePages}
+                    className="px-2 py-1 text-xs rounded border border-slate-200 disabled:opacity-40 hover:bg-slate-50 transition-colors">»</button>
+                </div>
+              )}
+            </div>
           </div>
-        </div>}
+        )}
 
         {/* Status summary */}
         {viewMode === 'table' && baseList.length > 0 && (

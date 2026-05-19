@@ -371,17 +371,21 @@ export default function ImportMappingDialog({
       }
     }
 
-    const stories = fileData.allRows.filter(row => {
-      const issueType = issueTypeIdx >= 0 ? (row[issueTypeIdx]?.trim().toLowerCase() ?? '') : '';
-      return issueType !== 'epic';
-    });
-
-    return { epicMap: epics, importRows: stories };
+    // Include ALL rows (Epics + Stories/Tasks) — Epics get their own phase = their summary
+    return { epicMap: epics, importRows: fileData.allRows };
   }, [fileData, jiraMode, mapping]);
 
   const getRowPhase = useCallback((row: string[]): string => {
     if (!fileData) return 'General';
     if (jiraMode) {
+      const issueTypeIdx2 = fileData.columns.indexOf(mapping['_issue_type']);
+      const issueType = issueTypeIdx2 >= 0 ? (row[issueTypeIdx2]?.trim().toLowerCase() ?? '') : '';
+      if (issueType === 'epic') {
+        // Epic's phase = its own summary so it groups with its children
+        const actCol = mapping['activity'];
+        const actIdx = actCol && actCol !== SKIP ? fileData.columns.indexOf(actCol) : -1;
+        return actIdx >= 0 ? (row[actIdx]?.trim() || 'General') : 'General';
+      }
       const parentIdx = mapping['_parent'] && mapping['_parent'] !== SKIP
         ? fileData.columns.indexOf(mapping['_parent']) : -1;
       const parentKey = parentIdx >= 0 ? (row[parentIdx]?.trim() ?? '') : '';
@@ -645,7 +649,7 @@ export default function ImportMappingDialog({
 
                   <div className="bg-teal-50 border border-teal-100 rounded-lg p-3 text-xs text-teal-700 space-y-1">
                     <p className="font-semibold">Hỗ trợ cấu trúc Jira:</p>
-                    <p>• Dòng <strong>Epic</strong> → trở thành <strong>Phase</strong> trong timeline</p>
+                    <p>• Dòng <strong>Epic</strong> → tạo <strong>Phase group</strong> VÀ được import như activity (hiển thị đầy đủ Key, Status, ngày tháng)</p>
                     <p>• Dòng <strong>Story/Task</strong> có Parent → trở thành <strong>Activity</strong> thuộc Phase tương ứng</p>
                     <p>• Map cột <em>Issue Type</em> và <em>Parent</em> ở bước 2 để bật chế độ này</p>
                   </div>
@@ -673,7 +677,7 @@ export default function ImportMappingDialog({
                   <div className="flex items-center gap-1 bg-teal-50 border border-teal-200 rounded-lg px-3 py-1.5 text-xs text-teal-700 shrink-0">
                     <Tag className="h-3.5 w-3.5" />
                     <span className="font-medium">Jira Mode:</span>
-                    <span>{Object.keys(epicMap).length} Epic → Phase · {importRows.length} Story → Activity</span>
+                    <span>{Object.keys(epicMap).length} Epic (as activities) · {importRows.length - Object.keys(epicMap).length} Story/Task</span>
                   </div>
                 )}
 
@@ -979,7 +983,7 @@ export default function ImportMappingDialog({
               <div className="flex items-center gap-3 flex-wrap">
                 <div className="text-xs text-slate-500 bg-slate-50 rounded px-3 py-2">
                   Xem trước {Math.min(previewRows.length, 8)} dòng đầu · tổng <strong>{jiraMode ? importRows.length : fileData.allRows.length}</strong> dòng
-                  {jiraMode && <span className="ml-1 text-teal-600">· {Object.keys(epicMap).length} Epic bỏ qua (→ Phase)</span>}
+                  {jiraMode && <span className="ml-1 text-teal-600">· {Object.keys(epicMap).length} Epic được import như activity (tạo Phase group)</span>}
                 </div>
                 <div className="flex items-center gap-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1.5">
                   <span className="w-2.5 h-2.5 rounded-sm bg-amber-300 shrink-0" />
