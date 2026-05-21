@@ -177,7 +177,7 @@ function SidebarNav({
             {projects.length === 0 && (
               <p className="px-2 py-1.5 text-xs text-slate-500 italic">No projects yet</p>
             )}
-            {projects.map(p => {
+            {projects.slice(0, 5).map(p => {
               const isActive = projectId === String(p.id);
               const dot = PHASE_DOT[p.current_phase] ?? 'bg-slate-500';
               return (
@@ -198,6 +198,16 @@ function SidebarNav({
                 </Link>
               );
             })}
+            {projects.length > 5 && (
+              <Link
+                href="/projects"
+                onClick={onNavClick}
+                className="flex items-center gap-2 px-2 py-1.5 rounded-md text-xs text-blue-400 hover:bg-slate-700 hover:text-blue-300 transition-colors"
+              >
+                <FolderOpen className="h-3 w-3 shrink-0" />
+                See all projects ({projects.length})
+              </Link>
+            )}
             <Link
               href="/projects/new"
               onClick={onNavClick}
