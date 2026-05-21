@@ -638,16 +638,16 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
   const epicsNotStarted = allProjects.reduce((s, p) => s + (p.epicStats?.filter(e => e.pct === 0).length ?? 0), 0);
   const epicsTotal      = epicsDone + epicsInProg + epicsNotStarted;
 
-  // Red-shade palette (black/white/red brand)
-  const PALETTE = ['#E8192C','#FF4D5A','#CC1127','#FF8080','#A80D17','#FF6070','#B71C2B','#FFB3B8'];
+  // Project palette — distinct colors for pie/bar (pie2 uses these)
+  const PALETTE = ['#2563EB','#E8192C','#16A34A','#D97706','#7C3AED','#0891B2','#DB2777','#059669','#9333EA','#EA580C'];
   const pCol = (i: number) => PALETTE[i % PALETTE.length];
-  const ragCol = (r: string) => r === 'red' ? '#E53E3E' : r === 'amber' ? '#D97706' : '#38A169';
+  const ragCol = (r: string) => r === 'red' ? '#DC2626' : r === 'amber' ? '#D97706' : '#16A34A';
 
   // SVG donut chart — center label rendered as SVG text
   function svgDonut(segs: {val:number,color:string}[], size=140, r=58, inner=36, centerPct?: number): string {
     const total = segs.reduce((a,s) => a+s.val, 0);
     const cx = size/2, cy = size/2;
-    const emptyRing = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="${r - inner}"/>`;
+    const emptyRing = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="rgba(0,0,0,0.07)" stroke-width="${r - inner}"/>`;
     if (total === 0) {
       return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">${emptyRing}</svg>`;
     }
@@ -665,36 +665,47 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
       }
       start += angle;
     }
-    const hole = `<circle cx="${cx}" cy="${cy}" r="${inner}" fill="#171717"/>`;
+    const hole = `<circle cx="${cx}" cy="${cy}" r="${inner}" fill="#F8F9FA"/>`;
     const lbl = centerPct !== undefined
-      ? `<text x="${cx}" y="${cy - 4}" text-anchor="middle" font-size="16" font-weight="700" fill="#F0F0F0">${centerPct}%</text><text x="${cx}" y="${cy + 13}" text-anchor="middle" font-size="9" fill="#888">${isVN?'xong':'done'}</text>`
+      ? `<text x="${cx}" y="${cy - 4}" text-anchor="middle" font-size="16" font-weight="700" fill="#111827">${centerPct}%</text><text x="${cx}" y="${cy + 13}" text-anchor="middle" font-size="9" fill="#6B7280">${isVN?'xong':'done'}</text>`
       : '';
     return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">${paths}${hole}${lbl}</svg>`;
   }
 
-  // SVG bar chart
-  function svgBarChart(items: {label:string,done:number,total:number,color:string}[], w=220, h=140): string {
-    const max = Math.max(...items.map(i => i.total), 1);
+  // SVG bar chart — full-width, Y-axis step-5, top padding for labels
+  function svgBarChart(items: {label:string,done:number,total:number,color:string}[], w=800, h=160): string {
+    const rawMax = Math.max(...items.map(i => i.total), 1);
+    const step = rawMax <= 5 ? 1 : rawMax <= 20 ? 5 : rawMax <= 50 ? 10 : 20;
+    const max = Math.ceil(rawMax / step) * step;
+    const topPad = 22; // room above tallest bar for labels
     const n = items.length || 1;
-    const slotW = Math.floor((w - 10) / n);
-    const barW = Math.max(16, slotW - 10);
-    let s = `<svg width="${w + 30}" height="${h + 46}" viewBox="0 0 ${w + 30} ${h + 46}" style="overflow:visible;">`;
-    for (let i = 0; i <= max; i++) {
-      const y = h - Math.round((i / max) * h);
-      s += `<line x1="22" y1="${y}" x2="${w + 22}" y2="${y}" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>`;
-      s += `<text x="18" y="${y + 4}" text-anchor="end" font-size="9" fill="#666666">${i}</text>`;
+    const leftPad = 28;
+    const slotW = Math.floor((w - leftPad) / n);
+    const barW = Math.min(52, Math.max(18, slotW - 12));
+    const vbH = h + topPad + 46;
+    let s = `<svg width="100%" viewBox="0 0 ${w} ${vbH}" preserveAspectRatio="xMidYMid meet" style="display:block;">`;
+    // grid + Y axis
+    for (let i = 0; i <= max; i += step) {
+      const y = topPad + h - Math.round((i / max) * h);
+      s += `<line x1="${leftPad}" y1="${y}" x2="${w}" y2="${y}" stroke="rgba(0,0,0,0.06)" stroke-width="1"/>`;
+      s += `<text x="${leftPad - 5}" y="${y + 4}" text-anchor="end" font-size="10" fill="#9CA3AF">${i}</text>`;
     }
+    // baseline
+    s += `<line x1="${leftPad}" y1="${topPad + h}" x2="${w}" y2="${topPad + h}" stroke="rgba(0,0,0,0.12)" stroke-width="1"/>`;
     items.forEach((item, i) => {
-      const x = 22 + i * slotW + (slotW - barW) / 2;
-      const doneH = Math.round((item.done / max) * h);
-      const totalH = Math.round((item.total / max) * h);
+      const x = leftPad + i * slotW + (slotW - barW) / 2;
+      const doneH  = max > 0 ? Math.round((item.done  / max) * h) : 0;
+      const totalH = max > 0 ? Math.round((item.total / max) * h) : 0;
       const remH = totalH - doneH;
-      if (remH > 0) s += `<rect x="${x.toFixed(1)}" y="${(h - totalH).toFixed(1)}" width="${barW}" height="${remH}" fill="rgba(255,255,255,0.09)" rx="3"/>`;
-      if (doneH > 0) s += `<rect x="${x.toFixed(1)}" y="${(h - doneH).toFixed(1)}" width="${barW}" height="${doneH}" fill="${item.color}" rx="3"/>`;
-      const topY = h - totalH - 7;
-      if (topY >= 0) s += `<text x="${(x + barW / 2).toFixed(1)}" y="${topY}" text-anchor="middle" font-size="9" font-weight="bold" fill="${item.color}">${item.done}/${item.total}</text>`;
-      const shortLbl = item.label.length > 10 ? item.label.slice(0, 10) + '…' : item.label;
-      s += `<text x="${(x + barW / 2).toFixed(1)}" y="${h + 16}" text-anchor="middle" font-size="9" fill="#AAAAAA">${shortLbl}</text>`;
+      const barTop = topPad + h - totalH;
+      if (remH > 0) s += `<rect x="${x.toFixed(1)}" y="${barTop.toFixed(1)}" width="${barW}" height="${remH}" fill="rgba(0,0,0,0.07)" rx="3"/>`;
+      if (doneH > 0) s += `<rect x="${x.toFixed(1)}" y="${(topPad + h - doneH).toFixed(1)}" width="${barW}" height="${doneH}" fill="${item.color}" rx="3"/>`;
+      // label above bar (always has topPad room)
+      const lblY = barTop - 5;
+      s += `<text x="${(x + barW / 2).toFixed(1)}" y="${lblY.toFixed(1)}" text-anchor="middle" font-size="10" font-weight="700" fill="${item.color}">${item.done}/${item.total}</text>`;
+      // project name below
+      const shortLbl = item.label.length > 12 ? item.label.slice(0, 12) + '…' : item.label;
+      s += `<text x="${(x + barW / 2).toFixed(1)}" y="${topPad + h + 17}" text-anchor="middle" font-size="10" fill="#6B7280">${shortLbl}</text>`;
     });
     s += `</svg>`;
     return s;
@@ -702,65 +713,65 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
 
   // Epic status from pct
   const epicSt = (pct: number, rag: string) => pct >= 100 ? 'done' : pct > 0 ? (rag === 'red' && pct < 30 ? 'risk' : 'prog') : 'todo';
-  const epicStCol = (st: string): string => ({ done:'#FFFFFF', prog:'#E8192C', todo:'rgba(255,255,255,0.22)', risk:'#E8192C' }[st] ?? '#888888');
+  const epicStCol = (st: string): string => ({ done:'#111827', prog:'#E8192C', todo:'#9CA3AF', risk:'#DC2626' }[st] ?? '#6B7280');
   const epicStLbl = (st: string): string => ({ done: isVN?'Hoàn thành':'Done', prog: isVN?'Đang làm':'In Progress', todo: isVN?'Chưa bắt đầu':'Not Started', risk: isVN?'Rủi ro':'At Risk' }[st] ?? st);
-  const epicStBg  = (st: string): string => ({ done:'rgba(255,255,255,0.08)', prog:'rgba(232,25,44,0.14)', todo:'rgba(255,255,255,0.03)', risk:'rgba(232,25,44,0.14)' }[st] ?? 'rgba(255,255,255,0.03)');
-  const epicStBdr = (st: string): string => ({ done:'rgba(255,255,255,0.22)', prog:'rgba(232,25,44,0.35)', todo:'rgba(255,255,255,0.09)', risk:'rgba(232,25,44,0.35)' }[st] ?? 'rgba(255,255,255,0.09)');
+  const epicStBg  = (st: string): string => ({ done:'rgba(17,24,39,0.06)', prog:'rgba(232,25,44,0.08)', todo:'rgba(0,0,0,0.04)', risk:'rgba(220,38,38,0.08)' }[st] ?? 'rgba(0,0,0,0.04)');
+  const epicStBdr = (st: string): string => ({ done:'rgba(17,24,39,0.18)', prog:'rgba(232,25,44,0.28)', todo:'rgba(0,0,0,0.12)', risk:'rgba(220,38,38,0.28)' }[st] ?? 'rgba(0,0,0,0.12)');
 
-  // All CSS scoped under .rpd-wrap
+  // All CSS scoped under .rpd-wrap — white background theme
   const css = `<style>
-.rpd-wrap{background:#0C0C0C;color:#F0F0F0;font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.5;}
+.rpd-wrap{background:#FFFFFF;color:#111827;font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.5;}
 .rpd-wrap *{box-sizing:border-box;}
-.rpd-wrap .rpd-tb{background:#141414;border-bottom:3px solid #E8192C;padding:14px 28px;display:flex;align-items:center;justify-content:space-between;}
-.rpd-wrap .rpd-tb-l{font-family:Georgia,serif;font-size:15px;font-weight:700;color:#F0F0F0;margin:0;letter-spacing:.3px;}
-.rpd-wrap .rpd-tb-s{font-size:10px;color:#888888;margin:2px 0 0;letter-spacing:.8px;text-transform:uppercase;}
+.rpd-wrap .rpd-tb{background:#FFFFFF;border-bottom:3px solid #E8192C;padding:14px 28px;display:flex;align-items:center;justify-content:space-between;}
+.rpd-wrap .rpd-tb-l{font-family:Georgia,serif;font-size:15px;font-weight:700;color:#111827;margin:0;letter-spacing:.3px;}
+.rpd-wrap .rpd-tb-s{font-size:10px;color:#6B7280;margin:2px 0 0;letter-spacing:.8px;text-transform:uppercase;}
 .rpd-wrap .rpd-pg{max-width:1260px;margin:0 auto;padding:24px 20px 52px;}
 .rpd-wrap .rpd-zlbl{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#E8192C;margin:0 0 14px;display:flex;align-items:center;gap:10px;}
 .rpd-wrap .rpd-znum{width:21px;height:21px;border-radius:50%;background:#E8192C;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0;}
-.rpd-wrap .rpd-zsep{height:1px;background:rgba(255,255,255,0.07);margin:26px 0;}
-.rpd-wrap .rpd-panel{background:#181818;border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:18px;}
-.rpd-wrap .rpd-ptitle{font-size:10px;text-transform:uppercase;letter-spacing:1.4px;color:#888888;margin:0 0 14px;}
+.rpd-wrap .rpd-zsep{height:1px;background:#E5E7EB;margin:26px 0;}
+.rpd-wrap .rpd-panel{background:#F8F9FA;border:1px solid #E5E7EB;border-radius:8px;padding:18px;}
+.rpd-wrap .rpd-ptitle{font-size:10px;text-transform:uppercase;letter-spacing:1.4px;color:#6B7280;margin:0 0 14px;}
 .rpd-wrap .rpd-pies{display:flex;gap:12px;margin:0 0 12px;}
 .rpd-wrap .rpd-pie-col{flex:1;min-width:0;}
 .rpd-wrap .rpd-pie-lay{display:flex;align-items:center;gap:14px;}
 .rpd-wrap .rpd-pie-leg{flex:1;min-width:0;}
-.rpd-wrap .rpd-leg-row{display:flex;align-items:center;gap:7px;font-size:11px;color:#888888;margin:0 0 7px;}
+.rpd-wrap .rpd-leg-row{display:flex;align-items:center;gap:7px;font-size:11px;color:#6B7280;margin:0 0 7px;}
 .rpd-wrap .rpd-leg-dot{width:9px;height:9px;border-radius:3px;flex-shrink:0;}
-.rpd-wrap .rpd-leg-val{margin-left:auto;font-weight:600;color:#F0F0F0;font-size:12px;white-space:nowrap;}
+.rpd-wrap .rpd-leg-val{margin-left:auto;font-weight:600;color:#111827;font-size:12px;white-space:nowrap;}
 .rpd-wrap .rpd-bar-panel{margin:0 0 12px;}
 .rpd-wrap .rpd-sum-row{display:flex;gap:12px;margin:0 0 12px;}
-.rpd-wrap .rpd-pill{background:#181818;border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:14px;flex:1;min-width:0;}
+.rpd-wrap .rpd-pill{background:#F8F9FA;border:1px solid #E5E7EB;border-radius:8px;padding:14px;flex:1;min-width:0;}
 .rpd-wrap .rpd-pill-hd{display:flex;align-items:flex-start;gap:10px;margin:0 0 10px;}
 .rpd-wrap .rpd-pill-ico{width:34px;height:34px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;}
-.rpd-wrap .rpd-pill-nm{font-size:13px;font-weight:600;color:#F0F0F0;margin:0;}
-.rpd-wrap .rpd-pill-sb{font-size:11px;color:#888888;margin:2px 0 0;}
-.rpd-wrap .rpd-bar-tr{background:rgba(255,255,255,0.08);border-radius:3px;height:4px;overflow:hidden;}
+.rpd-wrap .rpd-pill-nm{font-size:13px;font-weight:600;color:#111827;margin:0;}
+.rpd-wrap .rpd-pill-sb{font-size:11px;color:#6B7280;margin:2px 0 0;}
+.rpd-wrap .rpd-bar-tr{background:rgba(0,0,0,0.07);border-radius:3px;height:4px;overflow:hidden;}
 .rpd-wrap .rpd-bar-fi{height:4px;border-radius:3px;}
 .rpd-wrap .rpd-ep-dots{display:flex;flex-wrap:wrap;gap:4px;margin:8px 0 0;}
-.rpd-wrap .rpd-ep-dot{display:inline-flex;align-items:center;gap:4px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:4px;padding:2px 7px;font-size:10px;color:#888888;}
-.rpd-wrap .rpd-pb{background:#181818;border:1px solid rgba(255,255,255,0.07);border-radius:8px;overflow:hidden;margin:0 0 14px;}
-.rpd-wrap .rpd-pb-hd{background:#1C1C1C;padding:12px 18px;border-bottom:1px solid rgba(255,255,255,0.07);display:flex;align-items:center;gap:12px;}
+.rpd-wrap .rpd-ep-dot{display:inline-flex;align-items:center;gap:4px;background:rgba(0,0,0,0.03);border:1px solid rgba(0,0,0,0.09);border-radius:4px;padding:2px 7px;font-size:10px;color:#6B7280;}
+.rpd-wrap .rpd-pb{background:#FFFFFF;border:1px solid #E5E7EB;border-radius:8px;overflow:hidden;margin:0 0 14px;}
+.rpd-wrap .rpd-pb-hd{background:#F8F9FA;padding:12px 18px;border-bottom:1px solid #E5E7EB;display:flex;align-items:center;gap:12px;}
 .rpd-wrap .rpd-pb-ico{width:36px;height:36px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex-shrink:0;}
-.rpd-wrap .rpd-pb-nm{font-size:14px;font-weight:600;color:#F0F0F0;margin:0;}
-.rpd-wrap .rpd-pb-sb{font-size:11px;color:#888888;margin:2px 0 0;}
-.rpd-wrap .rpd-pb-bar{height:2px;background:rgba(255,255,255,0.05);}
+.rpd-wrap .rpd-pb-nm{font-size:14px;font-weight:600;color:#111827;margin:0;}
+.rpd-wrap .rpd-pb-sb{font-size:11px;color:#6B7280;margin:2px 0 0;}
+.rpd-wrap .rpd-pb-bar{height:2px;background:#F1F3F5;}
 .rpd-wrap .rpd-pb-body{padding:14px 18px;}
 .rpd-wrap .rpd-et{width:100%;border-collapse:collapse;}
-.rpd-wrap .rpd-et th{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#666666;padding:6px 10px 8px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.07);}
-.rpd-wrap .rpd-et td{padding:9px 10px;border-bottom:1px solid rgba(255,255,255,0.04);font-size:12px;vertical-align:middle;}
+.rpd-wrap .rpd-et th{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#6B7280;padding:6px 10px 8px;text-align:left;border-bottom:1px solid #E5E7EB;}
+.rpd-wrap .rpd-et td{padding:9px 10px;border-bottom:1px solid #F3F4F6;font-size:12px;vertical-align:middle;}
 .rpd-wrap .rpd-et tr:last-child td{border-bottom:none;}
-.rpd-wrap .rpd-et tbody tr:hover td{background:rgba(255,255,255,0.02);}
+.rpd-wrap .rpd-et tbody tr:hover td{background:#F9FAFB;}
 .rpd-wrap .rpd-stag{display:inline-block;padding:2px 9px;border-radius:4px;font-size:10px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;}
-.rpd-wrap .rpd-pgbar{background:rgba(255,255,255,0.07);border-radius:2px;height:6px;overflow:hidden;}
+.rpd-wrap .rpd-pgbar{background:#E5E7EB;border-radius:2px;height:6px;overflow:hidden;}
 .rpd-wrap .rpd-pgfill{height:6px;border-radius:2px;}
-.rpd-wrap .rpd-act-sum{margin:12px 0 0;padding:12px 14px;background:rgba(255,255,255,0.02);border-radius:6px;border:1px solid rgba(255,255,255,0.06);}
-.rpd-wrap .rpd-act-ttl{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#666666;margin:0 0 8px;}
+.rpd-wrap .rpd-act-sum{margin:12px 0 0;padding:12px 14px;background:#F8F9FA;border-radius:6px;border:1px solid #E5E7EB;}
+.rpd-wrap .rpd-act-ttl{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#6B7280;margin:0 0 8px;}
 .rpd-wrap .rpd-act-row{display:flex;}
 .rpd-wrap .rpd-act-st{flex:1;}
 .rpd-wrap .rpd-act-num{font-size:22px;font-weight:700;margin:0;}
-.rpd-wrap .rpd-act-lbl{font-size:10px;color:#666666;margin:2px 0 0;}
-.rpd-wrap .rpd-ft{border-top:1px solid rgba(255,255,255,0.07);padding-top:14px;margin-top:24px;display:flex;justify-content:space-between;align-items:center;}
-.rpd-wrap .rpd-ft-brand{font-family:Georgia,serif;font-size:13px;color:#F0F0F0;font-weight:700;margin:0;letter-spacing:.3px;}
+.rpd-wrap .rpd-act-lbl{font-size:10px;color:#6B7280;margin:2px 0 0;}
+.rpd-wrap .rpd-ft{border-top:1px solid #E5E7EB;padding-top:14px;margin-top:24px;display:flex;justify-content:space-between;align-items:center;}
+.rpd-wrap .rpd-ft-brand{font-family:Georgia,serif;font-size:13px;color:#111827;font-weight:700;margin:0;letter-spacing:.3px;}
 </style>`;
 
   let h = css;
@@ -770,7 +781,7 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
   h += `<div class="rpd-tb">`;
   h += `<div><p class="rpd-tb-l">${companyName} &nbsp;/&nbsp; ${isVN ? 'Báo cáo tổng thể danh mục' : 'Portfolio Status Report'}</p>`;
   h += `<p class="rpd-tb-s">${isVN ? 'Báo cáo điều hành' : 'Executive Report'} &nbsp;·&nbsp; ${quarter}</p></div>`;
-  h += `<div style="text-align:right;"><div style="font-size:11px;color:#888888;">${today}</div><div style="font-size:10px;color:#555555;margin-top:2px;">PMO-${yyyymm}-001</div></div>`;
+  h += `<div style="text-align:right;"><div style="font-size:11px;color:#6B7280;">${today}</div><div style="font-size:10px;color:#9CA3AF;margin-top:2px;">PMO-${yyyymm}-001</div></div>`;
   h += `</div>`;
 
   h += `<div class="rpd-pg">`;
@@ -782,18 +793,18 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
   const programName = data.programs.length === 1 ? data.programs[0].name : (isVN ? 'Danh mục' : 'Portfolio');
   const overallStatus = red.length > 0 ? 'RED' : (allProjects.some(p => p.rag === 'amber') ? 'AMBER' : 'GREEN');
   const overallStatusCol = overallStatus === 'RED' ? '#E53E3E' : overallStatus === 'AMBER' ? '#D97706' : '#38A169';
-  h += `<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding-bottom:18px;margin-bottom:18px;border-bottom:1px solid rgba(255,255,255,0.07);">`;
-  h += `<div><div style="font-family:Georgia,serif;font-size:24px;font-weight:700;line-height:1.2;color:#F0F0F0;">${programName}</div>`;
-  h += `<div style="font-size:11px;color:#888888;margin-top:6px;">${isVN?'Kỳ báo cáo':'Period'}: ${periodStart} → ${periodEnd} &nbsp;·&nbsp; ${allProjects.length} ${isVN?'dự án':'projects'} &nbsp;·&nbsp; ${isVN?'TB':'Avg'} ${data.kpi.avgCompletion}%</div></div>`;
+  h += `<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding-bottom:18px;margin-bottom:18px;border-bottom:1px solid #E5E7EB;">`;
+  h += `<div><div style="font-family:Georgia,serif;font-size:24px;font-weight:700;line-height:1.2;color:#111827;">${programName}</div>`;
+  h += `<div style="font-size:11px;color:#6B7280;margin-top:6px;">${isVN?'Kỳ báo cáo':'Period'}: ${periodStart} → ${periodEnd} &nbsp;·&nbsp; ${allProjects.length} ${isVN?'dự án':'projects'} &nbsp;·&nbsp; ${isVN?'TB':'Avg'} ${data.kpi.avgCompletion}%</div></div>`;
   h += `<div style="flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:4px;">`;
   h += `<span style="display:inline-flex;align-items:center;gap:6px;background:${overallStatusCol}18;border:1px solid ${overallStatusCol}55;color:${overallStatusCol};padding:5px 14px;border-radius:4px;font-size:11px;font-weight:700;letter-spacing:1px;">&#9679; ${overallStatus}</span>`;
   h += `</div></div>`;
 
   // ── Pie 1: Epic-based overall status
   const pie1 = [
-    {val:epicsDone,       color:'#FFFFFF',                   label:isVN?'Hoàn thành':'Done'},
-    {val:epicsInProg,     color:'#E8192C',                   label:isVN?'Đang làm':'In Progress'},
-    {val:epicsNotStarted, color:'rgba(255,255,255,0.18)',     label:isVN?'Chưa bắt đầu':'Not Started'},
+    {val:epicsDone,       color:'#111827',   label:isVN?'Hoàn thành':'Done'},
+    {val:epicsInProg,     color:'#E8192C',   label:isVN?'Đang làm':'In Progress'},
+    {val:epicsNotStarted, color:'#D1D5DB',   label:isVN?'Chưa bắt đầu':'Not Started'},
   ].filter(s => s.val > 0);
 
   // ── Pie 2: Epic weight per program (total epics in program / total epics)
@@ -813,10 +824,9 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
   h += `<div class="rpd-pie-lay"><div style="flex-shrink:0;">${svgDonut(pie1.map(s=>({val:s.val,color:s.color})),140,58,36,p1Pct)}</div><div class="rpd-pie-leg">`;
   pie1.forEach(s => {
     const pct = epicsTotal > 0 ? Math.round(s.val / epicsTotal * 100) : 0;
-    const dotBorder = s.color.startsWith('rgba') ? `border:1px solid rgba(255,255,255,0.25);` : '';
-    h += `<div class="rpd-leg-row"><div class="rpd-leg-dot" style="background:${s.color};${dotBorder}"></div>${s.label}<span class="rpd-leg-val">${s.val} <span style="color:#666666;font-size:10px;">(${pct}%)</span></span></div>`;
+    h += `<div class="rpd-leg-row"><div class="rpd-leg-dot" style="background:${s.color};border:1px solid rgba(0,0,0,0.1);"></div>${s.label}<span class="rpd-leg-val">${s.val} <span style="color:#9CA3AF;font-size:10px;">(${pct}%)</span></span></div>`;
   });
-  h += `<div style="margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.07);font-size:11px;color:#666666;">${isVN?'Tổng cộng':'Total'}: <strong style="color:#F0F0F0;">${epicsTotal}</strong> epic</div>`;
+  h += `<div style="margin-top:6px;padding-top:6px;border-top:1px solid #E5E7EB;font-size:11px;color:#6B7280;">${isVN?'Tổng cộng':'Total'}: <strong style="color:#111827;">${epicsTotal}</strong> epic</div>`;
   h += `</div></div></div></div>`;
 
   // Pie 2
@@ -825,10 +835,9 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
   pie2.forEach(s => {
     const pct = pie2Total > 0 ? Math.round(s.val / pie2Total * 100) : 0;
     const nm = s.label.length > 18 ? s.label.slice(0, 18) + '…' : s.label;
-    const dotBorder = s.color.startsWith('rgba') ? `border:1px solid rgba(255,255,255,0.25);` : '';
-    h += `<div class="rpd-leg-row"><div class="rpd-leg-dot" style="background:${s.color};${dotBorder}"></div>${nm}<span class="rpd-leg-val">${s.val} <span style="color:#666666;font-size:10px;">(${pct}%)</span></span></div>`;
+    h += `<div class="rpd-leg-row"><div class="rpd-leg-dot" style="background:${s.color};"></div>${nm}<span class="rpd-leg-val">${s.val} <span style="color:#9CA3AF;font-size:10px;">(${pct}%)</span></span></div>`;
   });
-  h += `<div style="margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.07);font-size:11px;color:#666666;">${isVN?'Tổng cộng':'Total'}: <strong style="color:#F0F0F0;">${pie2Total}</strong> epic</div>`;
+  h += `<div style="margin-top:6px;padding-top:6px;border-top:1px solid #E5E7EB;font-size:11px;color:#6B7280;">${isVN?'Tổng cộng':'Total'}: <strong style="color:#111827;">${pie2Total}</strong> epic</div>`;
   h += `</div></div></div></div>`;
 
   h += `</div>`; // rpd-pies
@@ -843,10 +852,10 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
 
   h += `<div class="rpd-bar-panel"><div class="rpd-panel">`;
   h += `<div class="rpd-ptitle">${isVN?'Phase hoàn thành theo dự án (Epic)':'Completed Phases per Project (Epic)'}</div>`;
-  h += `<div style="overflow-x:auto;">${svgBarChart(barItems, Math.max(500, barItems.length * 80), 140)}</div>`;
+  h += `<div>${svgBarChart(barItems, Math.max(600, barItems.length * 80), 160)}</div>`;
   h += `<div style="display:flex;gap:18px;margin-top:10px;justify-content:center;">`;
-  h += `<div style="display:flex;align-items:center;gap:5px;font-size:11px;color:#888888;"><div style="width:10px;height:10px;border-radius:2px;background:#FFFFFF;display:inline-block;"></div>${isVN?'Hoàn thành':'Done'}</div>`;
-  h += `<div style="display:flex;align-items:center;gap:5px;font-size:11px;color:#888888;"><div style="width:10px;height:10px;border-radius:2px;background:rgba(255,255,255,0.09);border:1px solid rgba(255,255,255,0.2);display:inline-block;"></div>${isVN?'Còn lại':'Remaining'}</div>`;
+  h += `<div style="display:flex;align-items:center;gap:5px;font-size:11px;color:#6B7280;"><div style="width:10px;height:10px;border-radius:2px;background:#E8192C;display:inline-block;"></div>${isVN?'Hoàn thành (ví dụ)':'Done (example)'}</div>`;
+  h += `<div style="display:flex;align-items:center;gap:5px;font-size:11px;color:#6B7280;"><div style="width:10px;height:10px;border-radius:2px;background:rgba(0,0,0,0.07);border:1px solid rgba(0,0,0,0.15);display:inline-block;"></div>${isVN?'Còn lại':'Remaining'}</div>`;
   h += `</div></div></div>`;
 
   h += `<div class="rpd-zsep"></div>`;
@@ -865,7 +874,7 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
       h += `<div class="rpd-pill-hd"><div class="rpd-pill-ico" style="background:${color}22;color:${color};">${p.name.slice(0,2).toUpperCase()}</div>`;
       h += `<div style="flex:1;min-width:0;"><p class="rpd-pill-nm">${p.name}</p>${p.program_name?`<p class="rpd-pill-sb">${p.program_name}</p>`:''}</div>`;
       h += `<div style="margin-left:8px;text-align:right;flex-shrink:0;"><div style="font-size:20px;font-weight:700;color:${color};line-height:1;">${p.completion_pct}%</div><div style="font-size:10px;color:${ragC};font-weight:700;margin-top:2px;">${p.rag.toUpperCase()}</div></div></div>`;
-      h += `<div style="font-size:11px;color:#666666;margin-bottom:6px;">${(p.epicStats??[]).length} phase &nbsp;·&nbsp; ${p.total_activities??0} activity</div>`;
+      h += `<div style="font-size:11px;color:#6B7280;margin-bottom:6px;">${(p.epicStats??[]).length} phase &nbsp;·&nbsp; ${p.total_activities??0} activity</div>`;
       h += `<div class="rpd-bar-tr"><div class="rpd-bar-fi" style="width:${p.completion_pct}%;background:${color};"></div></div>`;
       if (p.epicStats && p.epicStats.length > 0) {
         h += `<div class="rpd-ep-dots">`;
@@ -891,9 +900,9 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
     h += `<div class="rpd-pb-hd"><div class="rpd-pb-ico" style="background:${color}22;color:${color};">${p.name.slice(0,2).toUpperCase()}</div>`;
     h += `<div style="flex:1;min-width:0;"><p class="rpd-pb-nm">${p.name}</p><p class="rpd-pb-sb">${[p.program_name, p.current_phase, p.pm_name ? 'PM: '+p.pm_name : ''].filter(Boolean).join(' · ')}</p></div>`;
     h += `<div style="margin-left:auto;display:flex;align-items:center;gap:20px;flex-shrink:0;">`;
-    h += `<div style="text-align:center;"><div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;color:#555555;margin-bottom:3px;">${isVN?'Tiến độ':'Progress'}</div><div style="font-size:22px;font-weight:700;color:${color};line-height:1;">${p.completion_pct}%</div></div>`;
-    h += `<div style="text-align:center;"><div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;color:#555555;margin-bottom:3px;">RAG</div><div style="font-size:12px;font-weight:700;color:${ragC};display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:50%;background:${ragC};display:inline-block;"></span>${p.rag.toUpperCase()}</div></div>`;
-    h += `<div style="text-align:center;"><div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;color:#555555;margin-bottom:3px;">${isVN?'Phase':'Phases'}</div><div style="font-size:18px;font-weight:700;color:#F0F0F0;line-height:1;">${totalEpics}</div></div>`;
+    h += `<div style="text-align:center;"><div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;color:#9CA3AF;margin-bottom:3px;">${isVN?'Tiến độ':'Progress'}</div><div style="font-size:22px;font-weight:700;color:${color};line-height:1;">${p.completion_pct}%</div></div>`;
+    h += `<div style="text-align:center;"><div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;color:#9CA3AF;margin-bottom:3px;">RAG</div><div style="font-size:12px;font-weight:700;color:${ragC};display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:50%;background:${ragC};display:inline-block;"></span>${p.rag.toUpperCase()}</div></div>`;
+    h += `<div style="text-align:center;"><div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;color:#9CA3AF;margin-bottom:3px;">${isVN?'Phase':'Phases'}</div><div style="font-size:18px;font-weight:700;color:#111827;line-height:1;">${totalEpics}</div></div>`;
     h += `</div></div>`;
     h += `<div class="rpd-pb-bar"><div style="height:2px;background:${color};width:${p.completion_pct}%;"></div></div>`;
     h += `<div class="rpd-pb-body">`;
@@ -911,23 +920,23 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
         const ec = epicStCol(st);
         h += `<tr>`;
         h += `<td style="padding:9px 4px;"><div style="width:3px;height:20px;border-radius:2px;background:${ec};"></div></td>`;
-        h += `<td style="font-weight:500;color:#F0F0F0;">${e.phase}</td>`;
+        h += `<td style="font-weight:500;color:#111827;">${e.phase}</td>`;
         h += `<td><span class="rpd-stag" style="background:${epicStBg(st)};border:1px solid ${epicStBdr(st)};color:${ec};">${epicStLbl(st)}</span></td>`;
         h += `<td><div class="rpd-pgbar"><div class="rpd-pgfill" style="width:${e.pct}%;background:${ec};"></div></div></td>`;
         h += `<td style="font-weight:700;color:${ec};text-align:right;">${e.pct}%</td>`;
-        h += `<td style="color:#666666;text-align:right;font-size:11px;">${e.done}/${e.total}</td>`;
+        h += `<td style="color:#9CA3AF;text-align:right;font-size:11px;">${e.done}/${e.total}</td>`;
         h += `</tr>`;
       });
       h += `</tbody></table>`;
     } else {
-      h += `<p style="color:#666666;font-size:12px;font-style:italic;margin:0;">${isVN?'Chưa có dữ liệu phase.':'No phase data available.'}</p>`;
+      h += `<p style="color:#9CA3AF;font-size:12px;font-style:italic;margin:0;">${isVN?'Chưa có dữ liệu phase.':'No phase data available.'}</p>`;
     }
     if ((p.total_activities ?? 0) > 0) {
       h += `<div class="rpd-act-sum"><p class="rpd-act-ttl">${isVN?'Tổng hợp activity':'Activity Summary'}</p><div class="rpd-act-row">`;
       const actItems = [
-        {l:isVN?'Hoàn thành':'Done',          v:p.done_activities??0,        c:'#FFFFFF'},
+        {l:isVN?'Hoàn thành':'Done',          v:p.done_activities??0,        c:'#111827'},
         {l:isVN?'Đang làm':'In Progress',     v:p.in_progress_activities??0, c:'#E8192C'},
-        {l:isVN?'Chưa bắt đầu':'Not Started', v:p.not_started_activities??0, c:'rgba(255,255,255,0.3)'},
+        {l:isVN?'Chưa bắt đầu':'Not Started', v:p.not_started_activities??0, c:'#9CA3AF'},
       ];
       actItems.forEach(a => {
         h += `<div class="rpd-act-st"><p class="rpd-act-num" style="color:${a.c};">${a.v}</p><p class="rpd-act-lbl">${a.l}</p></div>`;
@@ -940,8 +949,8 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
   // ── Footer
   h += `<div class="rpd-ft">`;
   h += `<p class="rpd-ft-brand">${companyName}</p>`;
-  h += `<div style="font-size:11px;color:#555555;">${isVN?'Tài liệu mật · Dành cho Ban Lãnh Đạo':'Confidential · For Leadership Only'}</div>`;
-  h += `<div style="font-size:11px;color:#555555;">${isVN?'Phát hành':'Published'}: ${today}</div>`;
+  h += `<div style="font-size:11px;color:#9CA3AF;">${isVN?'Tài liệu mật · Dành cho Ban Lãnh Đạo':'Confidential · For Leadership Only'}</div>`;
+  h += `<div style="font-size:11px;color:#9CA3AF;">${isVN?'Phát hành':'Published'}: ${today}</div>`;
   h += `</div>`;
 
   h += `</div></div>`; // .rpd-pg + .rpd-wrap
@@ -1136,7 +1145,7 @@ export default function PortfolioReportPage() {
 
   const exportHtml = () => {
     if (!htmlReport) return;
-    const bg = mode === 'manual' ? '#0C0C0C' : '#f8fafc';
+    const bg = '#FFFFFF';
     const full = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="format-detection" content="telephone=no,address=no,email=no,date=no,url=no"><title>Portfolio Report</title><style type="text/css">a,a:link,a:visited,a:hover{color:inherit!important;text-decoration:none!important;}</style></head><body style="margin:0;background:${bg};">${htmlReport}</body></html>`;
     const blob = new Blob([full], { type: 'text/html;charset=utf-8' });
     const url = URL.createObjectURL(blob);
@@ -1153,7 +1162,7 @@ export default function PortfolioReportPage() {
     el.style.overflow = 'visible';
     try {
       const { toPng } = await import('html-to-image');
-      const dataUrl = await toPng(el, { pixelRatio: 2, backgroundColor: mode === 'manual' ? '#0C0C0C' : '#f8fafc', cacheBust: true });
+      const dataUrl = await toPng(el, { pixelRatio: 2, backgroundColor: '#FFFFFF', cacheBust: true });
       el.style.overflow = prevOverflow;
       const a = document.createElement('a');
       a.download = `PortfolioReport_${new Date().toISOString().slice(0, 10)}.png`;
@@ -1176,7 +1185,7 @@ export default function PortfolioReportPage() {
     el.style.overflow = 'visible';
     try {
       const { toPng } = await import('html-to-image');
-      const dataUrl = await toPng(el, { pixelRatio: 2, backgroundColor: mode === 'manual' ? '#0C0C0C' : '#f8fafc', cacheBust: true });
+      const dataUrl = await toPng(el, { pixelRatio: 2, backgroundColor: '#FFFFFF', cacheBust: true });
       el.style.overflow = prevOverflow;
       const { jsPDF } = await import('jspdf');
       const imgW = el.scrollWidth * 2;
@@ -1906,7 +1915,7 @@ export default function PortfolioReportPage() {
                 {viewMode === 'preview' ? (
                   <div
                     ref={previewRef}
-                    className={`border rounded-lg overflow-auto ${mode === 'manual' ? 'border-neutral-800 bg-[#0C0C0C]' : 'border-slate-200 bg-white'}`}
+                    className={`border rounded-lg overflow-auto ${mode === 'manual' ? 'border-slate-200 bg-white' : 'border-slate-200 bg-white'}`}
                     dangerouslySetInnerHTML={{ __html: htmlReport }}
                   />
                 ) : (
