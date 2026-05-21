@@ -672,38 +672,42 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
     return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">${paths}${hole}${lbl}</svg>`;
   }
 
-  // SVG bar chart — full-width, Y-axis step-5, top padding for labels
-  function svgBarChart(items: {label:string,done:number,total:number,color:string}[], w=800, h=160): string {
+  // SVG bar chart — stacked 3-segment: Done (green) / In Progress (blue) / Not Started (gray)
+  function svgBarChart(items: {label:string,done:number,inProg:number,notStarted:number,total:number}[], w=800, h=160): string {
+    const C_DONE = '#16A34A', C_PROG = '#3B82F6', C_TODO = '#E5E7EB';
     const rawMax = Math.max(...items.map(i => i.total), 1);
     const step = rawMax <= 5 ? 1 : rawMax <= 20 ? 5 : rawMax <= 50 ? 10 : 20;
     const max = Math.ceil(rawMax / step) * step;
-    const topPad = 22; // room above tallest bar for labels
+    const topPad = 22;
     const n = items.length || 1;
     const leftPad = 28;
     const slotW = Math.floor((w - leftPad) / n);
     const barW = Math.min(52, Math.max(18, slotW - 12));
     const vbH = h + topPad + 46;
     let s = `<svg width="100%" viewBox="0 0 ${w} ${vbH}" preserveAspectRatio="xMidYMid meet" style="display:block;">`;
-    // grid + Y axis
     for (let i = 0; i <= max; i += step) {
       const y = topPad + h - Math.round((i / max) * h);
       s += `<line x1="${leftPad}" y1="${y}" x2="${w}" y2="${y}" stroke="rgba(0,0,0,0.06)" stroke-width="1"/>`;
       s += `<text x="${leftPad - 5}" y="${y + 4}" text-anchor="end" font-size="10" fill="#9CA3AF">${i}</text>`;
     }
-    // baseline
     s += `<line x1="${leftPad}" y1="${topPad + h}" x2="${w}" y2="${topPad + h}" stroke="rgba(0,0,0,0.12)" stroke-width="1"/>`;
     items.forEach((item, i) => {
       const x = leftPad + i * slotW + (slotW - barW) / 2;
-      const doneH  = max > 0 ? Math.round((item.done  / max) * h) : 0;
-      const totalH = max > 0 ? Math.round((item.total / max) * h) : 0;
-      const remH = totalH - doneH;
+      const totalH   = max > 0 ? Math.round((item.total   / max) * h) : 0;
+      const doneH    = max > 0 ? Math.round((item.done    / max) * h) : 0;
+      const inProgH  = max > 0 ? Math.round((item.inProg  / max) * h) : 0;
       const barTop = topPad + h - totalH;
-      if (remH > 0) s += `<rect x="${x.toFixed(1)}" y="${barTop.toFixed(1)}" width="${barW}" height="${remH}" fill="rgba(0,0,0,0.07)" rx="3"/>`;
-      if (doneH > 0) s += `<rect x="${x.toFixed(1)}" y="${(topPad + h - doneH).toFixed(1)}" width="${barW}" height="${doneH}" fill="${item.color}" rx="3"/>`;
-      // label above bar (always has topPad room)
+      // Render full bar as gray (not started) background
+      if (totalH > 0) s += `<rect x="${x.toFixed(1)}" y="${barTop.toFixed(1)}" width="${barW}" height="${totalH}" fill="${C_TODO}" rx="3"/>`;
+      // Overlay blue (in progress + done region)
+      const progH = doneH + inProgH;
+      if (progH > 0) s += `<rect x="${x.toFixed(1)}" y="${(topPad + h - progH).toFixed(1)}" width="${barW}" height="${progH}" fill="${C_PROG}"/>`;
+      // Overlay green (done region at bottom)
+      if (doneH > 0) s += `<rect x="${x.toFixed(1)}" y="${(topPad + h - doneH).toFixed(1)}" width="${barW}" height="${doneH}" fill="${C_DONE}"/>`;
+      // Label above bar
       const lblY = barTop - 5;
-      s += `<text x="${(x + barW / 2).toFixed(1)}" y="${lblY.toFixed(1)}" text-anchor="middle" font-size="10" font-weight="700" fill="${item.color}">${item.done}/${item.total}</text>`;
-      // project name below
+      const lblColor = doneH > 0 ? C_DONE : inProgH > 0 ? C_PROG : '#9CA3AF';
+      s += `<text x="${(x + barW / 2).toFixed(1)}" y="${lblY.toFixed(1)}" text-anchor="middle" font-size="10" font-weight="700" fill="${lblColor}">${item.done}/${item.total}</text>`;
       const shortLbl = item.label.length > 12 ? item.label.slice(0, 12) + '…' : item.label;
       s += `<text x="${(x + barW / 2).toFixed(1)}" y="${topPad + h + 17}" text-anchor="middle" font-size="10" fill="#6B7280">${shortLbl}</text>`;
     });
@@ -711,12 +715,13 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
     return s;
   }
 
-  // Epic status from pct
+  // Epic status from pct — green/blue/gray, never red (red = RAG health, not epic status)
+  const EPIC_COL = { done:'#16A34A', prog:'#3B82F6', todo:'#9CA3AF' } as const;
   const epicSt = (pct: number) => pct >= 100 ? 'done' : pct > 0 ? 'prog' : 'todo';
-  const epicStCol = (st: string): string => ({ done:'#111827', prog:'#E8192C', todo:'#9CA3AF', risk:'#DC2626' }[st] ?? '#6B7280');
-  const epicStLbl = (st: string): string => ({ done: isVN?'Hoàn thành':'Done', prog: isVN?'Đang làm':'In Progress', todo: isVN?'Chưa bắt đầu':'Not Started', risk: isVN?'Rủi ro':'At Risk' }[st] ?? st);
-  const epicStBg  = (st: string): string => ({ done:'rgba(17,24,39,0.06)', prog:'rgba(232,25,44,0.08)', todo:'rgba(0,0,0,0.04)', risk:'rgba(220,38,38,0.08)' }[st] ?? 'rgba(0,0,0,0.04)');
-  const epicStBdr = (st: string): string => ({ done:'rgba(17,24,39,0.18)', prog:'rgba(232,25,44,0.28)', todo:'rgba(0,0,0,0.12)', risk:'rgba(220,38,38,0.28)' }[st] ?? 'rgba(0,0,0,0.12)');
+  const epicStCol = (st: string): string => (EPIC_COL as Record<string,string>)[st] ?? '#9CA3AF';
+  const epicStLbl = (st: string): string => ({ done: isVN?'Hoàn thành':'Done', prog: isVN?'Đang triển khai':'In Progress', todo: isVN?'Chưa bắt đầu':'Not Started' }[st] ?? st);
+  const epicStBg  = (st: string): string => ({ done:'rgba(22,163,74,0.08)',  prog:'rgba(59,130,246,0.08)', todo:'rgba(0,0,0,0.04)' }[st] ?? 'rgba(0,0,0,0.04)');
+  const epicStBdr = (st: string): string => ({ done:'rgba(22,163,74,0.28)',  prog:'rgba(59,130,246,0.25)', todo:'rgba(0,0,0,0.12)' }[st] ?? 'rgba(0,0,0,0.12)');
 
   // All CSS scoped under .rpd-wrap — white background theme
   const css = `<style>
@@ -802,8 +807,8 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
 
   // ── Pie 1: Epic-based overall status
   const pie1 = [
-    {val:epicsDone,       color:'#111827',   label:isVN?'Hoàn thành':'Done'},
-    {val:epicsInProg,     color:'#E8192C',   label:isVN?'Đang làm':'In Progress'},
+    {val:epicsDone,       color:'#16A34A',   label:isVN?'Hoàn thành':'Done'},
+    {val:epicsInProg,     color:'#3B82F6',   label:isVN?'Đang triển khai':'In Progress'},
     {val:epicsNotStarted, color:'#D1D5DB',   label:isVN?'Chưa bắt đầu':'Not Started'},
   ].filter(s => s.val > 0);
 
@@ -842,20 +847,22 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
 
   h += `</div>`; // rpd-pies
 
-  // ── Bar chart: Completed epics per project (full-width)
-  const barItems = allProjects.map((p, i) => ({
-    label: p.name,
-    done:  (p.epicStats ?? []).filter(e => e.pct >= 100).length,
-    total: (p.epicStats ?? []).length,
-    color: pCol(i),
+  // ── Bar chart: Epic status per project (stacked: done / in-progress / not-started)
+  const barItems = allProjects.map(p => ({
+    label:      p.name,
+    done:       (p.epicStats ?? []).filter(e => e.pct >= 100).length,
+    inProg:     (p.epicStats ?? []).filter(e => e.pct > 0 && e.pct < 100).length,
+    notStarted: (p.epicStats ?? []).filter(e => e.pct === 0).length,
+    total:      (p.epicStats ?? []).length,
   }));
 
   h += `<div class="rpd-bar-panel"><div class="rpd-panel">`;
-  h += `<div class="rpd-ptitle">${isVN?'Phase hoàn thành theo dự án (Epic)':'Completed Phases per Project (Epic)'}</div>`;
+  h += `<div class="rpd-ptitle">${isVN?'Trạng thái phase theo dự án (Epic)':'Phase Status per Project (Epic)'}</div>`;
   h += `<div>${svgBarChart(barItems, Math.max(600, barItems.length * 80), 160)}</div>`;
   h += `<div style="display:flex;gap:18px;margin-top:10px;justify-content:center;">`;
-  h += `<div style="display:flex;align-items:center;gap:5px;font-size:11px;color:#6B7280;"><div style="width:10px;height:10px;border-radius:2px;background:#E8192C;display:inline-block;"></div>${isVN?'Hoàn thành (ví dụ)':'Done (example)'}</div>`;
-  h += `<div style="display:flex;align-items:center;gap:5px;font-size:11px;color:#6B7280;"><div style="width:10px;height:10px;border-radius:2px;background:rgba(0,0,0,0.07);border:1px solid rgba(0,0,0,0.15);display:inline-block;"></div>${isVN?'Còn lại':'Remaining'}</div>`;
+  h += `<div style="display:flex;align-items:center;gap:5px;font-size:11px;color:#6B7280;"><div style="width:10px;height:10px;border-radius:2px;background:#16A34A;display:inline-block;"></div>${isVN?'Hoàn thành':'Done'}</div>`;
+  h += `<div style="display:flex;align-items:center;gap:5px;font-size:11px;color:#6B7280;"><div style="width:10px;height:10px;border-radius:2px;background:#3B82F6;display:inline-block;"></div>${isVN?'Đang triển khai':'In Progress'}</div>`;
+  h += `<div style="display:flex;align-items:center;gap:5px;font-size:11px;color:#6B7280;"><div style="width:10px;height:10px;border-radius:2px;background:#E5E7EB;border:1px solid #D1D5DB;display:inline-block;"></div>${isVN?'Chưa bắt đầu':'Not Started'}</div>`;
   h += `</div></div></div>`;
 
   h += `<div class="rpd-zsep"></div>`;
