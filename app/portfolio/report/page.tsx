@@ -607,6 +607,7 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
   const totalInProg = allProjects.reduce((s, p) => s + (p.in_progress_activities || 0), 0);
   const totalNotStarted = allProjects.reduce((s, p) => s + (p.not_started_activities || 0), 0);
   const totalActs = totalDone + totalInProg + totalNotStarted;
+  void amber; // suppress unused warning
 
   // Project palette
   const PALETTE = ['#C8A84B','#2ECFBA','#9B7FEA','#5BA4FA','#3ECB7A','#EF5A5B','#F59E0B','#EC4899'];
@@ -670,182 +671,160 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
   const epicStBg = (st: string): string => ({ done:'rgba(62,203,122,0.12)', prog:'rgba(91,164,250,0.12)', todo:'rgba(122,144,184,0.08)', risk:'rgba(239,90,91,0.12)' }[st] ?? 'rgba(122,144,184,0.08)');
   const epicStBdr = (st: string): string => ({ done:'rgba(62,203,122,0.28)', prog:'rgba(91,164,250,0.28)', todo:'rgba(255,255,255,0.1)', risk:'rgba(239,90,91,0.28)' }[st] ?? 'rgba(255,255,255,0.1)');
 
+  // All CSS is scoped under .rpd-wrap to avoid polluting the host page
   const css = `<style>
-*{box-sizing:border-box;margin:0;padding:0;}
-.rw{background:#07111F;color:#E8F0FF;font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.5;}
-.tb{background:#0D1E31;border-bottom:1px solid rgba(200,168,75,0.2);padding:12px 28px;}
-.tb-l{font-family:Georgia,serif;font-size:15px;font-weight:700;color:#C8A84B;}
-.tb-s{font-size:10px;color:#7A90B8;margin-top:1px;letter-spacing:.8px;text-transform:uppercase;}
-.pg{max-width:1260px;margin:0 auto;padding:24px 20px 52px;}
-.z-lbl{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#C8A84B;margin-bottom:14px;display:flex;align-items:center;gap:10px;}
-.z-num{width:21px;height:21px;border-radius:50%;border:1px solid #C8A84B;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0;}
-.z-sep{height:1px;background:linear-gradient(90deg,rgba(200,168,75,0.2),transparent);margin:26px 0;}
-.panel{background:#0D1E31;border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:18px;height:100%;}
-.ptitle{font-size:10px;text-transform:uppercase;letter-spacing:1.4px;color:#7A90B8;margin-bottom:14px;}
-.kpi-strip{display:flex;gap:10px;margin-bottom:18px;}
-.kpi{background:#0D1E31;border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:16px 14px;flex:1;position:relative;overflow:hidden;}
-.kpi-lbl{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#7A90B8;margin-bottom:6px;}
-.kpi-val{font-size:26px;font-weight:700;line-height:1;}
-.charts-row{display:flex;gap:12px;margin-bottom:0;}
-.chart-col{flex:1;min-width:0;}
-.pie-lay{display:flex;align-items:center;gap:14px;}
-.pie-leg{flex:1;min-width:0;}
-.leg-row{display:flex;align-items:center;gap:7px;font-size:11px;color:#7A90B8;margin-bottom:7px;}
-.leg-dot{width:9px;height:9px;border-radius:3px;flex-shrink:0;}
-.leg-val{margin-left:auto;font-weight:600;color:#E8F0FF;font-size:12px;white-space:nowrap;}
-.proj-sum-row{display:flex;gap:12px;margin-bottom:12px;}
-.proj-pill{background:#0D1E31;border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:14px;flex:1;min-width:0;}
-.pp-hd{display:flex;align-items:flex-start;gap:10px;margin-bottom:10px;}
-.pp-ico{width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;}
-.pp-nm{font-size:13px;font-weight:600;color:#E8F0FF;}
-.pp-sb{font-size:11px;color:#7A90B8;margin-top:2px;}
-.bar-tr{background:rgba(255,255,255,0.07);border-radius:3px;height:5px;overflow:hidden;}
-.bar-fi{height:5px;border-radius:3px;}
-.ep-dots{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px;}
-.ep-dot{display:inline-flex;align-items:center;gap:4px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:4px;padding:2px 7px;font-size:10px;color:#7A90B8;}
-.pb{background:#0D1E31;border:1px solid rgba(255,255,255,0.06);border-radius:10px;overflow:hidden;margin-bottom:14px;}
-.pb-hd{background:rgba(255,255,255,0.02);padding:12px 18px;border-bottom:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;gap:12px;}
-.pb-ico{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex-shrink:0;}
-.pb-nm{font-size:14px;font-weight:600;color:#E8F0FF;}
-.pb-sb{font-size:11px;color:#7A90B8;margin-top:2px;}
-.pb-bar{height:3px;background:rgba(255,255,255,0.06);}
-.pb-body{padding:14px 18px;}
-.et{width:100%;border-collapse:collapse;}
-.et th{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#7A90B8;padding:6px 10px 8px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.06);}
-.et td{padding:9px 10px;border-bottom:1px solid rgba(255,255,255,0.03);font-size:12px;vertical-align:middle;}
-.et tr:last-child td{border-bottom:none;}
-.stag{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:500;letter-spacing:.4px;text-transform:uppercase;}
-.pg-bar{background:rgba(255,255,255,0.06);border-radius:3px;height:7px;overflow:hidden;}
-.pg-fill{height:7px;border-radius:3px;}
-.act-sum{margin-top:12px;padding:10px 14px;background:rgba(255,255,255,0.03);border-radius:6px;border:1px solid rgba(255,255,255,0.06);}
-.act-ttl{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#7A90B8;margin-bottom:8px;}
-.act-row{display:flex;gap:0;}
-.act-st{flex:1;}.act-num{font-size:20px;font-weight:700;}.act-lbl{font-size:10px;color:#7A90B8;}
-.ft{border-top:1px solid rgba(200,168,75,0.15);padding-top:14px;margin-top:24px;display:flex;justify-content:space-between;align-items:center;}
-.ft-brand{font-family:Georgia,serif;font-size:13px;color:#C8A84B;font-weight:700;}
+.rpd-wrap{background:#07111F;color:#E8F0FF;font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.5;}
+.rpd-wrap *{box-sizing:border-box;}
+.rpd-wrap .rpd-tb{background:#0D1E31;border-bottom:1px solid rgba(200,168,75,0.2);padding:12px 28px;display:flex;align-items:center;justify-content:space-between;}
+.rpd-wrap .rpd-tb-l{font-family:Georgia,serif;font-size:15px;font-weight:700;color:#C8A84B;margin:0;}
+.rpd-wrap .rpd-tb-s{font-size:10px;color:#7A90B8;margin:2px 0 0;letter-spacing:.8px;text-transform:uppercase;}
+.rpd-wrap .rpd-pg{max-width:1260px;margin:0 auto;padding:24px 20px 52px;}
+.rpd-wrap .rpd-zlbl{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#C8A84B;margin:0 0 14px;display:flex;align-items:center;gap:10px;}
+.rpd-wrap .rpd-znum{width:21px;height:21px;border-radius:50%;border:1px solid #C8A84B;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0;}
+.rpd-wrap .rpd-zsep{height:1px;background:linear-gradient(90deg,rgba(200,168,75,0.2),transparent);margin:26px 0;}
+.rpd-wrap .rpd-panel{background:#0D1E31;border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:18px;}
+.rpd-wrap .rpd-ptitle{font-size:10px;text-transform:uppercase;letter-spacing:1.4px;color:#7A90B8;margin:0 0 14px;}
+.rpd-wrap .rpd-pies{display:flex;gap:12px;margin:0 0 12px;}
+.rpd-wrap .rpd-pie-col{flex:1;min-width:0;}
+.rpd-wrap .rpd-pie-lay{display:flex;align-items:center;gap:14px;}
+.rpd-wrap .rpd-pie-leg{flex:1;min-width:0;}
+.rpd-wrap .rpd-leg-row{display:flex;align-items:center;gap:7px;font-size:11px;color:#7A90B8;margin:0 0 7px;}
+.rpd-wrap .rpd-leg-dot{width:9px;height:9px;border-radius:3px;flex-shrink:0;}
+.rpd-wrap .rpd-leg-val{margin-left:auto;font-weight:600;color:#E8F0FF;font-size:12px;white-space:nowrap;}
+.rpd-wrap .rpd-bar-panel{margin:0 0 12px;}
+.rpd-wrap .rpd-sum-row{display:flex;gap:12px;margin:0 0 12px;}
+.rpd-wrap .rpd-pill{background:#0D1E31;border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:14px;flex:1;min-width:0;}
+.rpd-wrap .rpd-pill-hd{display:flex;align-items:flex-start;gap:10px;margin:0 0 10px;}
+.rpd-wrap .rpd-pill-ico{width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;}
+.rpd-wrap .rpd-pill-nm{font-size:13px;font-weight:600;color:#E8F0FF;margin:0;}
+.rpd-wrap .rpd-pill-sb{font-size:11px;color:#7A90B8;margin:2px 0 0;}
+.rpd-wrap .rpd-bar-tr{background:rgba(255,255,255,0.07);border-radius:3px;height:5px;overflow:hidden;}
+.rpd-wrap .rpd-bar-fi{height:5px;border-radius:3px;}
+.rpd-wrap .rpd-ep-dots{display:flex;flex-wrap:wrap;gap:4px;margin:8px 0 0;}
+.rpd-wrap .rpd-ep-dot{display:inline-flex;align-items:center;gap:4px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:4px;padding:2px 7px;font-size:10px;color:#7A90B8;}
+.rpd-wrap .rpd-pb{background:#0D1E31;border:1px solid rgba(255,255,255,0.06);border-radius:10px;overflow:hidden;margin:0 0 14px;}
+.rpd-wrap .rpd-pb-hd{background:rgba(255,255,255,0.02);padding:12px 18px;border-bottom:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;gap:12px;}
+.rpd-wrap .rpd-pb-ico{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex-shrink:0;}
+.rpd-wrap .rpd-pb-nm{font-size:14px;font-weight:600;color:#E8F0FF;margin:0;}
+.rpd-wrap .rpd-pb-sb{font-size:11px;color:#7A90B8;margin:2px 0 0;}
+.rpd-wrap .rpd-pb-bar{height:3px;background:rgba(255,255,255,0.06);}
+.rpd-wrap .rpd-pb-body{padding:14px 18px;}
+.rpd-wrap .rpd-et{width:100%;border-collapse:collapse;}
+.rpd-wrap .rpd-et th{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#7A90B8;padding:6px 10px 8px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.06);}
+.rpd-wrap .rpd-et td{padding:9px 10px;border-bottom:1px solid rgba(255,255,255,0.03);font-size:12px;vertical-align:middle;}
+.rpd-wrap .rpd-et tr:last-child td{border-bottom:none;}
+.rpd-wrap .rpd-stag{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:500;letter-spacing:.4px;text-transform:uppercase;}
+.rpd-wrap .rpd-pgbar{background:rgba(255,255,255,0.06);border-radius:3px;height:7px;overflow:hidden;}
+.rpd-wrap .rpd-pgfill{height:7px;border-radius:3px;}
+.rpd-wrap .rpd-act-sum{margin:12px 0 0;padding:10px 14px;background:rgba(255,255,255,0.03);border-radius:6px;border:1px solid rgba(255,255,255,0.06);}
+.rpd-wrap .rpd-act-ttl{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#7A90B8;margin:0 0 8px;}
+.rpd-wrap .rpd-act-row{display:flex;}
+.rpd-wrap .rpd-act-st{flex:1;}
+.rpd-wrap .rpd-act-num{font-size:20px;font-weight:700;margin:0;}
+.rpd-wrap .rpd-act-lbl{font-size:10px;color:#7A90B8;margin:0;}
+.rpd-wrap .rpd-ft{border-top:1px solid rgba(200,168,75,0.15);padding-top:14px;margin-top:24px;display:flex;justify-content:space-between;align-items:center;}
+.rpd-wrap .rpd-ft-brand{font-family:Georgia,serif;font-size:13px;color:#C8A84B;font-weight:700;margin:0;}
 </style>`;
 
   let h = css;
-  h += `<div class="rw">`;
+  h += `<div class="rpd-wrap">`;
 
   // ── Topbar
-  h += `<div class="tb"><div style="display:flex;align-items:center;justify-content:space-between;">`;
-  h += `<div><div class="tb-l">${isVN ? 'Báo cáo tổng thể' : 'Portfolio Report'} — ${companyName}</div>`;
-  h += `<div class="tb-s">${isVN ? 'Báo cáo điều hành' : 'Executive Report'} · ${quarter}</div></div>`;
+  h += `<div class="rpd-tb">`;
+  h += `<div><p class="rpd-tb-l">${isVN ? 'Báo cáo tổng thể' : 'Portfolio Report'} — ${companyName}</p>`;
+  h += `<p class="rpd-tb-s">${isVN ? 'Báo cáo điều hành' : 'Executive Report'} · ${quarter}</p></div>`;
   h += `<div style="font-size:11px;color:#7A90B8;">Ref: PMO-${yyyymm}-001 &nbsp;·&nbsp; ${today}</div>`;
-  h += `</div></div>`;
+  h += `</div>`;
 
-  h += `<div class="pg">`;
+  h += `<div class="rpd-pg">`;
 
   // ── Zone 1 label
-  h += `<div class="z-lbl"><span class="z-num">1</span> ${isVN ? 'Tổng quan danh mục chương trình' : 'Portfolio Program Overview'}</div>`;
+  h += `<div class="rpd-zlbl"><span class="rpd-znum">1</span> ${isVN ? 'Tổng quan danh mục chương trình' : 'Portfolio Program Overview'}</div>`;
 
   // Headline
   const programName = data.programs.length === 1 ? data.programs[0].name : (isVN ? 'Danh mục' : 'Portfolio');
-  const overallBorderCol = red.length > 0 ? '#EF5A5B' : amber.length > 0 ? '#F59E0B' : '#3ECB7A';
-  const overallBg = red.length > 0 ? 'rgba(239,90,91,0.12)' : amber.length > 0 ? 'rgba(245,158,11,0.12)' : 'rgba(62,203,122,0.12)';
+  const overallBorderCol = red.length > 0 ? '#EF5A5B' : '#3ECB7A';
+  const overallBg = red.length > 0 ? 'rgba(239,90,91,0.12)' : 'rgba(62,203,122,0.12)';
   h += `<div style="display:flex;align-items:flex-start;justify-content:space-between;padding-bottom:18px;margin-bottom:18px;border-bottom:1px solid rgba(200,168,75,0.15);">`;
-  h += `<div><div style="font-family:Georgia,serif;font-size:26px;font-weight:700;line-height:1.2;">${isVN ? 'Báo cáo tổng thể' : 'Portfolio Status Report'} <span style="color:#C8A84B;">${programName}</span></div>`;
+  h += `<div><div style="font-family:Georgia,serif;font-size:26px;font-weight:700;line-height:1.2;margin:0;">${isVN ? 'Báo cáo tổng thể' : 'Portfolio Status Report'} <span style="color:#C8A84B;">${programName}</span></div>`;
   h += `<div style="font-size:11px;color:#7A90B8;margin-top:5px;">${isVN ? 'Cập nhật' : 'Updated'}: ${today} &nbsp;·&nbsp; ${isVN ? 'Kỳ báo cáo' : 'Period'}: ${periodStart} → ${periodEnd}</div></div>`;
   h += `<span style="display:inline-flex;align-items:center;gap:7px;background:${overallBg};border:1px solid ${overallBorderCol};color:${overallBorderCol};padding:5px 13px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;white-space:nowrap;">&#9679; ${isVN ? 'Đang triển khai' : 'Active'}</span>`;
   h += `</div>`;
 
-  // ── KPI Strip (5 cards)
-  const kpiDefs = isVN ? [
-    {l:'Tổng dự án',      v:String(data.kpi.totalProjects),       c:'#C8A84B'},
-    {l:'Đang hoạt động',  v:String(data.kpi.activeProjects),      c:'#3ECB7A'},
-    {l:'Tiến độ TB',      v:`${data.kpi.avgCompletion}%`,         c:'#5BA4FA'},
-    {l:'Rủi ro đang mở',  v:String(data.kpi.totalOpenRisks),      c:data.kpi.totalOpenRisks>0?'#EF5A5B':'#2ECFBA'},
-    {l:'Vấn đề đang mở',  v:String(data.kpi.totalOpenIssues),     c:data.kpi.totalOpenIssues>0?'#F59E0B':'#2ECFBA'},
-  ] : [
-    {l:'Total Projects',  v:String(data.kpi.totalProjects),       c:'#C8A84B'},
-    {l:'Active',          v:String(data.kpi.activeProjects),      c:'#3ECB7A'},
-    {l:'Avg Completion',  v:`${data.kpi.avgCompletion}%`,         c:'#5BA4FA'},
-    {l:'Open Risks',      v:String(data.kpi.totalOpenRisks),      c:data.kpi.totalOpenRisks>0?'#EF5A5B':'#2ECFBA'},
-    {l:'Open Issues',     v:String(data.kpi.totalOpenIssues),     c:data.kpi.totalOpenIssues>0?'#F59E0B':'#2ECFBA'},
-  ];
-  h += `<div class="kpi-strip">`;
-  kpiDefs.forEach(k => {
-    h += `<div class="kpi" style="border-top:3px solid ${k.c};"><div class="kpi-lbl">${k.l}</div><div class="kpi-val" style="color:${k.c};">${k.v}</div></div>`;
-  });
-  h += `</div>`;
-
-  // ── Charts row (3 panels)
-  // Pie 1: activity status (Done / In Progress / Not Started)
+  // ── Charts: 2 pies side by side
   const pie1 = [
-    {val:totalDone,     color:'#3ECB7A', label:isVN?'Hoàn thành':'Done'},
-    {val:totalInProg,   color:'#5BA4FA', label:isVN?'Đang làm':'In Progress'},
+    {val:totalDone,       color:'#3ECB7A', label:isVN?'Hoàn thành':'Done'},
+    {val:totalInProg,     color:'#5BA4FA', label:isVN?'Đang làm':'In Progress'},
     {val:totalNotStarted, color:'rgba(122,144,184,0.5)', label:isVN?'Chưa bắt đầu':'Not Started'},
   ].filter(s => s.val > 0);
 
-  // Pie 2: project count by program
   const pie2 = [
     ...data.programs.filter(c => c.projects.length > 0).map((c, i) => ({val:c.projects.length, color:pCol(i), label:c.name})),
     ...(data.noProgramProjects.length > 0 ? [{val:data.noProgramProjects.length, color:'#475569', label:isVN?'Không có CT':'No Program'}] : []),
   ];
   const pie2Total = pie2.reduce((a, s) => a + s.val, 0);
 
-  // Bar: done phases / total phases per project
-  const barItems = allProjects.slice(0, 6).map((p, i) => ({
+  h += `<div class="rpd-pies">`;
+
+  // Pie 1
+  h += `<div class="rpd-pie-col"><div class="rpd-panel"><div class="rpd-ptitle">${isVN?'Tiến độ activity tổng thể':'Overall Activity Progress'}</div>`;
+  h += `<div class="rpd-pie-lay"><div style="flex-shrink:0;">${svgDonut(pie1.map(s=>({val:s.val,color:s.color})))}</div><div class="rpd-pie-leg">`;
+  pie1.forEach(s => {
+    const pct = totalActs > 0 ? Math.round(s.val / totalActs * 100) : 0;
+    h += `<div class="rpd-leg-row"><div class="rpd-leg-dot" style="background:${s.color};"></div>${s.label}<span class="rpd-leg-val">${s.val} <span style="color:#7A90B8;font-size:10px;">(${pct}%)</span></span></div>`;
+  });
+  h += `</div></div></div></div>`;
+
+  // Pie 2
+  h += `<div class="rpd-pie-col"><div class="rpd-panel"><div class="rpd-ptitle">${isVN?'Tỷ trọng dự án theo chương trình':'Projects by Program'}</div>`;
+  h += `<div class="rpd-pie-lay"><div style="flex-shrink:0;">${svgDonut(pie2.map(s=>({val:s.val,color:s.color})))}</div><div class="rpd-pie-leg">`;
+  pie2.forEach(s => {
+    const pct = pie2Total > 0 ? Math.round(s.val / pie2Total * 100) : 0;
+    const nm = s.label.length > 18 ? s.label.slice(0, 18) + '…' : s.label;
+    h += `<div class="rpd-leg-row"><div class="rpd-leg-dot" style="background:${s.color};"></div>${nm}<span class="rpd-leg-val">${s.val} <span style="color:#7A90B8;font-size:10px;">(${pct}%)</span></span></div>`;
+  });
+  h += `</div></div></div></div>`;
+
+  h += `</div>`; // rpd-pies
+
+  // ── Bar chart full-width row
+  const barItems = allProjects.map((p, i) => ({
     label: p.name,
     done:  (p.epicStats ?? []).filter(e => e.pct >= 100).length,
     total: (p.epicStats ?? []).length,
     color: pCol(i),
   }));
 
-  h += `<div class="charts-row">`;
-
-  // Panel 1
-  h += `<div class="chart-col"><div class="panel"><div class="ptitle">${isVN?'Tiến độ activity tổng thể':'Overall Activity Progress'}</div>`;
-  h += `<div class="pie-lay"><div style="flex-shrink:0;">${svgDonut(pie1.map(s=>({val:s.val,color:s.color})))}</div><div class="pie-leg">`;
-  pie1.forEach(s => {
-    const pct = totalActs > 0 ? Math.round(s.val / totalActs * 100) : 0;
-    h += `<div class="leg-row"><div class="leg-dot" style="background:${s.color};"></div>${s.label}<span class="leg-val">${s.val} <span style="color:#7A90B8;font-size:10px;">(${pct}%)</span></span></div>`;
-  });
-  h += `</div></div></div></div>`;
-
-  // Panel 2
-  h += `<div class="chart-col"><div class="panel"><div class="ptitle">${isVN?'Tỷ trọng dự án theo chương trình':'Projects by Program'}</div>`;
-  h += `<div class="pie-lay"><div style="flex-shrink:0;">${svgDonut(pie2.map(s=>({val:s.val,color:s.color})))}</div><div class="pie-leg">`;
-  pie2.forEach(s => {
-    const pct = pie2Total > 0 ? Math.round(s.val / pie2Total * 100) : 0;
-    const nm = s.label.length > 18 ? s.label.slice(0, 18) + '…' : s.label;
-    h += `<div class="leg-row"><div class="leg-dot" style="background:${s.color};"></div>${nm}<span class="leg-val">${s.val} <span style="color:#7A90B8;font-size:10px;">(${pct}%)</span></span></div>`;
-  });
-  h += `</div></div></div></div>`;
-
-  // Panel 3
-  h += `<div class="chart-col"><div class="panel"><div class="ptitle">${isVN?'Phase hoàn thành / Tổng theo dự án':'Done Phases / Total per Project'}</div>`;
-  h += `<div style="overflow-x:auto;padding-left:4px;">${svgBarChart(barItems)}</div>`;
+  h += `<div class="rpd-bar-panel"><div class="rpd-panel">`;
+  h += `<div class="rpd-ptitle">${isVN?'Phase hoàn thành / Tổng theo dự án':'Done Phases / Total per Project'}</div>`;
+  h += `<div style="overflow-x:auto;">${svgBarChart(barItems, Math.max(500, barItems.length * 80), 140)}</div>`;
   h += `<div style="display:flex;gap:14px;margin-top:8px;justify-content:center;">`;
-  h += `<div style="display:flex;align-items:center;gap:5px;font-size:11px;color:#7A90B8;"><div style="width:10px;height:10px;border-radius:2px;background:#C8A84B;"></div>${isVN?'Hoàn thành':'Done'}</div>`;
-  h += `<div style="display:flex;align-items:center;gap:5px;font-size:11px;color:#7A90B8;"><div style="width:10px;height:10px;border-radius:2px;background:rgba(255,255,255,0.18);"></div>${isVN?'Còn lại':'Remaining'}</div>`;
+  h += `<div style="display:flex;align-items:center;gap:5px;font-size:11px;color:#7A90B8;"><div style="width:10px;height:10px;border-radius:2px;background:#C8A84B;display:inline-block;"></div>${isVN?'Hoàn thành':'Done'}</div>`;
+  h += `<div style="display:flex;align-items:center;gap:5px;font-size:11px;color:#7A90B8;"><div style="width:10px;height:10px;border-radius:2px;background:rgba(255,255,255,0.18);display:inline-block;"></div>${isVN?'Còn lại':'Remaining'}</div>`;
   h += `</div></div></div>`;
 
-  h += `</div>`; // charts-row
-
-  h += `<div class="z-sep"></div>`;
+  h += `<div class="rpd-zsep"></div>`;
 
   // ── Zone 2
-  h += `<div class="z-lbl"><span class="z-num">2</span> ${isVN?'Chi tiết dự án & tiến độ Phase':'Project Details & Phase Progress'}</div>`;
+  h += `<div class="rpd-zlbl"><span class="rpd-znum">2</span> ${isVN?'Chi tiết dự án & tiến độ Phase':'Project Details & Phase Progress'}</div>`;
 
   // Summary pills (3 per row)
   for (let ri = 0; ri < allProjects.length; ri += 3) {
     const chunk = allProjects.slice(ri, ri + 3);
-    h += `<div class="proj-sum-row">`;
+    h += `<div class="rpd-sum-row">`;
     chunk.forEach((p, ci) => {
       const color = pCol(ri + ci);
-      h += `<div class="proj-pill">`;
-      h += `<div class="pp-hd"><div class="pp-ico" style="background:${color}20;color:${color};">${p.name.slice(0,2).toUpperCase()}</div>`;
-      h += `<div style="flex:1;min-width:0;"><div class="pp-nm">${p.name}</div>${p.program_name?`<div class="pp-sb">${p.program_name}</div>`:''}</div>`;
+      h += `<div class="rpd-pill">`;
+      h += `<div class="rpd-pill-hd"><div class="rpd-pill-ico" style="background:${color}20;color:${color};">${p.name.slice(0,2).toUpperCase()}</div>`;
+      h += `<div style="flex:1;min-width:0;"><p class="rpd-pill-nm">${p.name}</p>${p.program_name?`<p class="rpd-pill-sb">${p.program_name}</p>`:''}</div>`;
       h += `<div style="margin-left:8px;font-size:20px;font-weight:700;color:${color};white-space:nowrap;">${p.completion_pct}%</div></div>`;
       h += `<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px;"><span style="color:#7A90B8;">${(p.epicStats??[]).length} phase · ${p.total_activities??0} activity</span><span style="color:${ragCol(p.rag)};font-weight:700;">${p.rag.toUpperCase()}</span></div>`;
-      h += `<div class="bar-tr"><div class="bar-fi" style="width:${p.completion_pct}%;background:${color};"></div></div>`;
+      h += `<div class="rpd-bar-tr"><div class="rpd-bar-fi" style="width:${p.completion_pct}%;background:${color};"></div></div>`;
       if (p.epicStats && p.epicStats.length > 0) {
-        h += `<div class="ep-dots">`;
+        h += `<div class="rpd-ep-dots">`;
         p.epicStats.slice(0, 4).forEach(e => {
           const st = epicSt(e.pct, p.rag);
-          h += `<span class="ep-dot"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${epicStCol(st)};vertical-align:middle;"></span>${e.phase.length>16?e.phase.slice(0,16)+'…':e.phase}</span>`;
+          h += `<span class="rpd-ep-dot"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${epicStCol(st)};vertical-align:middle;"></span>${e.phase.length>16?e.phase.slice(0,16)+'…':e.phase}</span>`;
         });
         h += `</div>`;
       }
@@ -859,18 +838,15 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
   allProjects.forEach((p, pIdx) => {
     const color = pCol(pIdx);
     const totalEpics = (p.epicStats ?? []).length;
-    h += `<div class="pb">`;
-    // Header
-    h += `<div class="pb-hd"><div class="pb-ico" style="background:${color}20;color:${color};">${p.name.slice(0,2).toUpperCase()}</div>`;
-    h += `<div><div class="pb-nm">${p.name}</div><div class="pb-sb">${[p.program_name, p.current_phase].filter(Boolean).join(' · ')}</div></div>`;
-    h += `<div style="margin-left:auto;text-align:right;"><div style="font-size:22px;font-weight:700;color:${color};">${p.completion_pct}%</div><div style="font-size:11px;color:#7A90B8;">${totalEpics} phase &nbsp;·&nbsp; ${p.total_activities??0} activity</div></div>`;
+    h += `<div class="rpd-pb">`;
+    h += `<div class="rpd-pb-hd"><div class="rpd-pb-ico" style="background:${color}20;color:${color};">${p.name.slice(0,2).toUpperCase()}</div>`;
+    h += `<div><p class="rpd-pb-nm">${p.name}</p><p class="rpd-pb-sb">${[p.program_name, p.current_phase].filter(Boolean).join(' · ')}</p></div>`;
+    h += `<div style="margin-left:auto;text-align:right;"><div style="font-size:22px;font-weight:700;color:${color};margin:0;">${p.completion_pct}%</div><div style="font-size:11px;color:#7A90B8;">${totalEpics} phase &nbsp;·&nbsp; ${p.total_activities??0} activity</div></div>`;
     h += `</div>`;
-    // Progress bar
-    h += `<div class="pb-bar"><div style="height:3px;background:linear-gradient(90deg,${color},${color}55);width:${p.completion_pct}%;"></div></div>`;
-    // Body
-    h += `<div class="pb-body">`;
+    h += `<div class="rpd-pb-bar"><div style="height:3px;background:linear-gradient(90deg,${color},${color}55);width:${p.completion_pct}%;"></div></div>`;
+    h += `<div class="rpd-pb-body">`;
     if (p.epicStats && p.epicStats.length > 0) {
-      h += `<table class="et"><thead><tr>`;
+      h += `<table class="rpd-et"><thead><tr>`;
       h += `<th style="width:6px;padding:6px 4px 8px;"></th>`;
       h += `<th>${isVN?'Phase / Nhóm công việc':'Phase / Work Group'}</th>`;
       h += `<th>${isVN?'Trạng thái':'Status'}</th>`;
@@ -884,26 +860,25 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
         h += `<tr>`;
         h += `<td style="padding:9px 4px;"><div style="width:4px;height:22px;border-radius:2px;background:${ec};"></div></td>`;
         h += `<td style="font-weight:500;color:#E8F0FF;">${e.phase}</td>`;
-        h += `<td><span class="stag" style="background:${epicStBg(st)};border:1px solid ${epicStBdr(st)};color:${ec};">${epicStLbl(st)}</span></td>`;
-        h += `<td><div class="pg-bar"><div class="pg-fill" style="width:${e.pct}%;background:${ec};"></div></div></td>`;
+        h += `<td><span class="rpd-stag" style="background:${epicStBg(st)};border:1px solid ${epicStBdr(st)};color:${ec};">${epicStLbl(st)}</span></td>`;
+        h += `<td><div class="rpd-pgbar"><div class="rpd-pgfill" style="width:${e.pct}%;background:${ec};"></div></div></td>`;
         h += `<td style="font-weight:600;color:${ec};text-align:right;">${e.pct}%</td>`;
         h += `<td style="color:#7A90B8;">${e.done}/${e.total}</td>`;
         h += `</tr>`;
       });
       h += `</tbody></table>`;
     } else {
-      h += `<p style="color:#7A90B8;font-size:12px;font-style:italic;">${isVN?'Chưa có dữ liệu phase.':'No phase data available.'}</p>`;
+      h += `<p style="color:#7A90B8;font-size:12px;font-style:italic;margin:0;">${isVN?'Chưa có dữ liệu phase.':'No phase data available.'}</p>`;
     }
-    // Activity summary: Hoàn thành / Đang làm / Chưa bắt đầu
     if ((p.total_activities ?? 0) > 0) {
-      h += `<div class="act-sum"><div class="act-ttl">${isVN?'Tổng hợp activity':'Activity Summary'}</div><div class="act-row">`;
+      h += `<div class="rpd-act-sum"><p class="rpd-act-ttl">${isVN?'Tổng hợp activity':'Activity Summary'}</p><div class="rpd-act-row">`;
       const actItems = [
-        {l:isVN?'Hoàn thành':'Done',           v:p.done_activities??0,         c:'#3ECB7A'},
-        {l:isVN?'Đang làm':'In Progress',      v:p.in_progress_activities??0,  c:'#5BA4FA'},
-        {l:isVN?'Chưa bắt đầu':'Not Started',  v:p.not_started_activities??0,  c:'rgba(122,144,184,0.7)'},
+        {l:isVN?'Hoàn thành':'Done',          v:p.done_activities??0,        c:'#3ECB7A'},
+        {l:isVN?'Đang làm':'In Progress',     v:p.in_progress_activities??0, c:'#5BA4FA'},
+        {l:isVN?'Chưa bắt đầu':'Not Started', v:p.not_started_activities??0, c:'rgba(122,144,184,0.7)'},
       ];
       actItems.forEach(a => {
-        h += `<div class="act-st"><div class="act-num" style="color:${a.c};">${a.v}</div><div class="act-lbl">${a.l}</div></div>`;
+        h += `<div class="rpd-act-st"><p class="rpd-act-num" style="color:${a.c};">${a.v}</p><p class="rpd-act-lbl">${a.l}</p></div>`;
       });
       h += `</div></div>`;
     }
@@ -911,13 +886,13 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
   });
 
   // ── Footer
-  h += `<div class="ft">`;
-  h += `<div class="ft-brand">${companyName}</div>`;
+  h += `<div class="rpd-ft">`;
+  h += `<p class="rpd-ft-brand">${companyName}</p>`;
   h += `<div style="font-size:11px;color:#7A90B8;">${isVN?'Tài liệu mật · Dành cho Ban Lãnh Đạo':'Confidential · For Leadership Only'}</div>`;
   h += `<div style="font-size:11px;color:#7A90B8;">${isVN?'Phát hành':'Published'}: ${today}</div>`;
   h += `</div>`;
 
-  h += `</div></div>`; // .pg + .rw
+  h += `</div></div>`; // .rpd-pg + .rpd-wrap
   return h;
 }
 
