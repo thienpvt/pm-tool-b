@@ -65,7 +65,7 @@ export async function GET(req: NextRequest) {
   // Build weighted stats per project (matching project weekly report logic)
   type ProjectStats = {
     total: number; weightedSum: number; done: number; inProgress: number; notStarted: number;
-    phases: Record<string, { total: number; done: number }>;
+    phases: Record<string, { total: number; done: number; weightedSum: number }>;
   };
   const actWeightMap: Record<number, ProjectStats> = {};
   for (const row of allActivityRows) {
@@ -81,8 +81,9 @@ export async function GET(req: NextRequest) {
     else s.notStarted++;
 
     const phase = row.phase || 'General';
-    if (!s.phases[phase]) s.phases[phase] = { total: 0, done: 0 };
+    if (!s.phases[phase]) s.phases[phase] = { total: 0, done: 0, weightedSum: 0 };
     s.phases[phase].total++;
+    s.phases[phase].weightedSum += w;
     if (w >= 1) s.phases[phase].done++;
   }
 
@@ -103,9 +104,9 @@ export async function GET(req: NextRequest) {
     const in_progress_activities = actStats.inProgress;
     const not_started_activities = actStats.notStarted;
     const epicStats = Object.entries(actStats.phases)
-      .map(([phase, { total: t, done: d }]) => ({
+      .map(([phase, { total: t, done: d, weightedSum: ws }]) => ({
         phase, total: t, done: d,
-        pct: t > 0 ? Math.round((d / t) * 100) : 0,
+        pct: t > 0 ? Math.round((ws / t) * 100) : 0,
       }))
       .sort((a, b) => a.phase.localeCompare(b.phase));
 

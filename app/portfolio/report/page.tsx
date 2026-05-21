@@ -712,7 +712,7 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
   }
 
   // Epic status from pct
-  const epicSt = (pct: number, rag: string) => pct >= 100 ? 'done' : pct > 0 ? (rag === 'red' && pct < 30 ? 'risk' : 'prog') : 'todo';
+  const epicSt = (pct: number) => pct >= 100 ? 'done' : pct > 0 ? 'prog' : 'todo';
   const epicStCol = (st: string): string => ({ done:'#111827', prog:'#E8192C', todo:'#9CA3AF', risk:'#DC2626' }[st] ?? '#6B7280');
   const epicStLbl = (st: string): string => ({ done: isVN?'Hoàn thành':'Done', prog: isVN?'Đang làm':'In Progress', todo: isVN?'Chưa bắt đầu':'Not Started', risk: isVN?'Rủi ro':'At Risk' }[st] ?? st);
   const epicStBg  = (st: string): string => ({ done:'rgba(17,24,39,0.06)', prog:'rgba(232,25,44,0.08)', todo:'rgba(0,0,0,0.04)', risk:'rgba(220,38,38,0.08)' }[st] ?? 'rgba(0,0,0,0.04)');
@@ -879,7 +879,7 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
       if (p.epicStats && p.epicStats.length > 0) {
         h += `<div class="rpd-ep-dots">`;
         p.epicStats.slice(0, 5).forEach(e => {
-          const st = epicSt(e.pct, p.rag);
+          const st = epicSt(e.pct);
           const ec = epicStCol(st);
           h += `<span class="rpd-ep-dot" style="border-color:${ec}30;"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${ec};vertical-align:middle;"></span>${e.phase.length>16?e.phase.slice(0,16)+'…':e.phase}</span>`;
         });
@@ -916,7 +916,7 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
       h += `<th style="text-align:right;width:72px;">${isVN?'Xong/Tổng':'Done/Total'}</th>`;
       h += `</tr></thead><tbody>`;
       p.epicStats.forEach(e => {
-        const st = epicSt(e.pct, p.rag);
+        const st = epicSt(e.pct);
         const ec = epicStCol(st);
         h += `<tr>`;
         h += `<td style="padding:9px 4px;"><div style="width:3px;height:20px;border-radius:2px;background:${ec};"></div></td>`;
@@ -931,14 +931,17 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
     } else {
       h += `<p style="color:#9CA3AF;font-size:12px;font-style:italic;margin:0;">${isVN?'Chưa có dữ liệu phase.':'No phase data available.'}</p>`;
     }
-    if ((p.total_activities ?? 0) > 0) {
-      h += `<div class="rpd-act-sum"><p class="rpd-act-ttl">${isVN?'Tổng hợp activity':'Activity Summary'}</p><div class="rpd-act-row">`;
-      const actItems = [
-        {l:isVN?'Hoàn thành':'Done',          v:p.done_activities??0,        c:'#111827'},
-        {l:isVN?'Đang làm':'In Progress',     v:p.in_progress_activities??0, c:'#E8192C'},
-        {l:isVN?'Chưa bắt đầu':'Not Started', v:p.not_started_activities??0, c:'#9CA3AF'},
+    if (p.epicStats && p.epicStats.length > 0) {
+      const epicsDoneCount = p.epicStats.filter(e => e.pct >= 100).length;
+      const epicsInProgCount = p.epicStats.filter(e => e.pct > 0 && e.pct < 100).length;
+      const epicsNotStartedCount = p.epicStats.filter(e => e.pct === 0).length;
+      h += `<div class="rpd-act-sum"><p class="rpd-act-ttl">${isVN?'Tổng hợp epic':'Epic Summary'}</p><div class="rpd-act-row">`;
+      const epicItems = [
+        {l:isVN?'Hoàn thành':'Done',              v:epicsDoneCount,      c:'#111827'},
+        {l:isVN?'Đang triển khai':'In Progress',  v:epicsInProgCount,    c:'#E8192C'},
+        {l:isVN?'Chưa bắt đầu':'Not Started',     v:epicsNotStartedCount,c:'#9CA3AF'},
       ];
-      actItems.forEach(a => {
+      epicItems.forEach(a => {
         h += `<div class="rpd-act-st"><p class="rpd-act-num" style="color:${a.c};">${a.v}</p><p class="rpd-act-lbl">${a.l}</p></div>`;
       });
       h += `</div></div>`;
