@@ -591,270 +591,333 @@ function mdToHtml(text: string): string {
   html += '</div>'; return html;
 }
 
-// ─── Build HTML Report ────────────────────────────────────────────────────────
+// ─── Build HTML Report (dark dashboard style) ────────────────────────────────
 function buildHtmlReport(data: PortfolioReportData, language: string, periodStart: string, periodEnd: string, companyName = 'PM Tool'): string {
   const isVN = language === 'Vietnamese';
   const today = new Date().toLocaleDateString(isVN ? 'vi-VN' : 'en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
   const yyyymm = new Date().toISOString().slice(0, 7).replace('-', '');
+  const quarter = `Q${Math.ceil((new Date().getMonth() + 1) / 3)} / ${new Date().getFullYear()}`;
 
   const allProjects = [...data.programs.flatMap(c => c.projects), ...data.noProgramProjects];
   const red = allProjects.filter(p => p.rag === 'red');
   const amber = allProjects.filter(p => p.rag === 'amber');
-  const green = allProjects.filter(p => p.rag === 'green');
-  const overdue = allProjects.filter(p => p.days_until_deadline !== null && p.days_until_deadline < 0);
-  const sorted = [...allProjects].sort((a, b) => ({ red:0, amber:1, green:2 } as Record<string,number>)[a.rag] - ({ red:0, amber:1, green:2 } as Record<string,number>)[b.rag]);
-  const portfolioStatus = isVN ? (red.length > 0 ? 'ĐỎ' : amber.length > 0 ? 'VÀNG' : 'XANH') : (red.length > 0 ? 'RED' : amber.length > 0 ? 'AMBER' : 'GREEN');
-  const statusColor = red.length > 0 ? '#dc2626' : amber.length > 0 ? '#d97706' : '#16a34a';
-  const statusBg = red.length > 0 ? '#fef2f2' : amber.length > 0 ? '#fffbeb' : '#f0fdf4';
 
-  const rc = (r: string) => r === 'red' ? '#dc2626' : r === 'amber' ? '#d97706' : '#16a34a';
-  const rb = (r: string) => r === 'red' ? '#fef2f2' : r === 'amber' ? '#fffbeb' : '#f0fdf4';
-  const rl = (r: string) => isVN ? (r === 'red' ? 'ĐỎ' : r === 'amber' ? 'VÀNG' : 'XANH') : r.toUpperCase();
-  const pc = (p: string) => p === 'Critical' ? '#dc2626' : p === 'High' ? '#ea580c' : p === 'Medium' ? '#d97706' : '#64748b';
-  const pb = (p: string) => p === 'Critical' ? '#fef2f2' : p === 'High' ? '#fff7ed' : p === 'Medium' ? '#fffbeb' : '#f8fafc';
-  const barColor = (pct: number) => pct >= 70 ? '#16a34a' : pct >= 40 ? '#3b82f6' : pct >= 20 ? '#d97706' : '#ef4444';
+  // Aggregate totals
+  const totalDone = allProjects.reduce((s, p) => s + (p.done_activities || 0), 0);
+  const totalInProg = allProjects.reduce((s, p) => s + (p.in_progress_activities || 0), 0);
+  const totalNotStarted = allProjects.reduce((s, p) => s + (p.not_started_activities || 0), 0);
+  const totalActs = totalDone + totalInProg + totalNotStarted;
 
-  // Outlook-safe table-based progress bar
-  const pBar = (pct: number, w = 100) => {
-    const c = barColor(pct);
-    const filled = Math.min(100, Math.max(0, Math.round(pct)));
-    const empty = 100 - filled;
-    return `<table width="${w}" height="6" cellpadding="0" cellspacing="0" border="0" bgcolor="#e2e8f0" style="background:#e2e8f0;"><tr>` +
-      (filled > 0 ? `<td width="${filled}%" height="6" bgcolor="${c}" style="background:${c};font-size:0;line-height:0;">&nbsp;</td>` : '') +
-      (empty > 0 ? `<td width="${empty}%" height="6" bgcolor="#e2e8f0" style="background:#e2e8f0;font-size:0;line-height:0;">&nbsp;</td>` : '') +
-      `</tr></table>`;
-  };
+  // Project palette
+  const PALETTE = ['#C8A84B','#2ECFBA','#9B7FEA','#5BA4FA','#3ECB7A','#EF5A5B','#F59E0B','#EC4899'];
+  const pCol = (i: number) => PALETTE[i % PALETTE.length];
+  const ragCol = (r: string) => r === 'red' ? '#EF5A5B' : r === 'amber' ? '#F59E0B' : '#3ECB7A';
 
-  const TH = 'background:#f1f5f9;padding:8px 14px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;border-bottom:2px solid #e2e8f0;';
-  const TD = 'padding:10px 14px;border-bottom:1px solid #f1f5f9;font-size:13px;vertical-align:middle;';
-  const SH = 'background:#1e293b;color:white;padding:11px 22px;font-size:13px;font-weight:700;letter-spacing:0.6px;';
-  const completedGroups = Object.values(data.completedByProject);
-
-  let h = `<div style="font-family:Arial,Helvetica,sans-serif;max-width:920px;margin:0 auto;color:#1e293b;font-size:14px;line-height:1.6;background:#f8fafc;padding:20px;">`;
-
-  // Header
-  h += `<div style="background:#1e293b;color:white;padding:28px 32px;border-radius:8px 8px 0 0;text-align:center;">`;
-  h += `<h1 style="margin:0;font-size:17px;font-weight:700;letter-spacing:1.2px;">${isVN ? 'BÁO CÁO TÌNH TRẠNG PORTFOLIO' : 'PORTFOLIO STATUS REPORT'}</h1>`;
-  h += `<p style="margin:7px 0 0;font-size:12px;color:#94a3b8;">Program Management Office (PMO)</p></div>`;
-
-  // Meta row — table-based (no flex/gap for Outlook)
-  h += `<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f8fafc;border:1px solid #e2e8f0;border-top:none;"><tr>`;
-  h += `<td style="padding:11px 14px;font-size:12px;color:#475569;"><strong>${isVN ? 'Ngày báo cáo' : 'Report Date'}:</strong> ${today}</td>`;
-  h += `<td style="padding:11px 10px;font-size:12px;color:#475569;"><strong>Ref:</strong> PMO-${yyyymm}-001</td>`;
-  h += `<td style="padding:11px 10px;font-size:12px;color:#475569;"><strong>${isVN ? 'Kỳ báo cáo' : 'Period'}:</strong> ${periodStart} &#8594; ${periodEnd}</td>`;
-  h += `<td align="right" style="padding:11px 14px;font-size:12px;color:#475569;"><strong>${isVN ? 'Phân loại' : 'Classification'}:</strong> ${isVN ? 'Bảo mật — Nội bộ' : 'Confidential — Internal Only'}</td>`;
-  h += `</tr></table>`;
-
-  // ── I. Executive Summary
-  h += `<div style="margin-top:18px;border-radius:8px;border:1px solid #e2e8f0;">`;
-  h += `<div style="${SH}">I. ${isVN ? 'TÓM TẮT ĐIỀU HÀNH' : 'EXECUTIVE SUMMARY'}</div>`;
-  h += `<div style="background:white;padding:20px 24px;">`;
-
-  // Status badge row — table-based (no flex/inline-flex for Outlook)
-  h += `<table cellpadding="0" cellspacing="0" border="0" style="margin-bottom:14px;"><tr>`;
-  h += `<td style="padding-right:14px;font-size:13px;font-weight:600;color:#475569;vertical-align:middle;">${isVN ? 'Trạng thái tổng thể:' : 'Overall Portfolio Status:'}</td>`;
-  h += `<td style="padding-right:8px;vertical-align:middle;"><span style="display:inline-block;padding:5px 14px;border-radius:20px;background:${statusBg};border:1px solid ${statusColor};font-weight:700;color:${statusColor};font-size:13px;">&#9679; ${portfolioStatus}</span></td>`;
-  h += `<td style="padding-right:6px;vertical-align:middle;"><span style="display:inline-block;padding:4px 10px;border-radius:14px;background:#f0fdf4;border:1px solid #16a34a;color:#16a34a;font-size:11px;font-weight:700;">${green.length} ${isVN ? 'XANH' : 'GREEN'}</span></td>`;
-  h += `<td style="padding-right:6px;vertical-align:middle;"><span style="display:inline-block;padding:4px 10px;border-radius:14px;background:#fffbeb;border:1px solid #d97706;color:#d97706;font-size:11px;font-weight:700;">${amber.length} ${isVN ? 'VÀNG' : 'AMBER'}</span></td>`;
-  h += `<td style="vertical-align:middle;"><span style="display:inline-block;padding:4px 10px;border-radius:14px;background:#fef2f2;border:1px solid #dc2626;color:#dc2626;font-size:11px;font-weight:700;">${red.length} ${isVN ? 'ĐỎ' : 'RED'}</span></td>`;
-  h += `</tr></table>`;
-
-  const sumText = isVN
-    ? (red.length > 0 ? `Portfolio hiện có ${red.length} dự án ở mức ĐỎ cần xử lý khẩn cấp. Tổng cộng ${data.kpi.totalProjects} dự án trên ${data.kpi.totalPrograms} chương trình, tiến độ trung bình ${data.kpi.avgCompletion}% (tính theo trọng số trạng thái).`
-      : amber.length > 0 ? `Portfolio ở mức VÀNG với ${amber.length} dự án cần theo dõi sát sao. Tổng cộng ${data.kpi.totalProjects} dự án, tiến độ TB ${data.kpi.avgCompletion}%.`
-      : `Portfolio đang ở trạng thái tốt — toàn bộ dự án đều xanh. Tổng cộng ${data.kpi.totalProjects} dự án trên ${data.kpi.totalPrograms} chương trình, tiến độ TB ${data.kpi.avgCompletion}%.`)
-    : (red.length > 0 ? `Portfolio is at RED status with ${red.length} project(s) requiring immediate attention. ${data.kpi.totalProjects} projects across ${data.kpi.totalPrograms} programs, average completion ${data.kpi.avgCompletion}% (weighted).`
-      : amber.length > 0 ? `Portfolio is AMBER with ${amber.length} project(s) under close monitoring. ${data.kpi.totalProjects} projects, avg completion ${data.kpi.avgCompletion}%.`
-      : `Portfolio is in good health — all projects tracking GREEN. ${data.kpi.totalProjects} projects across ${data.kpi.totalPrograms} programs, avg completion ${data.kpi.avgCompletion}%.`);
-  h += `<p style="margin:0 0 14px;color:#334155;font-size:13px;">${sumText}</p>`;
-  if (overdue.length > 0) h += `<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:10px 14px;margin-bottom:14px;color:#dc2626;font-size:13px;font-weight:600;">&#9888; ${isVN ? `CẢNH BÁO: ${overdue.length} dự án đã vượt hạn chót — cần hành động ngay lập tức.` : `ALERT: ${overdue.length} project(s) past deadline — immediate action required.`}</div>`;
-
-  // KPI cards — table-based grid (no CSS grid for Outlook)
-  const kpis = isVN
-    ? [{l:'Tổng dự án',v:data.kpi.totalProjects,a:false},{l:'Đang hoạt động',v:data.kpi.activeProjects,a:false},{l:'Tiến độ TB',v:`${data.kpi.avgCompletion}%`,a:false},{l:'Chương trình',v:data.kpi.totalPrograms,a:false},{l:'Rủi ro đang mở',v:data.kpi.totalOpenRisks,a:data.kpi.totalOpenRisks>0},{l:'Vấn đề đang mở',v:data.kpi.totalOpenIssues,a:data.kpi.totalOpenIssues>0},{l:'Dự án quá hạn',v:overdue.length,a:overdue.length>0}]
-    : [{l:'Total Projects',v:data.kpi.totalProjects,a:false},{l:'Active',v:data.kpi.activeProjects,a:false},{l:'Avg Completion',v:`${data.kpi.avgCompletion}%`,a:false},{l:'Programs',v:data.kpi.totalPrograms,a:false},{l:'Open Risks',v:data.kpi.totalOpenRisks,a:data.kpi.totalOpenRisks>0},{l:'Open Issues',v:data.kpi.totalOpenIssues,a:data.kpi.totalOpenIssues>0},{l:'Overdue',v:overdue.length,a:overdue.length>0}];
-  const kpiCell = (k: {l:string,v:string|number,a:boolean}) =>
-    `<table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${k.a?'#fef2f2':'#f8fafc'}" style="background:${k.a?'#fef2f2':'#f8fafc'};border:1px solid ${k.a?'#fecaca':'#e2e8f0'};border-radius:8px;border-left:4px solid ${k.a?'#dc2626':'#cbd5e1'};">` +
-    `<tr><td style="padding:12px 16px;"><p style="margin:0 0 3px;font-size:24px;font-weight:700;color:${k.a?'#dc2626':'#1e293b'};text-decoration:none;line-height:1.1;">${k.v}</p>` +
-    `<p style="margin:0;font-size:11px;color:#64748b;text-decoration:none;font-weight:500;">${k.l}</p></td></tr></table>`;
-  h += `<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:14px;"><tr>`;
-  kpis.slice(0, 4).forEach(k => { h += `<td width="25%" valign="top" style="padding:4px;">${kpiCell(k)}</td>`; });
-  h += `</tr><tr>`;
-  kpis.slice(4).forEach(k => { h += `<td width="25%" valign="top" style="padding:4px;">${kpiCell(k)}</td>`; });
-  for (let i = kpis.slice(4).length; i < 4; i++) { h += `<td width="25%"></td>`; }
-  h += `</tr></table>`;
-  h += `</div></div>`;
-
-  // ── II. Health Matrix
-  h += `<div style="margin-top:16px;border-radius:8px;border:1px solid #e2e8f0;">`;
-  h += `<div style="${SH}">II. ${isVN ? 'MA TRẬN SỨC KHỎE PORTFOLIO' : 'PORTFOLIO HEALTH MATRIX'}</div>`;
-  h += `<div style="background:white;overflow-x:auto;"><table style="width:100%;border-collapse:collapse;">`;
-  h += `<thead><tr>${['#',isVN?'TRẠNG THÁI':'STATUS',isVN?'TÊN DỰ ÁN':'PROJECT',isVN?'CHƯƠNG TRÌNH':'PROGRAM','PHASE',isVN?'TIẾN ĐỘ':'PROGRESS','DEADLINE'].map(col=>`<th style="${TH}">${col}</th>`).join('')}</tr></thead><tbody>`;
-  sorted.forEach((p, i) => {
-    const dl = p.days_until_deadline;
-    const dlStr = dl===null?'—':dl<0?(isVN?`QUÁ HẠN ${Math.abs(dl)}d`:`OVERDUE ${Math.abs(dl)}d`):isVN?`Còn ${dl}d`:`${dl}d left`;
-    const dlColor = dl===null?'#94a3b8':dl<0?'#dc2626':dl<=7?'#ef4444':dl<=14?'#d97706':'#475569';
-    h += `<tr style="border-bottom:1px solid #f1f5f9;${i%2===1?'background:#fafafa;':''}">`;
-    h += `<td style="${TD}color:#94a3b8;">${i+1}</td>`;
-    h += `<td style="${TD}"><span style="display:inline-block;padding:3px 9px;border-radius:12px;background:${rb(p.rag)};border:1px solid ${rc(p.rag)};color:${rc(p.rag)};font-size:11px;font-weight:700;">&#9679; ${rl(p.rag)}</span></td>`;
-    h += `<td style="${TD}font-weight:600;color:#1e293b;">${p.name}</td>`;
-    h += `<td style="${TD}color:#64748b;font-size:12px;">${p.program_name||p.client||'—'}</td>`;
-    h += `<td style="${TD}"><span style="font-size:11px;padding:2px 8px;border-radius:10px;background:#e0f2fe;color:#0369a1;font-weight:600;">${p.current_phase}</span></td>`;
-    h += `<td style="${TD}">`;
-    h += `<table cellpadding="0" cellspacing="0" border="0"><tr>`;
-    h += `<td valign="middle" style="padding-right:8px;">${pBar(p.completion_pct, 90)}</td>`;
-    h += `<td valign="middle" style="font-size:12px;font-weight:700;color:#334155;width:36px;">${p.completion_pct}%</td>`;
-    h += `</tr></table>`;
-    if (p.total_activities>0) h += `<div style="margin-top:4px;font-size:10px;"><span style="color:#16a34a;font-weight:600;">&#10003;${p.done_activities}</span>&nbsp;<span style="color:#d97706;font-weight:600;">&#8635;${p.in_progress_activities}</span>&nbsp;<span style="color:#94a3b8;">&#9675;${p.not_started_activities}</span>&nbsp;<span style="color:#cbd5e1;">/${p.total_activities}</span></div>`;
-    h += `</td>`;
-    h += `<td style="${TD}font-size:12px;font-weight:${dl!==null&&dl<0?'700':'400'};color:${dlColor};">${dlStr}</td></tr>`;
-    if (p.epicStats&&p.epicStats.length>0) {
-      h += `<tr style="background:#fafafa;border-bottom:1px solid #f1f5f9;"><td></td><td colspan="6" style="padding:6px 14px 10px;">`;
-      h += `<table cellpadding="0" cellspacing="4" border="0"><tr>`;
-      p.epicStats.forEach(e => {
-        h += `<td valign="middle" style="padding-right:14px;font-size:11px;color:#475569;white-space:nowrap;">`;
-        h += `<span style="font-weight:600;">${e.phase}</span>&nbsp;${pBar(e.pct, 60)}&nbsp;<span style="color:#94a3b8;">${e.pct}% (${e.done}/${e.total})</span>`;
-        h += `</td>`;
-      });
-      h += `</tr></table>`;
-      h += `</td></tr>`;
+  // SVG donut chart (no JS, renders in both React DOM and standalone HTML)
+  function svgDonut(segs: {val:number,color:string}[], size=140, r=58, inner=36): string {
+    const total = segs.reduce((a,s) => a+s.val, 0);
+    const cx = size/2, cy = size/2;
+    if (total === 0) return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}"><circle cx="${cx}" cy="${cy}" r="${r}" fill="#1a2f4a"/><circle cx="${cx}" cy="${cy}" r="${inner}" fill="#0D1E31"/></svg>`;
+    let start = -Math.PI / 2;
+    let paths = '';
+    for (const seg of segs) {
+      if (seg.val <= 0) continue;
+      const angle = (seg.val / total) * Math.PI * 2;
+      if (Math.abs(angle - Math.PI * 2) < 0.001) {
+        paths += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${seg.color}"/>`;
+      } else {
+        const x1 = cx + r * Math.cos(start), y1 = cy + r * Math.sin(start);
+        const x2 = cx + r * Math.cos(start + angle), y2 = cy + r * Math.sin(start + angle);
+        paths += `<path d="M${cx},${cy} L${x1.toFixed(2)},${y1.toFixed(2)} A${r},${r},0,${angle > Math.PI ? 1 : 0},1,${x2.toFixed(2)},${y2.toFixed(2)} Z" fill="${seg.color}"/>`;
+      }
+      start += angle;
     }
-  });
-  h += `</tbody></table></div></div>`;
-
-  // ── III. Completed in Period
-  h += `<div style="margin-top:16px;border-radius:8px;border:1px solid #e2e8f0;">`;
-  h += `<div style="${SH}">III. ${isVN?'TIẾN ĐỘ THEO KỲ — HOÀN THÀNH TRONG GIAI ĐOẠN':'PROGRESS REPORT — COMPLETED IN PERIOD'} <span style="font-weight:400;color:#94a3b8;font-size:12px;">(${periodStart} &#8594; ${periodEnd})</span></div>`;
-  h += `<div style="background:white;padding:18px 24px;">`;
-  if (completedGroups.length===0) {
-    h += `<p style="color:#94a3b8;font-style:italic;margin:0;">${isVN?'Không có hoạt động nào hoàn thành trong giai đoạn này.':'No activities completed in this period.'}</p>`;
-  } else {
-    completedGroups.forEach((g,gi) => {
-      if (gi>0) h += `<div style="height:1px;background:#f1f5f9;margin:14px 0;"></div>`;
-      // Project header — table-based (no flex for Outlook)
-      h += `<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:8px;"><tr>`;
-      h += `<td valign="middle"><span style="font-weight:700;color:#1e293b;font-size:13px;">${g.project_name}</span>`;
-      if (g.program_name) h += `&nbsp;<span style="font-size:11px;color:#94a3b8;">${g.program_name}</span>`;
-      h += `</td>`;
-      h += `<td align="right" valign="middle"><span style="font-size:11px;padding:2px 8px;border-radius:10px;background:#e0f2fe;color:#0369a1;font-weight:600;">${g.current_phase}</span></td>`;
-      h += `</tr></table>`;
-      h += `<ul style="margin:0;padding:0;list-style:none;">`;
-      g.activities.forEach(a => {
-        h += `<li style="padding:4px 0;font-size:12px;">`;
-        h += `<span style="color:#16a34a;font-weight:700;">&#10003;</span>&nbsp;`;
-        h += `<span style="color:#334155;">${a.activity}${a.deliverable?` <span style="color:#94a3b8;">&#8594; ${a.deliverable}</span>`:''}`;
-        if (a.actual_end) h += ` <span style="color:#cbd5e1;">[${a.actual_end}]</span>`;
-        h += `</span></li>`;
-      });
-      h += `</ul>`;
-    });
+    return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">${paths}<circle cx="${cx}" cy="${cy}" r="${inner}" fill="#0D1E31"/></svg>`;
   }
-  h += `</div></div>`;
 
-  // ── IV. Risks & Issues
-  h += `<div style="margin-top:16px;border-radius:8px;border:1px solid #e2e8f0;">`;
-  h += `<div style="${SH}">IV. ${isVN?'RỦI RO & VẤN ĐỀ NGHIÊM TRỌNG':'CRITICAL RISKS & ISSUES'}</div>`;
-  h += `<div style="background:white;padding:18px 24px;">`;
-  h += `<div style="font-weight:700;color:#475569;font-size:11px;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:10px;">A. ${isVN?'RỦI RO ĐANG MỞ':'OPEN RISKS'}</div>`;
-  if (data.topRisks.length===0) {
-    h += `<p style="color:#16a34a;font-size:13px;margin:0 0 16px;">&#10003; ${isVN?'Không có rủi ro mở ở cấp portfolio.':'No open risks at portfolio level.'}</p>`;
-  } else {
-    data.topRisks.slice(0,6).forEach(r => {
-      // Risk card — table-based (no flex for Outlook)
-      h += `<table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#fafafa" style="margin-bottom:10px;background:#fafafa;border:1px solid #f1f5f9;border-radius:6px;"><tr>`;
-      h += `<td valign="top" style="padding:11px 0 11px 14px;width:1%;white-space:nowrap;"><span style="display:inline-block;font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;background:${pb(r.priority)};color:${pc(r.priority)};border:1px solid ${pc(r.priority)};">${r.priority.toUpperCase()}</span></td>`;
-      h += `<td valign="top" style="padding:11px 14px;"><p style="margin:0 0 3px;font-size:13px;font-weight:600;color:#1e293b;">${r.description}</p>`;
-      h += `<p style="margin:0;font-size:11px;color:#94a3b8;">${r.project_name}${r.program_name?` · ${r.program_name}`:''}${r.category?` · ${r.category}`:''}</p>`;
-      if (r.mitigation) h += `<p style="margin:5px 0 0;font-size:12px;color:#64748b;font-style:italic;">${isVN?'Giảm thiểu':'Mitigation'}: ${r.mitigation}</p>`;
-      h += `</td></tr></table>`;
+  // SVG bar chart
+  function svgBarChart(items: {label:string,done:number,total:number,color:string}[], w=220, h=140): string {
+    const max = Math.max(...items.map(i => i.total), 1);
+    const n = items.length || 1;
+    const slotW = Math.floor((w - 10) / n);
+    const barW = Math.max(16, slotW - 10);
+    let s = `<svg width="${w + 30}" height="${h + 46}" viewBox="0 0 ${w + 30} ${h + 46}" style="overflow:visible;">`;
+    for (let i = 0; i <= max; i++) {
+      const y = h - Math.round((i / max) * h);
+      s += `<line x1="22" y1="${y}" x2="${w + 22}" y2="${y}" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>`;
+      s += `<text x="18" y="${y + 4}" text-anchor="end" font-size="9" fill="#7A90B8">${i}</text>`;
+    }
+    items.forEach((item, i) => {
+      const x = 22 + i * slotW + (slotW - barW) / 2;
+      const doneH = Math.round((item.done / max) * h);
+      const totalH = Math.round((item.total / max) * h);
+      const remH = totalH - doneH;
+      if (remH > 0) s += `<rect x="${x.toFixed(1)}" y="${(h - totalH).toFixed(1)}" width="${barW}" height="${remH}" fill="rgba(255,255,255,0.12)" rx="3"/>`;
+      if (doneH > 0) s += `<rect x="${x.toFixed(1)}" y="${(h - doneH).toFixed(1)}" width="${barW}" height="${doneH}" fill="${item.color}" rx="3"/>`;
+      const topY = h - totalH - 6;
+      if (topY >= 0) s += `<text x="${(x + barW / 2).toFixed(1)}" y="${topY}" text-anchor="middle" font-size="9" font-weight="bold" fill="${item.color}">${item.done}/${item.total}</text>`;
+      const shortLbl = item.label.length > 10 ? item.label.slice(0, 10) + '…' : item.label;
+      s += `<text x="${(x + barW / 2).toFixed(1)}" y="${h + 16}" text-anchor="middle" font-size="9" fill="${item.color}">${shortLbl}</text>`;
     });
+    s += `</svg>`;
+    return s;
   }
-  h += `<div style="font-weight:700;color:#475569;font-size:11px;text-transform:uppercase;letter-spacing:0.6px;margin:18px 0 10px;">B. ${isVN?'VẤN ĐỀ ĐANG MỞ':'OPEN ISSUES'}</div>`;
-  if (data.topIssues.length===0) {
-    h += `<p style="color:#16a34a;font-size:13px;margin:0;">&#10003; ${isVN?'Không có vấn đề mở ở cấp portfolio.':'No open issues at portfolio level.'}</p>`;
-  } else {
-    data.topIssues.slice(0,6).forEach(r => {
-      h += `<table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#fafafa" style="margin-bottom:10px;background:#fafafa;border:1px solid #f1f5f9;border-radius:6px;"><tr>`;
-      h += `<td valign="top" style="padding:11px 0 11px 14px;width:1%;white-space:nowrap;"><span style="display:inline-block;font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;background:${pb(r.priority)};color:${pc(r.priority)};border:1px solid ${pc(r.priority)};">${r.priority.toUpperCase()}</span></td>`;
-      h += `<td valign="top" style="padding:11px 14px;"><p style="margin:0 0 3px;font-size:13px;font-weight:600;color:#1e293b;">${r.description}</p>`;
-      h += `<p style="margin:0;font-size:11px;color:#94a3b8;">${r.project_name}${r.program_name?` · ${r.program_name}`:''}</p>`;
-      if (r.mitigation) h += `<p style="margin:5px 0 0;font-size:12px;color:#64748b;font-style:italic;">${isVN?'Xử lý':'Resolution'}: ${r.mitigation}</p>`;
-      h += `</td></tr></table>`;
-    });
-  }
+
+  // Epic status from pct
+  const epicSt = (pct: number, rag: string) => pct >= 100 ? 'done' : pct > 0 ? (rag === 'red' && pct < 30 ? 'risk' : 'prog') : 'todo';
+  const epicStCol = (st: string): string => ({ done:'#3ECB7A', prog:'#5BA4FA', todo:'rgba(122,144,184,0.55)', risk:'#EF5A5B' }[st] ?? '#7A90B8');
+  const epicStLbl = (st: string): string => ({ done: isVN?'Hoàn thành':'Done', prog: isVN?'Đang làm':'In Progress', todo: isVN?'Chưa bắt đầu':'Not Started', risk: isVN?'Rủi ro':'At Risk' }[st] ?? st);
+  const epicStBg = (st: string): string => ({ done:'rgba(62,203,122,0.12)', prog:'rgba(91,164,250,0.12)', todo:'rgba(122,144,184,0.08)', risk:'rgba(239,90,91,0.12)' }[st] ?? 'rgba(122,144,184,0.08)');
+  const epicStBdr = (st: string): string => ({ done:'rgba(62,203,122,0.28)', prog:'rgba(91,164,250,0.28)', todo:'rgba(255,255,255,0.1)', risk:'rgba(239,90,91,0.28)' }[st] ?? 'rgba(255,255,255,0.1)');
+
+  const css = `<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+.rw{background:#07111F;color:#E8F0FF;font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.5;}
+.tb{background:#0D1E31;border-bottom:1px solid rgba(200,168,75,0.2);padding:12px 28px;}
+.tb-l{font-family:Georgia,serif;font-size:15px;font-weight:700;color:#C8A84B;}
+.tb-s{font-size:10px;color:#7A90B8;margin-top:1px;letter-spacing:.8px;text-transform:uppercase;}
+.pg{max-width:1260px;margin:0 auto;padding:24px 20px 52px;}
+.z-lbl{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#C8A84B;margin-bottom:14px;display:flex;align-items:center;gap:10px;}
+.z-num{width:21px;height:21px;border-radius:50%;border:1px solid #C8A84B;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0;}
+.z-sep{height:1px;background:linear-gradient(90deg,rgba(200,168,75,0.2),transparent);margin:26px 0;}
+.panel{background:#0D1E31;border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:18px;height:100%;}
+.ptitle{font-size:10px;text-transform:uppercase;letter-spacing:1.4px;color:#7A90B8;margin-bottom:14px;}
+.kpi-strip{display:flex;gap:10px;margin-bottom:18px;}
+.kpi{background:#0D1E31;border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:16px 14px;flex:1;position:relative;overflow:hidden;}
+.kpi-lbl{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#7A90B8;margin-bottom:6px;}
+.kpi-val{font-size:26px;font-weight:700;line-height:1;}
+.charts-row{display:flex;gap:12px;margin-bottom:0;}
+.chart-col{flex:1;min-width:0;}
+.pie-lay{display:flex;align-items:center;gap:14px;}
+.pie-leg{flex:1;min-width:0;}
+.leg-row{display:flex;align-items:center;gap:7px;font-size:11px;color:#7A90B8;margin-bottom:7px;}
+.leg-dot{width:9px;height:9px;border-radius:3px;flex-shrink:0;}
+.leg-val{margin-left:auto;font-weight:600;color:#E8F0FF;font-size:12px;white-space:nowrap;}
+.proj-sum-row{display:flex;gap:12px;margin-bottom:12px;}
+.proj-pill{background:#0D1E31;border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:14px;flex:1;min-width:0;}
+.pp-hd{display:flex;align-items:flex-start;gap:10px;margin-bottom:10px;}
+.pp-ico{width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;}
+.pp-nm{font-size:13px;font-weight:600;color:#E8F0FF;}
+.pp-sb{font-size:11px;color:#7A90B8;margin-top:2px;}
+.bar-tr{background:rgba(255,255,255,0.07);border-radius:3px;height:5px;overflow:hidden;}
+.bar-fi{height:5px;border-radius:3px;}
+.ep-dots{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px;}
+.ep-dot{display:inline-flex;align-items:center;gap:4px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:4px;padding:2px 7px;font-size:10px;color:#7A90B8;}
+.pb{background:#0D1E31;border:1px solid rgba(255,255,255,0.06);border-radius:10px;overflow:hidden;margin-bottom:14px;}
+.pb-hd{background:rgba(255,255,255,0.02);padding:12px 18px;border-bottom:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;gap:12px;}
+.pb-ico{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex-shrink:0;}
+.pb-nm{font-size:14px;font-weight:600;color:#E8F0FF;}
+.pb-sb{font-size:11px;color:#7A90B8;margin-top:2px;}
+.pb-bar{height:3px;background:rgba(255,255,255,0.06);}
+.pb-body{padding:14px 18px;}
+.et{width:100%;border-collapse:collapse;}
+.et th{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#7A90B8;padding:6px 10px 8px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.06);}
+.et td{padding:9px 10px;border-bottom:1px solid rgba(255,255,255,0.03);font-size:12px;vertical-align:middle;}
+.et tr:last-child td{border-bottom:none;}
+.stag{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:500;letter-spacing:.4px;text-transform:uppercase;}
+.pg-bar{background:rgba(255,255,255,0.06);border-radius:3px;height:7px;overflow:hidden;}
+.pg-fill{height:7px;border-radius:3px;}
+.act-sum{margin-top:12px;padding:10px 14px;background:rgba(255,255,255,0.03);border-radius:6px;border:1px solid rgba(255,255,255,0.06);}
+.act-ttl{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#7A90B8;margin-bottom:8px;}
+.act-row{display:flex;gap:0;}
+.act-st{flex:1;}.act-num{font-size:20px;font-weight:700;}.act-lbl{font-size:10px;color:#7A90B8;}
+.ft{border-top:1px solid rgba(200,168,75,0.15);padding-top:14px;margin-top:24px;display:flex;justify-content:space-between;align-items:center;}
+.ft-brand{font-family:Georgia,serif;font-size:13px;color:#C8A84B;font-weight:700;}
+</style>`;
+
+  let h = css;
+  h += `<div class="rw">`;
+
+  // ── Topbar
+  h += `<div class="tb"><div style="display:flex;align-items:center;justify-content:space-between;">`;
+  h += `<div><div class="tb-l">${isVN ? 'Báo cáo tổng thể' : 'Portfolio Report'} — ${companyName}</div>`;
+  h += `<div class="tb-s">${isVN ? 'Báo cáo điều hành' : 'Executive Report'} · ${quarter}</div></div>`;
+  h += `<div style="font-size:11px;color:#7A90B8;">Ref: PMO-${yyyymm}-001 &nbsp;·&nbsp; ${today}</div>`;
   h += `</div></div>`;
 
-  // ── V. Milestones
-  h += `<div style="margin-top:16px;border-radius:8px;border:1px solid #e2e8f0;">`;
-  h += `<div style="${SH}">V. ${isVN?'MILESTONE SẮP TỚI — 30 NGÀY TỚI':'UPCOMING MILESTONES — Next 30 Days'}</div>`;
-  h += `<div style="background:white;overflow-x:auto;">`;
-  if (data.upcomingMilestones.length===0) {
-    h += `<p style="color:#94a3b8;font-style:italic;margin:16px 24px;">${isVN?'Không có milestone quan trọng nào trong 30 ngày tới.':'No significant milestones in the next 30 days.'}</p>`;
-  } else {
-    h += `<table style="width:100%;border-collapse:collapse;"><thead><tr>${[isVN?'NGÀY':'DATE',isVN?'HOẠT ĐỘNG / DELIVERABLE':'MILESTONE / DELIVERABLE',isVN?'DỰ ÁN':'PROJECT','%'].map(c=>`<th style="${TH}">${c}</th>`).join('')}</tr></thead><tbody>`;
-    data.upcomingMilestones.forEach((m,i) => {
-      const label = m.deliverable?`${m.activity} / ${m.deliverable}`:m.activity;
-      h += `<tr style="${i%2===1?'background:#fafafa;':''}border-bottom:1px solid #f1f5f9;">`;
-      h += `<td style="${TD}"><span style="font-size:11px;padding:2px 8px;border-radius:4px;background:#e0f2fe;color:#0369a1;font-weight:600;white-space:nowrap;">${m.plan_end||'—'}</span></td>`;
-      h += `<td style="${TD}color:#334155;">${label}</td>`;
-      h += `<td style="${TD}font-size:12px;color:#64748b;">${m.project_name}</td>`;
-      h += `<td style="${TD}font-size:12px;font-weight:600;color:#475569;">${m.completion_pct??0}%</td></tr>`;
-    });
-    h += `</tbody></table>`;
-  }
-  h += `</div></div>`;
+  h += `<div class="pg">`;
 
-  // ── VI. Program Scorecard
-  h += `<div style="margin-top:16px;border-radius:8px;border:1px solid #e2e8f0;">`;
-  h += `<div style="${SH}">VI. ${isVN?'BẢNG ĐIỂM CHƯƠNG TRÌNH':'PROGRAM PORTFOLIO SCORECARD'}</div>`;
-  h += `<div style="background:white;overflow-x:auto;"><table style="width:100%;border-collapse:collapse;"><thead><tr>${[isVN?'CHƯƠNG TRÌNH':'PROGRAM',isVN?'DA':'PROJ',isVN?'ACTIVE':'ACTIVE',isVN?'TB %':'AVG %',isVN?'SỨC KHỎE':'HEALTH',isVN?'RỦI RO':'RISKS',isVN?'VẤN ĐỀ':'ISSUES'].map(c=>`<th style="${TH}">${c}</th>`).join('')}</tr></thead><tbody>`;
-  data.programs.filter(c=>c.projects.length>0).forEach((c,i) => {
-    const avgPct = Math.round(c.projects.reduce((s,p)=>s+p.completion_pct,0)/c.projects.length);
-    const activeCount = c.projects.filter(p=>p.current_phase!=='Closing').length;
-    const wr = c.projects.some(p=>p.rag==='red')?'red':c.projects.some(p=>p.rag==='amber')?'amber':'green';
-    const risks = c.projects.reduce((s,p)=>s+p.open_risks,0);
-    const issues = c.projects.reduce((s,p)=>s+p.open_issues,0);
-    h += `<tr style="${i%2===1?'background:#fafafa;':''}border-bottom:1px solid #f1f5f9;">`;
-    h += `<td style="${TD}font-weight:700;color:#1e293b;">${c.name}</td>`;
-    h += `<td style="${TD}text-align:center;color:#475569;">${c.projects.length}</td>`;
-    h += `<td style="${TD}text-align:center;color:#475569;">${activeCount}</td>`;
-    h += `<td style="${TD}"><table cellpadding="0" cellspacing="0" border="0"><tr>`;
-    h += `<td valign="middle" style="padding-right:8px;">${pBar(avgPct, 80)}</td>`;
-    h += `<td valign="middle" style="font-size:12px;font-weight:600;color:#334155;">${avgPct}%</td>`;
-    h += `</tr></table></td>`;
-    h += `<td style="${TD}"><span style="display:inline-block;padding:2px 9px;border-radius:10px;background:${rb(wr)};border:1px solid ${rc(wr)};color:${rc(wr)};font-size:11px;font-weight:700;">&#9679; ${rl(wr)}</span></td>`;
-    h += `<td style="${TD}text-align:center;font-weight:600;color:${risks>0?'#dc2626':'#94a3b8'};">${risks}</td>`;
-    h += `<td style="${TD}text-align:center;font-weight:600;color:${issues>0?'#d97706':'#94a3b8'};">${issues}</td></tr>`;
-  });
-  h += `</tbody></table>`;
-  if (data.noProgramProjects.length>0) h += `<p style="padding:8px 16px;font-size:11px;color:#94a3b8;font-style:italic;margin:0;">${isVN?`Lưu ý: ${data.noProgramProjects.length} dự án chưa được gán cho chương trình.`:`Note: ${data.noProgramProjects.length} project(s) not assigned to any program.`}</p>`;
-  h += `</div></div>`;
+  // ── Zone 1 label
+  h += `<div class="z-lbl"><span class="z-num">1</span> ${isVN ? 'Tổng quan danh mục chương trình' : 'Portfolio Program Overview'}</div>`;
 
-  // ── VII. Actions Required
-  h += `<div style="margin-top:16px;border-radius:8px;border:1px solid #e2e8f0;">`;
-  h += `<div style="${SH}">VII. ${isVN?'HÀNH ĐỘNG CẦN THIẾT — Steering Committee / CEO':'ACTIONS REQUIRED — Steering Committee / CEO'}</div>`;
-  h += `<div style="background:white;padding:18px 24px;">`;
-  const critRisks = data.topRisks.filter(r=>r.priority==='Critical');
-  const actions: string[] = [];
-  red.forEach(p => {
-    const dl = p.days_until_deadline;
-    const dlDesc = isVN?(dl!==null&&dl<0?`quá hạn ${Math.abs(dl)} ngày`:'đang gặp rủi ro nghiêm trọng'):(dl!==null&&dl<0?`OVERDUE ${Math.abs(dl)} days`:'at critical risk');
-    const rec = isVN?'Đưa vào chương trình nghị sự Steering Committee gần nhất, xem xét bổ sung nguồn lực hoặc điều chỉnh phạm vi.':'Steering Committee review at next session. Assess resource injection or scope revision.';
-    actions.push(`<div style="margin-bottom:12px;padding:13px 16px;border-radius:6px;background:#fef2f2;border:1px solid #fecaca;"><div style="font-weight:700;color:#dc2626;font-size:13px;">[${isVN?'KHẨN CẤP — LEO THANG':'URGENT — ESCALATION'}] ${p.name} (${p.program_name||'N/A'}) ${dlDesc}</div><div style="margin-top:7px;font-size:12px;color:#475569;">&#8594; ${isVN?'Đề xuất':'Recommend'}: ${rec}</div></div>`);
-  });
-  critRisks.forEach(r => {
-    const rec = r.mitigation||(isVN?'Đánh giá và ban hành quyết định xử lý ngay lập tức':'Immediate assessment and corrective action required');
-    actions.push(`<div style="margin-bottom:12px;padding:13px 16px;border-radius:6px;background:#fef2f2;border:1px solid #fecaca;"><div style="font-weight:700;color:#dc2626;font-size:13px;">[${isVN?'KHẨN CẤP — QUYẾT ĐỊNH':'URGENT — DECISION'}] ${r.description} — ${r.project_name}</div><div style="margin-top:7px;font-size:12px;color:#475569;">&#8594; ${isVN?'Đề xuất':'Recommend'}: ${rec}</div></div>`);
-  });
-  if (actions.length===0) {
-    h += `<div style="color:#16a34a;font-size:13px;">&#10003; ${isVN?'Không có leo thang nào cần CEO xử lý ngay. Portfolio đang trong tầm kiểm soát.':'No immediate CEO escalations required. Portfolio is under control.'}</div>`;
-  } else { actions.forEach(a => { h += a; }); }
-  h += `</div></div>`;
-
-  // Footer
-  h += `<div style="margin-top:16px;background:#1e293b;color:#94a3b8;padding:12px 24px;border-radius:8px;text-align:center;font-size:11px;">`;
-  h += `${companyName} · Program Management Office · ${isVN?'Tài liệu bảo mật — Nội bộ':'Confidential — Internal Only'}</div>`;
+  // Headline
+  const programName = data.programs.length === 1 ? data.programs[0].name : (isVN ? 'Danh mục' : 'Portfolio');
+  const overallBorderCol = red.length > 0 ? '#EF5A5B' : amber.length > 0 ? '#F59E0B' : '#3ECB7A';
+  const overallBg = red.length > 0 ? 'rgba(239,90,91,0.12)' : amber.length > 0 ? 'rgba(245,158,11,0.12)' : 'rgba(62,203,122,0.12)';
+  h += `<div style="display:flex;align-items:flex-start;justify-content:space-between;padding-bottom:18px;margin-bottom:18px;border-bottom:1px solid rgba(200,168,75,0.15);">`;
+  h += `<div><div style="font-family:Georgia,serif;font-size:26px;font-weight:700;line-height:1.2;">${isVN ? 'Báo cáo tổng thể' : 'Portfolio Status Report'} <span style="color:#C8A84B;">${programName}</span></div>`;
+  h += `<div style="font-size:11px;color:#7A90B8;margin-top:5px;">${isVN ? 'Cập nhật' : 'Updated'}: ${today} &nbsp;·&nbsp; ${isVN ? 'Kỳ báo cáo' : 'Period'}: ${periodStart} → ${periodEnd}</div></div>`;
+  h += `<span style="display:inline-flex;align-items:center;gap:7px;background:${overallBg};border:1px solid ${overallBorderCol};color:${overallBorderCol};padding:5px 13px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;white-space:nowrap;">&#9679; ${isVN ? 'Đang triển khai' : 'Active'}</span>`;
   h += `</div>`;
+
+  // ── KPI Strip (5 cards)
+  const kpiDefs = isVN ? [
+    {l:'Tổng dự án',      v:String(data.kpi.totalProjects),       c:'#C8A84B'},
+    {l:'Đang hoạt động',  v:String(data.kpi.activeProjects),      c:'#3ECB7A'},
+    {l:'Tiến độ TB',      v:`${data.kpi.avgCompletion}%`,         c:'#5BA4FA'},
+    {l:'Rủi ro đang mở',  v:String(data.kpi.totalOpenRisks),      c:data.kpi.totalOpenRisks>0?'#EF5A5B':'#2ECFBA'},
+    {l:'Vấn đề đang mở',  v:String(data.kpi.totalOpenIssues),     c:data.kpi.totalOpenIssues>0?'#F59E0B':'#2ECFBA'},
+  ] : [
+    {l:'Total Projects',  v:String(data.kpi.totalProjects),       c:'#C8A84B'},
+    {l:'Active',          v:String(data.kpi.activeProjects),      c:'#3ECB7A'},
+    {l:'Avg Completion',  v:`${data.kpi.avgCompletion}%`,         c:'#5BA4FA'},
+    {l:'Open Risks',      v:String(data.kpi.totalOpenRisks),      c:data.kpi.totalOpenRisks>0?'#EF5A5B':'#2ECFBA'},
+    {l:'Open Issues',     v:String(data.kpi.totalOpenIssues),     c:data.kpi.totalOpenIssues>0?'#F59E0B':'#2ECFBA'},
+  ];
+  h += `<div class="kpi-strip">`;
+  kpiDefs.forEach(k => {
+    h += `<div class="kpi" style="border-top:3px solid ${k.c};"><div class="kpi-lbl">${k.l}</div><div class="kpi-val" style="color:${k.c};">${k.v}</div></div>`;
+  });
+  h += `</div>`;
+
+  // ── Charts row (3 panels)
+  // Pie 1: activity status (Done / In Progress / Not Started)
+  const pie1 = [
+    {val:totalDone,     color:'#3ECB7A', label:isVN?'Hoàn thành':'Done'},
+    {val:totalInProg,   color:'#5BA4FA', label:isVN?'Đang làm':'In Progress'},
+    {val:totalNotStarted, color:'rgba(122,144,184,0.5)', label:isVN?'Chưa bắt đầu':'Not Started'},
+  ].filter(s => s.val > 0);
+
+  // Pie 2: project count by program
+  const pie2 = [
+    ...data.programs.filter(c => c.projects.length > 0).map((c, i) => ({val:c.projects.length, color:pCol(i), label:c.name})),
+    ...(data.noProgramProjects.length > 0 ? [{val:data.noProgramProjects.length, color:'#475569', label:isVN?'Không có CT':'No Program'}] : []),
+  ];
+  const pie2Total = pie2.reduce((a, s) => a + s.val, 0);
+
+  // Bar: done phases / total phases per project
+  const barItems = allProjects.slice(0, 6).map((p, i) => ({
+    label: p.name,
+    done:  (p.epicStats ?? []).filter(e => e.pct >= 100).length,
+    total: (p.epicStats ?? []).length,
+    color: pCol(i),
+  }));
+
+  h += `<div class="charts-row">`;
+
+  // Panel 1
+  h += `<div class="chart-col"><div class="panel"><div class="ptitle">${isVN?'Tiến độ activity tổng thể':'Overall Activity Progress'}</div>`;
+  h += `<div class="pie-lay"><div style="flex-shrink:0;">${svgDonut(pie1.map(s=>({val:s.val,color:s.color})))}</div><div class="pie-leg">`;
+  pie1.forEach(s => {
+    const pct = totalActs > 0 ? Math.round(s.val / totalActs * 100) : 0;
+    h += `<div class="leg-row"><div class="leg-dot" style="background:${s.color};"></div>${s.label}<span class="leg-val">${s.val} <span style="color:#7A90B8;font-size:10px;">(${pct}%)</span></span></div>`;
+  });
+  h += `</div></div></div></div>`;
+
+  // Panel 2
+  h += `<div class="chart-col"><div class="panel"><div class="ptitle">${isVN?'Tỷ trọng dự án theo chương trình':'Projects by Program'}</div>`;
+  h += `<div class="pie-lay"><div style="flex-shrink:0;">${svgDonut(pie2.map(s=>({val:s.val,color:s.color})))}</div><div class="pie-leg">`;
+  pie2.forEach(s => {
+    const pct = pie2Total > 0 ? Math.round(s.val / pie2Total * 100) : 0;
+    const nm = s.label.length > 18 ? s.label.slice(0, 18) + '…' : s.label;
+    h += `<div class="leg-row"><div class="leg-dot" style="background:${s.color};"></div>${nm}<span class="leg-val">${s.val} <span style="color:#7A90B8;font-size:10px;">(${pct}%)</span></span></div>`;
+  });
+  h += `</div></div></div></div>`;
+
+  // Panel 3
+  h += `<div class="chart-col"><div class="panel"><div class="ptitle">${isVN?'Phase hoàn thành / Tổng theo dự án':'Done Phases / Total per Project'}</div>`;
+  h += `<div style="overflow-x:auto;padding-left:4px;">${svgBarChart(barItems)}</div>`;
+  h += `<div style="display:flex;gap:14px;margin-top:8px;justify-content:center;">`;
+  h += `<div style="display:flex;align-items:center;gap:5px;font-size:11px;color:#7A90B8;"><div style="width:10px;height:10px;border-radius:2px;background:#C8A84B;"></div>${isVN?'Hoàn thành':'Done'}</div>`;
+  h += `<div style="display:flex;align-items:center;gap:5px;font-size:11px;color:#7A90B8;"><div style="width:10px;height:10px;border-radius:2px;background:rgba(255,255,255,0.18);"></div>${isVN?'Còn lại':'Remaining'}</div>`;
+  h += `</div></div></div>`;
+
+  h += `</div>`; // charts-row
+
+  h += `<div class="z-sep"></div>`;
+
+  // ── Zone 2
+  h += `<div class="z-lbl"><span class="z-num">2</span> ${isVN?'Chi tiết dự án & tiến độ Phase':'Project Details & Phase Progress'}</div>`;
+
+  // Summary pills (3 per row)
+  for (let ri = 0; ri < allProjects.length; ri += 3) {
+    const chunk = allProjects.slice(ri, ri + 3);
+    h += `<div class="proj-sum-row">`;
+    chunk.forEach((p, ci) => {
+      const color = pCol(ri + ci);
+      h += `<div class="proj-pill">`;
+      h += `<div class="pp-hd"><div class="pp-ico" style="background:${color}20;color:${color};">${p.name.slice(0,2).toUpperCase()}</div>`;
+      h += `<div style="flex:1;min-width:0;"><div class="pp-nm">${p.name}</div>${p.program_name?`<div class="pp-sb">${p.program_name}</div>`:''}</div>`;
+      h += `<div style="margin-left:8px;font-size:20px;font-weight:700;color:${color};white-space:nowrap;">${p.completion_pct}%</div></div>`;
+      h += `<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px;"><span style="color:#7A90B8;">${(p.epicStats??[]).length} phase · ${p.total_activities??0} activity</span><span style="color:${ragCol(p.rag)};font-weight:700;">${p.rag.toUpperCase()}</span></div>`;
+      h += `<div class="bar-tr"><div class="bar-fi" style="width:${p.completion_pct}%;background:${color};"></div></div>`;
+      if (p.epicStats && p.epicStats.length > 0) {
+        h += `<div class="ep-dots">`;
+        p.epicStats.slice(0, 4).forEach(e => {
+          const st = epicSt(e.pct, p.rag);
+          h += `<span class="ep-dot"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${epicStCol(st)};vertical-align:middle;"></span>${e.phase.length>16?e.phase.slice(0,16)+'…':e.phase}</span>`;
+        });
+        h += `</div>`;
+      }
+      h += `</div>`;
+    });
+    for (let fi = chunk.length; fi < 3; fi++) h += `<div style="flex:1;min-width:0;"></div>`;
+    h += `</div>`;
+  }
+
+  // Project detail blocks
+  allProjects.forEach((p, pIdx) => {
+    const color = pCol(pIdx);
+    const totalEpics = (p.epicStats ?? []).length;
+    h += `<div class="pb">`;
+    // Header
+    h += `<div class="pb-hd"><div class="pb-ico" style="background:${color}20;color:${color};">${p.name.slice(0,2).toUpperCase()}</div>`;
+    h += `<div><div class="pb-nm">${p.name}</div><div class="pb-sb">${[p.program_name, p.current_phase].filter(Boolean).join(' · ')}</div></div>`;
+    h += `<div style="margin-left:auto;text-align:right;"><div style="font-size:22px;font-weight:700;color:${color};">${p.completion_pct}%</div><div style="font-size:11px;color:#7A90B8;">${totalEpics} phase &nbsp;·&nbsp; ${p.total_activities??0} activity</div></div>`;
+    h += `</div>`;
+    // Progress bar
+    h += `<div class="pb-bar"><div style="height:3px;background:linear-gradient(90deg,${color},${color}55);width:${p.completion_pct}%;"></div></div>`;
+    // Body
+    h += `<div class="pb-body">`;
+    if (p.epicStats && p.epicStats.length > 0) {
+      h += `<table class="et"><thead><tr>`;
+      h += `<th style="width:6px;padding:6px 4px 8px;"></th>`;
+      h += `<th>${isVN?'Phase / Nhóm công việc':'Phase / Work Group'}</th>`;
+      h += `<th>${isVN?'Trạng thái':'Status'}</th>`;
+      h += `<th style="min-width:120px;">${isVN?'Tiến độ':'Progress'}</th>`;
+      h += `<th style="text-align:right;">%</th>`;
+      h += `<th>${isVN?'Xong / Tổng':'Done / Total'}</th>`;
+      h += `</tr></thead><tbody>`;
+      p.epicStats.forEach(e => {
+        const st = epicSt(e.pct, p.rag);
+        const ec = epicStCol(st);
+        h += `<tr>`;
+        h += `<td style="padding:9px 4px;"><div style="width:4px;height:22px;border-radius:2px;background:${ec};"></div></td>`;
+        h += `<td style="font-weight:500;color:#E8F0FF;">${e.phase}</td>`;
+        h += `<td><span class="stag" style="background:${epicStBg(st)};border:1px solid ${epicStBdr(st)};color:${ec};">${epicStLbl(st)}</span></td>`;
+        h += `<td><div class="pg-bar"><div class="pg-fill" style="width:${e.pct}%;background:${ec};"></div></div></td>`;
+        h += `<td style="font-weight:600;color:${ec};text-align:right;">${e.pct}%</td>`;
+        h += `<td style="color:#7A90B8;">${e.done}/${e.total}</td>`;
+        h += `</tr>`;
+      });
+      h += `</tbody></table>`;
+    } else {
+      h += `<p style="color:#7A90B8;font-size:12px;font-style:italic;">${isVN?'Chưa có dữ liệu phase.':'No phase data available.'}</p>`;
+    }
+    // Activity summary: Hoàn thành / Đang làm / Chưa bắt đầu
+    if ((p.total_activities ?? 0) > 0) {
+      h += `<div class="act-sum"><div class="act-ttl">${isVN?'Tổng hợp activity':'Activity Summary'}</div><div class="act-row">`;
+      const actItems = [
+        {l:isVN?'Hoàn thành':'Done',           v:p.done_activities??0,         c:'#3ECB7A'},
+        {l:isVN?'Đang làm':'In Progress',      v:p.in_progress_activities??0,  c:'#5BA4FA'},
+        {l:isVN?'Chưa bắt đầu':'Not Started',  v:p.not_started_activities??0,  c:'rgba(122,144,184,0.7)'},
+      ];
+      actItems.forEach(a => {
+        h += `<div class="act-st"><div class="act-num" style="color:${a.c};">${a.v}</div><div class="act-lbl">${a.l}</div></div>`;
+      });
+      h += `</div></div>`;
+    }
+    h += `</div></div>`;
+  });
+
+  // ── Footer
+  h += `<div class="ft">`;
+  h += `<div class="ft-brand">${companyName}</div>`;
+  h += `<div style="font-size:11px;color:#7A90B8;">${isVN?'Tài liệu mật · Dành cho Ban Lãnh Đạo':'Confidential · For Leadership Only'}</div>`;
+  h += `<div style="font-size:11px;color:#7A90B8;">${isVN?'Phát hành':'Published'}: ${today}</div>`;
+  h += `</div>`;
+
+  h += `</div></div>`; // .pg + .rw
   return h;
 }
 
@@ -1034,7 +1097,8 @@ export default function PortfolioReportPage() {
 
   const exportHtml = () => {
     if (!htmlReport) return;
-    const full = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="format-detection" content="telephone=no,address=no,email=no,date=no,url=no"><title>Portfolio Report</title><style type="text/css">a,a:link,a:visited,a:hover{color:inherit!important;text-decoration:none!important;}</style></head><body style="margin:0;background:#f8fafc;">${htmlReport}</body></html>`;
+    const bg = mode === 'manual' ? '#07111F' : '#f8fafc';
+    const full = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="format-detection" content="telephone=no,address=no,email=no,date=no,url=no"><title>Portfolio Report</title><style type="text/css">a,a:link,a:visited,a:hover{color:inherit!important;text-decoration:none!important;}</style></head><body style="margin:0;background:${bg};">${htmlReport}</body></html>`;
     const blob = new Blob([full], { type: 'text/html;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -1050,7 +1114,7 @@ export default function PortfolioReportPage() {
     el.style.overflow = 'visible';
     try {
       const { toPng } = await import('html-to-image');
-      const dataUrl = await toPng(el, { pixelRatio: 2, backgroundColor: '#f8fafc', cacheBust: true });
+      const dataUrl = await toPng(el, { pixelRatio: 2, backgroundColor: mode === 'manual' ? '#07111F' : '#f8fafc', cacheBust: true });
       el.style.overflow = prevOverflow;
       const a = document.createElement('a');
       a.download = `PortfolioReport_${new Date().toISOString().slice(0, 10)}.png`;
@@ -1073,7 +1137,7 @@ export default function PortfolioReportPage() {
     el.style.overflow = 'visible';
     try {
       const { toPng } = await import('html-to-image');
-      const dataUrl = await toPng(el, { pixelRatio: 2, backgroundColor: '#f8fafc', cacheBust: true });
+      const dataUrl = await toPng(el, { pixelRatio: 2, backgroundColor: mode === 'manual' ? '#07111F' : '#f8fafc', cacheBust: true });
       el.style.overflow = prevOverflow;
       const { jsPDF } = await import('jspdf');
       const imgW = el.scrollWidth * 2;
@@ -1742,7 +1806,7 @@ export default function PortfolioReportPage() {
                 {viewMode === 'preview' ? (
                   <div
                     ref={previewRef}
-                    className="border border-slate-200 rounded-lg overflow-auto bg-white"
+                    className={`border rounded-lg overflow-auto ${mode === 'manual' ? 'border-slate-700 bg-[#07111F]' : 'border-slate-200 bg-white'}`}
                     dangerouslySetInnerHTML={{ __html: htmlReport }}
                   />
                 ) : (
