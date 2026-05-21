@@ -11,7 +11,7 @@ import { toast } from 'sonner';
 import {
   Sparkles, Eye, Copy, Download, Mail, KeyRound, RefreshCw,
   TrendingUp, FileText, ShieldAlert, Bug, CheckCircle2, AlertCircle,
-  Calendar, ChevronRight, User, Building2, CalendarRange, Loader2, Image, FileDown,
+  Calendar, ChevronRight, User, Building2, CalendarRange, Loader2, Image, FileDown, Filter, ChevronDown,
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -556,6 +556,37 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
   return lines.join('\n');
 }
 
+// ─── Filter portfolio data to selected project IDs ───────────────────────────
+function filterDataByProjects(data: PortfolioReportData, ids: Set<number>): PortfolioReportData {
+  if (ids.size === 0) return data;
+  const programs = data.programs
+    .map(prog => ({ ...prog, projects: prog.projects.filter(p => ids.has(p.id)) }))
+    .filter(prog => prog.projects.length > 0);
+  const noProgramProjects = data.noProgramProjects.filter(p => ids.has(p.id));
+  const allFiltered = [...programs.flatMap(c => c.projects), ...noProgramProjects];
+  const nameSet = new Set(allFiltered.map(p => p.name));
+  const kpi = {
+    totalProjects: allFiltered.length,
+    totalPrograms: programs.length,
+    avgCompletion: allFiltered.length > 0 ? Math.round(allFiltered.reduce((s, p) => s + p.completion_pct, 0) / allFiltered.length) : 0,
+    activeProjects: allFiltered.filter(p => p.current_phase !== 'Closing').length,
+    totalOpenRisks: allFiltered.reduce((s, p) => s + p.open_risks, 0),
+    totalOpenIssues: allFiltered.reduce((s, p) => s + p.open_issues, 0),
+  };
+  return {
+    ...data,
+    projects: data.projects.filter(p => ids.has(p.id)),
+    programs,
+    noProgramProjects,
+    kpi,
+    topRisks: data.topRisks.filter(r => nameSet.has(r.project_name)),
+    topIssues: data.topIssues.filter(r => nameSet.has(r.project_name)),
+    upcomingMilestones: data.upcomingMilestones.filter(m => nameSet.has(m.project_name)),
+    recentlyCompleted: data.recentlyCompleted.filter(r => nameSet.has(r.project_name)),
+    completedByProject: Object.fromEntries(Object.entries(data.completedByProject).filter(([k]) => nameSet.has(k))),
+  };
+}
+
 // ─── Markdown → HTML (for AI output) ─────────────────────────────────────────
 function mdToHtml(text: string): string {
   const fmt = (s: string) => s
@@ -935,6 +966,8 @@ export default function PortfolioReportPage() {
   const [htmlReport, setHtmlReport] = useState('');
   const [exporting, setExporting] = useState<'png' | 'pdf' | null>(null);
   const previewRef = useRef<HTMLDivElement>(null);
+  const [selectedProjectIds, setSelectedProjectIds] = useState<Set<number>>(new Set());
+  const [showProjectSelector, setShowProjectSelector] = useState(false);
 
   const loadConfig = useCallback(async () => {
     const res = await fetch('/api/config');
@@ -963,6 +996,14 @@ export default function PortfolioReportPage() {
     fetch('/api/auth/me').then(r => r.ok ? r.json() : null).then(d => { if (d?.company_name) setCompanyName(d.company_name); });
   }, []);
 
+  // Initialize (or reset) selected projects whenever data reloads
+  useEffect(() => {
+    if (data) {
+      const all = [...data.programs.flatMap(c => c.projects), ...data.noProgramProjects];
+      setSelectedProjectIds(new Set(all.map(p => p.id)));
+    }
+  }, [data]);
+
   const saveApiKey = async () => {
     if (!apiKeyInput.startsWith('sk-ant-')) { toast.error('Invalid key — must start with sk-ant-'); return; }
     setSavingKey(true);
@@ -981,10 +1022,11 @@ export default function PortfolioReportPage() {
 
   const generateManual = () => {
     if (!data) return;
-    setReport(buildTemplateReport(data, language, periodStart, periodEnd, companyName));
-    setHtmlReport(buildHtmlReport(data, language, periodStart, periodEnd, companyName));
+    const fd = selectedProjectIds.size > 0 ? filterDataByProjects(data, selectedProjectIds) : data;
+    setReport(buildTemplateReport(fd, language, periodStart, periodEnd, companyName));
+    setHtmlReport(buildHtmlReport(fd, language, periodStart, periodEnd, companyName));
     setViewMode('preview');
-    toast.success('Portfolio report generated!');
+    toast.success(`Portfolio report generated (${fd.kpi.totalProjects} projects)!`);
   };
 
   const generateAI = async () => {
@@ -992,12 +1034,13 @@ export default function PortfolioReportPage() {
     setGenerating(true);
     setReport('');
     try {
+      const fd = selectedProjectIds.size > 0 ? filterDataByProjects(data, selectedProjectIds) : data;
       const portfolioPayload = {
         reportDate: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }),
         periodStart,
         periodEnd,
-        kpi: data.kpi,
-        programs: data.programs.map(c => ({
+        kpi: fd.kpi,
+        programs: fd.programs.map(c => ({
           name: c.name, industry: c.industry,
           projects: c.projects.map(p => ({
             name: p.name, program_name: p.program_name, current_phase: p.current_phase,
@@ -1008,7 +1051,7 @@ export default function PortfolioReportPage() {
             epicStats: p.epicStats,
           })),
         })),
-        noProgramProjects: data.noProgramProjects.map(p => ({
+        noProgramProjects: fd.noProgramProjects.map(p => ({
           name: p.name, program_name: '', current_phase: p.current_phase,
           completion_pct: p.completion_pct, open_risks: p.open_risks, open_issues: p.open_issues,
           days_until_deadline: p.days_until_deadline, rag: p.rag, pm_name: p.pm_name,
@@ -1016,10 +1059,10 @@ export default function PortfolioReportPage() {
           not_started_activities: p.not_started_activities, total_activities: p.total_activities,
           epicStats: p.epicStats,
         })),
-        topRisks: data.topRisks.map(r => ({ priority: r.priority, description: r.description, project_name: r.project_name, program_name: r.program_name || '' })),
-        topIssues: data.topIssues.map(i => ({ priority: i.priority, description: i.description, project_name: i.project_name, program_name: i.program_name || '' })),
-        upcomingMilestones: data.upcomingMilestones.map(m => ({ plan_end: m.plan_end, activity: m.activity, project_name: m.project_name })),
-        completedByProject: data.completedByProject,
+        topRisks: fd.topRisks.map(r => ({ priority: r.priority, description: r.description, project_name: r.project_name, program_name: r.program_name || '' })),
+        topIssues: fd.topIssues.map(i => ({ priority: i.priority, description: i.description, project_name: i.project_name, program_name: i.program_name || '' })),
+        upcomingMilestones: fd.upcomingMilestones.map(m => ({ plan_end: m.plan_end, activity: m.activity, project_name: m.project_name })),
+        completedByProject: fd.completedByProject,
         language,
       };
       const res = await fetch('/api/portfolio/report', {
@@ -1368,6 +1411,67 @@ export default function PortfolioReportPage() {
                 </Button>
               </div>
             </div>
+
+            {/* Project selector */}
+            {data && allProjects.length > 0 && (
+              <div className="border-t border-slate-100 pt-3">
+                <button
+                  onClick={() => setShowProjectSelector(v => !v)}
+                  className="flex items-center gap-2 w-full text-left group"
+                >
+                  <Filter className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                  <span className="text-sm font-medium text-slate-600 group-hover:text-slate-800">Dự án đưa vào báo cáo</span>
+                  <span className={`ml-1 text-xs px-2 py-0.5 rounded-full font-semibold border ${selectedProjectIds.size < allProjects.length ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-slate-100 border-slate-200 text-slate-500'}`}>
+                    {selectedProjectIds.size} / {allProjects.length}
+                  </span>
+                  <ChevronDown className={`h-4 w-4 text-slate-400 ml-auto transition-transform duration-200 ${showProjectSelector ? 'rotate-180' : ''}`} />
+                </button>
+                {showProjectSelector && (
+                  <div className="mt-3 space-y-2">
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => setSelectedProjectIds(new Set(allProjects.map(p => p.id)))}
+                        className="text-xs text-blue-600 hover:text-blue-800 hover:underline font-medium"
+                      >Chọn tất cả</button>
+                      <span className="text-slate-200">|</span>
+                      <button
+                        onClick={() => setSelectedProjectIds(new Set())}
+                        className="text-xs text-slate-400 hover:text-slate-600 hover:underline"
+                      >Bỏ chọn tất cả</button>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1.5 max-h-60 overflow-y-auto pr-1">
+                      {allProjects.map(p => {
+                        const checked = selectedProjectIds.has(p.id);
+                        return (
+                          <label
+                            key={p.id}
+                            className={`flex items-center gap-2.5 px-3 py-2 rounded-lg border cursor-pointer transition-colors text-xs ${checked ? 'bg-blue-50 border-blue-200' : 'bg-white border-slate-200 hover:bg-slate-50'}`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={e => {
+                                setSelectedProjectIds(prev => {
+                                  const next = new Set(prev);
+                                  e.target.checked ? next.add(p.id) : next.delete(p.id);
+                                  return next;
+                                });
+                              }}
+                              className="w-3.5 h-3.5 rounded accent-blue-600 shrink-0"
+                            />
+                            <span className={`w-2 h-2 rounded-full shrink-0 ${RAG_DOT[p.rag]}`} />
+                            <span className={`truncate font-medium ${checked ? 'text-slate-800' : 'text-slate-500'}`}>{p.name}</span>
+                            {p.program_name && (
+                              <span className="text-slate-400 ml-auto shrink-0 text-[10px]">{p.program_name.slice(0, 12)}</span>
+                            )}
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             {mode === 'ai' && (
               <div className={`rounded-lg px-4 py-3 text-xs flex items-center gap-3 flex-wrap border ${apiKeySet ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'}`}>
