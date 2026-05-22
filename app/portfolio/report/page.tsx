@@ -704,10 +704,9 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
       if (progH > 0) s += `<rect x="${x.toFixed(1)}" y="${(topPad + h - progH).toFixed(1)}" width="${barW}" height="${progH}" fill="${C_PROG}"/>`;
       // Overlay green (done region at bottom)
       if (doneH > 0) s += `<rect x="${x.toFixed(1)}" y="${(topPad + h - doneH).toFixed(1)}" width="${barW}" height="${doneH}" fill="${C_DONE}"/>`;
-      // Label above bar
+      // Label above bar — total epic count only
       const lblY = barTop - 5;
-      const lblColor = doneH > 0 ? C_DONE : inProgH > 0 ? C_PROG : '#9CA3AF';
-      s += `<text x="${(x + barW / 2).toFixed(1)}" y="${lblY.toFixed(1)}" text-anchor="middle" font-size="10" font-weight="700" fill="${lblColor}">${item.done}/${item.total}</text>`;
+      s += `<text x="${(x + barW / 2).toFixed(1)}" y="${lblY.toFixed(1)}" text-anchor="middle" font-size="10" font-weight="700" fill="#374151">${item.total}</text>`;
       const shortLbl = item.label.length > 12 ? item.label.slice(0, 12) + '…' : item.label;
       s += `<text x="${(x + barW / 2).toFixed(1)}" y="${topPad + h + 17}" text-anchor="middle" font-size="10" fill="#6B7280">${shortLbl}</text>`;
     });
