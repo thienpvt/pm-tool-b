@@ -104,6 +104,62 @@ function deadlineColor(days: number | null): string {
   return 'text-slate-600';
 }
 
+// ─── Summary Templates (rotates weekly) ──────────────────────────────────────
+const SUMMARY_TEMPLATES = {
+  vn: {
+    green: [
+      'Danh mục dự án kỳ này ghi nhận kết quả tích cực trên toàn bộ chương trình. Tiến độ triển khai được duy trì ổn định, các mốc kế hoạch đang được thực hiện đúng cam kết. PMO đánh giá danh mục đang trong trạng thái kiểm soát tốt và không có rủi ro leo thang nào phát sinh trong kỳ báo cáo này.',
+      'Tình hình triển khai danh mục kỳ này diễn ra thuận lợi theo đúng kế hoạch. Các chương trình đang được vận hành hiệu quả với sự phối hợp chặt chẽ giữa các đội dự án. Không có vấn đề nghiêm trọng nào cần leo thang lên cấp quản lý cao hơn. PMO tiếp tục duy trì cơ chế giám sát định kỳ để đảm bảo chất lượng đầu ra được duy trì xuyên suốt.',
+      'Nhìn tổng thể kỳ báo cáo này, danh mục đang vận hành đúng quỹ đạo với kết quả đáng ghi nhận từ các chương trình. Toàn bộ dự án duy trì trạng thái xanh, phản ánh sự chuẩn bị kỹ lưỡng và quản lý chủ động của các PM. Đây là tín hiệu tích cực cho thấy năng lực triển khai của đội ngũ đang được nâng cao. Không có hành động leo thang nào được yêu cầu trong kỳ này.',
+      'Kỳ báo cáo ghi nhận hiệu suất tốt của toàn bộ danh mục dự án. Các chương trình tiếp tục duy trì tiến độ và chất lượng theo cam kết với khách hàng. PMO đánh giá cao sự chủ động xử lý của các đội dự án trong việc ngăn ngừa sự cố trước khi leo thang, và không ghi nhận rủi ro đáng kể nào trong kỳ này.',
+      'Danh mục kỳ này thể hiện sức khỏe vận hành tốt với tình trạng ổn định trên toàn bộ các chương trình. Đội ngũ dự án đang làm việc có kỷ luật và bám sát kế hoạch đề ra. Không có điểm nghẽn hay rủi ro leo thang nào cần sự chú ý đặc biệt trong kỳ này. PMO sẽ tiếp tục theo dõi chặt chẽ để duy trì đà phát triển tích cực này.',
+    ],
+    amber: [
+      'Danh mục kỳ này đang tiến triển theo đúng hướng với phần lớn chương trình duy trì ổn định. Tuy nhiên, một số dự án đang gặp phải các yếu tố cần được theo dõi sát sao hơn trong kỳ tới. PMO đã xác định nguyên nhân và đang phối hợp với các PM để xây dựng biện pháp ứng phó phù hợp. Không có leo thang khẩn cấp được yêu cầu trong kỳ này.',
+      'Nhìn chung, danh mục đang trong trạng thái kiểm soát được mặc dù còn một số điểm cần chú ý. Các dự án có mức cảnh báo đã được PMO đánh giá và có kế hoạch xử lý rõ ràng. Đội ngũ đang chủ động ứng phó với các thách thức phát sinh, và PMO tin tưởng tình trạng sẽ được cải thiện trong kỳ tới. Không có leo thang nào cần thiết tại thời điểm này.',
+      'Kỳ báo cáo này phản ánh giai đoạn chuyển tiếp của một số dự án trong danh mục với áp lực thực thi tăng lên. Đây là tín hiệu bình thường trong quá trình triển khai và PMO đang theo dõi sát sao để đảm bảo không có vấn đề nào vượt tầm kiểm soát. Các biện pháp phòng ngừa đã được triển khai ở cấp dự án và PMO sẽ cập nhật tiến triển ở kỳ sau.',
+      'Danh mục kỳ này cho thấy sự vận hành ổn định ở phần lớn các chương trình, đồng thời cũng phản ánh một số thách thức cần được quản lý chủ động. PMO đã làm việc trực tiếp với các PM liên quan để làm rõ nguyên nhân và thống nhất phương án xử lý. Không có rủi ro ở mức độ yêu cầu can thiệp ngay từ Ban Lãnh Đạo trong kỳ này.',
+      'Tổng thể, danh mục vẫn đang trong tầm kiểm soát với phần lớn dự án tiếp tục thực hiện đúng cam kết. Một số tình huống đang được PMO theo dõi kỹ lưỡng để ngăn ngừa leo thang. PMO đánh giá mức độ rủi ro hiện tại là có thể quản lý được và sẽ cập nhật đầy đủ diễn biến ở kỳ báo cáo tiếp theo.',
+    ],
+    red: [
+      'Danh mục kỳ này đang đối mặt với một số thách thức nghiêm trọng cần được ưu tiên xử lý. PMO đã hoàn thành phân tích nguyên nhân gốc rễ và xác định rõ các hành động cần thiết để ổn định tình hình. Sự tham gia trực tiếp của Ban Lãnh Đạo trong việc ra quyết định ở một số điểm quan trọng là cần thiết. Chi tiết và đề xuất cụ thể được trình bày tại Mục VII.',
+      'Kỳ báo cáo này phản ánh áp lực vận hành ở mức độ đáng kể đối với một số dự án trong danh mục. PMO đã kịp thời phát hiện, đánh giá mức độ ảnh hưởng và đề xuất các biện pháp can thiệp cụ thể. Sự phối hợp và quyết định từ Ban Lãnh Đạo sẽ là yếu tố then chốt để đưa danh mục trở lại quỹ đạo ổn định. PMO cam kết cung cấp mọi thông tin hỗ trợ cần thiết cho quá trình này.',
+      'Tình hình danh mục kỳ này đòi hỏi sự chú ý đặc biệt và hành động quyết đoán. PMO đã đánh giá toàn diện và đang phối hợp chặt chẽ với các PM để triển khai biện pháp ứng phó. Một số quyết định vượt thẩm quyền của PMO cần được leo thang lên Ban Lãnh Đạo để xử lý kịp thời. Nội dung cụ thể được nêu rõ tại Mục VII của báo cáo này.',
+      'Danh mục đang trải qua một giai đoạn thách thức với các vấn đề phát sinh ở nhiều cấp độ. PMO đã chủ động phối hợp để kiểm soát tình hình và hạn chế mức độ ảnh hưởng. Tuy nhiên, để giải quyết triệt để, một số hành động cần đến sự phê duyệt và chỉ đạo của Ban Lãnh Đạo. PMO sẵn sàng trình bày và hỗ trợ thực thi ngay khi có chỉ đạo.',
+      'Kỳ này ghi nhận những tín hiệu cần được xử lý ngay để tránh ảnh hưởng lâu dài đến tiến độ và cam kết với khách hàng. PMO đã tiến hành đánh giá toàn diện và xây dựng kịch bản ứng phó cho từng trường hợp. Một số điểm nghẽn cần quyết định từ cấp cao để khơi thông nguồn lực và điều chỉnh ưu tiên. Chi tiết và đề xuất được trình bày tại Mục VII.',
+    ],
+  },
+  en: {
+    green: [
+      'The portfolio reports a strong performance this period across all programs. Delivery milestones are being met as committed and project health indicators remain positive. No escalations were required during this reporting cycle. The PMO will continue active monitoring to sustain this momentum through the next period.',
+      'This reporting period reflects a stable and well-managed portfolio across the board. Programs are executing effectively with strong cross-team coordination and disciplined delivery. No material risks or issues have emerged that require leadership attention at this time. The PMO remains focused on maintaining this standard into the next cycle.',
+      'The portfolio enters this reporting period in good health with all tracked programs performing within plan. Project managers have demonstrated proactive risk management, keeping issues resolved at the delivery level without escalation. This is an encouraging sign of growing execution maturity across the organization.',
+      'Overall portfolio performance for this period is positive and in line with expectations. Delivery teams continue to operate with discipline and purpose, keeping commitments to schedule and quality. The PMO notes no significant risks or blockers requiring leadership intervention, and the outlook for the coming period remains strong.',
+      'A clean reporting period: all programs are advancing as planned and the portfolio health picture remains strong. The PMO has conducted its standard review cycle and found no items requiring escalation. Project teams are demonstrating solid execution discipline, and the overall delivery outlook for the coming period is encouraging.',
+    ],
+    amber: [
+      'The portfolio is broadly on track this period, with the majority of programs performing as planned. A number of projects have entered a closer-monitoring phase due to emerging schedule or risk pressures. The PMO has engaged directly with the relevant project managers to understand root causes and agree on mitigation steps. No escalations are required at this time.',
+      'This period reflects a mixed but manageable portfolio picture. While most programs continue to execute well, a subset of projects require heightened attention in the coming cycle. The PMO has reviewed each situation and has tailored response plans in place. The overall risk profile remains within acceptable bounds and is being actively managed.',
+      'The portfolio is navigating a transition phase this period, with some projects experiencing increased delivery pressure. This is not uncommon at this stage of execution, and the PMO has proactively addressed each situation before it reaches a critical level. No leadership escalation is required at this time, though the PMO will maintain close oversight and provide timely updates.',
+      'Portfolio performance this period is stable with some areas warranting closer watch. The PMO has conducted a thorough assessment and is working alongside project teams to address the factors contributing to amber status. Current risks are considered manageable within the PMO\'s existing capacity. No urgent leadership decisions are required in this cycle.',
+      'While the overall portfolio remains under control, this reporting period surfaces a number of situations that merit focused management attention in the weeks ahead. The PMO has reviewed each case and is confident that with the right actions, the portfolio will return to a fully green state in the near term. No escalations to leadership are needed at this time.',
+    ],
+    red: [
+      'The portfolio faces material challenges this period that require priority attention at the leadership level. The PMO has completed a thorough root-cause analysis and developed specific corrective actions for each affected project. Leadership involvement in key decisions is critical to restoring portfolio health within the intended timeline. Full details and recommendations are presented in Section VII.',
+      'This reporting period reflects significant delivery pressure across parts of the portfolio that must be addressed urgently. The PMO has acted swiftly to assess the situation, contain the impact, and prepare a structured response. Several decisions exceed the PMO\'s authority and require leadership direction to unblock. The PMO is ready to support execution immediately upon receipt of guidance — details in Section VII.',
+      'The portfolio status this period signals the need for decisive and coordinated action at the senior level. The PMO has identified the underlying drivers and is working closely with project teams to stabilize the situation. A number of critical blockers can only be resolved through leadership intervention, and the PMO has prepared a concise escalation brief in Section VII for review and decision.',
+      'This period\'s portfolio review surfaces challenges that, if left unaddressed, carry real risk to delivery commitments and client outcomes. The PMO has been directly engaged in assessing the situation and has formulated a clear set of recovery actions. Some of these require leadership approval and resource decisions that are beyond the PMO\'s remit. A structured escalation request is outlined in Section VII.',
+      'The portfolio is experiencing a demanding period, and the PMO has mobilized to respond with urgency and structure. Root causes have been identified, impact has been scoped, and a recovery pathway has been mapped for each affected project. To execute this plan effectively, leadership decision-making is needed on several fronts. These items are presented clearly in Section VII.',
+    ],
+  },
+};
+
+function pickSummary(status: 'red' | 'amber' | 'green', lang: 'vn' | 'en'): string {
+  const pool = SUMMARY_TEMPLATES[lang][status];
+  const week = Math.floor(Date.now() / (7 * 24 * 60 * 60 * 1000));
+  return pool[week % pool.length];
+}
+
 // ─── Build Template Report ────────────────────────────────────────────────────
 function buildTemplateReport(data: PortfolioReportData, language: string, periodStart: string, periodEnd: string, companyName = 'PM Tool'): string {
   const isVN = language === 'Vietnamese';
@@ -169,22 +225,25 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
     lines.push('');
 
     // ── Summary Statement ────────────────────────────────────────────────────
-    lines.push(sbox1);
-    lines.push(sboxL('TÓM TẮT'));
-    lines.push(sboxL(''));
-    if (red.length > 0) {
-      lines.push(sboxL('Danh mục kỳ này đang đối mặt với một số thách thức cần ưu tiên xử lý. PMO đã xác định'));
-      lines.push(sboxL('rõ các điểm rủi ro và đang triển khai biện pháp can thiệp kịp thời. Chi tiết các hành'));
-      lines.push(sboxL('động cần phê duyệt được trình bày tại Mục VII.'));
-    } else if (amber.length > 0) {
-      lines.push(sboxL('Danh mục kỳ này nhìn chung đang tiến triển đúng hướng. Một số dự án cần được theo dõi'));
-      lines.push(sboxL('thêm và PMO đã có kế hoạch kiểm soát cụ thể. Không có leo thang khẩn cấp trong kỳ này.'));
-    } else {
-      lines.push(sboxL('Danh mục kỳ này tiếp tục duy trì đà phát triển tốt. Toàn bộ chương trình đang triển'));
-      lines.push(sboxL('khai đúng tiến độ và trong tầm kiểm soát. Không có leo thang nào cần xử lý.'));
+    {
+      const ragKey = red.length > 0 ? 'red' : amber.length > 0 ? 'amber' : 'green';
+      const summaryText = pickSummary(ragKey, 'vn');
+      // Word-wrap at 88 chars per line to fit inside sboxL (90-char inner width)
+      const words = summaryText.split(' ');
+      const wrappedLines: string[] = [];
+      let cur = '';
+      for (const w of words) {
+        if ((cur ? cur + ' ' + w : w).length > 88) { wrappedLines.push(cur); cur = w; }
+        else cur = cur ? cur + ' ' + w : w;
+      }
+      if (cur) wrappedLines.push(cur);
+      lines.push(sbox1);
+      lines.push(sboxL('TÓM TẮT'));
+      lines.push(sboxL(''));
+      wrappedLines.forEach(l => lines.push(sboxL(l)));
+      lines.push(sbox2);
+      lines.push('');
     }
-    lines.push(sbox2);
-    lines.push('');
 
     // ── I. Executive Summary ─────────────────────────────────────────────────
     lines.push(D);
@@ -389,23 +448,24 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
     lines.push('');
 
     // ── Summary Statement ────────────────────────────────────────────────────
-    lines.push(sbox1);
-    lines.push(sboxL('SUMMARY'));
-    lines.push(sboxL(''));
-    if (red.length > 0) {
-      lines.push(sboxL('The portfolio faces challenges this period that require priority attention. The PMO has'));
-      lines.push(sboxL('identified the key issues and is actively managing corrective actions. Escalation items'));
-      lines.push(sboxL('requiring approval are detailed in Section VII.'));
-    } else if (amber.length > 0) {
-      lines.push(sboxL('The portfolio is broadly on track this period. A number of projects warrant closer'));
-      lines.push(sboxL('attention and the PMO has plans in place to address them. No critical escalations'));
-      lines.push(sboxL('are required at this time.'));
-    } else {
-      lines.push(sboxL('The portfolio continues to perform well this period. All programs are progressing'));
-      lines.push(sboxL('as planned and remain under control. No escalations are required.'));
+    {
+      const ragKey = red.length > 0 ? 'red' : amber.length > 0 ? 'amber' : 'green';
+      const summaryText = pickSummary(ragKey, 'en');
+      const words = summaryText.split(' ');
+      const wrappedLines: string[] = [];
+      let cur = '';
+      for (const w of words) {
+        if ((cur ? cur + ' ' + w : w).length > 88) { wrappedLines.push(cur); cur = w; }
+        else cur = cur ? cur + ' ' + w : w;
+      }
+      if (cur) wrappedLines.push(cur);
+      lines.push(sbox1);
+      lines.push(sboxL('SUMMARY'));
+      lines.push(sboxL(''));
+      wrappedLines.forEach(l => lines.push(sboxL(l)));
+      lines.push(sbox2);
+      lines.push('');
     }
-    lines.push(sbox2);
-    lines.push('');
 
     // ── I. Executive Summary ─────────────────────────────────────────────────
     lines.push(D);
@@ -850,25 +910,8 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
 
   // ── Summary Panel ─────────────────────────────────────────────────────────
   {
-    const amber2 = allProjects.filter(p => p.rag === 'amber');
-    let summaryText: string;
-    if (isVN) {
-      if (red.length > 0) {
-        summaryText = 'Danh mục kỳ này đang đối mặt với một số thách thức cần ưu tiên xử lý. PMO đã xác định rõ các điểm rủi ro và đang triển khai biện pháp can thiệp kịp thời. Chi tiết các hành động cần phê duyệt được trình bày tại Phần VII.';
-      } else if (amber2.length > 0) {
-        summaryText = 'Danh mục kỳ này nhìn chung đang tiến triển đúng hướng. Một số dự án cần được theo dõi thêm và PMO đã có kế hoạch kiểm soát cụ thể. Không có leo thang khẩn cấp trong kỳ này.';
-      } else {
-        summaryText = 'Danh mục kỳ này tiếp tục duy trì đà phát triển tốt. Toàn bộ chương trình đang triển khai đúng tiến độ và trong tầm kiểm soát. Không có leo thang nào cần xử lý.';
-      }
-    } else {
-      if (red.length > 0) {
-        summaryText = 'The portfolio faces challenges this period that require priority attention. The PMO has identified the key issues and is actively managing corrective actions. Escalation items requiring approval are detailed in Section VII.';
-      } else if (amber2.length > 0) {
-        summaryText = 'The portfolio is broadly on track this period. A number of projects warrant closer attention and the PMO has plans in place to address them. No critical escalations are required at this time.';
-      } else {
-        summaryText = 'The portfolio continues to perform well this period. All programs are progressing as planned and remain under control. No escalations are required.';
-      }
-    }
+    const ragKey = red.length > 0 ? 'red' : allProjects.some(p => p.rag === 'amber') ? 'amber' : 'green';
+    const summaryText = pickSummary(ragKey, isVN ? 'vn' : 'en');
     h += `<div style="background:#FAFAFA;border:1px solid #E5E7EB;border-left:4px solid ${overallStatusCol};border-radius:8px;padding:14px 20px;margin-bottom:22px;">`;
     h += `<div style="font-size:10px;text-transform:uppercase;letter-spacing:1.2px;color:#9CA3AF;margin-bottom:8px;font-weight:600;">${isVN ? 'Tóm tắt' : 'Summary'}</div>`;
     h += `<p style="font-size:13px;color:#374151;line-height:1.7;margin:0;">${summaryText}</p>`;
