@@ -170,22 +170,18 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
 
     // ── Summary Statement ────────────────────────────────────────────────────
     lines.push(sbox1);
-    lines.push(sboxL('TÓM TẮT NHANH'));
-    lines.push(sboxL(''));
-    lines.push(sboxL(`Tình trạng tổng thể: ● ${portfolioStatus}   |   ${data.kpi.totalProjects} dự án  ·  ${data.kpi.totalPrograms} chương trình  ·  Tiến độ TB: ${data.kpi.avgCompletion}%`));
-    lines.push(sboxL(`Phân bố: ${green.length} XANH  ·  ${amber.length} VÀNG  ·  ${red.length} ĐỎ   |   Rủi ro mở: ${data.kpi.totalOpenRisks}   Vấn đề mở: ${data.kpi.totalOpenIssues}   Quá hạn: ${overdue.length}`));
+    lines.push(sboxL('TÓM TẮT'));
     lines.push(sboxL(''));
     if (red.length > 0) {
-      lines.push(sboxL(`[!] ${red.length} dự án đang ở mức ĐỎ — cần xử lý khẩn cấp.${overdue.length > 0 ? ` ${overdue.length} dự án đã vượt hạn chót.` : ''}`));
-      lines.push(sboxL(`    Chi tiết các hành động cần xử lý: xem Mục VII.`));
+      lines.push(sboxL('Danh mục kỳ này đang đối mặt với một số thách thức cần ưu tiên xử lý. PMO đã xác định'));
+      lines.push(sboxL('rõ các điểm rủi ro và đang triển khai biện pháp can thiệp kịp thời. Chi tiết các hành'));
+      lines.push(sboxL('động cần phê duyệt được trình bày tại Mục VII.'));
     } else if (amber.length > 0) {
-      lines.push(sboxL(`[~] ${amber.length} dự án đang ở mức VÀNG, cần theo dõi sát sao trong kỳ tới.`));
-      lines.push(sboxL(`    Không có leo thang khẩn cấp. PMO đang triển khai biện pháp kiểm soát.`));
+      lines.push(sboxL('Danh mục kỳ này nhìn chung đang tiến triển đúng hướng. Một số dự án cần được theo dõi'));
+      lines.push(sboxL('thêm và PMO đã có kế hoạch kiểm soát cụ thể. Không có leo thang khẩn cấp trong kỳ này.'));
     } else {
-      lines.push(sboxL(`[+] Tất cả dự án đang triển khai đúng tiến độ. Không có leo thang nào cần xử lý.`));
-    }
-    if (data.upcomingMilestones.length > 0) {
-      lines.push(sboxL(`[>] ${data.upcomingMilestones.length} milestone quan trọng đến hạn trong 30 ngày tới — xem chi tiết tại Mục V.`));
+      lines.push(sboxL('Danh mục kỳ này tiếp tục duy trì đà phát triển tốt. Toàn bộ chương trình đang triển'));
+      lines.push(sboxL('khai đúng tiến độ và trong tầm kiểm soát. Không có leo thang nào cần xử lý.'));
     }
     lines.push(sbox2);
     lines.push('');
@@ -394,22 +390,19 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
 
     // ── Summary Statement ────────────────────────────────────────────────────
     lines.push(sbox1);
-    lines.push(sboxL('AT A GLANCE'));
-    lines.push(sboxL(''));
-    lines.push(sboxL(`Overall Status: ● ${portfolioStatus}   |   ${data.kpi.totalProjects} projects  ·  ${data.kpi.totalPrograms} programs  ·  Avg Completion: ${data.kpi.avgCompletion}%`));
-    lines.push(sboxL(`Distribution: ${green.length} GREEN  ·  ${amber.length} AMBER  ·  ${red.length} RED   |   Open Risks: ${data.kpi.totalOpenRisks}   Open Issues: ${data.kpi.totalOpenIssues}   Overdue: ${overdue.length}`));
+    lines.push(sboxL('SUMMARY'));
     lines.push(sboxL(''));
     if (red.length > 0) {
-      lines.push(sboxL(`[!] ${red.length} project(s) at RED — immediate action required.${overdue.length > 0 ? ` ${overdue.length} project(s) past deadline.` : ''}`));
-      lines.push(sboxL(`    Escalation actions listed in Section VII.`));
+      lines.push(sboxL('The portfolio faces challenges this period that require priority attention. The PMO has'));
+      lines.push(sboxL('identified the key issues and is actively managing corrective actions. Escalation items'));
+      lines.push(sboxL('requiring approval are detailed in Section VII.'));
     } else if (amber.length > 0) {
-      lines.push(sboxL(`[~] ${amber.length} project(s) at AMBER — close monitoring required in the coming period.`));
-      lines.push(sboxL(`    No critical escalations. PMO has control measures in place.`));
+      lines.push(sboxL('The portfolio is broadly on track this period. A number of projects warrant closer'));
+      lines.push(sboxL('attention and the PMO has plans in place to address them. No critical escalations'));
+      lines.push(sboxL('are required at this time.'));
     } else {
-      lines.push(sboxL(`[+] All projects on track. No escalations required this period.`));
-    }
-    if (data.upcomingMilestones.length > 0) {
-      lines.push(sboxL(`[>] ${data.upcomingMilestones.length} milestone(s) due within 30 days — see Section V for details.`));
+      lines.push(sboxL('The portfolio continues to perform well this period. All programs are progressing'));
+      lines.push(sboxL('as planned and remain under control. No escalations are required.'));
     }
     lines.push(sbox2);
     lines.push('');
@@ -858,55 +851,27 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
   // ── Summary Panel ─────────────────────────────────────────────────────────
   {
     const amber2 = allProjects.filter(p => p.rag === 'amber');
-    const overdue2 = allProjects.filter(p => p.days_until_deadline !== null && p.days_until_deadline < 0);
-    const ALERT_COL = overallStatusCol;
-    // KPI chips
-    const chip = (label: string, val: string | number, col = '#374151') =>
-      `<span style="display:inline-flex;flex-direction:column;align-items:center;background:#F3F4F6;border:1px solid #E5E7EB;border-radius:6px;padding:6px 14px;min-width:72px;"><span style="font-size:18px;font-weight:700;color:${col};line-height:1;">${val}</span><span style="font-size:10px;color:#6B7280;margin-top:2px;white-space:nowrap;">${label}</span></span>`;
-    const dot = (col: string, lbl: string, n: number) =>
-      `<span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;color:#374151;"><span style="width:9px;height:9px;border-radius:50%;background:${col};display:inline-block;flex-shrink:0;"></span>${n} ${lbl}</span>`;
-
-    h += `<div style="background:#FAFAFA;border:1px solid #E5E7EB;border-left:4px solid ${ALERT_COL};border-radius:8px;padding:16px 20px;margin-bottom:22px;">`;
-    h += `<div style="font-size:10px;text-transform:uppercase;letter-spacing:1.2px;color:#9CA3AF;margin-bottom:12px;font-weight:600;">${isVN ? 'Tóm tắt nhanh' : 'At a Glance'}</div>`;
-
-    // Row 1: KPI chips
-    h += `<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;">`;
-    h += chip(isVN ? 'Dự án' : 'Projects', data.kpi.totalProjects);
-    h += chip(isVN ? 'Chương trình' : 'Programs', data.kpi.totalPrograms);
-    h += chip(isVN ? 'Tiến độ TB' : 'Avg Completion', `${data.kpi.avgCompletion}%`, overallStatusCol);
-    h += chip(isVN ? 'Rủi ro mở' : 'Open Risks', data.kpi.totalOpenRisks, data.kpi.totalOpenRisks > 0 ? '#DC2626' : '#374151');
-    h += chip(isVN ? 'Vấn đề mở' : 'Open Issues', data.kpi.totalOpenIssues, data.kpi.totalOpenIssues > 0 ? '#DC2626' : '#374151');
-    h += chip(isVN ? 'Quá hạn' : 'Overdue', overdue2.length, overdue2.length > 0 ? '#DC2626' : '#374151');
-    h += `</div>`;
-
-    // Row 2: RAG distribution
-    h += `<div style="display:flex;align-items:center;gap:14px;padding:8px 12px;background:#F9FAFB;border:1px solid #E5E7EB;border-radius:6px;margin-bottom:12px;">`;
-    h += `<span style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#9CA3AF;margin-right:4px;">${isVN ? 'Phân bố' : 'Distribution'}</span>`;
-    h += dot('#16A34A', isVN ? 'Xanh' : 'Green', allProjects.filter(p => p.rag === 'green').length);
-    h += dot('#D97706', isVN ? 'Vàng' : 'Amber', amber2.length);
-    h += dot('#DC2626', isVN ? 'Đỏ' : 'Red', red.length);
-    h += `</div>`;
-
-    // Row 3: Status message
-    if (red.length > 0) {
-      h += `<div style="display:flex;align-items:flex-start;gap:8px;padding:10px 12px;background:#FEF2F2;border:1px solid #FECACA;border-radius:6px;font-size:12px;color:#991B1B;">`;
-      h += `<span style="font-weight:700;flex-shrink:0;">!</span>`;
-      h += `<span><strong>${red.length}</strong> ${isVN ? 'dự án đang ở mức ĐỎ — cần xử lý khẩn cấp.' : 'project(s) at RED — immediate action required.'}${overdue2.length > 0 ? ` <strong>${overdue2.length}</strong> ${isVN ? 'dự án đã vượt hạn chót.' : 'project(s) past deadline.'}` : ''} ${isVN ? 'Xem chi tiết tại Phần VII.' : 'See Section VII for escalation actions.'}</span>`;
-      h += `</div>`;
-    } else if (amber2.length > 0) {
-      h += `<div style="display:flex;align-items:flex-start;gap:8px;padding:10px 12px;background:#FFFBEB;border:1px solid #FDE68A;border-radius:6px;font-size:12px;color:#92400E;">`;
-      h += `<span style="font-weight:700;flex-shrink:0;">~</span>`;
-      h += `<span><strong>${amber2.length}</strong> ${isVN ? 'dự án cần theo dõi sát sao trong kỳ tới. Không có leo thang khẩn cấp.' : 'project(s) require close monitoring. No critical escalations at this time.'}</span>`;
-      h += `</div>`;
+    let summaryText: string;
+    if (isVN) {
+      if (red.length > 0) {
+        summaryText = 'Danh mục kỳ này đang đối mặt với một số thách thức cần ưu tiên xử lý. PMO đã xác định rõ các điểm rủi ro và đang triển khai biện pháp can thiệp kịp thời. Chi tiết các hành động cần phê duyệt được trình bày tại Phần VII.';
+      } else if (amber2.length > 0) {
+        summaryText = 'Danh mục kỳ này nhìn chung đang tiến triển đúng hướng. Một số dự án cần được theo dõi thêm và PMO đã có kế hoạch kiểm soát cụ thể. Không có leo thang khẩn cấp trong kỳ này.';
+      } else {
+        summaryText = 'Danh mục kỳ này tiếp tục duy trì đà phát triển tốt. Toàn bộ chương trình đang triển khai đúng tiến độ và trong tầm kiểm soát. Không có leo thang nào cần xử lý.';
+      }
     } else {
-      h += `<div style="display:flex;align-items:flex-start;gap:8px;padding:10px 12px;background:#F0FDF4;border:1px solid #BBF7D0;border-radius:6px;font-size:12px;color:#166534;">`;
-      h += `<span style="font-weight:700;flex-shrink:0;">✓</span>`;
-      h += `<span>${isVN ? 'Tất cả dự án đang triển khai đúng tiến độ. Không có leo thang nào cần xử lý.' : 'All projects on track. No escalations required this period.'}</span>`;
-      h += `</div>`;
+      if (red.length > 0) {
+        summaryText = 'The portfolio faces challenges this period that require priority attention. The PMO has identified the key issues and is actively managing corrective actions. Escalation items requiring approval are detailed in Section VII.';
+      } else if (amber2.length > 0) {
+        summaryText = 'The portfolio is broadly on track this period. A number of projects warrant closer attention and the PMO has plans in place to address them. No critical escalations are required at this time.';
+      } else {
+        summaryText = 'The portfolio continues to perform well this period. All programs are progressing as planned and remain under control. No escalations are required.';
+      }
     }
-    if (data.upcomingMilestones.length > 0) {
-      h += `<div style="margin-top:8px;font-size:12px;color:#6B7280;">▶ <strong>${data.upcomingMilestones.length}</strong> ${isVN ? 'milestone quan trọng đến hạn trong 30 ngày tới — xem chi tiết tại Phần V.' : 'milestone(s) due within 30 days — see Section V for details.'}</div>`;
-    }
+    h += `<div style="background:#FAFAFA;border:1px solid #E5E7EB;border-left:4px solid ${overallStatusCol};border-radius:8px;padding:14px 20px;margin-bottom:22px;">`;
+    h += `<div style="font-size:10px;text-transform:uppercase;letter-spacing:1.2px;color:#9CA3AF;margin-bottom:8px;font-weight:600;">${isVN ? 'Tóm tắt' : 'Summary'}</div>`;
+    h += `<p style="font-size:13px;color:#374151;line-height:1.7;margin:0;">${summaryText}</p>`;
     h += `</div>`;
   }
 
