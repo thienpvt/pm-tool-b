@@ -59,13 +59,24 @@ export async function GET(req: NextRequest) {
 
   // Fetch all activity statuses for weighted completion calculation
   const allActivityRows = await db.all(
-    'SELECT project_id, status, phase FROM activities'
-  ) as { project_id: number; status: string; phase: string }[];
+    'SELECT project_id, status, phase, plan_start, plan_end, actual_start, actual_end FROM activities'
+  ) as { project_id: number; status: string; phase: string; plan_start?: string; plan_end?: string; actual_start?: string; actual_end?: string }[];
 
   // Build weighted stats per project (matching project weekly report logic)
+  type PhaseEntry = { total: number; done: number; weightedSum: number; planStartMin: string | null; planEndMax: string | null; actualStartMin: string | null; actualEndMax: string | null; };
   type ProjectStats = {
     total: number; weightedSum: number; done: number; inProgress: number; notStarted: number;
-    phases: Record<string, { total: number; done: number; weightedSum: number }>;
+    phases: Record<string, PhaseEntry>;
+  };
+  const minDate = (a: string | null, b: string | null | undefined): string | null => {
+    if (!a) return b ?? null;
+    if (!b) return a;
+    return a < b ? a : b;
+  };
+  const maxDate = (a: string | null, b: string | null | undefined): string | null => {
+    if (!a) return b ?? null;
+    if (!b) return a;
+    return a > b ? a : b;
   };
   const actWeightMap: Record<number, ProjectStats> = {};
   for (const row of allActivityRows) {
@@ -81,10 +92,15 @@ export async function GET(req: NextRequest) {
     else s.notStarted++;
 
     const phase = row.phase || 'General';
-    if (!s.phases[phase]) s.phases[phase] = { total: 0, done: 0, weightedSum: 0 };
-    s.phases[phase].total++;
-    s.phases[phase].weightedSum += w;
-    if (w >= 1) s.phases[phase].done++;
+    if (!s.phases[phase]) s.phases[phase] = { total: 0, done: 0, weightedSum: 0, planStartMin: null, planEndMax: null, actualStartMin: null, actualEndMax: null };
+    const ph = s.phases[phase];
+    ph.total++;
+    ph.weightedSum += w;
+    if (w >= 1) ph.done++;
+    ph.planStartMin = minDate(ph.planStartMin, row.plan_start);
+    ph.planEndMax = maxDate(ph.planEndMax, row.plan_end);
+    ph.actualStartMin = minDate(ph.actualStartMin, row.actual_start);
+    ph.actualEndMax = maxDate(ph.actualEndMax, row.actual_end);
   }
 
   const riskMap = Object.fromEntries(riskCounts.map((r: any) => [r.project_id, r]));
@@ -104,9 +120,11 @@ export async function GET(req: NextRequest) {
     const in_progress_activities = actStats.inProgress;
     const not_started_activities = actStats.notStarted;
     const epicStats = Object.entries(actStats.phases)
-      .map(([phase, { total: t, done: d, weightedSum: ws }]) => ({
+      .map(([phase, { total: t, done: d, weightedSum: ws, planStartMin, planEndMax, actualStartMin, actualEndMax }]) => ({
         phase, total: t, done: d,
         pct: t > 0 ? Math.round((ws / t) * 100) : 0,
+        start_date: actualStartMin ?? planStartMin ?? null,
+        end_date: actualEndMax ?? planEndMax ?? null,
       }))
       .sort((a, b) => a.phase.localeCompare(b.phase));
 
@@ -262,7 +280,7 @@ export async function GET(req: NextRequest) {
 }
 
 // ─── POST: AI report generation ───────────────────────────────────────────────
-type EpicStat = { phase: string; pct: number; done: number; total: number };
+type EpicStat = { phase: string; pct: number; done: number; total: number; start_date?: string | null; end_date?: string | null; };
 type ProjectSummary = {
   name: string; program_name: string; current_phase: string;
   completion_pct: number; open_risks: number; open_issues: number;

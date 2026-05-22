@@ -29,7 +29,7 @@ type RecentDone = {
 };
 type CompletedActivity = { id: number; activity: string; deliverable: string; actual_end: string; };
 type CompletedGroup = { project_name: string; program_name: string; current_phase: string; activities: CompletedActivity[]; };
-type EpicStat = { phase: string; total: number; done: number; pct: number };
+type EpicStat = { phase: string; total: number; done: number; pct: number; start_date?: string | null; end_date?: string | null; };
 type ProjectRow = {
   id: number; name: string; program_name: string; client: string; pm_name: string;
   current_phase: string; completion_pct: number; open_risks: number; open_issues: number;
@@ -221,7 +221,9 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
         if (p.epicStats && p.epicStats.length > 0) {
           p.epicStats.forEach(e => {
             const bar = '█'.repeat(Math.round(e.pct / 10)) + '░'.repeat(10 - Math.round(e.pct / 10));
-            lines.push(`      ▸ ${rp(e.phase, 20)}  [${bar}]  ${String(e.pct).padStart(3)}%  (${String(e.done).padStart(2)}/${String(e.total).padStart(2)} US done)`);
+            const sd = e.start_date ?? 'N/A';
+            const ed = e.end_date ?? 'N/A';
+            lines.push(`      ▸ ${rp(e.phase, 20)}  [${bar}]  ${String(e.pct).padStart(3)}%  (${String(e.done).padStart(2)}/${String(e.total).padStart(2)} US)  ${sd} → ${ed}`);
           });
         }
         if (i < sorted.length - 1) lines.push('');
@@ -421,7 +423,9 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
         if (p.epicStats && p.epicStats.length > 0) {
           p.epicStats.forEach(e => {
             const bar = '█'.repeat(Math.round(e.pct / 10)) + '░'.repeat(10 - Math.round(e.pct / 10));
-            lines.push(`      ▸ ${rp(e.phase, 20)}  [${bar}]  ${String(e.pct).padStart(3)}%  (${String(e.done).padStart(2)}/${String(e.total).padStart(2)} US done)`);
+            const sd = e.start_date ?? 'N/A';
+            const ed = e.end_date ?? 'N/A';
+            lines.push(`      ▸ ${rp(e.phase, 20)}  [${bar}]  ${String(e.pct).padStart(3)}%  (${String(e.done).padStart(2)}/${String(e.total).padStart(2)} US)  ${sd} → ${ed}`);
           });
         }
         if (i < sorted.length - 1) lines.push('');
@@ -824,7 +828,7 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
 
   // Pie 1
   const p1Pct = epicsTotal > 0 ? Math.round(epicsDone / epicsTotal * 100) : 0;
-  h += `<div class="rpd-pie-col"><div class="rpd-panel"><div class="rpd-ptitle">${isVN?'Tiến độ phase tổng thể (theo epic)':'Overall Phase Progress (by Epic)'}</div>`;
+  h += `<div class="rpd-pie-col"><div class="rpd-panel"><div class="rpd-ptitle">${isVN?'Tiến độ epic tổng thể':'Overall Epic Progress'}</div>`;
   h += `<div class="rpd-pie-lay"><div style="flex-shrink:0;">${svgDonut(pie1.map(s=>({val:s.val,color:s.color})),140,58,36,p1Pct)}</div><div class="rpd-pie-leg">`;
   pie1.forEach(s => {
     const pct = epicsTotal > 0 ? Math.round(s.val / epicsTotal * 100) : 0;
@@ -856,7 +860,7 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
   }));
 
   h += `<div class="rpd-bar-panel"><div class="rpd-panel">`;
-  h += `<div class="rpd-ptitle">${isVN?'Trạng thái phase theo dự án (Epic)':'Phase Status per Project (Epic)'}</div>`;
+  h += `<div class="rpd-ptitle">${isVN?'Trạng thái epic theo dự án':'Epic Status per Project'}</div>`;
   h += `<div>${svgBarChart(barItems, Math.max(600, barItems.length * 80), 160)}</div>`;
   h += `<div style="display:flex;gap:18px;margin-top:10px;justify-content:center;">`;
   h += `<div style="display:flex;align-items:center;gap:5px;font-size:11px;color:#6B7280;"><div style="width:10px;height:10px;border-radius:2px;background:#16A34A;display:inline-block;"></div>${isVN?'Hoàn thành':'Done'}</div>`;
@@ -867,7 +871,7 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
   h += `<div class="rpd-zsep"></div>`;
 
   // ── Zone 2
-  h += `<div class="rpd-zlbl"><span class="rpd-znum">2</span>${isVN?'Chi tiết dự án & tiến độ Phase':'Project Details & Phase Progress'}</div>`;
+  h += `<div class="rpd-zlbl"><span class="rpd-znum">2</span>${isVN?'Chi tiết dự án & tiến độ Epic':'Project Details & Epic Progress'}</div>`;
 
   // Summary pills (3 per row)
   for (let ri = 0; ri < allProjects.length; ri += 3) {
@@ -880,7 +884,7 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
       h += `<div class="rpd-pill-hd"><div class="rpd-pill-ico" style="background:${color}22;color:${color};">${p.name.slice(0,2).toUpperCase()}</div>`;
       h += `<div style="flex:1;min-width:0;"><p class="rpd-pill-nm">${p.name}</p>${p.program_name?`<p class="rpd-pill-sb">${p.program_name}</p>`:''}</div>`;
       h += `<div style="margin-left:8px;text-align:right;flex-shrink:0;"><div style="font-size:20px;font-weight:700;color:${color};line-height:1;">${p.completion_pct}%</div><div style="font-size:10px;color:${ragC};font-weight:700;margin-top:2px;">${p.rag.toUpperCase()}</div></div></div>`;
-      h += `<div style="font-size:11px;color:#6B7280;margin-bottom:6px;">${(p.epicStats??[]).length} phase &nbsp;·&nbsp; ${p.total_activities??0} activity</div>`;
+      h += `<div style="font-size:11px;color:#6B7280;margin-bottom:6px;">${(p.epicStats??[]).length} epic &nbsp;·&nbsp; ${p.total_activities??0} activity</div>`;
       h += `<div class="rpd-bar-tr"><div class="rpd-bar-fi" style="width:${p.completion_pct}%;background:${color};"></div></div>`;
       if (p.epicStats && p.epicStats.length > 0) {
         h += `<div class="rpd-ep-dots">`;
@@ -908,22 +912,26 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
     h += `<div style="margin-left:auto;display:flex;align-items:center;gap:20px;flex-shrink:0;">`;
     h += `<div style="text-align:center;"><div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;color:#9CA3AF;margin-bottom:3px;">${isVN?'Tiến độ':'Progress'}</div><div style="font-size:22px;font-weight:700;color:${color};line-height:1;">${p.completion_pct}%</div></div>`;
     h += `<div style="text-align:center;"><div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;color:#9CA3AF;margin-bottom:3px;">RAG</div><div style="font-size:12px;font-weight:700;color:${ragC};display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:50%;background:${ragC};display:inline-block;"></span>${p.rag.toUpperCase()}</div></div>`;
-    h += `<div style="text-align:center;"><div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;color:#9CA3AF;margin-bottom:3px;">${isVN?'Phase':'Phases'}</div><div style="font-size:18px;font-weight:700;color:#111827;line-height:1;">${totalEpics}</div></div>`;
+    h += `<div style="text-align:center;"><div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;color:#9CA3AF;margin-bottom:3px;">${isVN?'Epic':'Epics'}</div><div style="font-size:18px;font-weight:700;color:#111827;line-height:1;">${totalEpics}</div></div>`;
     h += `</div></div>`;
     h += `<div class="rpd-pb-bar"><div style="height:2px;background:${color};width:${p.completion_pct}%;"></div></div>`;
     h += `<div class="rpd-pb-body">`;
     if (p.epicStats && p.epicStats.length > 0) {
       h += `<table class="rpd-et"><thead><tr>`;
       h += `<th style="width:4px;padding:6px 4px 8px;"></th>`;
-      h += `<th>${isVN?'Phase / Nhóm công việc':'Phase / Work Group'}</th>`;
+      h += `<th>${isVN?'Epic / Nhóm công việc':'Epic / Work Group'}</th>`;
       h += `<th>${isVN?'Trạng thái':'Status'}</th>`;
-      h += `<th style="min-width:120px;">${isVN?'Tiến độ':'Progress'}</th>`;
-      h += `<th style="text-align:right;width:48px;">%</th>`;
-      h += `<th style="text-align:right;width:72px;">${isVN?'Xong/Tổng':'Done/Total'}</th>`;
+      h += `<th style="min-width:100px;">${isVN?'Tiến độ':'Progress'}</th>`;
+      h += `<th style="text-align:right;width:44px;">%</th>`;
+      h += `<th style="text-align:right;width:68px;">${isVN?'Xong/Tổng':'Done/Total'}</th>`;
+      h += `<th style="text-align:right;width:82px;">${isVN?'Bắt đầu':'Start'}</th>`;
+      h += `<th style="text-align:right;width:82px;">${isVN?'Kết thúc':'End'}</th>`;
       h += `</tr></thead><tbody>`;
       p.epicStats.forEach(e => {
         const st = epicSt(e.pct);
         const ec = epicStCol(st);
+        const sd = e.start_date ? fmtDate(e.start_date) : 'N/A';
+        const ed = e.end_date ? fmtDate(e.end_date) : 'N/A';
         h += `<tr>`;
         h += `<td style="padding:9px 4px;"><div style="width:3px;height:20px;border-radius:2px;background:${ec};"></div></td>`;
         h += `<td style="font-weight:500;color:#111827;">${e.phase}</td>`;
@@ -931,11 +939,13 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
         h += `<td><div class="rpd-pgbar"><div class="rpd-pgfill" style="width:${e.pct}%;background:${ec};"></div></div></td>`;
         h += `<td style="font-weight:700;color:${ec};text-align:right;">${e.pct}%</td>`;
         h += `<td style="color:#9CA3AF;text-align:right;font-size:11px;">${e.done}/${e.total}</td>`;
+        h += `<td style="color:#6B7280;text-align:right;font-size:11px;">${sd}</td>`;
+        h += `<td style="color:#6B7280;text-align:right;font-size:11px;">${ed}</td>`;
         h += `</tr>`;
       });
       h += `</tbody></table>`;
     } else {
-      h += `<p style="color:#9CA3AF;font-size:12px;font-style:italic;margin:0;">${isVN?'Chưa có dữ liệu phase.':'No phase data available.'}</p>`;
+      h += `<p style="color:#9CA3AF;font-size:12px;font-style:italic;margin:0;">${isVN?'Chưa có dữ liệu epic.':'No epic data available.'}</p>`;
     }
     if (p.epicStats && p.epicStats.length > 0) {
       const epicsDoneCount = p.epicStats.filter(e => e.pct >= 100).length;
@@ -1171,7 +1181,7 @@ export default function PortfolioReportPage() {
     el.style.overflow = 'visible';
     try {
       const { toPng } = await import('html-to-image');
-      const dataUrl = await toPng(el, { pixelRatio: 2, backgroundColor: '#FFFFFF', cacheBust: true });
+      const dataUrl = await toPng(el, { pixelRatio: 1.5, backgroundColor: '#FFFFFF', cacheBust: true });
       el.style.overflow = prevOverflow;
       const a = document.createElement('a');
       a.download = `PortfolioReport_${new Date().toISOString().slice(0, 10)}.png`;
@@ -1193,23 +1203,23 @@ export default function PortfolioReportPage() {
     const prevOverflow = el.style.overflow;
     el.style.overflow = 'visible';
     try {
-      const { toPng } = await import('html-to-image');
-      const dataUrl = await toPng(el, { pixelRatio: 2, backgroundColor: '#FFFFFF', cacheBust: true });
+      const { toJpeg } = await import('html-to-image');
+      const dataUrl = await toJpeg(el, { pixelRatio: 1, quality: 0.7, backgroundColor: '#FFFFFF', cacheBust: true });
       el.style.overflow = prevOverflow;
       const { jsPDF } = await import('jspdf');
-      const imgW = el.scrollWidth * 2;
-      const imgH = el.scrollHeight * 2;
+      const imgW = el.scrollWidth;
+      const imgH = el.scrollHeight;
       const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
       const pdfW = pdf.internal.pageSize.getWidth();
       const pdfH = pdf.internal.pageSize.getHeight();
       const scaledH = pdfW * (imgH / imgW);
       let y = 0;
-      pdf.addImage(dataUrl, 'PNG', 0, y, pdfW, scaledH);
+      pdf.addImage(dataUrl, 'JPEG', 0, y, pdfW, scaledH);
       let remaining = scaledH - pdfH;
       while (remaining > 0) {
         y -= pdfH;
         pdf.addPage();
-        pdf.addImage(dataUrl, 'PNG', 0, y, pdfW, scaledH);
+        pdf.addImage(dataUrl, 'JPEG', 0, y, pdfW, scaledH);
         remaining -= pdfH;
       }
       pdf.save(`PortfolioReport_${new Date().toISOString().slice(0, 10)}.pdf`);
