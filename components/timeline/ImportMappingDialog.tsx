@@ -172,6 +172,16 @@ const DELAY_MAP: Record<string, string> = {
   external: 'External', thirdparty: 'External', other: 'External',
 };
 
+const STATUS_WEIGHTS: Record<string, number> = {
+  'ANBM': 1, 'STAGING-READY4TEST': 0.6, 'Deployed': 1, 'Done': 1,
+  'In Dev': 0.2, 'In development': 0.2, 'In Progress': 0.3, 'In Review': 0.5,
+  'In Testing': 0.6, 'New': 0, 'PENDING': 0.5, 'UAT': 1, 'QC Done': 1,
+  'Ready For Dev': 0.2, 'Ready for Test': 0.6, 'Testing': 0.6, 'To Do': 0.1,
+  'To-do': 0.1, 'REFINEMENT': 0.1, 'Re-Open': 0.7, 'READY TO RELEASE': 1,
+  'Passed QC': 1, 'READY4TEST': 0.6, 'READY FOR RELEASE': 1, 'Blocked': 0,
+};
+function statusW(s: string): number { return STATUS_WEIGHTS[s] ?? 0; }
+
 function fuzzyStatus(raw: string): string {
   if (!raw) return 'To-do';
   const n = norm(raw);
@@ -435,6 +445,56 @@ export default function ImportMappingDialog({
     });
   }, [fileData, importRows, jiraMode, mapping, statusOverrides, getRowPhase]);
 
+  // ── Epic status corrections preview (Jira mode) ────────────────────────────
+  type EpicCorrection = { epicKey: string; epicName: string; oldStatus: string; newStatus: string };
+  const epicCorrectionsPreview = useMemo((): EpicCorrection[] => {
+    if (!fileData || !jiraMode) return [];
+    const actIdx2   = mapping['activity']    && mapping['activity']    !== SKIP ? fileData.columns.indexOf(mapping['activity'])    : -1;
+    const keyIdx2   = mapping['jira_key']    && mapping['jira_key']    !== SKIP ? fileData.columns.indexOf(mapping['jira_key'])    : -1;
+    const statIdx2  = mapping['status']      && mapping['status']      !== SKIP ? fileData.columns.indexOf(mapping['status'])      : -1;
+    const typeIdx2  = mapping['_issue_type'] && mapping['_issue_type'] !== SKIP ? fileData.columns.indexOf(mapping['_issue_type']) : -1;
+    const parIdx2   = mapping['_parent']     && mapping['_parent']     !== SKIP ? fileData.columns.indexOf(mapping['_parent'])     : -1;
+
+    const epicInfo: Record<string, { name: string; status: string }> = {};
+    const epicChildren: Record<string, string[]> = {};
+    const childStatus: Record<string, string> = {};
+    let genId = 0;
+
+    for (const row of importRows) {
+      if (actIdx2 >= 0 && !row[actIdx2]?.trim()) continue;
+      const issueType = typeIdx2 >= 0 ? (row[typeIdx2]?.trim().toLowerCase() ?? '') : '';
+      const key = keyIdx2 >= 0 ? (row[keyIdx2]?.trim() ?? '') : '';
+      const resolved = resolveField('status', statIdx2 >= 0 ? (row[statIdx2]?.trim() ?? '') : '', statusOverrides);
+      const name = actIdx2 >= 0 ? (row[actIdx2]?.trim() ?? '') : '';
+
+      if (issueType === 'epic') {
+        if (key) { epicInfo[key] = { name, status: resolved }; epicChildren[key] = epicChildren[key] ?? []; }
+      } else {
+        const parentKey = parIdx2 >= 0 ? (row[parIdx2]?.trim() ?? '') : '';
+        if (parentKey) {
+          epicChildren[parentKey] = epicChildren[parentKey] ?? [];
+          const cKey = key || `__g${genId++}`;
+          epicChildren[parentKey].push(cKey);
+          childStatus[cKey] = resolved;
+        }
+      }
+    }
+
+    return Object.entries(epicInfo).flatMap(([epicKey, info]) => {
+      const children = epicChildren[epicKey] ?? [];
+      if (children.length === 0) return [];
+      const ws = children.map(k => statusW(childStatus[k] ?? 'To-do'));
+      const ew = statusW(info.status);
+      const allDone    = ws.every(w => w >= 1);
+      const anyStarted = ws.some(w => w > 0);
+      let newStatus: string | null = null;
+      if (allDone && ew < 1) newStatus = 'Done';
+      else if (anyStarted && ew === 0) newStatus = 'In Progress';
+      if (!newStatus || newStatus === info.status) return [];
+      return [{ epicKey, epicName: info.name, oldStatus: info.status, newStatus }];
+    });
+  }, [fileData, jiraMode, importRows, mapping, statusOverrides]);
+
   // ── Upsert stats ───────────────────────────────────────────────────────────
   const upsertStats = useMemo(() => {
     if (!fileData) return { newCount: 0, overwriteCount: 0 };
@@ -480,6 +540,22 @@ export default function ImportMappingDialog({
     const isEpicRow = (row: string[]) =>
       issueTypeColIdx2 >= 0 && row[issueTypeColIdx2]?.trim().toLowerCase() === 'epic';
 
+    // Build epicKey → childJiraKeys map for status correction
+    const epicKeyToChildKeys = new Map<string, string[]>();
+    if (jiraMode) {
+      const parColIdx = mapping['_parent'] && mapping['_parent'] !== SKIP
+        ? fileData.columns.indexOf(mapping['_parent']) : -1;
+      for (const row of rows) {
+        if (!row[activityIdx]?.trim() || isEpicRow(row)) continue;
+        const parentKey = parColIdx >= 0 ? (row[parColIdx]?.trim() ?? '') : '';
+        const childKey = get(row, 'jira_key');
+        if (parentKey && childKey) {
+          if (!epicKeyToChildKeys.has(parentKey)) epicKeyToChildKeys.set(parentKey, []);
+          epicKeyToChildKeys.get(parentKey)!.push(childKey);
+        }
+      }
+    }
+
     const activities = rows
       .filter(row => row[activityIdx]?.trim())
       .map(row => ({
@@ -503,6 +579,23 @@ export default function ImportMappingDialog({
         jira_key:      get(row, 'jira_key'),
         sprint:        get(row, 'sprint'),
       }));
+
+    // Correct epic statuses based on children (Jira mode only)
+    if (jiraMode && epicKeyToChildKeys.size > 0) {
+      const actByKey = new Map(activities.filter(a => a.jira_key).map(a => [a.jira_key, a]));
+      for (const act of activities) {
+        if (act.no !== 'EPIC' || !act.jira_key) continue;
+        const childKeys = epicKeyToChildKeys.get(act.jira_key) ?? [];
+        if (childKeys.length === 0) continue;
+        const children = childKeys.map(k => actByKey.get(k)).filter((a): a is NonNullable<typeof a> => a != null);
+        const ws = children.map(c => statusW(c.status ?? 'To-do'));
+        const ew = statusW(act.status ?? 'To-do');
+        const allDone    = ws.length > 0 && ws.every(w => w >= 1);
+        const anyStarted = ws.some(w => w > 0);
+        if (allDone && ew < 1) act.status = 'Done';
+        else if (anyStarted && ew === 0) act.status = 'In Progress';
+      }
+    }
 
     try {
       const res = await fetch(`/api/projects/${projectId}/activities/import`, {
@@ -1014,6 +1107,30 @@ export default function ImportMappingDialog({
                   <Check className="h-4 w-4 text-green-500 shrink-0" />
                   <span className="font-semibold">{upsertStats.newCount} activity mới</span>
                   <span className="text-green-600">· Không có key nào bị ghi đè</span>
+                </div>
+              )}
+
+              {epicCorrectionsPreview.length > 0 && (
+                <div className="flex flex-col gap-1.5 bg-blue-50 border border-blue-200 rounded-lg px-4 py-2.5 text-xs text-blue-800">
+                  <div className="flex items-center gap-2">
+                    <svg className="h-4 w-4 text-blue-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                    <span className="font-semibold">Tự động sửa {epicCorrectionsPreview.length} Epic status</span>
+                    <span className="text-blue-600">· Status của children không khớp với Epic</span>
+                  </div>
+                  <div className="pl-6 space-y-0.5 max-h-28 overflow-y-auto">
+                    {epicCorrectionsPreview.map(c => (
+                      <div key={c.epicKey} className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-mono text-[10px] text-blue-500 shrink-0">[{c.epicKey}]</span>
+                        <span className="text-blue-700 max-w-[200px] truncate">{c.epicName}</span>
+                        <span className="text-blue-300">·</span>
+                        <span className="text-red-500 line-through">{c.oldStatus || 'To-do'}</span>
+                        <span className="text-blue-400">→</span>
+                        <span className={`font-semibold ${c.newStatus === 'Done' ? 'text-green-700' : 'text-amber-700'}`}>{c.newStatus}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
 
