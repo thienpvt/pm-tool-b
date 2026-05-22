@@ -1312,11 +1312,11 @@ export default function PortfolioReportPage() {
     el.style.overflow = 'visible';
     try {
       const { toJpeg } = await import('html-to-image');
-      const dataUrl = await toJpeg(el, { pixelRatio: 1.5, quality: 0.82, backgroundColor: '#FFFFFF', cacheBust: true });
+      const dataUrl = await toJpeg(el, { pixelRatio: 3, quality: 0.95, backgroundColor: '#FFFFFF', cacheBust: true });
       el.style.overflow = prevOverflow;
       const { jsPDF } = await import('jspdf');
-      const imgW = el.scrollWidth * 1.5;
-      const imgH = el.scrollHeight * 1.5;
+      const imgW = el.scrollWidth * 3;
+      const imgH = el.scrollHeight * 3;
       const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
       const pdfW = pdf.internal.pageSize.getWidth();
       const pdfH = pdf.internal.pageSize.getHeight();
