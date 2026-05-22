@@ -151,6 +151,9 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
   const box1 = '  ╔' + '═'.repeat(92) + '╗';
   const box2 = '  ╚' + '═'.repeat(92) + '╝';
   const boxL = (s: string) => { const p = 92 - s.length; return `  ║${' '.repeat(Math.floor(p/2))}${s}${' '.repeat(p - Math.floor(p/2))}║`; };
+  const sboxL = (s: string) => `  │ ${s}${' '.repeat(Math.max(0, 90 - s.length))} │`;
+  const sbox1 = `  ┌${'─'.repeat(92)}┐`;
+  const sbox2 = `  └${'─'.repeat(92)}┘`;
 
   if (isVN) {
     // ── Header ───────────────────────────────────────────────────────────────
@@ -163,6 +166,36 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
     lines.push(`  Kỳ báo cáo    : ${periodStart} → ${periodEnd}`);
     lines.push(`  Phân loại      : Bảo mật — Chỉ dành cho nội bộ`);
     lines.push(`  Phân phối      : CEO, Steering Committee, Portfolio Manager`);
+    lines.push('');
+
+    // ── Summary Statement ────────────────────────────────────────────────────
+    lines.push(sbox1);
+    lines.push(sboxL('THƯ TRÌNH BAN LÃNH ĐẠO'));
+    lines.push(sboxL(''));
+    lines.push(sboxL('Kính trình Quý Ban Lãnh Đạo,'));
+    lines.push(sboxL(''));
+    if (red.length > 0) {
+      lines.push(sboxL(`Danh mục ${data.kpi.totalProjects} dự án trên ${data.kpi.totalPrograms} chương trình đang ở mức cảnh báo ĐỎ, với ${red.length} dự án`));
+      lines.push(sboxL(`cần xử lý khẩn cấp. Tiến độ hoàn thành trung bình toàn danh mục đạt ${data.kpi.avgCompletion}%.`));
+      if (overdue.length > 0) {
+        lines.push(sboxL(`Có ${overdue.length} dự án đã vượt hạn chót, cần hành động ngay lập tức.`));
+      }
+      lines.push(sboxL(`PMO kính đề nghị Quý Ban xem xét và ra quyết định về các hành động leo thang tại Mục VII.`));
+    } else if (amber.length > 0) {
+      lines.push(sboxL(`Danh mục ${data.kpi.totalProjects} dự án trên ${data.kpi.totalPrograms} chương trình đang ở mức cảnh báo VÀNG, tiến độ trung bình`));
+      lines.push(sboxL(`đạt ${data.kpi.avgCompletion}%, với ${amber.length} dự án cần theo dõi sát sao trong kỳ tới.`));
+      lines.push(sboxL(`PMO đang triển khai các biện pháp kiểm soát phù hợp và sẽ báo cáo kịp thời.`));
+    } else {
+      lines.push(sboxL(`Toàn bộ ${data.kpi.totalProjects} dự án trên ${data.kpi.totalPrograms} chương trình đang triển khai đúng tiến độ, hoàn thành trung bình`));
+      lines.push(sboxL(`${data.kpi.avgCompletion}%. Danh mục ở trạng thái XANH — không có leo thang nào cần xử lý trong kỳ này.`));
+    }
+    if (data.upcomingMilestones.length > 0) {
+      lines.push(sboxL(''));
+      lines.push(sboxL(`Kính lưu ý: Có ${data.upcomingMilestones.length} milestone quan trọng cần hoàn thành trong 30 ngày tới.`));
+    }
+    lines.push(sboxL(''));
+    lines.push(sboxL('Trân trọng kính báo,  Program Management Office'));
+    lines.push(sbox2);
     lines.push('');
 
     // ── I. Executive Summary ─────────────────────────────────────────────────
@@ -365,6 +398,36 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
     lines.push(`  Reporting Period: ${periodStart} → ${periodEnd}`);
     lines.push(`  Classification : Confidential — Internal Distribution Only`);
     lines.push(`  Distribution   : CEO, Steering Committee, Portfolio Manager`);
+    lines.push('');
+
+    // ── Summary Statement ────────────────────────────────────────────────────
+    lines.push(sbox1);
+    lines.push(sboxL('MESSAGE TO LEADERSHIP'));
+    lines.push(sboxL(''));
+    lines.push(sboxL('Dear Leadership Team,'));
+    lines.push(sboxL(''));
+    if (red.length > 0) {
+      lines.push(sboxL(`The portfolio of ${data.kpi.totalProjects} projects across ${data.kpi.totalPrograms} program(s) is at RED status, with ${red.length} project(s)`));
+      lines.push(sboxL(`requiring immediate escalation. Average portfolio completion stands at ${data.kpi.avgCompletion}%.`));
+      if (overdue.length > 0) {
+        lines.push(sboxL(`${overdue.length} project(s) are currently past their deadline and require immediate action.`));
+      }
+      lines.push(sboxL(`The PMO respectfully requests leadership review of the escalation actions in Section VII.`));
+    } else if (amber.length > 0) {
+      lines.push(sboxL(`The portfolio of ${data.kpi.totalProjects} projects across ${data.kpi.totalPrograms} program(s) is at AMBER status, with an average`));
+      lines.push(sboxL(`completion of ${data.kpi.avgCompletion}% and ${amber.length} project(s) requiring close monitoring in the coming period.`));
+      lines.push(sboxL(`The PMO has appropriate control measures in place and will provide regular updates.`));
+    } else {
+      lines.push(sboxL(`All ${data.kpi.totalProjects} projects across ${data.kpi.totalPrograms} program(s) are progressing on schedule, with an average`));
+      lines.push(sboxL(`completion rate of ${data.kpi.avgCompletion}%. The portfolio is at GREEN status — no escalations required.`));
+    }
+    if (data.upcomingMilestones.length > 0) {
+      lines.push(sboxL(''));
+      lines.push(sboxL(`Note: ${data.upcomingMilestones.length} milestone(s) are due within the next 30 days and warrant attention.`));
+    }
+    lines.push(sboxL(''));
+    lines.push(sboxL('Respectfully submitted,  Program Management Office'));
+    lines.push(sbox2);
     lines.push('');
 
     // ── I. Executive Summary ─────────────────────────────────────────────────
@@ -807,6 +870,44 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
   h += `<div style="flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:4px;">`;
   h += `<span style="display:inline-flex;align-items:center;gap:6px;background:${overallStatusCol}18;border:1px solid ${overallStatusCol}55;color:${overallStatusCol};padding:5px 14px;border-radius:4px;font-size:11px;font-weight:700;letter-spacing:1px;">&#9679; ${overallStatus}</span>`;
   h += `</div></div>`;
+
+  // ── Summary Statement ─────────────────────────────────────────────────────
+  {
+    const amber2 = allProjects.filter(p => p.rag === 'amber');
+    const overdue2 = allProjects.filter(p => p.days_until_deadline !== null && p.days_until_deadline < 0);
+    const stmtParts: string[] = [];
+    if (isVN) {
+      if (red.length > 0) {
+        stmtParts.push(`Danh mục <strong>${data.kpi.totalProjects}</strong> dự án trên <strong>${data.kpi.totalPrograms}</strong> chương trình đang ở mức cảnh báo <strong style="color:${overallStatusCol}">ĐỎ</strong>, với <strong>${red.length}</strong> dự án cần xử lý khẩn cấp. Tiến độ hoàn thành trung bình toàn danh mục đạt <strong>${data.kpi.avgCompletion}%</strong>.`);
+        if (overdue2.length > 0) stmtParts.push(`Hiện có <strong>${overdue2.length}</strong> dự án đã vượt hạn chót, cần hành động ngay lập tức.`);
+        stmtParts.push(`PMO kính đề nghị Quý Ban xem xét và ra quyết định về các hành động leo thang được trình bày chi tiết tại Phần VII của báo cáo này.`);
+      } else if (amber2.length > 0) {
+        stmtParts.push(`Danh mục <strong>${data.kpi.totalProjects}</strong> dự án trên <strong>${data.kpi.totalPrograms}</strong> chương trình đang ở mức cảnh báo <strong style="color:${overallStatusCol}">VÀNG</strong>, với tiến độ hoàn thành trung bình <strong>${data.kpi.avgCompletion}%</strong> và <strong>${amber2.length}</strong> dự án cần theo dõi sát sao trong kỳ tới.`);
+        stmtParts.push(`PMO đang triển khai các biện pháp kiểm soát phù hợp và sẽ cập nhật tình hình thường xuyên tới Quý Ban.`);
+      } else {
+        stmtParts.push(`Toàn bộ <strong>${data.kpi.totalProjects}</strong> dự án trên <strong>${data.kpi.totalPrograms}</strong> chương trình đang triển khai đúng tiến độ, với mức hoàn thành trung bình <strong>${data.kpi.avgCompletion}%</strong>. Danh mục ở trạng thái <strong style="color:${overallStatusCol}">XANH</strong> — không ghi nhận rủi ro hoặc leo thang nào cần thiết trong kỳ này.`);
+      }
+      if (data.upcomingMilestones.length > 0) stmtParts.push(`Lưu ý: Có <strong>${data.upcomingMilestones.length}</strong> milestone quan trọng dự kiến đến hạn trong 30 ngày tới, kính đề nghị Quý Ban lưu tâm theo dõi.`);
+    } else {
+      if (red.length > 0) {
+        stmtParts.push(`The portfolio of <strong>${data.kpi.totalProjects}</strong> projects across <strong>${data.kpi.totalPrograms}</strong> program(s) is at <strong style="color:${overallStatusCol}">RED</strong> status, with <strong>${red.length}</strong> project(s) requiring immediate escalation. Average portfolio completion stands at <strong>${data.kpi.avgCompletion}%</strong>.`);
+        if (overdue2.length > 0) stmtParts.push(`<strong>${overdue2.length}</strong> project(s) are currently past their deadline and require immediate action.`);
+        stmtParts.push(`The PMO respectfully requests the Leadership Team to review and decide on the escalation actions detailed in Section VII of this report.`);
+      } else if (amber2.length > 0) {
+        stmtParts.push(`The portfolio of <strong>${data.kpi.totalProjects}</strong> projects across <strong>${data.kpi.totalPrograms}</strong> program(s) is at <strong style="color:${overallStatusCol}">AMBER</strong> status, with an average completion of <strong>${data.kpi.avgCompletion}%</strong> and <strong>${amber2.length}</strong> project(s) requiring close monitoring in the coming period.`);
+        stmtParts.push(`The PMO has appropriate control measures in place and will provide regular updates to the Leadership Team.`);
+      } else {
+        stmtParts.push(`All <strong>${data.kpi.totalProjects}</strong> projects across <strong>${data.kpi.totalPrograms}</strong> program(s) are progressing on schedule, with an average completion rate of <strong>${data.kpi.avgCompletion}%</strong>. The portfolio is at <strong style="color:${overallStatusCol}">GREEN</strong> status — no critical risks or escalations are required at this time.`);
+      }
+      if (data.upcomingMilestones.length > 0) stmtParts.push(`Note: <strong>${data.upcomingMilestones.length}</strong> significant milestone(s) are due within the next 30 days and warrant continued attention.`);
+    }
+    h += `<div style="background:#FAFAFA;border:1px solid #E5E7EB;border-left:4px solid ${overallStatusCol};border-radius:8px;padding:18px 22px;margin-bottom:22px;">`;
+    h += `<div style="font-size:10px;text-transform:uppercase;letter-spacing:1.2px;color:#9CA3AF;margin-bottom:10px;font-weight:600;">${isVN ? 'Thư trình Ban Lãnh Đạo' : 'Message to Leadership'}</div>`;
+    h += `<p style="font-size:12px;color:#6B7280;margin:0 0 10px;font-style:italic;">${isVN ? 'Kính trình Quý Ban Lãnh Đạo,' : 'Dear Leadership Team,'}</p>`;
+    h += `<div style="font-size:13px;color:#1E293B;line-height:1.75;">${stmtParts.map(p => `<p style="margin:0 0 8px;">${p}</p>`).join('')}</div>`;
+    h += `<p style="font-size:12px;color:#6B7280;margin:10px 0 0;font-style:italic;">${isVN ? 'Trân trọng kính báo, — <em>Program Management Office</em>' : 'Respectfully submitted, — <em>Program Management Office</em>'}</p>`;
+    h += `</div>`;
+  }
 
   // ── Pie 1: Epic-based overall status
   const pie1 = [
