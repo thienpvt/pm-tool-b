@@ -965,6 +965,47 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
     h += `</div></div>`;
   });
 
+  // ── Legend / Annotation
+  h += `<div class="rpd-zsep"></div>`;
+  h += `<div class="rpd-zlbl"><span class="rpd-znum" style="background:#6B7280;">?</span>${isVN?'Chú thích & Phương pháp tính':'Legend & Methodology'}</div>`;
+  h += `<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:20px;">`;
+
+  // RAG legend
+  h += `<div class="rpd-panel">`;
+  h += `<div class="rpd-ptitle">${isVN?'Chỉ số sức khỏe RAG':'RAG Health Indicator'}</div>`;
+  h += `<div style="display:flex;flex-direction:column;gap:8px;font-size:12px;">`;
+  h += `<div style="display:flex;align-items:flex-start;gap:8px;"><span style="margin-top:2px;width:10px;height:10px;border-radius:50%;background:#DC2626;flex-shrink:0;display:inline-block;"></span><div><strong style="color:#DC2626;">RED</strong><br><span style="color:#6B7280;font-size:11px;">${isVN?'Deadline quá hạn HOẶC ≥3 risks mở':'Past deadline OR ≥3 open risks'}</span></div></div>`;
+  h += `<div style="display:flex;align-items:flex-start;gap:8px;"><span style="margin-top:2px;width:10px;height:10px;border-radius:50%;background:#D97706;flex-shrink:0;display:inline-block;"></span><div><strong style="color:#D97706;">AMBER</strong><br><span style="color:#6B7280;font-size:11px;">${isVN?'Deadline ≤14 ngày HOẶC ≥1 risk/issue mở HOẶC tiến độ <30%':'Deadline ≤14 days OR ≥1 open risk/issue OR progress <30%'}</span></div></div>`;
+  h += `<div style="display:flex;align-items:flex-start;gap:8px;"><span style="margin-top:2px;width:10px;height:10px;border-radius:50%;background:#16A34A;flex-shrink:0;display:inline-block;"></span><div><strong style="color:#16A34A;">GREEN</strong><br><span style="color:#6B7280;font-size:11px;">${isVN?'Không có điều kiện nào ở trên. Phase Closing → luôn GREEN.':'None of the above conditions. Phase Closing → always GREEN.'}</span></div></div>`;
+  h += `</div></div>`;
+
+  // Completion % legend
+  h += `<div class="rpd-panel">`;
+  h += `<div class="rpd-ptitle">${isVN?'Cách tính tiến độ (weighted)':'Progress Calculation (weighted)'}</div>`;
+  h += `<div style="font-size:11px;color:#6B7280;line-height:1.7;">`;
+  h += `<div>${isVN?'Tiến độ = Σ(trọng số trạng thái) / Tổng activity':'Progress = Σ(status weight) / Total activities'}</div>`;
+  h += `<div style="margin-top:8px;display:flex;flex-direction:column;gap:3px;">`;
+  h += `<div style="display:flex;justify-content:space-between;"><span>Done / Deployed / UAT</span><strong style="color:#16A34A;">1.0</strong></div>`;
+  h += `<div style="display:flex;justify-content:space-between;"><span>Re-Open / QC Done</span><strong style="color:#16A34A;">0.7 – 1.0</strong></div>`;
+  h += `<div style="display:flex;justify-content:space-between;"><span>In Testing / PENDING</span><strong style="color:#3B82F6;">0.5 – 0.6</strong></div>`;
+  h += `<div style="display:flex;justify-content:space-between;"><span>In Review / In Progress</span><strong style="color:#D97706;">0.3 – 0.5</strong></div>`;
+  h += `<div style="display:flex;justify-content:space-between;"><span>In Dev / Ready For Dev</span><strong style="color:#D97706;">0.2</strong></div>`;
+  h += `<div style="display:flex;justify-content:space-between;"><span>To Do / REFINEMENT</span><strong style="color:#9CA3AF;">0.1</strong></div>`;
+  h += `<div style="display:flex;justify-content:space-between;"><span>New / Blocked</span><strong style="color:#DC2626;">0.0</strong></div>`;
+  h += `</div></div></div>`;
+
+  // Epic status legend
+  h += `<div class="rpd-panel">`;
+  h += `<div class="rpd-ptitle">${isVN?'Trạng thái Epic':'Epic Status'}</div>`;
+  h += `<div style="font-size:11px;color:#6B7280;line-height:1.7;">`;
+  h += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><div style="width:10px;height:10px;border-radius:2px;background:#16A34A;"></div><span>${isVN?'Hoàn thành: tiến độ epic = 100%':'Done: epic progress = 100%'}</span></div>`;
+  h += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><div style="width:10px;height:10px;border-radius:2px;background:#3B82F6;"></div><span>${isVN?'Đang triển khai: 1% – 99%':'In Progress: 1% – 99%'}</span></div>`;
+  h += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;"><div style="width:10px;height:10px;border-radius:2px;background:#D1D5DB;border:1px solid #9CA3AF;"></div><span>${isVN?'Chưa bắt đầu: tiến độ epic = 0%':'Not Started: epic progress = 0%'}</span></div>`;
+  h += `<div style="color:#9CA3AF;font-size:10px;border-top:1px solid #E5E7EB;padding-top:8px;">${isVN?'Start/End date: ưu tiên ngày thực tế (actual), fallback về ngày kế hoạch (plan). Hiển thị N/A nếu chưa có dữ liệu.':'Start/End date: actual dates preferred, fallback to planned dates. Shows N/A if no data.'}</div>`;
+  h += `</div></div>`;
+
+  h += `</div>`; // grid
+
   // ── Footer
   h += `<div class="rpd-ft">`;
   h += `<p class="rpd-ft-brand">${companyName}</p>`;
@@ -1204,11 +1245,11 @@ export default function PortfolioReportPage() {
     el.style.overflow = 'visible';
     try {
       const { toJpeg } = await import('html-to-image');
-      const dataUrl = await toJpeg(el, { pixelRatio: 1, quality: 0.7, backgroundColor: '#FFFFFF', cacheBust: true });
+      const dataUrl = await toJpeg(el, { pixelRatio: 1.5, quality: 0.82, backgroundColor: '#FFFFFF', cacheBust: true });
       el.style.overflow = prevOverflow;
       const { jsPDF } = await import('jspdf');
-      const imgW = el.scrollWidth;
-      const imgH = el.scrollHeight;
+      const imgW = el.scrollWidth * 1.5;
+      const imgH = el.scrollHeight * 1.5;
       const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
       const pdfW = pdf.internal.pageSize.getWidth();
       const pdfH = pdf.internal.pageSize.getHeight();
