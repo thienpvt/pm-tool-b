@@ -888,7 +888,7 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
   // ── Topbar
   h += `<div class="rpd-tb">`;
   h += `<div><p class="rpd-tb-l">${companyName} &nbsp;/&nbsp; ${isVN ? 'Báo cáo tổng thể danh mục' : 'Portfolio Status Report'}</p>`;
-  h += `<p class="rpd-tb-s">${isVN ? 'Báo cáo điều hành' : 'Executive Report'} &nbsp;·&nbsp; ${quarter}</p></div>`;
+  h += `<p class="rpd-tb-s">${quarter}</p></div>`;
   h += `<div style="text-align:right;"><div style="font-size:11px;color:#6B7280;">${today}</div><div style="font-size:10px;color:#9CA3AF;margin-top:2px;">PMO-${yyyymm}-001</div></div>`;
   h += `</div>`;
 
