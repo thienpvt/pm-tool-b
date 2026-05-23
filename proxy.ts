@@ -9,6 +9,7 @@ export function proxy(req: NextRequest) {
 
   const session = req.cookies.get('pm_session');
   if (!session?.value) {
+    if (pathname === '/') return NextResponse.redirect(new URL('/landing', req.url));
     const url = new URL('/login', req.url);
     url.searchParams.set('from', pathname);
     return NextResponse.redirect(url);
