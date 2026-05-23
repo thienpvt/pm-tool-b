@@ -68,23 +68,6 @@ const FEATURES = [
   },
 ];
 
-const STEPS = [
-  {
-    number: '01',
-    title: 'Set up your portfolio',
-    desc: 'Create programs, add projects, and invite your team. Onboarding takes minutes — no complex configuration required.',
-  },
-  {
-    number: '02',
-    title: 'Track every project',
-    desc: 'Log activities, update status, manage risks and issues. Everything your PMO needs, in a single workspace.',
-  },
-  {
-    number: '03',
-    title: 'Report with confidence',
-    desc: 'Generate AI-written executive summaries and portfolio reports. Export to PDF, PowerPoint, or Word on demand.',
-  },
-];
 
 const CAPABILITIES = [
   { icon: BarChart3,  value: '360°',    label: 'Portfolio visibility', sub: 'All projects. One dashboard.' },
@@ -342,32 +325,200 @@ export default function LandingPage() {
       </section>
 
       {/* ── How it works ─────────────────────────────────────────────────────── */}
-      <section id="how-it-works" className="py-24 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <p className="text-sm font-bold text-blue-600 uppercase tracking-widest mb-3">How it works</p>
-            <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
+      <section id="how-it-works" className="py-24 bg-[#0a0f1e] overflow-hidden">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-20">
+            <p className="text-sm font-bold text-blue-400 uppercase tracking-widest mb-3">How it works</p>
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
               Up and running in minutes
             </h2>
+            <p className="mt-3 text-slate-400 text-sm max-w-md mx-auto">Three steps from sign-up to your first AI-powered portfolio report.</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
-            {/* Connector line (desktop) */}
-            <div className="hidden md:block absolute top-8 left-1/4 right-1/4 h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent" />
+          <div className="space-y-16">
 
-            {STEPS.map((step, i) => (
-              <div key={step.number} className="relative flex flex-col items-center text-center px-4">
-                <div className={`w-16 h-16 rounded-2xl flex items-center justify-center text-2xl font-extrabold mb-5 shadow-sm ${
-                  i === 0 ? 'bg-blue-600 text-white' :
-                  i === 1 ? 'bg-blue-50 text-blue-700 border border-blue-200' :
-                            'bg-slate-50 text-slate-700 border border-slate-200'
-                }`}>
-                  {step.number}
+            {/* ── Step 01 ── */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
+              <div className="relative">
+                <div className="absolute -top-6 -left-4 text-[120px] font-black text-blue-600/10 leading-none select-none pointer-events-none">01</div>
+                <div className="relative">
+                  <span className="inline-flex items-center gap-1.5 bg-blue-600/20 border border-blue-500/30 text-blue-400 text-xs font-bold px-3 py-1 rounded-full mb-4">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-400" /> Step 01
+                  </span>
+                  <h3 className="text-2xl font-extrabold text-white mb-3">Set up your portfolio</h3>
+                  <p className="text-slate-400 leading-relaxed mb-5">Create your workspace in minutes. Add programs, projects, and invite your team. No complex config — the onboarding wizard walks you through everything.</p>
+                  <div className="flex flex-col gap-2">
+                    {['Create company workspace & invite team', 'Organise projects into programs', 'Import activities from Excel or start fresh'].map(t => (
+                      <div key={t} className="flex items-center gap-2.5 text-sm text-slate-300">
+                        <CheckCircle2 className="h-4 w-4 text-green-400 shrink-0" />{t}
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <h3 className="text-base font-bold text-slate-900 mb-2">{step.title}</h3>
-                <p className="text-sm text-slate-500 leading-relaxed">{step.desc}</p>
               </div>
-            ))}
+              {/* Illustration: Onboarding card */}
+              <div className="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 shadow-xl">
+                <div className="flex items-center gap-3 mb-5">
+                  <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center shrink-0">
+                    <KoinoboriIcon className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-white font-bold text-sm">Welcome to Gambaru</p>
+                    <p className="text-slate-400 text-xs">Let&apos;s set up your workspace</p>
+                  </div>
+                  <div className="ml-auto text-[10px] text-slate-500">1 / 4</div>
+                </div>
+                <div className="space-y-3">
+                  <div>
+                    <p className="text-[11px] text-slate-400 mb-1.5 font-medium">Company name</p>
+                    <div className="bg-slate-700/60 border border-slate-600 rounded-lg px-3 py-2.5 text-sm text-white flex items-center justify-between">
+                      <span>ACME Corporation</span>
+                      <span className="w-2 h-4 bg-blue-400 rounded-sm animate-pulse" />
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-[11px] text-slate-400 mb-1.5 font-medium">First project name</p>
+                    <div className="bg-slate-700/60 border border-blue-500/50 rounded-lg px-3 py-2.5 text-sm text-white">Digital Banking Portal</div>
+                  </div>
+                  <div>
+                    <p className="text-[11px] text-slate-400 mb-1.5 font-medium">Current phase</p>
+                    <div className="flex gap-1.5">
+                      {(['Initiation', 'Planning', 'Execution', 'Closing'] as const).map((ph, i) => (
+                        <span key={ph} className={`flex-1 text-center py-1.5 rounded-lg text-[10px] font-semibold ${i === 1 ? 'bg-blue-600 text-white' : 'bg-slate-700/60 text-slate-400'}`}>{ph}</span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-4 bg-blue-600 hover:bg-blue-500 transition-colors rounded-xl py-2.5 text-center text-sm font-bold text-white cursor-default">
+                  Continue →
+                </div>
+              </div>
+            </div>
+
+            {/* Vertical connector */}
+            <div className="flex justify-center">
+              <div className="w-px h-8 bg-gradient-to-b from-slate-700 to-transparent" />
+            </div>
+
+            {/* ── Step 02 ── */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
+              {/* Illustration first on desktop */}
+              <div className="order-2 lg:order-1 bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 shadow-xl">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <p className="text-white font-bold text-sm">Digital Banking Portal</p>
+                    <p className="text-slate-400 text-xs mt-0.5">Execution phase · 4 active tasks</p>
+                  </div>
+                  <span className="flex items-center gap-1 text-[10px] font-bold text-green-400 bg-green-400/10 border border-green-400/20 px-2 py-1 rounded-full">
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-400" />GREEN
+                  </span>
+                </div>
+                <div className="space-y-2 mb-4">
+                  {[
+                    { task: 'Requirements gathering', done: true,  pct: 100 },
+                    { task: 'Architecture design',    done: true,  pct: 100 },
+                    { task: 'Backend development',    done: false, pct: 75  },
+                    { task: 'Integration testing',    done: false, pct: 20  },
+                  ].map(t => (
+                    <div key={t.task} className="flex items-center gap-3 bg-slate-700/40 rounded-lg px-3 py-2.5">
+                      <div className={`w-4 h-4 rounded-md flex items-center justify-center shrink-0 ${t.done ? 'bg-green-500' : 'border border-slate-500 bg-slate-700'}`}>
+                        {t.done && <svg className="w-3 h-3 text-white" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                      </div>
+                      <span className={`text-xs flex-1 ${t.done ? 'text-slate-500 line-through' : 'text-slate-200'}`}>{t.task}</span>
+                      <div className="w-14 h-1.5 bg-slate-600 rounded-full shrink-0">
+                        <div className={`h-full rounded-full ${t.pct === 100 ? 'bg-green-500' : t.pct >= 50 ? 'bg-blue-500' : 'bg-amber-500'}`} style={{ width: `${t.pct}%` }} />
+                      </div>
+                      <span className="text-[10px] text-slate-400 w-6 text-right shrink-0">{t.pct}%</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex items-center gap-3 pt-3 border-t border-slate-700">
+                  <span className="text-[11px] text-slate-400 shrink-0">Portfolio progress</span>
+                  <div className="flex-1 h-2 bg-slate-700 rounded-full overflow-hidden">
+                    <div className="h-full bg-gradient-to-r from-blue-500 to-green-500 rounded-full" style={{ width: '68%' }} />
+                  </div>
+                  <span className="text-sm font-bold text-white shrink-0">68%</span>
+                </div>
+              </div>
+              <div className="order-1 lg:order-2 relative">
+                <div className="absolute -top-6 -right-4 text-[120px] font-black text-amber-500/10 leading-none select-none pointer-events-none text-right">02</div>
+                <div className="relative">
+                  <span className="inline-flex items-center gap-1.5 bg-amber-500/20 border border-amber-500/30 text-amber-400 text-xs font-bold px-3 py-1 rounded-full mb-4">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400" /> Step 02
+                  </span>
+                  <h3 className="text-2xl font-extrabold text-white mb-3">Track every project</h3>
+                  <p className="text-slate-400 leading-relaxed mb-5">Log activities, update completion, manage risks and issues — all in one place. RAG health scoring updates in real time as your team makes progress.</p>
+                  <div className="flex flex-col gap-2">
+                    {['Live RAG status on every project', 'Activity timeline with % completion', 'Risk & issue register with escalation'].map(t => (
+                      <div key={t} className="flex items-center gap-2.5 text-sm text-slate-300">
+                        <CheckCircle2 className="h-4 w-4 text-green-400 shrink-0" />{t}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Vertical connector */}
+            <div className="flex justify-center">
+              <div className="w-px h-8 bg-gradient-to-b from-slate-700 to-transparent" />
+            </div>
+
+            {/* ── Step 03 ── */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
+              <div className="relative">
+                <div className="absolute -top-6 -left-4 text-[120px] font-black text-violet-500/10 leading-none select-none pointer-events-none">03</div>
+                <div className="relative">
+                  <span className="inline-flex items-center gap-1.5 bg-violet-600/20 border border-violet-500/30 text-violet-400 text-xs font-bold px-3 py-1 rounded-full mb-4">
+                    <span className="w-1.5 h-1.5 rounded-full bg-violet-400" /> Step 03
+                  </span>
+                  <h3 className="text-2xl font-extrabold text-white mb-3">Report with confidence</h3>
+                  <p className="text-slate-400 leading-relaxed mb-5">Generate board-ready executive summaries in seconds with Claude AI. Export to PDF, PowerPoint, or Word — formatted, structured, and ready to present.</p>
+                  <div className="flex flex-col gap-2">
+                    {['AI executive summary in one click', 'Export to PDF, PPT, or Word', 'Rotating weekly summary templates'].map(t => (
+                      <div key={t} className="flex items-center gap-2.5 text-sm text-slate-300">
+                        <CheckCircle2 className="h-4 w-4 text-green-400 shrink-0" />{t}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              {/* Illustration: AI Report */}
+              <div className="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 shadow-xl">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-9 h-9 bg-violet-600/30 border border-violet-500/40 rounded-xl flex items-center justify-center shrink-0">
+                    <Sparkles className="h-4 w-4 text-violet-400" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-white font-bold text-sm">AI Portfolio Report</p>
+                    <p className="text-[10px] text-violet-400">Powered by Claude · Generated in 3s</p>
+                  </div>
+                  <div className="flex items-center gap-1 text-[10px] text-green-400 bg-green-400/10 px-2 py-1 rounded-full border border-green-400/20">
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-400" />Ready
+                  </div>
+                </div>
+                <div className="bg-slate-700/40 rounded-xl p-4 mb-4">
+                  <p className="text-xs text-slate-300 leading-relaxed mb-3">
+                    &ldquo;Portfolio health is at <span className="text-green-400 font-semibold">85 / 100 — Excellent</span>. All 12 active projects are within acceptable parameters. Two projects require attention: <span className="text-amber-400 font-semibold">Core Insurance Platform</span> (planning delays) and <span className="text-red-400 font-semibold">Legacy Migration</span> (resource constraint).&rdquo;
+                  </p>
+                  <div className="space-y-1.5">
+                    {[85, 60, 42].map((w, i) => (
+                      <div key={i} className="h-1.5 bg-slate-600/60 rounded-full overflow-hidden">
+                        <div className={`h-full rounded-full ${i === 0 ? 'bg-violet-500' : i === 1 ? 'bg-violet-500/60' : 'bg-violet-500/30'}`} style={{ width: `${w}%` }} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  {(['PDF', 'PowerPoint', 'Word'] as const).map(fmt => (
+                    <div key={fmt} className="flex-1 flex items-center justify-center gap-1.5 bg-slate-700/50 border border-slate-600/60 hover:border-slate-500 rounded-lg py-2 text-xs font-semibold text-slate-300 cursor-default transition-colors">
+                      <Download className="h-3 w-3" />{fmt}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
       </section>
