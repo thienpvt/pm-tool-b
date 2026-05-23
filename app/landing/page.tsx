@@ -4,7 +4,7 @@ import Link from 'next/link';
 import {
   BarChart3, ShieldAlert, FileBarChart2, Calendar, Users,
   DollarSign, ChevronRight, CheckCircle2, Menu, X,
-  TrendingUp, Target, Zap, ArrowRight,
+  TrendingUp, Target, Zap, ArrowRight, Activity, Download, Sparkles,
 } from 'lucide-react';
 
 function KoinoboriIcon({ className }: { className?: string }) {
@@ -86,11 +86,11 @@ const STEPS = [
   },
 ];
 
-const STATS = [
-  { value: '360°', label: 'Portfolio visibility' },
-  { value: 'RAG', label: 'Health scoring' },
-  { value: 'AI', label: 'Powered reports' },
-  { value: '1-click', label: 'PDF / PPT export' },
+const CAPABILITIES = [
+  { icon: BarChart3,  value: '360°',    label: 'Portfolio visibility', sub: 'All projects. One dashboard.' },
+  { icon: Activity,   value: 'RAG',     label: 'Health scoring',       sub: 'Red · Amber · Green status' },
+  { icon: Sparkles,   value: 'AI',      label: 'Report generation',    sub: 'Claude-powered summaries' },
+  { icon: Download,   value: '1-click', label: 'PDF / PPT export',     sub: 'Board-ready in seconds' },
 ];
 
 export default function LandingPage() {
@@ -189,14 +189,122 @@ export default function LandingPage() {
             </a>
           </div>
 
-          {/* Stats strip */}
-          <div className="mt-16 grid grid-cols-2 sm:grid-cols-4 gap-6 max-w-2xl mx-auto">
-            {STATS.map(s => (
-              <div key={s.label} className="flex flex-col items-center gap-1">
-                <span className="text-2xl font-extrabold text-white">{s.value}</span>
-                <span className="text-xs text-slate-500">{s.label}</span>
+          {/* Capabilities bar */}
+          <div className="mt-14 grid grid-cols-2 sm:grid-cols-4 gap-px bg-white/5 rounded-2xl overflow-hidden border border-white/10 max-w-3xl mx-auto">
+            {CAPABILITIES.map(({ icon: Icon, value, label, sub }) => (
+              <div key={label} className="flex flex-col items-center gap-1 px-4 py-5 bg-white/5 hover:bg-white/10 transition-colors">
+                <Icon className="h-5 w-5 text-blue-400 mb-1" />
+                <span className="text-xl font-extrabold text-white">{value}</span>
+                <span className="text-xs font-semibold text-slate-300">{label}</span>
+                <span className="text-[10px] text-slate-500 text-center">{sub}</span>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Dashboard Preview ────────────────────────────────────────────────── */}
+      <section className="py-20 bg-white overflow-hidden">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-10">
+            <p className="text-sm font-bold text-blue-600 uppercase tracking-widest mb-2">See it in action</p>
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">Your entire portfolio. One screen.</h2>
+            <p className="mt-3 text-slate-500 text-sm max-w-xl mx-auto">A real-time health check across all projects — no spreadsheets, no manual reports.</p>
+          </div>
+
+          {/* Browser frame mockup */}
+          <div className="rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
+            {/* Chrome bar */}
+            <div className="bg-slate-100 px-4 py-2.5 flex items-center gap-3 border-b border-slate-200">
+              <div className="flex gap-1.5">
+                <div className="w-3 h-3 rounded-full bg-red-400" />
+                <div className="w-3 h-3 rounded-full bg-amber-400" />
+                <div className="w-3 h-3 rounded-full bg-green-400" />
+              </div>
+              <div className="flex-1 bg-white rounded-md px-3 py-1 text-xs text-slate-400 font-mono">gambaru.vn</div>
+            </div>
+
+            {/* App shell */}
+            <div className="flex bg-slate-50" style={{ minHeight: '400px' }}>
+              {/* Sidebar */}
+              <div className="w-44 bg-[#0f172a] px-3 py-4 flex flex-col gap-1 shrink-0 hidden sm:flex">
+                <div className="flex items-center gap-2 mb-4 px-2">
+                  <div className="w-6 h-6 bg-orange-500/20 rounded-lg flex items-center justify-center shrink-0">
+                    <KoinoboriIcon className="h-3.5 w-3.5" />
+                  </div>
+                  <span className="text-white text-xs font-bold">Gambaru</span>
+                </div>
+                {['Portfolio', 'Roadmap', 'Reports', 'Programs', 'Projects'].map((item, i) => (
+                  <div key={item} className={`px-3 py-1.5 rounded-lg text-xs font-medium ${i === 0 ? 'bg-blue-600 text-white' : 'text-slate-400'}`}>{item}</div>
+                ))}
+              </div>
+
+              {/* Main content */}
+              <div className="flex-1 p-4 overflow-hidden">
+                {/* Header */}
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <p className="text-[10px] text-slate-400">Friday, 23 May 2025</p>
+                    <p className="text-sm font-bold text-slate-800">Portfolio Health Check</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <div className="px-2.5 py-1 bg-white border border-slate-200 rounded text-[10px] text-slate-500">Portfolio Report</div>
+                    <div className="px-2.5 py-1 bg-blue-600 rounded text-[10px] text-white font-semibold">+ New Project</div>
+                  </div>
+                </div>
+
+                {/* KPI cards */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 mb-4">
+                  {[
+                    { label: 'Health Score', value: '85', sub: 'Excellent', color: 'text-green-600', bar: null },
+                    { label: 'Projects at Risk', value: '3', sub: '2 RED · 1 AMBER', color: 'text-red-500', bar: null },
+                    { label: 'Open Risks', value: '7', sub: '4 risks · 3 issues', color: 'text-orange-500', bar: null },
+                    { label: 'Avg. Progress', value: '68%', sub: null, color: 'text-blue-600', bar: 68 },
+                  ].map(k => (
+                    <div key={k.label} className="bg-white rounded-xl border border-slate-200 p-3">
+                      <p className="text-[9px] text-slate-400 mb-1">{k.label}</p>
+                      <p className={`text-lg font-extrabold ${k.color}`}>{k.value}</p>
+                      {k.sub && <p className="text-[9px] text-slate-400 mt-0.5">{k.sub}</p>}
+                      {k.bar !== null && (
+                        <div className="mt-1.5 h-1 bg-slate-100 rounded-full"><div className="h-full bg-blue-500 rounded-full" style={{ width: `${k.bar}%` }} /></div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Project list */}
+                <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                  <div className="grid grid-cols-[56px_1fr_72px_90px] bg-slate-50 border-b px-3 py-2 text-[9px] font-bold text-slate-400 uppercase tracking-wide">
+                    <span>Status</span><span>Project</span><span>Phase</span><span>Progress</span>
+                  </div>
+                  {([
+                    { rag: 'green', name: 'Digital Banking Portal', phase: 'Execution', pct: 82 },
+                    { rag: 'amber', name: 'Core Insurance Platform', phase: 'Planning',  pct: 45 },
+                    { rag: 'red',   name: 'Legacy System Migration', phase: 'Execution', pct: 28 },
+                    { rag: 'green', name: 'Mobile App Relaunch',     phase: 'Closing',   pct: 91 },
+                  ] as { rag: 'red'|'amber'|'green'; name: string; phase: string; pct: number }[]).map((p, i) => (
+                    <div key={i} className="grid grid-cols-[56px_1fr_72px_90px] px-3 py-2 border-b last:border-0 items-center">
+                      <span className={`flex items-center gap-1 text-[9px] font-bold ${p.rag === 'red' ? 'text-red-600' : p.rag === 'amber' ? 'text-amber-600' : 'text-green-600'}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${p.rag === 'red' ? 'bg-red-500' : p.rag === 'amber' ? 'bg-amber-400' : 'bg-green-500'}`} />
+                        {p.rag.toUpperCase()}
+                      </span>
+                      <span className="text-[10px] font-semibold text-slate-700 truncate pr-2">{p.name}</span>
+                      <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded w-fit ${
+                        p.phase === 'Execution' ? 'bg-amber-100 text-amber-700' :
+                        p.phase === 'Planning'  ? 'bg-blue-100 text-blue-700' :
+                        p.phase === 'Closing'   ? 'bg-green-100 text-green-700' : 'bg-purple-100 text-purple-700'
+                      }`}>{p.phase}</span>
+                      <div className="flex items-center gap-1.5">
+                        <div className="flex-1 h-1.5 bg-slate-100 rounded-full">
+                          <div className={`h-full rounded-full ${p.pct >= 80 ? 'bg-green-500' : p.pct >= 40 ? 'bg-blue-500' : 'bg-red-400'}`} style={{ width: `${p.pct}%` }} />
+                        </div>
+                        <span className="text-[9px] text-slate-500 font-medium shrink-0">{p.pct}%</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
