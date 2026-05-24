@@ -1,5 +1,5 @@
 'use client';
-import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import Sidebar from '@/components/layout/Sidebar';
 import { Button } from '@/components/ui/button';
@@ -7,9 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { Plus, Trash2, Upload, Copy, ChevronLeft, ChevronRight, Download, CheckCircle2, AlertCircle } from 'lucide-react';
-
-type ParsedMember = { domain: string; role: string; name: string; capacity_json: string; notes: string; };
+import { Plus, Trash2, Copy, ChevronLeft, ChevronRight, Download, Filter } from 'lucide-react';
+import ResourceImportDialog from '@/components/resources/ResourceImportDialog';
 
 type TeamMember = {
   id: number; domain: string; role: string; name: string;
@@ -22,7 +21,6 @@ type GlobalMember = TeamMember & {
 
 type Project = { id: number; name: string; };
 
-const DOMAINS = ['PM', 'SA', 'BA', 'DevOps', 'Backend', 'Frontend', 'Mobile', 'QA', 'Data', 'UI/UX', 'Other'];
 const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
 function yearMonths(year: number): string[] {
@@ -32,12 +30,6 @@ function yearMonths(year: number): string[] {
 function displayMonth(ym: string) {
   const m = Number(ym.split('-')[1]);
   return MONTH_NAMES[m - 1];
-}
-
-function capacityColor(val: number) {
-  if (val >= 1) return 'text-red-600 font-bold';
-  if (val >= 0.7) return 'text-amber-600 font-medium';
-  return 'text-slate-700';
 }
 
 function totalCapColor(total: number) {
@@ -57,21 +49,20 @@ export default function ResourcesPage() {
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [globalMembers, setGlobalMembers] = useState<GlobalMember[]>([]);
   const [year, setYear] = useState(new Date().getFullYear());
+  const [squadFilter, setSquadFilter] = useState('');
 
-  // Export / Import dialogs
-  const [exporting, setExporting] = useState(false);
+  // Import dialog
   const [importOpen, setImportOpen] = useState(false);
-  const [previewOpen, setPreviewOpen] = useState(false);
-  const [importParsed, setImportParsed] = useState<ParsedMember[]>([]);
-  const [importMonths, setImportMonths] = useState<string[]>([]);
-  const [importParsing, setImportParsing] = useState(false);
-  const [importSaving, setImportSaving] = useState(false);
+
+  // Export
+  const [exporting, setExporting] = useState(false);
+
+  // Copy from project
   const [copyOpen, setCopyOpen] = useState(false);
   const [allProjects, setAllProjects] = useState<Project[]>([]);
   const [srcProjectId, setSrcProjectId] = useState('');
   const [srcMembers, setSrcMembers] = useState<TeamMember[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
     const [mRes, gRes] = await Promise.all([
@@ -84,10 +75,8 @@ export default function ResourcesPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  // 12 months of the selected year
   const months = useMemo(() => yearMonths(year), [year]);
 
-  // Years that already have capacity data (to highlight in selector)
   const yearsWithData = useMemo(() => {
     const ys = new Set<number>();
     for (const m of members) {
@@ -101,11 +90,18 @@ export default function ResourcesPage() {
     return ys;
   }, [members]);
 
-  // Build cross-project capacity map: name → month → [{project_name, cap}]
+  // All unique squads for filter dropdown
+  const allSquads = useMemo(() => {
+    const seen = new Set<string>();
+    members.forEach(m => { if (m.domain) seen.add(m.domain); });
+    return Array.from(seen).sort();
+  }, [members]);
+
+  // Cross-project capacity map: name → month → [{project_name, cap}]
   const crossCapMap = useMemo(() => {
     const map: Record<string, Record<string, { project_name: string; cap: number }[]>> = {};
     for (const gm of globalMembers) {
-      if (String(gm.project_id) === id) continue; // skip current project
+      if (String(gm.project_id) === id) continue;
       const cap = JSON.parse(gm.capacity_json || '{}') as Record<string, number>;
       for (const [month, val] of Object.entries(cap)) {
         if (!val) continue;
@@ -124,16 +120,31 @@ export default function ResourcesPage() {
     });
   }, [id]);
 
-  // When source project changes, load its members
   useEffect(() => {
     if (!srcProjectId) { setSrcMembers([]); return; }
     fetch(`/api/projects/${srcProjectId}/team`).then(r => r.json()).then(setSrcMembers);
   }, [srcProjectId]);
 
+  // Filtered + grouped
+  const filteredMembers = useMemo(() => {
+    if (!squadFilter) return members;
+    return members.filter(m => m.domain === squadFilter);
+  }, [members, squadFilter]);
+
+  const grouped = useMemo(() => {
+    const map: Record<string, TeamMember[]> = {};
+    for (const m of filteredMembers) {
+      const squad = m.domain || 'Other';
+      if (!map[squad]) map[squad] = [];
+      map[squad].push(m);
+    }
+    return map;
+  }, [filteredMembers]);
+
   const addMember = async () => {
     const res = await fetch(`/api/projects/${id}/team`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ domain: 'Backend', role: 'Developer', name: 'New Member', capacity_json: '{}' }),
+      body: JSON.stringify({ domain: '', role: '', name: 'New Member', capacity_json: '{}' }),
     });
     res.json().then((row: TeamMember) => setMembers(m => [...m, row]));
   };
@@ -184,54 +195,6 @@ export default function ResourcesPage() {
     }
   };
 
-  // ── XLSX Import ────────────────────────────────────────────────────────────
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    e.target.value = '';
-
-    setImportParsing(true);
-    setImportOpen(false);
-    try {
-      const fd = new FormData();
-      fd.append('file', file);
-      const res = await fetch(`/api/import/resource-plan/${id}`, { method: 'POST', body: fd });
-      const data = await res.json();
-      if (!res.ok) { toast.error(data.error ?? 'Parse failed'); return; }
-      setImportParsed(data.members);
-      setImportMonths(data.monthColumns ?? []);
-      setPreviewOpen(true);
-    } catch (e) {
-      toast.error(String(e));
-    } finally {
-      setImportParsing(false);
-    }
-  };
-
-  const handleImportSave = async () => {
-    setImportSaving(true);
-    try {
-      let count = 0;
-      for (const m of importParsed) {
-        await fetch(`/api/projects/${id}/team`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(m),
-        });
-        count++;
-      }
-      toast.success(`Imported ${count} member(s)`);
-      setPreviewOpen(false);
-      setImportParsed([]);
-      setImportMonths([]);
-      load();
-    } catch (e) {
-      toast.error(String(e));
-    } finally {
-      setImportSaving(false);
-    }
-  };
-
-  // ── Copy from project ─────────────────────────────────────────────────────
   const handleCopyMembers = async () => {
     if (selectedIds.size === 0) { toast.error('Select at least one member'); return; }
     const toCopy = srcMembers.filter(m => selectedIds.has(m.id));
@@ -250,27 +213,18 @@ export default function ResourcesPage() {
     load();
   };
 
-  const grouped = DOMAINS.reduce<Record<string, TeamMember[]>>((acc, d) => {
-    const list = members.filter(m => m.domain === d);
-    if (list.length) acc[d] = list;
-    return acc;
-  }, {});
-  const ungrouped = members.filter(m => !DOMAINS.includes(m.domain));
-  if (ungrouped.length) grouped['Other'] = [...(grouped['Other'] ?? []), ...ungrouped];
-
   return (
     <div className="flex flex-col lg:flex-row min-h-screen">
       <Sidebar projectId={id} />
       <main className="flex-1 p-4 lg:p-6 overflow-x-auto">
+        {/* Header */}
         <div className="flex items-start justify-between gap-3 flex-wrap mb-5">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3 flex-wrap">
             <h1 className="text-xl font-bold text-slate-800">Resource Plan</h1>
+
             {/* Year navigator */}
             <div className="flex items-center gap-1 bg-white border rounded-lg px-1 py-0.5 shadow-sm">
-              <button
-                onClick={() => setYear(y => y - 1)}
-                className="p-1 rounded hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-colors"
-              >
+              <button onClick={() => setYear(y => y - 1)} className="p-1 rounded hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-colors">
                 <ChevronLeft className="h-4 w-4" />
               </button>
               <select
@@ -279,19 +233,30 @@ export default function ResourcesPage() {
                 className="text-sm font-semibold text-slate-700 bg-transparent px-1 cursor-pointer focus:outline-none"
               >
                 {Array.from({ length: 7 }, (_, i) => new Date().getFullYear() - 2 + i).map(y => (
-                  <option key={y} value={y}>
-                    {y}{yearsWithData.has(y) ? ' ●' : ''}
-                  </option>
+                  <option key={y} value={y}>{y}{yearsWithData.has(y) ? ' ●' : ''}</option>
                 ))}
               </select>
-              <button
-                onClick={() => setYear(y => y + 1)}
-                className="p-1 rounded hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-colors"
-              >
+              <button onClick={() => setYear(y => y + 1)} className="p-1 rounded hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-colors">
                 <ChevronRight className="h-4 w-4" />
               </button>
             </div>
+
+            {/* Squad/Team filter */}
+            {allSquads.length > 0 && (
+              <div className="flex items-center gap-1.5 bg-white border rounded-lg px-2 py-1 shadow-sm">
+                <Filter className="h-3.5 w-3.5 text-slate-400" />
+                <select
+                  value={squadFilter}
+                  onChange={e => setSquadFilter(e.target.value)}
+                  className="text-xs text-slate-700 bg-transparent focus:outline-none cursor-pointer pr-1"
+                >
+                  <option value="">All Squads</option>
+                  {allSquads.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+            )}
           </div>
+
           <div className="flex flex-wrap gap-2">
             <Button
               variant="outline"
@@ -307,26 +272,24 @@ export default function ResourcesPage() {
             </Button>
             <Button
               variant="outline"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={importParsing}
+              onClick={() => setImportOpen(true)}
               className="gap-2 h-9 text-sm"
             >
-              <Upload className={`h-4 w-4 ${importParsing ? 'animate-spin' : ''}`} />
-              {importParsing ? 'Parsing...' : 'Import .xlsx'}
+              Import
             </Button>
-            <input ref={fileInputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleFileSelect} />
             <Button onClick={addMember} className="bg-blue-600 hover:bg-blue-700 gap-2 h-9 text-sm">
               <Plus className="h-4 w-4" /> Add Member
             </Button>
           </div>
         </div>
 
+        {/* Table */}
         <div className="rounded-xl border bg-white overflow-hidden shadow-sm">
           <div className="overflow-x-auto">
             <table className="w-full text-xs min-w-max">
               <thead>
                 <tr className="bg-[#1e293b] text-white">
-                  <th className="px-3 py-3 text-left w-24">Domain</th>
+                  <th className="px-3 py-3 text-left w-28">Squad/Team</th>
                   <th className="px-3 py-3 text-left w-32">Role</th>
                   <th className="px-3 py-3 text-left w-36">Name</th>
                   {months.map(m => (
@@ -338,15 +301,23 @@ export default function ResourcesPage() {
               </thead>
               <tbody>
                 {members.length === 0 ? (
-                  <tr><td colSpan={months.length + 5} className="text-center py-12 text-slate-400">
-                    No team members. Click "Add Member" or "Import .xlsx".
-                  </td></tr>
+                  <tr>
+                    <td colSpan={months.length + 5} className="text-center py-12 text-slate-400">
+                      No team members. Click &quot;Add Member&quot; or &quot;Import&quot;.
+                    </td>
+                  </tr>
+                ) : Object.keys(grouped).length === 0 ? (
+                  <tr>
+                    <td colSpan={months.length + 5} className="text-center py-8 text-slate-400">
+                      No members match the current filter.
+                    </td>
+                  </tr>
                 ) : (
-                  Object.entries(grouped).map(([domain, rows]) => (
-                    <React.Fragment key={domain}>
-                      <tr key={`header-${domain}`} className="bg-[#D6E4F0]">
+                  Object.entries(grouped).map(([squad, rows]) => (
+                    <React.Fragment key={squad}>
+                      <tr className="bg-[#D6E4F0]">
                         <td colSpan={months.length + 5} className="px-3 py-1.5 font-semibold text-[#1A3A5C] text-xs uppercase tracking-wide">
-                          {domain}
+                          {squad || 'No Squad'}
                         </td>
                       </tr>
                       {rows.map((row, i) => {
@@ -355,17 +326,30 @@ export default function ResourcesPage() {
                         return (
                           <tr key={row.id} className={`border-t hover:bg-slate-50 ${i % 2 ? 'bg-slate-50/40' : ''}`}>
                             <td className="px-3 py-2">
-                              <select className="text-xs border rounded px-1 py-0.5 w-full bg-white" value={row.domain}
+                              <Input
+                                className="h-6 text-xs"
+                                value={row.domain}
+                                placeholder="Squad/Team"
                                 onChange={e => updateField(row.id, 'domain', e.target.value)}
-                                onBlur={() => saveRow(row)}>
-                                {DOMAINS.map(d => <option key={d} value={d}>{d}</option>)}
-                              </select>
+                                onBlur={() => saveRow(row)}
+                              />
                             </td>
                             <td className="px-3 py-2">
-                              <Input className="h-6 text-xs" value={row.role} onChange={e => updateField(row.id, 'role', e.target.value)} onBlur={() => saveRow(row)} />
+                              <Input
+                                className="h-6 text-xs"
+                                value={row.role}
+                                placeholder="Role"
+                                onChange={e => updateField(row.id, 'role', e.target.value)}
+                                onBlur={() => saveRow(row)}
+                              />
                             </td>
                             <td className="px-3 py-2">
-                              <Input className="h-6 text-xs font-medium" value={row.name} onChange={e => updateField(row.id, 'name', e.target.value)} onBlur={() => saveRow(row)} />
+                              <Input
+                                className="h-6 text-xs font-medium"
+                                value={row.name}
+                                onChange={e => updateField(row.id, 'name', e.target.value)}
+                                onBlur={() => saveRow(row)}
+                              />
                             </td>
                             {months.map(m => {
                               const val = cap[m] ?? 0;
@@ -384,7 +368,6 @@ export default function ResourcesPage() {
                                     onChange={e => updateCapacity(row.id, m, e.target.value)}
                                     onBlur={() => saveRow(row)}
                                   />
-                                  {/* Cross-project total bar */}
                                   {grandTotal > 0 && (
                                     <div className="mt-1 px-0.5" title={otherEntries.length > 0 ? `This project: ${(val*100).toFixed(0)}%\n${tooltipLines}\nTotal: ${(grandTotal*100).toFixed(0)}%` : ''}>
                                       <div className="h-1 bg-slate-100 rounded-full overflow-hidden">
@@ -425,90 +408,13 @@ export default function ResourcesPage() {
         </p>
       </main>
 
-      {/* ── Import Preview Dialog ─────────────────────────────────────────── */}
-      <Dialog open={previewOpen} onOpenChange={o => { if (!o && !importSaving) { setPreviewOpen(false); setImportParsed([]); setImportMonths([]); } }}>
-        <DialogContent className="!max-w-[98vw] !w-[98vw] max-h-[92vh] h-[92vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <CheckCircle2 className="h-5 w-5 text-green-500" />
-              Preview Import — {importParsed.length} member{importParsed.length !== 1 ? 's' : ''} found
-            </DialogTitle>
-          </DialogHeader>
-
-          <div className="text-xs text-slate-500 flex items-center gap-2 px-1">
-            <AlertCircle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-            Review the data below, then click <strong>Save</strong> to add these members to the project.
-            Existing members will not be affected.
-          </div>
-
-          {/* Preview table */}
-          <div className="flex-1 overflow-auto border rounded-lg">
-            <table className="w-full text-xs min-w-max">
-              <thead className="sticky top-0 z-10">
-                <tr className="bg-slate-800 text-white">
-                  <th className="px-3 py-2.5 text-left w-8">#</th>
-                  <th className="px-3 py-2.5 text-left w-28">Domain</th>
-                  <th className="px-3 py-2.5 text-left w-36">Role</th>
-                  <th className="px-3 py-2.5 text-left w-36">Name</th>
-                  {importMonths.slice(0, 12).map(m => (
-                    <th key={m} className="px-2 py-2.5 text-center w-16">
-                      {new Date(m + '-01').toLocaleDateString('en-GB', { month: 'short', year: '2-digit' })}
-                    </th>
-                  ))}
-                  <th className="px-3 py-2.5 text-left">Notes</th>
-                </tr>
-              </thead>
-              <tbody>
-                {importParsed.map((m, i) => {
-                  const cap = JSON.parse(m.capacity_json || '{}') as Record<string, number>;
-                  return (
-                    <tr key={i} className={`border-t ${i % 2 === 0 ? '' : 'bg-slate-50'}`}>
-                      <td className="px-3 py-2 text-slate-400">{i + 1}</td>
-                      <td className="px-3 py-2">
-                        <span className="px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 text-[10px] font-medium">{m.domain}</span>
-                      </td>
-                      <td className="px-3 py-2 text-slate-600">{m.role}</td>
-                      <td className="px-3 py-2 font-medium text-slate-800">{m.name}</td>
-                      {importMonths.slice(0, 12).map(mo => {
-                        const v = cap[mo];
-                        return (
-                          <td key={mo} className={`px-2 py-2 text-center font-mono ${v >= 1 ? 'text-red-600 font-bold' : v > 0 ? 'text-slate-700' : 'text-slate-200'}`}>
-                            {v > 0 ? v : '—'}
-                          </td>
-                        );
-                      })}
-                      <td className="px-3 py-2 text-slate-400 max-w-[120px] truncate">{m.notes || '—'}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-
-          {importMonths.length > 12 && (
-            <p className="text-[11px] text-slate-400 px-1">
-              Showing first 12 months · {importMonths.length} months total will be imported
-            </p>
-          )}
-
-          <DialogFooter className="pt-2">
-            <Button
-              variant="outline"
-              onClick={() => { setPreviewOpen(false); setImportParsed([]); setImportMonths([]); }}
-              disabled={importSaving}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleImportSave}
-              disabled={importSaving}
-              className="bg-blue-600 hover:bg-blue-700 gap-2"
-            >
-              {importSaving ? 'Saving...' : `Save ${importParsed.length} Members`}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* ── Import Dialog ────────────────────────────────────────────────── */}
+      <ResourceImportDialog
+        projectId={id}
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        onImported={load}
+      />
 
       {/* ── Copy from Project Dialog ──────────────────────────────────────── */}
       <Dialog open={copyOpen} onOpenChange={o => { if (!o) { setCopyOpen(false); setSrcProjectId(''); setSelectedIds(new Set()); } }}>
