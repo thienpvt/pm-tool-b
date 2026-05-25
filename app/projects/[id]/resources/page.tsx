@@ -1,5 +1,5 @@
 'use client';
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import Sidebar from '@/components/layout/Sidebar';
 import { Button } from '@/components/ui/button';
@@ -17,6 +17,10 @@ type TeamMember = {
 
 type GlobalMember = TeamMember & {
   project_id: number; project_name: string;
+};
+
+type PortfolioMember = {
+  id: number; role: string; name: string; email: string; note: string;
 };
 
 type Project = { id: number; name: string; };
@@ -44,20 +48,90 @@ function totalBarColor(total: number) {
   return 'bg-green-400';
 }
 
+// ── Name autocomplete input with portfolio member suggestions ──────────────────
+function MemberNameInput({
+  value,
+  portfolioMembers,
+  onChange,
+  onSelectMember,
+  onBlur,
+}: {
+  value: string;
+  portfolioMembers: PortfolioMember[];
+  onChange: (v: string) => void;
+  onSelectMember: (name: string, role: string) => void;
+  onBlur: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const blurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const suggestions = useMemo(() => {
+    if (!value.trim() || portfolioMembers.length === 0) return [];
+    const q = value.toLowerCase();
+    return portfolioMembers
+      .filter(m => m.name.toLowerCase().includes(q) || m.email.toLowerCase().includes(q))
+      .slice(0, 8);
+  }, [value, portfolioMembers]);
+
+  const handleFocus = () => {
+    if (blurTimer.current) clearTimeout(blurTimer.current);
+    setOpen(true);
+  };
+
+  const handleBlur = () => {
+    blurTimer.current = setTimeout(() => {
+      setOpen(false);
+      onBlur();
+    }, 150);
+  };
+
+  const handleSelect = (m: PortfolioMember) => {
+    if (blurTimer.current) clearTimeout(blurTimer.current);
+    setOpen(false);
+    onSelectMember(m.name, m.role);
+  };
+
+  return (
+    <div className="relative">
+      <Input
+        className="h-6 text-xs font-medium"
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
+      />
+      {open && suggestions.length > 0 && (
+        <div className="absolute z-50 left-0 top-full mt-0.5 w-56 bg-white border border-slate-200 rounded-lg shadow-lg overflow-hidden">
+          {suggestions.map(m => (
+            <button
+              key={m.id}
+              type="button"
+              className="w-full text-left px-3 py-1.5 hover:bg-blue-50 transition-colors"
+              onMouseDown={() => handleSelect(m)}
+            >
+              <div className="text-xs font-medium text-slate-800 truncate">{m.name}</div>
+              <div className="text-[10px] text-slate-400 truncate">
+                {m.role}{m.email ? ` · ${m.email}` : ''}
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ResourcesPage() {
   const { id } = useParams<{ id: string }>();
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [globalMembers, setGlobalMembers] = useState<GlobalMember[]>([]);
+  const [portfolioMembers, setPortfolioMembers] = useState<PortfolioMember[]>([]);
   const [year, setYear] = useState(new Date().getFullYear());
   const [squadFilter, setSquadFilter] = useState('');
 
-  // Import dialog
   const [importOpen, setImportOpen] = useState(false);
-
-  // Export
   const [exporting, setExporting] = useState(false);
 
-  // Copy from project
   const [copyOpen, setCopyOpen] = useState(false);
   const [allProjects, setAllProjects] = useState<Project[]>([]);
   const [srcProjectId, setSrcProjectId] = useState('');
@@ -75,6 +149,12 @@ export default function ResourcesPage() {
 
   useEffect(() => { load(); }, [load]);
 
+  useEffect(() => {
+    fetch('/api/portfolio/members')
+      .then(r => r.json())
+      .then(data => setPortfolioMembers(Array.isArray(data) ? data : []));
+  }, []);
+
   const months = useMemo(() => yearMonths(year), [year]);
 
   const yearsWithData = useMemo(() => {
@@ -90,14 +170,12 @@ export default function ResourcesPage() {
     return ys;
   }, [members]);
 
-  // All unique squads for filter dropdown
   const allSquads = useMemo(() => {
     const seen = new Set<string>();
     members.forEach(m => { if (m.domain) seen.add(m.domain); });
     return Array.from(seen).sort();
   }, [members]);
 
-  // Cross-project capacity map: name → month → [{project_name, cap}]
   const crossCapMap = useMemo(() => {
     const map: Record<string, Record<string, { project_name: string; cap: number }[]>> = {};
     for (const gm of globalMembers) {
@@ -113,7 +191,6 @@ export default function ResourcesPage() {
     return map;
   }, [globalMembers, id]);
 
-  // Load all projects for copy-from feature
   useEffect(() => {
     fetch('/api/projects').then(r => r.json()).then((data: Project[]) => {
       setAllProjects((data || []).filter((p: Project) => String(p.id) !== id));
@@ -125,7 +202,6 @@ export default function ResourcesPage() {
     fetch(`/api/projects/${srcProjectId}/team`).then(r => r.json()).then(setSrcMembers);
   }, [srcProjectId]);
 
-  // Filtered + grouped
   const filteredMembers = useMemo(() => {
     if (!squadFilter) return members;
     return members.filter(m => m.domain === squadFilter);
@@ -291,7 +367,7 @@ export default function ResourcesPage() {
                 <tr className="bg-[#1e293b] text-white">
                   <th className="px-3 py-3 text-left w-28">Squad/Team</th>
                   <th className="px-3 py-3 text-left w-32">Role</th>
-                  <th className="px-3 py-3 text-left w-36">Name</th>
+                  <th className="px-3 py-3 text-left w-44">Name</th>
                   {months.map(m => (
                     <th key={m} className="px-2 py-3 text-center w-20">{displayMonth(m)}</th>
                   ))}
@@ -344,10 +420,19 @@ export default function ResourcesPage() {
                               />
                             </td>
                             <td className="px-3 py-2">
-                              <Input
-                                className="h-6 text-xs font-medium"
+                              <MemberNameInput
                                 value={row.name}
-                                onChange={e => updateField(row.id, 'name', e.target.value)}
+                                portfolioMembers={portfolioMembers}
+                                onChange={v => updateField(row.id, 'name', v)}
+                                onSelectMember={(name, role) => {
+                                  setMembers(ms => ms.map(r =>
+                                    r.id === row.id ? { ...r, name, role: role || r.role } : r
+                                  ));
+                                  setTimeout(() => {
+                                    const updated = { ...row, name, role: role || row.role };
+                                    saveRow(updated);
+                                  }, 0);
+                                }}
                                 onBlur={() => saveRow(row)}
                               />
                             </td>
@@ -404,11 +489,11 @@ export default function ResourcesPage() {
           </div>
         </div>
         <p className="text-xs text-slate-400 mt-3">
-          Capacity: 1.0 = 100% (full-time) · 0.5 = 50% · Red border = overloaded in this project · Bar shows <strong>total across all projects</strong> (matched by name) · ⚠ = overallocated globally · Switch year to view / enter data for other years — data is preserved across all years
+          Capacity: 1.0 = 100% (full-time) · 0.5 = 50% · Red border = overloaded in this project · Bar shows <strong>total across all projects</strong> (matched by name) · ⚠ = overallocated globally · Gõ tên hoặc email để chọn nhân sự từ Portfolio
         </p>
       </main>
 
-      {/* ── Import Dialog ────────────────────────────────────────────────── */}
+      {/* Import Dialog */}
       <ResourceImportDialog
         projectId={id}
         open={importOpen}
@@ -416,7 +501,7 @@ export default function ResourcesPage() {
         onImported={load}
       />
 
-      {/* ── Copy from Project Dialog ──────────────────────────────────────── */}
+      {/* Copy from Project Dialog */}
       <Dialog open={copyOpen} onOpenChange={o => { if (!o) { setCopyOpen(false); setSrcProjectId(''); setSelectedIds(new Set()); } }}>
         <DialogContent className="max-w-lg">
           <DialogHeader>

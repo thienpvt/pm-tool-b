@@ -245,6 +245,8 @@ Auth utilities (`lib/auth.ts`):
 
 | Date | Change |
 |---|---|
+| 2026-05-25 | Portfolio Resource Management: new `portfolio_members` table (Role/Name/Email/Note), API `/api/portfolio/members` (GET/POST) + `/api/portfolio/members/[id]` (PUT/DELETE), page `/portfolio/resources` with inline edit + 3-step import wizard (`PortfolioImportDialog`); Project Resource Plan: Name field now has autocomplete from portfolio members (filter by name or email, auto-fills Role on select); Sidebar: added "Resource Management" link in portfolio NAV |
+| 2026-05-24 | Resource plan: 3-step CSV/Excel import wizard (`components/resources/ResourceImportDialog.tsx`) — Upload→Map columns→Preview; Domain renamed to Squad/Team (free text Input, not dropdown); filter by Squad/Team; dynamic grouping from actual data |
 | 2026-05-18 | Project Timeline Roadmap overhaul: collapsible epics (toggle + Collapse All), Year/Quarter/Month selector, bars clipped to range, alternating phase backgrounds + colored left border, redesigned left panel (compact status+dates line), Blocked/Deferred exempt from lag; Table: remove Deliverable column, wider Key column |
 | 2026-05-18 | Jira CSV import + Key/Sprint fields: text-paste import mode, EPIC→Phase hierarchy, dynamic phases (not fixed list), jira_key+sprint DB columns, bulk upsert API, status value mapping UI, upsert preview with overwrite count |
 | 2026-05-17 | Add Portfolio Roadmap page (`/portfolio/roadmap`): Gantt-style timeline X=quarters, Y=customer/phase rows, project bars with fill=completion%, RAG dot, sticky header+labels, today marker, collapsible groups |
