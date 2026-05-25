@@ -3,10 +3,11 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Sidebar from '@/components/layout/Sidebar';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Search, ExternalLink, X } from 'lucide-react';
+import { Search, ExternalLink, Users } from 'lucide-react';
 
 type Member = {
   id: number;
@@ -363,9 +364,14 @@ export default function GlobalResourcesPage() {
       <main className="flex-1 p-4 lg:p-6 overflow-x-auto">
         <div className="flex items-center justify-between mb-5">
           <div>
-            <h1 className="text-xl font-bold text-slate-800">Global Resource View</h1>
+            <h1 className="text-xl font-bold text-slate-800">Resource Management</h1>
             <p className="text-xs text-slate-400 mt-0.5">Tổng hợp capacity tất cả members across all projects</p>
           </div>
+          <Link href="/portfolio/resources">
+            <Button variant="outline" className="gap-2 h-9 text-sm">
+              <Users className="h-4 w-4" /> Manage Members
+            </Button>
+          </Link>
         </div>
 
         {/* Summary */}
