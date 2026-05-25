@@ -1,5 +1,6 @@
 'use client';
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useParams } from 'next/navigation';
 import Sidebar from '@/components/layout/Sidebar';
 import { Button } from '@/components/ui/button';
@@ -63,6 +64,8 @@ function MemberNameInput({
   onBlur: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [dropPos, setDropPos] = useState({ top: 0, left: 0, width: 0 });
+  const inputRef = useRef<HTMLInputElement>(null);
   const blurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const suggestions = useMemo(() => {
@@ -73,8 +76,16 @@ function MemberNameInput({
       .slice(0, 8);
   }, [value, portfolioMembers]);
 
+  const updatePos = () => {
+    if (inputRef.current) {
+      const r = inputRef.current.getBoundingClientRect();
+      setDropPos({ top: r.bottom + 2, left: r.left, width: Math.max(r.width, 224) });
+    }
+  };
+
   const handleFocus = () => {
     if (blurTimer.current) clearTimeout(blurTimer.current);
+    updatePos();
     setOpen(true);
   };
 
@@ -91,17 +102,12 @@ function MemberNameInput({
     onSelectMember(m.name, m.role);
   };
 
-  return (
-    <div className="relative">
-      <Input
-        className="h-6 text-xs font-medium"
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        onFocus={handleFocus}
-        onBlur={handleBlur}
-      />
-      {open && suggestions.length > 0 && (
-        <div className="absolute z-50 left-0 top-full mt-0.5 w-56 bg-white border border-slate-200 rounded-lg shadow-lg overflow-hidden">
+  const dropdown = open && suggestions.length > 0
+    ? createPortal(
+        <div
+          className="fixed z-[9999] bg-white border border-slate-200 rounded-lg shadow-lg overflow-hidden"
+          style={{ top: dropPos.top, left: dropPos.left, width: dropPos.width }}
+        >
           {suggestions.map(m => (
             <button
               key={m.id}
@@ -115,9 +121,23 @@ function MemberNameInput({
               </div>
             </button>
           ))}
-        </div>
-      )}
-    </div>
+        </div>,
+        document.body
+      )
+    : null;
+
+  return (
+    <>
+      <Input
+        ref={inputRef}
+        className="h-6 text-xs font-medium"
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
+      />
+      {dropdown}
+    </>
   );
 }
 
