@@ -254,6 +254,57 @@ export async function GET(req: NextRequest) {
     completedByProject[act.project_id].activities.push(act);
   }
 
+  // ─── Personnel stats ──────────────────────────────────────────────────────
+  const pmWhere = user.is_admin ? '' : ' AND company_id = ?';
+  const pmArgs: any[] = user.is_admin ? [] : [user.company_id];
+
+  const internalPortfolioMembers = await db.all(
+    `SELECT name, role FROM portfolio_members WHERE member_type = 'internal'${pmWhere}`,
+    ...pmArgs
+  ) as { name: string; role: string }[];
+
+  const allTeamMembersForPersonnel = await db.all(`
+    SELECT tm.name, p.name as project_name
+    FROM team_members tm
+    JOIN projects p ON tm.project_id = p.id
+    WHERE 1=1 ${cc}
+  `, ...cp) as { name: string; project_name: string }[];
+
+  const internalNameSet = new Set(internalPortfolioMembers.map((m: { name: string }) => m.name.toLowerCase().trim()));
+  const internalTeamSlots = allTeamMembersForPersonnel.filter((tm: { name: string }) =>
+    internalNameSet.has(tm.name.toLowerCase().trim())
+  );
+
+  const projAllocMap: Record<string, number> = {};
+  for (const tm of internalTeamSlots) {
+    projAllocMap[tm.project_name] = (projAllocMap[tm.project_name] ?? 0) + 1;
+  }
+  const projectAllocations = Object.entries(projAllocMap)
+    .map(([projectName, memberCount]) => ({ projectName, memberCount }))
+    .sort((a, b) => b.memberCount - a.memberCount);
+
+  const personProjectMap: Record<string, string[]> = {};
+  for (const tm of internalTeamSlots) {
+    const key = tm.name.toLowerCase().trim();
+    if (!personProjectMap[key]) personProjectMap[key] = [];
+    if (!personProjectMap[key].includes(tm.project_name)) personProjectMap[key].push(tm.project_name);
+  }
+  const overallocated = Object.entries(personProjectMap)
+    .filter(([, projs]) => projs.length > 2)
+    .map(([nameLower, projects]) => {
+      const member = internalPortfolioMembers.find((m: { name: string }) => m.name.toLowerCase().trim() === nameLower);
+      return { name: member?.name ?? nameLower, role: member?.role ?? '', projects };
+    })
+    .sort((a, b) => b.projects.length - a.projects.length)
+    .slice(0, 10);
+
+  const personnelStats = {
+    totalInternal: internalPortfolioMembers.length,
+    totalAllocated: internalTeamSlots.length,
+    projectAllocations,
+    overallocated,
+  };
+
   return NextResponse.json({
     projects: enrichedProjects,
     programs: byProgram,
@@ -273,6 +324,7 @@ export async function GET(req: NextRequest) {
     upcomingMilestones,
     recentlyCompleted,
     completedByProject,
+    personnelStats,
     periodStart: startParam,
     periodEnd: endParam,
     reportDate: todayStr,

@@ -39,6 +39,12 @@ type ProjectRow = {
   epicStats: EpicStat[];
 };
 type ProgramGroup = { id: number; name: string; industry: string; projects: ProjectRow[]; };
+type PersonnelStats = {
+  totalInternal: number;
+  totalAllocated: number;
+  projectAllocations: { projectName: string; memberCount: number }[];
+  overallocated: { name: string; role: string; projects: string[] }[];
+};
 type PortfolioReportData = {
   projects: ProjectRow[];
   programs: ProgramGroup[];
@@ -52,6 +58,7 @@ type PortfolioReportData = {
   upcomingMilestones: MilestoneItem[];
   recentlyCompleted: RecentDone[];
   completedByProject: Record<string, CompletedGroup>;
+  personnelStats: PersonnelStats;
   periodStart: string;
   periodEnd: string;
   reportDate: string;
@@ -270,6 +277,15 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
     lines.push(`  Dự án quá hạn          : ${overdue.length}`);
     lines.push(`  ${'─'.repeat(50)}`);
     lines.push('');
+    if (data.personnelStats) {
+      const ps = data.personnelStats;
+      lines.push('  NHÂN SỰ TRONG KHỐI:');
+      lines.push(`  ${'─'.repeat(50)}`);
+      lines.push(`  Tổng nhân sự trong khối: ${ps.totalInternal}      Phân bổ vào DA   : ${ps.totalAllocated}`);
+      lines.push(`  Phân bổ > 2 dự án      : ${ps.overallocated.length}      (xem chi tiết mục VIII)`);
+      lines.push(`  ${'─'.repeat(50)}`);
+      lines.push('');
+    }
 
     // ── II. Portfolio Health Matrix ──────────────────────────────────────────
     lines.push(D);
@@ -430,6 +446,63 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
       actionsVN.forEach(a => lines.push(a));
     }
     lines.push('');
+
+    // ── VIII. Personnel Overview ─────────────────────────────────────────────
+    if (data.personnelStats) {
+      const ps = data.personnelStats;
+      lines.push(D);
+      lines.push('  VIII. TỔNG QUAN NHÂN SỰ TRONG KHỐI');
+      lines.push(D);
+      lines.push('');
+      lines.push('  A. THỐNG KÊ NHÂN SỰ:');
+      lines.push('');
+      const NS = { lb: 42, vl: 20 } as const;
+      const nsRow = (lb: string, vl: string) => `  │ ${lb.padEnd(NS.lb)} │ ${vl.padStart(NS.vl)} │`;
+      const nsHL = (l: string, r: string) => `  ${l}${'─'.repeat(NS.lb+2)}┼${'─'.repeat(NS.vl+2)}${r}`;
+      lines.push(`  ┌${'─'.repeat(NS.lb+2)}┬${'─'.repeat(NS.vl+2)}┐`);
+      lines.push(`  │ ${'CHỈ SỐ'.padEnd(NS.lb)} │ ${'GIÁ TRỊ'.padStart(NS.vl)} │`);
+      lines.push(nsHL('├', '┤'));
+      lines.push(nsRow('Tổng nhân sự trong khối (MAC)', String(ps.totalInternal)));
+      lines.push(nsRow('Tổng lượt phân bổ vào dự án', `${ps.totalAllocated} lượt`));
+      lines.push(nsRow('Trung bình số DA mỗi người', ps.totalInternal > 0 ? `${(ps.totalAllocated / ps.totalInternal).toFixed(1)} DA/người` : '—'));
+      lines.push(nsRow('Nhân sự phân bổ > 2 dự án', `${ps.overallocated.length} người`));
+      lines.push(`  └${'─'.repeat(NS.lb+2)}┴${'─'.repeat(NS.vl+2)}┘`);
+      lines.push('');
+      lines.push('  Chú thích: Nhân sự ngoài khối không được tính trong báo cáo này.');
+      lines.push(`             ${ps.totalAllocated} lượt phân bổ / ${ps.totalInternal} người = mỗi người tham gia TB ${ps.totalInternal > 0 ? (ps.totalAllocated / ps.totalInternal).toFixed(1) : 0} DA.`);
+      lines.push('');
+      if (ps.projectAllocations.length > 0) {
+        lines.push('  B. PHÂN BỔ NHÂN SỰ THEO DỰ ÁN (top 10):');
+        lines.push('');
+        const PA = { nm: 30, ct: 10 } as const;
+        lines.push(`  ┌${'─'.repeat(PA.nm+2)}┬${'─'.repeat(PA.ct+2)}┐`);
+        lines.push(`  │ ${'DỰ ÁN'.padEnd(PA.nm)} │ ${'SỐ NGƯỜI'.padStart(PA.ct)} │`);
+        lines.push(`  ├${'─'.repeat(PA.nm+2)}┼${'─'.repeat(PA.ct+2)}┤`);
+        ps.projectAllocations.slice(0, 10).forEach(a => {
+          const nm = a.projectName.length > PA.nm ? a.projectName.slice(0, PA.nm - 1) + '…' : a.projectName;
+          lines.push(`  │ ${nm.padEnd(PA.nm)} │ ${String(a.memberCount).padStart(PA.ct)} │`);
+        });
+        lines.push(`  └${'─'.repeat(PA.nm+2)}┴${'─'.repeat(PA.ct+2)}┘`);
+        lines.push('');
+      }
+      if (ps.overallocated.length > 0) {
+        lines.push('  C. NHÂN SỰ PHÂN BỔ > 2 DỰ ÁN (cần chú ý):');
+        lines.push('');
+        ps.overallocated.forEach((person, i) => {
+          lines.push(`     ${String(i+1).padStart(2)}.  ${person.name}${person.role ? ` (${person.role})` : ''} — ${person.projects.length} dự án`);
+          lines.push(`          Dự án: ${person.projects.join(' · ')}`);
+          if (i < ps.overallocated.length - 1) lines.push('');
+        });
+        lines.push('');
+        lines.push('  [!] Nhân sự phân bổ vào quá nhiều dự án đồng thời có thể ảnh hưởng đến chất lượng');
+        lines.push('      và tiến độ. Đề nghị PM rà soát và cân bằng lại phân bổ.');
+      } else {
+        lines.push('  C. NHÂN SỰ PHÂN BỔ > 2 DỰ ÁN:');
+        lines.push('     Không có nhân sự nào đang phân bổ vào hơn 2 dự án cùng lúc.');
+      }
+      lines.push('');
+    }
+
     lines.push(D);
     lines.push(`  ${companyName}   ·   Program Management Office   ·   Tài liệu bảo mật — Nội bộ`);
     lines.push(D);
@@ -492,6 +565,15 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
     lines.push(`  Overdue Projects        : ${overdue.length}`);
     lines.push(`  ${'─'.repeat(50)}`);
     lines.push('');
+    if (data.personnelStats) {
+      const ps = data.personnelStats;
+      lines.push('  PERSONNEL (MAC BLOCK):');
+      lines.push(`  ${'─'.repeat(50)}`);
+      lines.push(`  Total Internal Members  : ${ps.totalInternal}      Allocated Slots  : ${ps.totalAllocated}`);
+      lines.push(`  Allocated > 2 Projects  : ${ps.overallocated.length}      (see Section VIII for details)`);
+      lines.push(`  ${'─'.repeat(50)}`);
+      lines.push('');
+    }
 
     // ── II. Portfolio Health Matrix ──────────────────────────────────────────
     lines.push(D);
@@ -652,6 +734,62 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
       actionsEN.forEach(a => lines.push(a));
     }
     lines.push('');
+
+    // ── VIII. Personnel Overview ─────────────────────────────────────────────
+    if (data.personnelStats) {
+      const ps = data.personnelStats;
+      lines.push(D);
+      lines.push('  VIII. PERSONNEL OVERVIEW — MAC BLOCK');
+      lines.push(D);
+      lines.push('');
+      lines.push('  A. PERSONNEL SUMMARY:');
+      lines.push('');
+      const NS2 = { lb: 42, vl: 20 } as const;
+      const nsRow2 = (lb: string, vl: string) => `  │ ${lb.padEnd(NS2.lb)} │ ${vl.padStart(NS2.vl)} │`;
+      lines.push(`  ┌${'─'.repeat(NS2.lb+2)}┬${'─'.repeat(NS2.vl+2)}┐`);
+      lines.push(`  │ ${'METRIC'.padEnd(NS2.lb)} │ ${'VALUE'.padStart(NS2.vl)} │`);
+      lines.push(`  ├${'─'.repeat(NS2.lb+2)}┼${'─'.repeat(NS2.vl+2)}┤`);
+      lines.push(nsRow2('Total internal personnel (MAC block)', String(ps.totalInternal)));
+      lines.push(nsRow2('Total project allocation slots', `${ps.totalAllocated} slots`));
+      lines.push(nsRow2('Avg. projects per person', ps.totalInternal > 0 ? `${(ps.totalAllocated / ps.totalInternal).toFixed(1)} proj/person` : '—'));
+      lines.push(nsRow2('Personnel allocated to > 2 projects', `${ps.overallocated.length} people`));
+      lines.push(`  └${'─'.repeat(NS2.lb+2)}┴${'─'.repeat(NS2.vl+2)}┘`);
+      lines.push('');
+      lines.push('  Note: External (non-MAC) personnel are excluded from this report.');
+      lines.push(`        ${ps.totalAllocated} allocation slots / ${ps.totalInternal} people = avg ${ps.totalInternal > 0 ? (ps.totalAllocated / ps.totalInternal).toFixed(1) : 0} projects per person.`);
+      lines.push('');
+      if (ps.projectAllocations.length > 0) {
+        lines.push('  B. ALLOCATION BY PROJECT (top 10):');
+        lines.push('');
+        const PA2 = { nm: 30, ct: 10 } as const;
+        lines.push(`  ┌${'─'.repeat(PA2.nm+2)}┬${'─'.repeat(PA2.ct+2)}┐`);
+        lines.push(`  │ ${'PROJECT'.padEnd(PA2.nm)} │ ${'# PEOPLE'.padStart(PA2.ct)} │`);
+        lines.push(`  ├${'─'.repeat(PA2.nm+2)}┼${'─'.repeat(PA2.ct+2)}┤`);
+        ps.projectAllocations.slice(0, 10).forEach(a => {
+          const nm = a.projectName.length > PA2.nm ? a.projectName.slice(0, PA2.nm - 1) + '…' : a.projectName;
+          lines.push(`  │ ${nm.padEnd(PA2.nm)} │ ${String(a.memberCount).padStart(PA2.ct)} │`);
+        });
+        lines.push(`  └${'─'.repeat(PA2.nm+2)}┴${'─'.repeat(PA2.ct+2)}┘`);
+        lines.push('');
+      }
+      if (ps.overallocated.length > 0) {
+        lines.push('  C. PERSONNEL ALLOCATED TO > 2 PROJECTS (attention required):');
+        lines.push('');
+        ps.overallocated.forEach((person, i) => {
+          lines.push(`     ${String(i+1).padStart(2)}.  ${person.name}${person.role ? ` (${person.role})` : ''} — ${person.projects.length} projects`);
+          lines.push(`          Projects: ${person.projects.join(' · ')}`);
+          if (i < ps.overallocated.length - 1) lines.push('');
+        });
+        lines.push('');
+        lines.push('  [!] Personnel allocated across too many concurrent projects may impact quality');
+        lines.push('      and delivery. PMs should review and rebalance allocations.');
+      } else {
+        lines.push('  C. PERSONNEL ALLOCATED TO > 2 PROJECTS:');
+        lines.push('     No personnel currently allocated to more than 2 projects simultaneously.');
+      }
+      lines.push('');
+    }
+
     lines.push(D);
     lines.push(`  ${companyName}   ·   Program Management Office   ·   Confidential — Internal Only`);
     lines.push(D);
@@ -977,6 +1115,90 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
   h += `<div style="display:flex;align-items:center;gap:5px;font-size:11px;color:#6B7280;"><div style="width:10px;height:10px;border-radius:2px;background:#3B82F6;display:inline-block;"></div>${isVN?'Đang triển khai':'In Progress'}</div>`;
   h += `<div style="display:flex;align-items:center;gap:5px;font-size:11px;color:#6B7280;"><div style="width:10px;height:10px;border-radius:2px;background:#E5E7EB;border:1px solid #D1D5DB;display:inline-block;"></div>${isVN?'Chưa bắt đầu':'Not Started'}</div>`;
   h += `</div></div></div>`;
+
+  // ── Personnel Section ────────────────────────────────────────────────────
+  if (data.personnelStats) {
+    const ps = data.personnelStats;
+    const avgPerPerson = ps.totalInternal > 0 ? (ps.totalAllocated / ps.totalInternal).toFixed(1) : '0';
+
+    h += `<div style="margin-top:14px;">`;
+    h += `<div style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#0891B2;margin:0 0 12px;display:flex;align-items:center;gap:10px;"><span style="width:21px;height:21px;border-radius:50%;background:#0891B2;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0;">NS</span>${isVN?'Tổng quan nhân sự trong khối':'Internal Personnel Overview'}</div>`;
+
+    // Stats row: 3 big number cards
+    h += `<div style="display:flex;gap:10px;margin-bottom:12px;">`;
+    // Card 1: Total internal
+    h += `<div class="rpd-panel" style="flex:1;text-align:center;padding:16px 10px;">`;
+    h += `<div style="font-size:30px;font-weight:700;color:#111827;line-height:1;">${ps.totalInternal}</div>`;
+    h += `<div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#6B7280;margin-top:6px;">${isVN?'Nhân sự trong khối':'Internal Members'}</div>`;
+    h += `</div>`;
+    // Card 2: Total allocated slots (with comparison arrow)
+    const moreOrLess = ps.totalAllocated > ps.totalInternal;
+    h += `<div class="rpd-panel" style="flex:1;text-align:center;padding:16px 10px;border-color:${moreOrLess?'#2563EB55':'#E5E7EB'};">`;
+    h += `<div style="font-size:30px;font-weight:700;color:${moreOrLess?'#2563EB':'#111827'};line-height:1;">${ps.totalAllocated}</div>`;
+    h += `<div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#6B7280;margin-top:6px;">${isVN?'Lượt phân bổ vào DA':'Allocation Slots'}</div>`;
+    h += `<div style="font-size:11px;color:#9CA3AF;margin-top:4px;">≈ ${avgPerPerson} ${isVN?'DA/người':'proj/person'}</div>`;
+    h += `</div>`;
+    // Card 3: Overallocated (>2 projects)
+    const hasOverallocated = ps.overallocated.length > 0;
+    h += `<div class="rpd-panel" style="flex:1;text-align:center;padding:16px 10px;border-color:${hasOverallocated?'#DC262655':'#E5E7EB'};">`;
+    h += `<div style="font-size:30px;font-weight:700;color:${hasOverallocated?'#DC2626':'#16A34A'};line-height:1;">${ps.overallocated.length}</div>`;
+    h += `<div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#6B7280;margin-top:6px;">${isVN?'Phân bổ > 2 dự án':'Allocated > 2 Projects'}</div>`;
+    h += `<div style="font-size:11px;color:${hasOverallocated?'#DC2626':'#9CA3AF'};margin-top:4px;">${hasOverallocated?(isVN?'Cần chú ý':'Needs attention'):(isVN?'Ổn định':'OK')}</div>`;
+    h += `</div>`;
+    h += `</div>`; // stats row
+
+    // Pie chart + overallocated table side by side
+    h += `<div style="display:flex;gap:12px;margin-bottom:10px;">`;
+
+    // Pie chart: personnel allocation by project
+    if (ps.projectAllocations.length > 0) {
+      const pieSegs = ps.projectAllocations.slice(0, 8).map((a, i) => ({ val: a.memberCount, color: pCol(i) }));
+      const pieTotal = ps.projectAllocations.reduce((s, a) => s + a.memberCount, 0);
+      const pctCenter = ps.totalInternal > 0 ? Math.round((pieTotal / ps.totalInternal) * 100) : 0;
+      h += `<div class="rpd-panel" style="flex:1;min-width:0;">`;
+      h += `<div class="rpd-ptitle">${isVN?'Phân bổ nhân sự theo dự án':'Personnel Allocation by Project'}</div>`;
+      h += `<div class="rpd-pie-lay"><div style="flex-shrink:0;">${svgDonut(pieSegs, 130, 52, 32, pctCenter)}</div>`;
+      h += `<div class="rpd-pie-leg" style="max-height:120px;overflow:auto;">`;
+      ps.projectAllocations.slice(0, 8).forEach((a, i) => {
+        const pct = pieTotal > 0 ? Math.round(a.memberCount / pieTotal * 100) : 0;
+        const nm = a.projectName.length > 20 ? a.projectName.slice(0, 20) + '…' : a.projectName;
+        h += `<div class="rpd-leg-row"><div class="rpd-leg-dot" style="background:${pCol(i)};"></div>${nm}<span class="rpd-leg-val">${a.memberCount} <span style="color:#9CA3AF;font-size:10px;">(${pct}%)</span></span></div>`;
+      });
+      h += `</div></div>`;
+      h += `<div style="margin-top:8px;padding-top:6px;border-top:1px solid #E5E7EB;font-size:11px;color:#6B7280;">${isVN?'Nhân sự ngoài khối không được tính':'External personnel excluded'}</div>`;
+      h += `</div>`;
+    }
+
+    // Overallocated table
+    h += `<div class="rpd-panel" style="flex:1.2;min-width:0;">`;
+    h += `<div class="rpd-ptitle">${isVN?'Nhân sự phân bổ > 2 dự án':'Personnel Allocated to > 2 Projects'}</div>`;
+    if (ps.overallocated.length === 0) {
+      h += `<p style="font-size:12px;color:#16A34A;display:flex;align-items:center;gap:6px;margin:12px 0;"><span style="width:8px;height:8px;border-radius:50%;background:#16A34A;display:inline-block;"></span>${isVN?'Không có nhân sự nào phân bổ vào hơn 2 dự án':'No personnel allocated to more than 2 projects'}</p>`;
+    } else {
+      h += `<table style="width:100%;border-collapse:collapse;font-size:11px;">`;
+      h += `<thead><tr>`;
+      h += `<th style="text-align:left;padding:4px 8px 6px;color:#9CA3AF;font-size:10px;text-transform:uppercase;letter-spacing:0.8px;border-bottom:1px solid #E5E7EB;">${isVN?'Nhân sự':'Name'}</th>`;
+      h += `<th style="text-align:left;padding:4px 8px 6px;color:#9CA3AF;font-size:10px;text-transform:uppercase;letter-spacing:0.8px;border-bottom:1px solid #E5E7EB;">${isVN?'Vai trò':'Role'}</th>`;
+      h += `<th style="text-align:center;padding:4px 8px 6px;color:#9CA3AF;font-size:10px;text-transform:uppercase;letter-spacing:0.8px;border-bottom:1px solid #E5E7EB;">${isVN?'Số DA':'Projects'}</th>`;
+      h += `<th style="text-align:left;padding:4px 8px 6px;color:#9CA3AF;font-size:10px;text-transform:uppercase;letter-spacing:0.8px;border-bottom:1px solid #E5E7EB;">${isVN?'Danh sách dự án':'Project List'}</th>`;
+      h += `</tr></thead><tbody>`;
+      ps.overallocated.forEach(person => {
+        const projStr = person.projects.join(', ');
+        const projDisplay = projStr.length > 40 ? projStr.slice(0, 40) + '…' : projStr;
+        h += `<tr>`;
+        h += `<td style="padding:6px 8px;border-bottom:1px solid #F3F4F6;font-weight:600;color:#111827;">${person.name}</td>`;
+        h += `<td style="padding:6px 8px;border-bottom:1px solid #F3F4F6;color:#6B7280;">${person.role || '—'}</td>`;
+        h += `<td style="padding:6px 8px;border-bottom:1px solid #F3F4F6;text-align:center;"><span style="background:#FEF2F2;color:#DC2626;border:1px solid #FECACA;border-radius:4px;padding:1px 7px;font-weight:700;">${person.projects.length}</span></td>`;
+        h += `<td style="padding:6px 8px;border-bottom:1px solid #F3F4F6;color:#6B7280;font-size:10px;">${projDisplay}</td>`;
+        h += `</tr>`;
+      });
+      h += `</tbody></table>`;
+      h += `<div style="margin-top:8px;padding:6px 10px;background:#FEF2F2;border-radius:4px;font-size:11px;color:#DC2626;">[!] ${isVN?'Cần rà soát phân bổ để đảm bảo chất lượng và tiến độ dự án.':'Review allocations to ensure project quality and delivery.'}</div>`;
+    }
+    h += `</div>`;
+    h += `</div>`; // flex row
+    h += `</div>`; // personnel section
+  }
 
   h += `<div class="rpd-zsep"></div>`;
 
