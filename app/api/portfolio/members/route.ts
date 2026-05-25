@@ -17,12 +17,12 @@ export async function POST(req: NextRequest) {
   const user = await getSessionFromRequest(req);
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const body = await req.json();
-  const { role = '', name, email = '', note = '' } = body;
+  const { role = '', name, email = '', note = '', member_type = 'internal' } = body;
   if (!name?.trim()) return NextResponse.json({ error: 'Name is required' }, { status: 400 });
   const db = await getDb();
   const result = await db.run(
-    'INSERT INTO portfolio_members (company_id, role, name, email, note) VALUES (?, ?, ?, ?, ?)',
-    user.company_id, role, name.trim(), email, note
+    'INSERT INTO portfolio_members (company_id, role, name, email, note, member_type) VALUES (?, ?, ?, ?, ?, ?)',
+    user.company_id, role, name.trim(), email, note, member_type
   );
   const row = await db.get('SELECT * FROM portfolio_members WHERE id = ?', result.lastInsertRowid);
   return NextResponse.json(row, { status: 201 });

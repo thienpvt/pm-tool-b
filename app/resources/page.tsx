@@ -1,11 +1,12 @@
-﻿'use client';
+'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Sidebar from '@/components/layout/Sidebar';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, ExternalLink } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Search, ExternalLink, X } from 'lucide-react';
 
 type Member = {
   id: number;
@@ -87,11 +88,214 @@ const PHASE_COLOR: Record<string, string> = {
   Closing: 'bg-green-100 text-green-700',
 };
 
+// ── Detail dialog ─────────────────────────────────────────────────────────────
+function PersonDetailDialog({
+  personName,
+  allMembers,
+  onClose,
+}: {
+  personName: string | null;
+  allMembers: Member[];
+  onClose: () => void;
+}) {
+  const now = new Date();
+  const nowYM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+  if (!personName) return null;
+
+  const personRows = allMembers.filter(
+    m => m.name.trim().toLowerCase() === personName.toLowerCase()
+  );
+  if (personRows.length === 0) return null;
+
+  const personRole = personRows[0].role;
+
+  // Collect all months across all their projects for the detail table
+  const allMonthsSet = new Set<string>();
+  for (const m of personRows) {
+    try {
+      const cap = JSON.parse(m.capacity_json || '{}') as Record<string, number>;
+      Object.keys(cap).forEach(k => allMonthsSet.add(k));
+    } catch { /* skip */ }
+  }
+  const allMonths = [...allMonthsSet].sort();
+
+  const projects = personRows.map(m => {
+    const cap = (() => {
+      try { return JSON.parse(m.capacity_json || '{}') as Record<string, number>; }
+      catch { return {} as Record<string, number>; }
+    })();
+    let toDate = 0;
+    let future = 0;
+    for (const [mo, val] of Object.entries(cap)) {
+      if (mo <= nowYM) toDate += Number(val);
+      else future += Number(val);
+    }
+    return { ...m, cap, toDate, future };
+  });
+
+  const grandToDate = projects.reduce((s, p) => s + p.toDate, 0);
+  const grandFuture = projects.reduce((s, p) => s + p.future, 0);
+
+  return (
+    <Dialog open={!!personName} onOpenChange={v => { if (!v) onClose(); }}>
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-base">
+            {personName}
+            {personRole && (
+              <span className="text-xs font-normal text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{personRole}</span>
+            )}
+          </DialogTitle>
+        </DialogHeader>
+
+        {/* Summary cards */}
+        <div className="grid grid-cols-3 gap-3 mb-4">
+          <div className="bg-blue-50 rounded-lg p-3 border border-blue-100 text-center">
+            <p className="text-[11px] text-blue-500 mb-1">Tổng đến nay</p>
+            <p className="text-xl font-bold text-blue-700">{grandToDate.toFixed(1)}</p>
+            <p className="text-[10px] text-blue-400">person-months</p>
+          </div>
+          <div className="bg-slate-50 rounded-lg p-3 border text-center">
+            <p className="text-[11px] text-slate-400 mb-1">Tương lai</p>
+            <p className="text-xl font-bold text-slate-600">{grandFuture.toFixed(1)}</p>
+            <p className="text-[10px] text-slate-400">person-months</p>
+          </div>
+          <div className="bg-slate-50 rounded-lg p-3 border text-center">
+            <p className="text-[11px] text-slate-400 mb-1">Số dự án</p>
+            <p className="text-xl font-bold text-slate-600">{projects.length}</p>
+            <p className="text-[10px] text-slate-400">project{projects.length !== 1 ? 's' : ''}</p>
+          </div>
+        </div>
+
+        {/* Project breakdown table */}
+        <div className="rounded-lg border overflow-hidden">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="bg-slate-50 border-b">
+                <th className="px-3 py-2 text-left text-slate-500 font-medium">Dự án</th>
+                <th className="px-3 py-2 text-left text-slate-500 font-medium">Client</th>
+                <th className="px-3 py-2 text-left text-slate-500 font-medium">Phase</th>
+                <th className="px-3 py-2 text-right text-slate-500 font-medium">Đến nay (PM)</th>
+                <th className="px-3 py-2 text-right text-slate-500 font-medium">Tương lai (PM)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {projects.map((p, i) => (
+                <tr key={i} className="border-t hover:bg-slate-50">
+                  <td className="px-3 py-2.5">
+                    <Link
+                      href={`/projects/${p.project_id}/resources`}
+                      className="flex items-center gap-1 text-blue-600 hover:underline font-medium"
+                    >
+                      {p.project_name}
+                      <ExternalLink className="h-2.5 w-2.5 flex-shrink-0" />
+                    </Link>
+                  </td>
+                  <td className="px-3 py-2.5 text-slate-500">{p.client || '—'}</td>
+                  <td className="px-3 py-2.5">
+                    <Badge className={`text-[10px] ${PHASE_COLOR[p.current_phase] ?? 'bg-slate-100 text-slate-600'}`}>
+                      {p.current_phase}
+                    </Badge>
+                  </td>
+                  <td className="px-3 py-2.5 text-right">
+                    {p.toDate > 0
+                      ? <span className="font-semibold text-blue-700">{p.toDate.toFixed(2)}</span>
+                      : <span className="text-slate-300">—</span>}
+                  </td>
+                  <td className="px-3 py-2.5 text-right">
+                    {p.future > 0
+                      ? <span className="text-slate-600">{p.future.toFixed(2)}</span>
+                      : <span className="text-slate-300">—</span>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="border-t-2 border-slate-200 bg-slate-50 font-semibold">
+                <td className="px-3 py-2.5 text-slate-700" colSpan={3}>Total</td>
+                <td className="px-3 py-2.5 text-right text-blue-700">{grandToDate.toFixed(2)}</td>
+                <td className="px-3 py-2.5 text-right text-slate-600">{grandFuture.toFixed(2)}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        {/* Monthly breakdown per project */}
+        {allMonths.length > 0 && (
+          <div className="mt-4">
+            <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-2">Phân bổ theo tháng</p>
+            <div className="rounded-lg border overflow-x-auto">
+              <table className="text-xs" style={{ minWidth: `${200 + allMonths.length * 56}px` }}>
+                <thead>
+                  <tr className="bg-slate-50 border-b">
+                    <th className="px-3 py-2 text-left text-slate-500 font-medium w-44">Dự án</th>
+                    {allMonths.map(mo => (
+                      <th key={mo} className={`px-2 py-2 text-center font-medium w-14 ${mo <= nowYM ? 'text-blue-500' : 'text-slate-400'}`}>
+                        {displayMonth(mo)}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {projects.map((p, i) => (
+                    <tr key={i} className="border-t hover:bg-slate-50">
+                      <td className="px-3 py-2 font-medium text-slate-700 truncate max-w-[176px]">{p.project_name}</td>
+                      {allMonths.map(mo => {
+                        const val = p.cap[mo];
+                        const isPast = mo <= nowYM;
+                        return (
+                          <td key={mo} className={`px-2 py-2 text-center ${isPast ? 'bg-blue-50/30' : ''}`}>
+                            {val != null && val !== 0 ? (
+                              <span className={`font-medium ${isPast ? 'text-blue-700' : 'text-slate-600'}`}>
+                                {Number(val).toFixed(1)}
+                              </span>
+                            ) : (
+                              <span className="text-slate-200">—</span>
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t-2 border-slate-200 bg-slate-50 font-semibold">
+                    <td className="px-3 py-2 text-slate-600">Total / month</td>
+                    {allMonths.map(mo => {
+                      const total = projects.reduce((s, p) => s + (Number(p.cap[mo]) || 0), 0);
+                      const isPast = mo <= nowYM;
+                      return (
+                        <td key={mo} className={`px-2 py-2 text-center ${isPast ? 'bg-blue-50/50' : ''}`}>
+                          {total > 0 ? (
+                            <span className={total > 1 ? 'text-red-600 font-bold' : isPast ? 'text-blue-700' : 'text-slate-600'}>
+                              {total.toFixed(1)}
+                            </span>
+                          ) : (
+                            <span className="text-slate-200">—</span>
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+            <p className="text-[10px] text-slate-400 mt-1.5">Cột màu xanh = tháng đã qua hoặc hiện tại. Đỏ = tổng &gt; 100%.</p>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ── Main page ─────────────────────────────────────────────────────────────────
 export default function GlobalResourcesPage() {
   const [members, setMembers] = useState<Member[]>([]);
   const [search, setSearch] = useState('');
   const [filterDomain, setFilterDomain] = useState('All');
   const [loading, setLoading] = useState(true);
+  const [detailPerson, setDetailPerson] = useState<string | null>(null);
 
   useEffect(() => {
     fetch('/api/resources')
@@ -108,16 +312,13 @@ export default function GlobalResourcesPage() {
     return matchDomain && matchSearch;
   });
 
-  // Aggregate capacity per person (same name+role across all projects)
-  // Show individual project rows instead — easier to understand overload
   const globalMonths = getGlobalMonths(filtered);
-  // Show only the next 6 months from today by default if too many months
   const now = new Date();
   const nowYM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   const displayMonths = globalMonths.filter(m => m >= nowYM).slice(0, 8);
   const shownMonths = displayMonths.length > 0 ? displayMonths : globalMonths.slice(0, 8);
 
-  // Group by name for overload detection
+  // Aggregate capacity per person (all projects)
   const nameCapMap: Record<string, Record<string, number>> = {};
   for (const m of filtered) {
     const key = m.name.trim().toLowerCase();
@@ -130,7 +331,20 @@ export default function GlobalResourcesPage() {
     } catch { /* skip */ }
   }
 
-  // Group display by domain
+  // Total capacity to date per person (sum of all months ≤ current month, all projects)
+  const totalCapToDate: Record<string, number> = {};
+  for (const m of filtered) {
+    const key = m.name.trim().toLowerCase();
+    try {
+      const cap = JSON.parse(m.capacity_json || '{}') as Record<string, number>;
+      for (const [mo, val] of Object.entries(cap)) {
+        if (mo <= nowYM) {
+          totalCapToDate[key] = (totalCapToDate[key] || 0) + Number(val);
+        }
+      }
+    } catch { /* skip */ }
+  }
+
   const domains2 = [...new Set(filtered.map(m => m.domain))].sort();
 
   // Summary stats
@@ -200,7 +414,7 @@ export default function GlobalResourcesPage() {
         ) : (
           <div className="rounded-xl border bg-white overflow-hidden shadow-sm">
             <div className="overflow-x-auto">
-              <table className="w-full text-xs" style={{ minWidth: '900px' }}>
+              <table className="w-full text-xs" style={{ minWidth: '1000px' }}>
                 <thead>
                   <tr className="bg-[#1e293b] text-white">
                     <th className="px-3 py-3 text-left w-28">Domain</th>
@@ -211,6 +425,7 @@ export default function GlobalResourcesPage() {
                     {shownMonths.map(mo => (
                       <th key={mo} className="px-2 py-3 text-center w-20">{displayMonth(mo)}</th>
                     ))}
+                    <th className="px-3 py-3 text-center w-24">Tổng đến nay</th>
                     <th className="px-3 py-3 text-left">Total Load</th>
                   </tr>
                 </thead>
@@ -220,7 +435,7 @@ export default function GlobalResourcesPage() {
                     return (
                       <>
                         <tr key={`domain-${domain}`}>
-                          <td colSpan={6 + shownMonths.length} className="px-4 py-2 bg-slate-100 font-semibold text-slate-600 text-xs uppercase tracking-wide border-t-2 border-slate-200">
+                          <td colSpan={7 + shownMonths.length} className="px-4 py-2 bg-slate-100 font-semibold text-slate-600 text-xs uppercase tracking-wide border-t-2 border-slate-200">
                             {domain}
                           </td>
                         </tr>
@@ -229,13 +444,19 @@ export default function GlobalResourcesPage() {
                           const nameKey = m.name.trim().toLowerCase();
                           const totalThisPerson = nameCapMap[nameKey] ?? {};
                           const isOverloaded = Object.values(totalThisPerson).some(v => Number(v) > 1.05);
+                          const capToDate = totalCapToDate[nameKey] ?? 0;
 
                           return (
                             <tr key={`${m.id}-${m.project_id}`} className={`border-t hover:bg-slate-50 ${isOverloaded ? 'bg-red-50/30' : ''}`}>
                               <td className="px-3 py-2 text-slate-500">{m.domain}</td>
                               <td className="px-3 py-2 font-medium text-slate-800">
-                                {isOverloaded && <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500 mr-1.5 mb-0.5" />}
-                                {m.name}
+                                <button
+                                  onClick={() => setDetailPerson(m.name.trim())}
+                                  className="flex items-center gap-1 hover:text-blue-600 transition-colors group text-left"
+                                >
+                                  {isOverloaded && <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500 flex-shrink-0" />}
+                                  <span className="group-hover:underline">{m.name}</span>
+                                </button>
                               </td>
                               <td className="px-3 py-2 text-slate-500">{m.role}</td>
                               <td className="px-3 py-2">
@@ -266,6 +487,19 @@ export default function GlobalResourcesPage() {
                                   </td>
                                 );
                               })}
+                              <td className="px-3 py-2 text-center">
+                                {capToDate > 0 ? (
+                                  <button
+                                    onClick={() => setDetailPerson(m.name.trim())}
+                                    className="inline-flex items-center gap-1 bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold rounded px-2 py-0.5 transition-colors text-[11px]"
+                                    title="Click để xem chi tiết phân bổ"
+                                  >
+                                    {capToDate.toFixed(1)} PM
+                                  </button>
+                                ) : (
+                                  <span className="text-slate-300">—</span>
+                                )}
+                              </td>
                               <td className="px-3 py-2">
                                 {capacityBar(Math.max(...shownMonths.map(mo => totalThisPerson[mo] || 0), 0))}
                               </td>
@@ -282,9 +516,15 @@ export default function GlobalResourcesPage() {
         )}
 
         <p className="text-xs text-slate-400 mt-3">
-          Values show per-project allocation (0–1 = 0–100%). Red = overloaded across projects. Click project name to edit.
+          Values show per-project allocation (0–1 = 0–100%). Red = overloaded across projects. Click project name to edit. Click <strong>name</strong> or <strong>Tổng đến nay</strong> to see detailed breakdown.
         </p>
       </main>
+
+      <PersonDetailDialog
+        personName={detailPerson}
+        allMembers={members}
+        onClose={() => setDetailPerson(null)}
+      />
     </div>
   );
 }
