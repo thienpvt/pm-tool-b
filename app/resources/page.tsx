@@ -98,7 +98,7 @@ function PersonDetailDialog({
 
   return (
     <Dialog open={!!person} onOpenChange={v => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto p-0">
+      <DialogContent className="w-[90vw] max-w-none sm:max-w-none max-h-[90vh] overflow-y-auto p-0">
         {/* Header */}
         <div className="px-6 py-5 border-b bg-gradient-to-r from-slate-800 to-slate-700 rounded-t-lg">
           <div className="flex items-start justify-between gap-4">
