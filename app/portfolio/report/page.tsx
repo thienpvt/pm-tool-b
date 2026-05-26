@@ -168,7 +168,7 @@ function pickSummary(status: 'red' | 'amber' | 'green', lang: 'vn' | 'en'): stri
 }
 
 // ─── Build Template Report ────────────────────────────────────────────────────
-function buildTemplateReport(data: PortfolioReportData, language: string, periodStart: string, periodEnd: string, companyName = 'PM Tool'): string {
+function buildTemplateReport(data: PortfolioReportData, language: string, periodStart: string, periodEnd: string, companyName = ''): string {
   const isVN = language === 'Vietnamese';
   const today = new Date().toLocaleDateString(isVN ? 'vi-VN' : 'en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
   const yyyymm = new Date().toISOString().slice(0, 7).replace('-', '');
@@ -504,7 +504,7 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
     }
 
     lines.push(D);
-    lines.push(`  ${companyName}   ·   Program Management Office   ·   Tài liệu bảo mật — Nội bộ`);
+    lines.push(`  ${companyName ? companyName + '   ·   ' : ''}Program Management Office   ·   Tài liệu bảo mật — Nội bộ`);
     lines.push(D);
 
   } else {
@@ -791,7 +791,7 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
     }
 
     lines.push(D);
-    lines.push(`  ${companyName}   ·   Program Management Office   ·   Confidential — Internal Only`);
+    lines.push(`  ${companyName ? companyName + '   ·   ' : ''}Program Management Office   ·   Confidential — Internal Only`);
     lines.push(D);
   }
 
@@ -865,7 +865,7 @@ function mdToHtml(text: string): string {
 }
 
 // ─── Build HTML Report (black / white / red theme) ───────────────────────────
-function buildHtmlReport(data: PortfolioReportData, language: string, periodStart: string, periodEnd: string, companyName = 'PM Tool'): string {
+function buildHtmlReport(data: PortfolioReportData, language: string, periodStart: string, periodEnd: string, companyName = ''): string {
   const isVN = language === 'Vietnamese';
   const today = new Date().toLocaleDateString(isVN ? 'vi-VN' : 'en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
   const yyyymm = new Date().toISOString().slice(0, 7).replace('-', '');
@@ -1025,7 +1025,7 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
 
   // ── Topbar
   h += `<div class="rpd-tb">`;
-  h += `<div><p class="rpd-tb-l">${companyName} &nbsp;/&nbsp; ${isVN ? 'Báo cáo tổng thể danh mục' : 'Portfolio Status Report'}</p>`;
+  h += `<div><p class="rpd-tb-l">${companyName ? companyName + ' &nbsp;/&nbsp; ' : ''}${isVN ? 'Báo cáo tổng thể danh mục' : 'Portfolio Status Report'}</p>`;
   h += `<p class="rpd-tb-s">${quarter}</p></div>`;
   h += `<div style="text-align:right;"><div style="font-size:11px;color:#6B7280;">${today}</div><div style="font-size:10px;color:#9CA3AF;margin-top:2px;">PMO-${yyyymm}-001</div></div>`;
   h += `</div>`;
@@ -1340,7 +1340,7 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
 
   // ── Footer
   h += `<div class="rpd-ft">`;
-  h += `<p class="rpd-ft-brand">${companyName}</p>`;
+  if (companyName) h += `<p class="rpd-ft-brand">${companyName}</p>`;
   h += `<div style="font-size:11px;color:#9CA3AF;">${isVN?'Tài liệu mật · Dành cho Ban Lãnh Đạo':'Confidential · For Leadership Only'}</div>`;
   h += `<div style="font-size:11px;color:#9CA3AF;">${isVN?'Phát hành':'Published'}: ${today}</div>`;
   h += `</div>`;
@@ -1383,7 +1383,7 @@ export default function PortfolioReportPage() {
   // Date range for "completed in period"
   const [periodStart, setPeriodStart] = useState(getThisMonday);
   const [periodEnd, setPeriodEnd] = useState(getThisSunday);
-  const [companyName, setCompanyName] = useState('PM Tool');
+  const [companyName, setCompanyName] = useState('');
   const [viewMode, setViewMode] = useState<'preview' | 'source'>('preview');
   const [htmlReport, setHtmlReport] = useState('');
   const [exporting, setExporting] = useState<'png' | 'pdf' | null>(null);
@@ -1621,7 +1621,7 @@ export default function PortfolioReportPage() {
       navigator.clipboard.writeText(report).catch(() => {});
     }
     const shortBody = encodeURIComponent(
-      `${language === 'Vietnamese' ? 'Kính gửi,' : 'Dear CEO,'}\n\nPlease find the portfolio status report below.\n\n[Report content copied to clipboard — paste here]\n\n---\nSent via ${companyName} PM Tool`
+      `${language === 'Vietnamese' ? 'Kính gửi,' : 'Dear CEO,'}\n\nPlease find the portfolio status report below.\n\n[Report content copied to clipboard — paste here]\n\n---\nSent via ${companyName ? companyName + ' ' : ''}PMO`
     );
     window.open(`mailto:${ceoEmail}?subject=${subject}&body=${shortBody}`, '_self');
     toast.success('Email client opened. Report copied — paste into email body to keep formatting.');
