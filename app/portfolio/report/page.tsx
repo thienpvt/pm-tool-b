@@ -115,23 +115,23 @@ function deadlineColor(days: number | null): string {
 const SUMMARY_TEMPLATES = {
   vn: {
     green: [
-      'Danh mục dự án kỳ này ghi nhận kết quả tích cực trên toàn bộ chương trình. Tiến độ triển khai được duy trì ổn định và các mốc kế hoạch đang được thực hiện đúng cam kết. Không có rủi ro leo thang nào phát sinh trong kỳ báo cáo này.',
+      'Danh mục Squad/Dự án kỳ này ghi nhận kết quả tích cực trên toàn bộ chương trình. Tiến độ triển khai được duy trì ổn định và các mốc kế hoạch đang được thực hiện đúng cam kết. Không có rủi ro leo thang nào phát sinh trong kỳ báo cáo này.',
       'Tình hình triển khai danh mục kỳ này diễn ra thuận lợi theo đúng kế hoạch. Các chương trình đang được vận hành hiệu quả với sự phối hợp chặt chẽ giữa các đội dự án. Không có vấn đề nghiêm trọng nào cần leo thang trong kỳ này.',
-      'Nhìn tổng thể kỳ báo cáo này, danh mục đang vận hành đúng quỹ đạo với kết quả đáng ghi nhận từ các chương trình. Toàn bộ dự án duy trì trạng thái xanh, phản ánh sự chuẩn bị kỹ lưỡng và quản lý chủ động của các đội dự án. Không có hành động leo thang nào được yêu cầu trong kỳ này.',
+      'Nhìn tổng thể kỳ báo cáo này, danh mục đang vận hành đúng quỹ đạo với kết quả đáng ghi nhận từ các chương trình. Toàn bộ Squad/Dự án duy trì trạng thái xanh, phản ánh sự chuẩn bị kỹ lưỡng và quản lý chủ động của các đội. Không có hành động leo thang nào được yêu cầu trong kỳ này.',
       'Kỳ báo cáo ghi nhận hiệu suất tốt của toàn bộ danh mục. Các chương trình tiếp tục duy trì tiến độ và chất lượng theo đúng cam kết. Các đội dự án đã chủ động xử lý những phát sinh trước khi leo thang, góp phần duy trì trạng thái ổn định của danh mục trong kỳ này.',
       'Danh mục kỳ này thể hiện sức khỏe vận hành tốt với tình trạng ổn định trên toàn bộ các chương trình. Các đội dự án đang làm việc có kỷ luật và bám sát kế hoạch đề ra. Không có điểm nghẽn hay rủi ro leo thang nào cần sự chú ý đặc biệt trong kỳ báo cáo này.',
     ],
     amber: [
-      'Danh mục kỳ này đang tiến triển theo đúng hướng với phần lớn chương trình duy trì ổn định. Tuy nhiên, một số dự án đang gặp phải các yếu tố cần được theo dõi sát sao hơn trong kỳ tới. Không có leo thang khẩn cấp được yêu cầu, song tình hình cần tiếp tục được giám sát chặt chẽ.',
-      'Nhìn chung, danh mục đang trong trạng thái kiểm soát được mặc dù còn một số điểm cần chú ý. Phần lớn các chương trình đang thực hiện đúng tiến độ, trong khi một số dự án đang đối mặt với áp lực thực thi cần được theo dõi thêm. Không có leo thang khẩn cấp trong kỳ này, và dự kiến tình trạng sẽ được cải thiện trong kỳ tới.',
-      'Kỳ báo cáo này phản ánh giai đoạn chuyển tiếp của một số dự án trong danh mục với áp lực thực thi tăng lên. Đây là tín hiệu bình thường trong quá trình triển khai, tuy nhiên cần tiếp tục theo dõi để đảm bảo không có vấn đề nào vượt tầm kiểm soát. Các biện pháp phòng ngừa đang được triển khai ở cấp dự án.',
-      'Danh mục kỳ này cho thấy sự vận hành ổn định ở phần lớn các chương trình, đồng thời cũng phản ánh một số thách thức đang phát sinh cần được quản lý chủ động. Nguyên nhân đã được làm rõ ở từng dự án và phương án xử lý đang trong quá trình triển khai. Không có rủi ro ở mức độ yêu cầu can thiệp ngay trong kỳ này.',
-      'Tổng thể, danh mục vẫn đang trong tầm kiểm soát với phần lớn dự án tiếp tục thực hiện đúng cam kết. Một số tình huống đang phát sinh cần được theo dõi kỹ lưỡng trong kỳ tới để ngăn ngừa leo thang. Không có quyết định cấp cao nào được yêu cầu tại thời điểm này.',
+      'Danh mục kỳ này đang tiến triển theo đúng hướng với phần lớn chương trình duy trì ổn định. Tuy nhiên, một số Squad/Dự án đang gặp phải các yếu tố cần được theo dõi sát sao hơn trong kỳ tới. Không có leo thang khẩn cấp được yêu cầu, song tình hình cần tiếp tục được giám sát chặt chẽ.',
+      'Nhìn chung, danh mục đang trong trạng thái kiểm soát được mặc dù còn một số điểm cần chú ý. Phần lớn các chương trình đang thực hiện đúng tiến độ, trong khi một số Squad/Dự án đang đối mặt với áp lực thực thi cần được theo dõi thêm. Không có leo thang khẩn cấp trong kỳ này, và dự kiến tình trạng sẽ được cải thiện trong kỳ tới.',
+      'Kỳ báo cáo này phản ánh giai đoạn chuyển tiếp của một số Squad/Dự án trong danh mục với áp lực thực thi tăng lên. Đây là tín hiệu bình thường trong quá trình triển khai, tuy nhiên cần tiếp tục theo dõi để đảm bảo không có vấn đề nào vượt tầm kiểm soát. Các biện pháp phòng ngừa đang được triển khai.',
+      'Danh mục kỳ này cho thấy sự vận hành ổn định ở phần lớn các chương trình, đồng thời cũng phản ánh một số thách thức đang phát sinh cần được quản lý chủ động. Nguyên nhân đã được làm rõ ở từng Squad/Dự án và phương án xử lý đang trong quá trình triển khai. Không có rủi ro ở mức độ yêu cầu can thiệp ngay trong kỳ này.',
+      'Tổng thể, danh mục vẫn đang trong tầm kiểm soát với phần lớn Squad/Dự án tiếp tục thực hiện đúng cam kết. Một số tình huống đang phát sinh cần được theo dõi kỹ lưỡng trong kỳ tới để ngăn ngừa leo thang. Không có quyết định cấp cao nào được yêu cầu tại thời điểm này.',
     ],
     red: [
-      'Danh mục kỳ này đang đối mặt với một số thách thức nghiêm trọng cần được ưu tiên xử lý. Một số dự án đang ở mức độ rủi ro cao với nguy cơ ảnh hưởng đến tiến độ và cam kết với khách hàng. Các quyết định và hành động can thiệp cần được thực hiện kịp thời. Chi tiết được trình bày tại Mục VII.',
-      'Kỳ báo cáo này ghi nhận áp lực vận hành ở mức độ đáng kể đối với một số dự án trong danh mục. Tình trạng hiện tại đòi hỏi sự chú ý ở cấp cao nhất để đảm bảo không ảnh hưởng lâu dài đến toàn bộ danh mục. Các điểm cần quyết định và phê duyệt được nêu rõ tại Mục VII.',
-      'Tình hình danh mục kỳ này đòi hỏi sự chú ý đặc biệt và hành động quyết đoán. Một số dự án đang gặp khó khăn ở nhiều cấp độ khác nhau, và nếu không được xử lý kịp thời có thể ảnh hưởng đến cam kết tổng thể của danh mục. Nội dung cụ thể về các điểm leo thang được trình bày tại Mục VII.',
+      'Danh mục kỳ này đang đối mặt với một số thách thức nghiêm trọng cần được ưu tiên xử lý. Một số Squad/Dự án đang ở mức độ rủi ro cao với nguy cơ ảnh hưởng đến tiến độ và cam kết với khách hàng. Các quyết định và hành động can thiệp cần được thực hiện kịp thời. Chi tiết được trình bày tại Mục VII.',
+      'Kỳ báo cáo này ghi nhận áp lực vận hành ở mức độ đáng kể đối với một số Squad/Dự án trong danh mục. Tình trạng hiện tại đòi hỏi sự chú ý ở cấp cao nhất để đảm bảo không ảnh hưởng lâu dài đến toàn bộ danh mục. Các điểm cần quyết định và phê duyệt được nêu rõ tại Mục VII.',
+      'Tình hình danh mục kỳ này đòi hỏi sự chú ý đặc biệt và hành động quyết đoán. Một số Squad/Dự án đang gặp khó khăn ở nhiều cấp độ khác nhau, và nếu không được xử lý kịp thời có thể ảnh hưởng đến cam kết tổng thể của danh mục. Nội dung cụ thể về các điểm leo thang được trình bày tại Mục VII.',
       'Danh mục đang trải qua một giai đoạn thách thức với các vấn đề phát sinh ở nhiều cấp độ. Những vấn đề này cần được giải quyết triệt để và kịp thời để tránh ảnh hưởng dây chuyền lên các chương trình liên quan. Các hành động cụ thể cần phê duyệt và chỉ đạo được trình bày chi tiết tại Mục VII.',
       'Kỳ này ghi nhận những tín hiệu cần được xử lý ngay để tránh ảnh hưởng lâu dài đến tiến độ và cam kết với khách hàng. Một số điểm nghẽn trong danh mục đang cần được khơi thông thông qua điều chỉnh nguồn lực và ưu tiên. Chi tiết và đề xuất xử lý được trình bày tại Mục VII.',
     ],
@@ -260,21 +260,21 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
     lines.push(`  Trạng thái tổng thể portfolio: ● ${portfolioStatus}`);
     lines.push('');
     const summaryVN = red.length > 0
-      ? `Portfolio hiện có ${red.length} dự án ở mức ĐỎ cần xử lý khẩn cấp.`
-      : amber.length > 0 ? `Portfolio ở mức VÀNG với ${amber.length} dự án cần theo dõi sát sao.`
-        : 'Portfolio đang ở trạng thái tốt — toàn bộ dự án đều xanh.';
-    lines.push(`  ${summaryVN} Tổng cộng ${data.kpi.totalProjects} dự án trên ${data.kpi.totalPrograms} chương trình,`);
+      ? `Portfolio hiện có ${red.length} Squad/Dự án ở mức ĐỎ cần xử lý khẩn cấp.`
+      : amber.length > 0 ? `Portfolio ở mức VÀNG với ${amber.length} Squad/Dự án cần theo dõi sát sao.`
+        : 'Portfolio đang ở trạng thái tốt — toàn bộ Squad/Dự án đều xanh.';
+    lines.push(`  ${summaryVN} Tổng cộng ${data.kpi.totalProjects} Squad/Dự án trên ${data.kpi.totalPrograms} chương trình,`);
     lines.push(`  tiến độ trung bình ${data.kpi.avgCompletion}% (tính theo trọng số trạng thái).`);
     lines.push(`  Phân bố sức khỏe: ${green.length} XANH  ·  ${amber.length} VÀNG  ·  ${red.length} ĐỎ.`);
-    if (overdue.length > 0) lines.push(`\n  [!] CẢNH BÁO: ${overdue.length} dự án đã vượt hạn chót — cần hành động ngay lập tức.`);
+    if (overdue.length > 0) lines.push(`\n  [!] CẢNH BÁO: ${overdue.length} Squad/Dự án đã vượt hạn chót — cần hành động ngay lập tức.`);
     if (data.kpi.totalOpenRisks === 0 && data.kpi.totalOpenIssues === 0) lines.push('  [+] Tích cực: Hiện không có rủi ro hoặc vấn đề nào đang mở ở cấp portfolio.');
     lines.push('');
     lines.push('  CHỈ SỐ CHÍNH:');
     lines.push(`  ${'─'.repeat(50)}`);
-    lines.push(`  Dự án tổng cộng        : ${data.kpi.totalProjects}      Đang hoạt động   : ${data.kpi.activeProjects}`);
+    lines.push(`  Squad/Dự án tổng cộng  : ${data.kpi.totalProjects}      Đang hoạt động   : ${data.kpi.activeProjects}`);
     lines.push(`  Tiến độ TB (trọng số)  : ${data.kpi.avgCompletion}%    Chương trình      : ${data.kpi.totalPrograms}`);
     lines.push(`  Rủi ro đang mở         : ${data.kpi.totalOpenRisks}      Vấn đề đang mở   : ${data.kpi.totalOpenIssues}`);
-    lines.push(`  Dự án quá hạn          : ${overdue.length}`);
+    lines.push(`  Squad/Dự án quá hạn    : ${overdue.length}`);
     lines.push(`  ${'─'.repeat(50)}`);
     lines.push('');
     if (data.personnelStats) {
@@ -282,7 +282,7 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
       lines.push('  NHÂN SỰ TRONG KHỐI:');
       lines.push(`  ${'─'.repeat(50)}`);
       lines.push(`  Tổng nhân sự trong khối: ${ps.totalInternal}      Phân bổ vào DA   : ${ps.totalAllocated}`);
-      lines.push(`  Phân bổ > 2 dự án      : ${ps.overallocated.length}      (xem chi tiết mục VIII)`);
+      lines.push(`  Phân bổ > 2 Squad/DA   : ${ps.overallocated.length}      (xem chi tiết mục VIII)`);
       lines.push(`  ${'─'.repeat(50)}`);
       lines.push('');
     }
@@ -293,7 +293,7 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
     lines.push(D);
     lines.push('');
     lines.push(tHL('┌', '┬', '┐'));
-    lines.push(tRow('#', 'TRẠNG THÁI', 'TÊN DỰ ÁN', 'CHƯƠNG TRÌNH', 'PHASE', '%', 'DEADLINE'));
+    lines.push(tRow('#', 'TRẠNG THÁI', 'SQUAD/DỰ ÁN', 'CHƯƠNG TRÌNH', 'PHASE', '%', 'DEADLINE'));
     lines.push(tHL('├', '┼', '┤'));
     sorted.forEach((p, i) => {
       const stLabel = p.rag === 'red' ? '● ĐỎ' : p.rag === 'amber' ? '● VÀNG' : '● XANH';
@@ -358,7 +358,7 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
     } else {
       data.topRisks.slice(0, 6).forEach((r, i) => {
         lines.push(`     ${String(i+1).padStart(2)}.  [${r.priority.toUpperCase()}]  ${r.description}`);
-        lines.push(`          Dự án     : ${r.project_name}${r.program_name ? ` (${r.program_name})` : ''}`);
+        lines.push(`          Squad/DA  : ${r.project_name}${r.program_name ? ` (${r.program_name})` : ''}`);
         lines.push(`          Danh mục  : ${r.category || '—'}`);
         lines.push(`          Giảm thiểu: ${r.mitigation || 'Đang đánh giá'}`);
         if (i < Math.min(data.topRisks.length, 6) - 1) lines.push('');
@@ -371,8 +371,8 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
     } else {
       data.topIssues.slice(0, 6).forEach((r, i) => {
         lines.push(`     ${String(i+1).padStart(2)}.  [${r.priority.toUpperCase()}]  ${r.description}`);
-        lines.push(`          Dự án  : ${r.project_name}${r.program_name ? ` (${r.program_name})` : ''}`);
-        lines.push(`          Xử lý  : ${r.mitigation || 'Đang điều tra'}`);
+        lines.push(`          Squad/DA: ${r.project_name}${r.program_name ? ` (${r.program_name})` : ''}`);
+        lines.push(`          Xử lý   : ${r.mitigation || 'Đang điều tra'}`);
         if (i < Math.min(data.topIssues.length, 6) - 1) lines.push('');
       });
     }
@@ -387,7 +387,7 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
       lines.push('  Không có milestone quan trọng nào trong 30 ngày tới.');
     } else {
       lines.push(mlHL('┌', '┬', '┐'));
-      lines.push(mlRow('NGÀY', 'HOẠT ĐỘNG / DELIVERABLE', 'DỰ ÁN', '%'));
+      lines.push(mlRow('NGÀY', 'HOẠT ĐỘNG / DELIVERABLE', 'SQUAD/DA', '%'));
       lines.push(mlHL('├', '┼', '┤'));
       data.upcomingMilestones.forEach(m => {
         const label = m.deliverable ? `${m.activity} / ${m.deliverable}` : m.activity;
@@ -416,7 +416,7 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
     });
     lines.push(csHL('└', '┴', '┘'));
     if (data.noProgramProjects.length > 0) {
-      lines.push(`\n  Lưu ý: ${data.noProgramProjects.length} dự án chưa được gán cho chương trình.`);
+      lines.push(`\n  Lưu ý: ${data.noProgramProjects.length} Squad/Dự án chưa được gán cho chương trình.`);
     }
     lines.push('');
 
@@ -437,7 +437,7 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
     });
     criticalRisksVN.forEach(r => {
       actionIdxVN++;
-      actionsVN.push(`  ${actionIdxVN}. [KHẨN CẤP — QUYẾT ĐỊNH]  ${r.description} tại dự án ${r.project_name}.`);
+      actionsVN.push(`  ${actionIdxVN}. [KHẨN CẤP — QUYẾT ĐỊNH]  ${r.description} tại Squad/Dự án ${r.project_name}.`);
       actionsVN.push(`     → Đề xuất: ${r.mitigation || 'Đánh giá và ban hành quyết định xử lý ngay lập tức'}.`);
     });
     if (actionsVN.length === 0) {
@@ -463,20 +463,20 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
       lines.push(`  │ ${'CHỈ SỐ'.padEnd(NS.lb)} │ ${'GIÁ TRỊ'.padStart(NS.vl)} │`);
       lines.push(nsHL('├', '┤'));
       lines.push(nsRow('Tổng nhân sự trong khối (MAC)', String(ps.totalInternal)));
-      lines.push(nsRow('Tổng lượt phân bổ vào dự án', `${ps.totalAllocated} lượt`));
+      lines.push(nsRow('Tổng lượt phân bổ vào Squad/DA', `${ps.totalAllocated} lượt`));
       lines.push(nsRow('Trung bình số DA mỗi người', ps.totalInternal > 0 ? `${(ps.totalAllocated / ps.totalInternal).toFixed(1)} DA/người` : '—'));
-      lines.push(nsRow('Nhân sự phân bổ > 2 dự án', `${ps.overallocated.length} người`));
+      lines.push(nsRow('Nhân sự phân bổ > 2 Squad/DA', `${ps.overallocated.length} người`));
       lines.push(`  └${'─'.repeat(NS.lb+2)}┴${'─'.repeat(NS.vl+2)}┘`);
       lines.push('');
       lines.push('  Chú thích: Nhân sự ngoài khối không được tính trong báo cáo này.');
       lines.push(`             ${ps.totalAllocated} lượt phân bổ / ${ps.totalInternal} người = mỗi người tham gia TB ${ps.totalInternal > 0 ? (ps.totalAllocated / ps.totalInternal).toFixed(1) : 0} DA.`);
       lines.push('');
       if (ps.projectAllocations.length > 0) {
-        lines.push('  B. PHÂN BỔ NHÂN SỰ THEO DỰ ÁN (top 10):');
+        lines.push('  B. PHÂN BỔ NHÂN SỰ THEO SQUAD/DỰ ÁN (top 10):');
         lines.push('');
         const PA = { nm: 30, ct: 10 } as const;
         lines.push(`  ┌${'─'.repeat(PA.nm+2)}┬${'─'.repeat(PA.ct+2)}┐`);
-        lines.push(`  │ ${'DỰ ÁN'.padEnd(PA.nm)} │ ${'SỐ NGƯỜI'.padStart(PA.ct)} │`);
+        lines.push(`  │ ${'SQUAD/DỰ ÁN'.padEnd(PA.nm)} │ ${'SỐ NGƯỜI'.padStart(PA.ct)} │`);
         lines.push(`  ├${'─'.repeat(PA.nm+2)}┼${'─'.repeat(PA.ct+2)}┤`);
         ps.projectAllocations.slice(0, 10).forEach(a => {
           const nm = a.projectName.length > PA.nm ? a.projectName.slice(0, PA.nm - 1) + '…' : a.projectName;
@@ -486,19 +486,19 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
         lines.push('');
       }
       if (ps.overallocated.length > 0) {
-        lines.push('  C. NHÂN SỰ PHÂN BỔ > 2 DỰ ÁN (cần chú ý):');
+        lines.push('  C. NHÂN SỰ PHÂN BỔ > 2 SQUAD/DỰ ÁN (cần chú ý):');
         lines.push('');
         ps.overallocated.forEach((person, i) => {
-          lines.push(`     ${String(i+1).padStart(2)}.  ${person.name}${person.role ? ` (${person.role})` : ''} — ${person.projects.length} dự án`);
-          lines.push(`          Dự án: ${person.projects.join(' · ')}`);
+          lines.push(`     ${String(i+1).padStart(2)}.  ${person.name}${person.role ? ` (${person.role})` : ''} — ${person.projects.length} Squad/DA`);
+          lines.push(`          Squad/DA: ${person.projects.join(' · ')}`);
           if (i < ps.overallocated.length - 1) lines.push('');
         });
         lines.push('');
-        lines.push('  [!] Nhân sự phân bổ vào quá nhiều dự án đồng thời có thể ảnh hưởng đến chất lượng');
+        lines.push('  [!] Nhân sự phân bổ vào quá nhiều Squad/Dự án đồng thời có thể ảnh hưởng đến chất lượng');
         lines.push('      và tiến độ. Đề nghị PM rà soát và cân bằng lại phân bổ.');
       } else {
-        lines.push('  C. NHÂN SỰ PHÂN BỔ > 2 DỰ ÁN:');
-        lines.push('     Không có nhân sự nào đang phân bổ vào hơn 2 dự án cùng lúc.');
+        lines.push('  C. NHÂN SỰ PHÂN BỔ > 2 SQUAD/DỰ ÁN:');
+        lines.push('     Không có nhân sự nào đang phân bổ vào hơn 2 Squad/Dự án cùng lúc.');
       }
       lines.push('');
     }
@@ -548,21 +548,21 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
     lines.push(`  Overall Portfolio Status: ● ${portfolioStatus}`);
     lines.push('');
     const summaryEN = red.length > 0
-      ? `Portfolio is at RED status with ${red.length} project(s) requiring immediate attention.`
-      : amber.length > 0 ? `Portfolio is at AMBER status with ${amber.length} project(s) under close monitoring.`
-        : 'Portfolio is in good health — all projects are tracking GREEN.';
-    lines.push(`  ${summaryEN} A total of ${data.kpi.totalProjects} projects are active across`);
+      ? `Portfolio is at RED status with ${red.length} Squad/Project(s) requiring immediate attention.`
+      : amber.length > 0 ? `Portfolio is at AMBER status with ${amber.length} Squad/Project(s) under close monitoring.`
+        : 'Portfolio is in good health — all Squad/Projects are tracking GREEN.';
+    lines.push(`  ${summaryEN} A total of ${data.kpi.totalProjects} Squad/Projects are active across`);
     lines.push(`  ${data.kpi.totalPrograms} programs, with an average completion rate of ${data.kpi.avgCompletion}% (weighted by status).`);
     lines.push(`  Status distribution: ${green.length} GREEN  ·  ${amber.length} AMBER  ·  ${red.length} RED.`);
-    if (overdue.length > 0) lines.push(`\n  [!] ALERT: ${overdue.length} project(s) are past their deadline — immediate action required.`);
+    if (overdue.length > 0) lines.push(`\n  [!] ALERT: ${overdue.length} Squad/Project(s) are past their deadline — immediate action required.`);
     if (data.kpi.totalOpenRisks === 0 && data.kpi.totalOpenIssues === 0) lines.push('  [+] Positive: No open risks or issues recorded at the portfolio level.');
     lines.push('');
     lines.push('  KEY METRICS:');
     lines.push(`  ${'─'.repeat(50)}`);
-    lines.push(`  Total Projects          : ${data.kpi.totalProjects}      Active Projects   : ${data.kpi.activeProjects}`);
+    lines.push(`  Total Squad/Projects    : ${data.kpi.totalProjects}      Active           : ${data.kpi.activeProjects}`);
     lines.push(`  Avg. Completion (wtd)   : ${data.kpi.avgCompletion}%    Programs          : ${data.kpi.totalPrograms}`);
     lines.push(`  Open Risks              : ${data.kpi.totalOpenRisks}      Open Issues       : ${data.kpi.totalOpenIssues}`);
-    lines.push(`  Overdue Projects        : ${overdue.length}`);
+    lines.push(`  Overdue Squad/Projects  : ${overdue.length}`);
     lines.push(`  ${'─'.repeat(50)}`);
     lines.push('');
     if (data.personnelStats) {
@@ -570,7 +570,7 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
       lines.push('  PERSONNEL (MAC BLOCK):');
       lines.push(`  ${'─'.repeat(50)}`);
       lines.push(`  Total Internal Members  : ${ps.totalInternal}      Allocated Slots  : ${ps.totalAllocated}`);
-      lines.push(`  Allocated > 2 Projects  : ${ps.overallocated.length}      (see Section VIII for details)`);
+      lines.push(`  Allocated > 2 S/Proj    : ${ps.overallocated.length}      (see Section VIII for details)`);
       lines.push(`  ${'─'.repeat(50)}`);
       lines.push('');
     }
@@ -581,7 +581,7 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
     lines.push(D);
     lines.push('');
     lines.push(tHL('┌', '┬', '┐'));
-    lines.push(tRow('#', 'STATUS', 'PROJECT NAME', 'PROGRAM', 'PHASE', 'PCT', 'DEADLINE'));
+    lines.push(tRow('#', 'STATUS', 'SQUAD/PROJECT', 'PROGRAM', 'PHASE', 'PCT', 'DEADLINE'));
     lines.push(tHL('├', '┼', '┤'));
     sorted.forEach((p, i) => {
       const stLabel = p.rag === 'red' ? '● RED' : p.rag === 'amber' ? '● AMBER' : '● GREEN';
@@ -596,7 +596,7 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
 
     // Per-project US progress details
     if (allProjects.some(p => p.total_activities > 0)) {
-      lines.push('  PROJECT PROGRESS DETAILS:');
+      lines.push('  SQUAD/PROJECT PROGRESS DETAILS:');
       lines.push(`  ${'─'.repeat(80)}`);
       sorted.forEach((p, i) => {
         if (p.total_activities === 0) return;
@@ -646,7 +646,7 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
     } else {
       data.topRisks.slice(0, 6).forEach((r, i) => {
         lines.push(`     ${String(i+1).padStart(2)}.  [${r.priority.toUpperCase()}]  ${r.description}`);
-        lines.push(`          Project    : ${r.project_name}${r.program_name ? ` (${r.program_name})` : ''}`);
+        lines.push(`          Squad/Proj : ${r.project_name}${r.program_name ? ` (${r.program_name})` : ''}`);
         lines.push(`          Category   : ${r.category || '—'}`);
         lines.push(`          Mitigation : ${r.mitigation || 'Under assessment'}`);
         if (i < Math.min(data.topRisks.length, 6) - 1) lines.push('');
@@ -659,7 +659,7 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
     } else {
       data.topIssues.slice(0, 6).forEach((r, i) => {
         lines.push(`     ${String(i+1).padStart(2)}.  [${r.priority.toUpperCase()}]  ${r.description}`);
-        lines.push(`          Project    : ${r.project_name}${r.program_name ? ` (${r.program_name})` : ''}`);
+        lines.push(`          Squad/Proj : ${r.project_name}${r.program_name ? ` (${r.program_name})` : ''}`);
         lines.push(`          Resolution : ${r.mitigation || 'Under investigation'}`);
         if (i < Math.min(data.topIssues.length, 6) - 1) lines.push('');
       });
@@ -675,7 +675,7 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
       lines.push('  No significant milestones in the next 30 days.');
     } else {
       lines.push(mlHL('┌', '┬', '┐'));
-      lines.push(mlRow('DATE', 'MILESTONE / DELIVERABLE', 'PROJECT', 'PCT'));
+      lines.push(mlRow('DATE', 'MILESTONE / DELIVERABLE', 'SQUAD/PROJ', 'PCT'));
       lines.push(mlHL('├', '┼', '┤'));
       data.upcomingMilestones.forEach(m => {
         const label = m.deliverable ? `${m.activity} / ${m.deliverable}` : m.activity;
@@ -691,7 +691,7 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
     lines.push(D);
     lines.push('');
     lines.push(csHL('┌', '┬', '┐'));
-    lines.push(csRow('PROGRAM', 'PROJ', 'ACTIVE', 'AVG %', 'HEALTH', 'RISKS', 'ISSUES'));
+    lines.push(csRow('PROGRAM', 'S/PROJ', 'ACTIVE', 'AVG %', 'HEALTH', 'RISKS', 'ISSUES'));
     lines.push(csHL('├', '┼', '┤'));
     data.programs.forEach(c => {
       if (c.projects.length === 0) return;
@@ -704,7 +704,7 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
     });
     lines.push(csHL('└', '┴', '┘'));
     if (data.noProgramProjects.length > 0) {
-      lines.push(`\n  Note: ${data.noProgramProjects.length} project(s) not assigned to any program.`);
+      lines.push(`\n  Note: ${data.noProgramProjects.length} Squad/Project(s) not assigned to any program.`);
     }
     lines.push('');
 
@@ -725,7 +725,7 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
     });
     criticalRisksEN.forEach(r => {
       actionIdxEN++;
-      actionsEN.push(`  ${actionIdxEN}. [URGENT — DECISION]  ${r.description} in project ${r.project_name}.`);
+      actionsEN.push(`  ${actionIdxEN}. [URGENT — DECISION]  ${r.description} in Squad/Project ${r.project_name}.`);
       actionsEN.push(`     → Recommend: ${r.mitigation || 'Immediate assessment and corrective action required'}.`);
     });
     if (actionsEN.length === 0) {
@@ -750,20 +750,20 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
       lines.push(`  │ ${'METRIC'.padEnd(NS2.lb)} │ ${'VALUE'.padStart(NS2.vl)} │`);
       lines.push(`  ├${'─'.repeat(NS2.lb+2)}┼${'─'.repeat(NS2.vl+2)}┤`);
       lines.push(nsRow2('Total internal personnel (MAC block)', String(ps.totalInternal)));
-      lines.push(nsRow2('Total project allocation slots', `${ps.totalAllocated} slots`));
-      lines.push(nsRow2('Avg. projects per person', ps.totalInternal > 0 ? `${(ps.totalAllocated / ps.totalInternal).toFixed(1)} proj/person` : '—'));
-      lines.push(nsRow2('Personnel allocated to > 2 projects', `${ps.overallocated.length} people`));
+      lines.push(nsRow2('Total Squad/Project allocation slots', `${ps.totalAllocated} slots`));
+      lines.push(nsRow2('Avg. Squad/Projects per person', ps.totalInternal > 0 ? `${(ps.totalAllocated / ps.totalInternal).toFixed(1)} S/proj/person` : '—'));
+      lines.push(nsRow2('Personnel allocated to > 2 Squad/Proj', `${ps.overallocated.length} people`));
       lines.push(`  └${'─'.repeat(NS2.lb+2)}┴${'─'.repeat(NS2.vl+2)}┘`);
       lines.push('');
       lines.push('  Note: External (non-MAC) personnel are excluded from this report.');
       lines.push(`        ${ps.totalAllocated} allocation slots / ${ps.totalInternal} people = avg ${ps.totalInternal > 0 ? (ps.totalAllocated / ps.totalInternal).toFixed(1) : 0} projects per person.`);
       lines.push('');
       if (ps.projectAllocations.length > 0) {
-        lines.push('  B. ALLOCATION BY PROJECT (top 10):');
+        lines.push('  B. ALLOCATION BY SQUAD/PROJECT (top 10):');
         lines.push('');
         const PA2 = { nm: 30, ct: 10 } as const;
         lines.push(`  ┌${'─'.repeat(PA2.nm+2)}┬${'─'.repeat(PA2.ct+2)}┐`);
-        lines.push(`  │ ${'PROJECT'.padEnd(PA2.nm)} │ ${'# PEOPLE'.padStart(PA2.ct)} │`);
+        lines.push(`  │ ${'SQUAD/PROJECT'.padEnd(PA2.nm)} │ ${'# PEOPLE'.padStart(PA2.ct)} │`);
         lines.push(`  ├${'─'.repeat(PA2.nm+2)}┼${'─'.repeat(PA2.ct+2)}┤`);
         ps.projectAllocations.slice(0, 10).forEach(a => {
           const nm = a.projectName.length > PA2.nm ? a.projectName.slice(0, PA2.nm - 1) + '…' : a.projectName;
@@ -773,19 +773,19 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
         lines.push('');
       }
       if (ps.overallocated.length > 0) {
-        lines.push('  C. PERSONNEL ALLOCATED TO > 2 PROJECTS (attention required):');
+        lines.push('  C. PERSONNEL ALLOCATED TO > 2 SQUAD/PROJECTS (attention required):');
         lines.push('');
         ps.overallocated.forEach((person, i) => {
-          lines.push(`     ${String(i+1).padStart(2)}.  ${person.name}${person.role ? ` (${person.role})` : ''} — ${person.projects.length} projects`);
-          lines.push(`          Projects: ${person.projects.join(' · ')}`);
+          lines.push(`     ${String(i+1).padStart(2)}.  ${person.name}${person.role ? ` (${person.role})` : ''} — ${person.projects.length} Squad/Proj`);
+          lines.push(`          Squad/Proj: ${person.projects.join(' · ')}`);
           if (i < ps.overallocated.length - 1) lines.push('');
         });
         lines.push('');
-        lines.push('  [!] Personnel allocated across too many concurrent projects may impact quality');
+        lines.push('  [!] Personnel allocated across too many concurrent Squad/Projects may impact quality');
         lines.push('      and delivery. PMs should review and rebalance allocations.');
       } else {
-        lines.push('  C. PERSONNEL ALLOCATED TO > 2 PROJECTS:');
-        lines.push('     No personnel currently allocated to more than 2 projects simultaneously.');
+        lines.push('  C. PERSONNEL ALLOCATED TO > 2 SQUAD/PROJECTS:');
+        lines.push('     No personnel currently allocated to more than 2 Squad/Projects simultaneously.');
       }
       lines.push('');
     }
@@ -1041,7 +1041,7 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
   const overallStatusCol = overallStatus === 'RED' ? '#E53E3E' : overallStatus === 'AMBER' ? '#D97706' : '#38A169';
   h += `<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding-bottom:18px;margin-bottom:18px;border-bottom:1px solid #E5E7EB;">`;
   h += `<div><div style="font-family:Georgia,serif;font-size:24px;font-weight:700;line-height:1.2;color:#111827;">${programName}</div>`;
-  h += `<div style="font-size:11px;color:#6B7280;margin-top:6px;">${isVN?'Kỳ báo cáo':'Period'}: ${periodStart} → ${periodEnd} &nbsp;·&nbsp; ${allProjects.length} ${isVN?'dự án':'projects'} &nbsp;·&nbsp; ${isVN?'TB':'Avg'} ${data.kpi.avgCompletion}%</div></div>`;
+  h += `<div style="font-size:11px;color:#6B7280;margin-top:6px;">${isVN?'Kỳ báo cáo':'Period'}: ${periodStart} → ${periodEnd} &nbsp;·&nbsp; ${allProjects.length} ${isVN?'Squad/Dự án':'Squad/Projects'} &nbsp;·&nbsp; ${isVN?'TB':'Avg'} ${data.kpi.avgCompletion}%</div></div>`;
   h += `<div style="flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:4px;">`;
   h += `<span style="display:inline-flex;align-items:center;gap:6px;background:${overallStatusCol}18;border:1px solid ${overallStatusCol}55;color:${overallStatusCol};padding:5px 14px;border-radius:4px;font-size:11px;font-weight:700;letter-spacing:1px;">&#9679; ${overallStatus}</span>`;
   h += `</div></div>`;
@@ -1108,7 +1108,7 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
   }));
 
   h += `<div class="rpd-bar-panel"><div class="rpd-panel">`;
-  h += `<div class="rpd-ptitle">${isVN?'Trạng thái epic theo dự án':'Epic Status per Project'}</div>`;
+  h += `<div class="rpd-ptitle">${isVN?'Trạng thái epic theo Squad/Dự án':'Epic Status per Squad/Project'}</div>`;
   h += `<div>${svgBarChart(barItems, Math.max(600, barItems.length * 80), 160)}</div>`;
   h += `<div style="display:flex;gap:18px;margin-top:10px;justify-content:center;">`;
   h += `<div style="display:flex;align-items:center;gap:5px;font-size:11px;color:#6B7280;"><div style="width:10px;height:10px;border-radius:2px;background:#16A34A;display:inline-block;"></div>${isVN?'Hoàn thành':'Done'}</div>`;
@@ -1142,7 +1142,7 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
     const hasOverallocated = ps.overallocated.length > 0;
     h += `<div class="rpd-panel" style="flex:1;text-align:center;padding:16px 10px;border-color:${hasOverallocated?'#DC262655':'#E5E7EB'};">`;
     h += `<div style="font-size:30px;font-weight:700;color:${hasOverallocated?'#DC2626':'#16A34A'};line-height:1;">${ps.overallocated.length}</div>`;
-    h += `<div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#6B7280;margin-top:6px;">${isVN?'Phân bổ > 2 dự án':'Allocated > 2 Projects'}</div>`;
+    h += `<div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#6B7280;margin-top:6px;">${isVN?'Phân bổ > 2 Squad/DA':'Allocated > 2 Squad/Proj'}</div>`;
     h += `<div style="font-size:11px;color:${hasOverallocated?'#DC2626':'#9CA3AF'};margin-top:4px;">${hasOverallocated?(isVN?'Cần chú ý':'Needs attention'):(isVN?'Ổn định':'OK')}</div>`;
     h += `</div>`;
     h += `</div>`; // stats row
@@ -1156,7 +1156,7 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
       const pieTotal = ps.projectAllocations.reduce((s, a) => s + a.memberCount, 0);
       const pctCenter = ps.totalInternal > 0 ? Math.round((pieTotal / ps.totalInternal) * 100) : 0;
       h += `<div class="rpd-panel" style="flex:1;min-width:0;">`;
-      h += `<div class="rpd-ptitle">${isVN?'Phân bổ nhân sự theo dự án':'Personnel Allocation by Project'}</div>`;
+      h += `<div class="rpd-ptitle">${isVN?'Phân bổ nhân sự theo Squad/DA':'Personnel Allocation by Squad/Project'}</div>`;
       h += `<div class="rpd-pie-lay"><div style="flex-shrink:0;">${svgDonut(pieSegs, 130, 52, 32, pctCenter)}</div>`;
       h += `<div class="rpd-pie-leg" style="max-height:120px;overflow:auto;">`;
       ps.projectAllocations.slice(0, 8).forEach((a, i) => {
@@ -1171,16 +1171,16 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
 
     // Overallocated table
     h += `<div class="rpd-panel" style="flex:1.2;min-width:0;">`;
-    h += `<div class="rpd-ptitle">${isVN?'Nhân sự phân bổ > 2 dự án':'Personnel Allocated to > 2 Projects'}</div>`;
+    h += `<div class="rpd-ptitle">${isVN?'Nhân sự phân bổ > 2 Squad/DA':'Personnel Allocated to > 2 Squad/Projects'}</div>`;
     if (ps.overallocated.length === 0) {
-      h += `<p style="font-size:12px;color:#16A34A;display:flex;align-items:center;gap:6px;margin:12px 0;"><span style="width:8px;height:8px;border-radius:50%;background:#16A34A;display:inline-block;"></span>${isVN?'Không có nhân sự nào phân bổ vào hơn 2 dự án':'No personnel allocated to more than 2 projects'}</p>`;
+      h += `<p style="font-size:12px;color:#16A34A;display:flex;align-items:center;gap:6px;margin:12px 0;"><span style="width:8px;height:8px;border-radius:50%;background:#16A34A;display:inline-block;"></span>${isVN?'Không có nhân sự nào phân bổ vào hơn 2 Squad/Dự án':'No personnel allocated to more than 2 Squad/Projects'}</p>`;
     } else {
       h += `<table style="width:100%;border-collapse:collapse;font-size:11px;">`;
       h += `<thead><tr>`;
       h += `<th style="text-align:left;padding:4px 8px 6px;color:#9CA3AF;font-size:10px;text-transform:uppercase;letter-spacing:0.8px;border-bottom:1px solid #E5E7EB;">${isVN?'Nhân sự':'Name'}</th>`;
       h += `<th style="text-align:left;padding:4px 8px 6px;color:#9CA3AF;font-size:10px;text-transform:uppercase;letter-spacing:0.8px;border-bottom:1px solid #E5E7EB;">${isVN?'Vai trò':'Role'}</th>`;
       h += `<th style="text-align:center;padding:4px 8px 6px;color:#9CA3AF;font-size:10px;text-transform:uppercase;letter-spacing:0.8px;border-bottom:1px solid #E5E7EB;">${isVN?'Số DA':'Projects'}</th>`;
-      h += `<th style="text-align:left;padding:4px 8px 6px;color:#9CA3AF;font-size:10px;text-transform:uppercase;letter-spacing:0.8px;border-bottom:1px solid #E5E7EB;">${isVN?'Danh sách dự án':'Project List'}</th>`;
+      h += `<th style="text-align:left;padding:4px 8px 6px;color:#9CA3AF;font-size:10px;text-transform:uppercase;letter-spacing:0.8px;border-bottom:1px solid #E5E7EB;">${isVN?'Danh sách Squad/DA':'Squad/Project List'}</th>`;
       h += `</tr></thead><tbody>`;
       ps.overallocated.forEach(person => {
         const projStr = person.projects.join(', ');
@@ -1193,7 +1193,7 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
         h += `</tr>`;
       });
       h += `</tbody></table>`;
-      h += `<div style="margin-top:8px;padding:6px 10px;background:#FEF2F2;border-radius:4px;font-size:11px;color:#DC2626;">[!] ${isVN?'Cần rà soát phân bổ để đảm bảo chất lượng và tiến độ dự án.':'Review allocations to ensure project quality and delivery.'}</div>`;
+      h += `<div style="margin-top:8px;padding:6px 10px;background:#FEF2F2;border-radius:4px;font-size:11px;color:#DC2626;">[!] ${isVN?'Cần rà soát phân bổ để đảm bảo chất lượng và tiến độ Squad/Dự án.':'Review allocations to ensure Squad/Project quality and delivery.'}</div>`;
     }
     h += `</div>`;
     h += `</div>`; // flex row
@@ -1203,7 +1203,7 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
   h += `<div class="rpd-zsep"></div>`;
 
   // ── Zone 2
-  h += `<div class="rpd-zlbl"><span class="rpd-znum">2</span>${isVN?'Chi tiết dự án & tiến độ Epic':'Project Details & Epic Progress'}</div>`;
+  h += `<div class="rpd-zlbl"><span class="rpd-znum">2</span>${isVN?'Chi tiết Squad/Dự án & tiến độ Epic':'Squad/Project Details & Epic Progress'}</div>`;
 
   // Summary pills (3 per row)
   for (let ri = 0; ri < allProjects.length; ri += 3) {
@@ -1842,7 +1842,7 @@ export default function PortfolioReportPage() {
                   className="flex items-center gap-2 w-full text-left group"
                 >
                   <Filter className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                  <span className="text-sm font-medium text-slate-600 group-hover:text-slate-800">Dự án đưa vào báo cáo</span>
+                  <span className="text-sm font-medium text-slate-600 group-hover:text-slate-800">Squad/Dự án đưa vào báo cáo</span>
                   <span className={`ml-1 text-xs px-2 py-0.5 rounded-full font-semibold border ${selectedProjectIds.size < allProjects.length ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-slate-100 border-slate-200 text-slate-500'}`}>
                     {selectedProjectIds.size} / {allProjects.length}
                   </span>
