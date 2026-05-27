@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -10,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { Plus, Trash2, AlertTriangle, ChevronRight, Pencil } from 'lucide-react';
+import { Plus, Trash2, AlertTriangle, ChevronRight, Pencil, X } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -60,19 +59,54 @@ interface BudgetDetail {
 
 interface Project { id: number; name: string; }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// Line item for CAPEX/OPEX breakdown
+type LineItem = { id: string; label: string; amount: string };
 
-const CATEGORIES = ['CAPEX', 'OPEX', 'Vận hành', 'Other'];
+// ─── Defaults ─────────────────────────────────────────────────────────────────
+
+const DEFAULT_CAPEX: LineItem[] = [
+  { id: 'c1', label: 'Phần cứng & Thiết bị', amount: '' },
+  { id: 'c2', label: 'Phần mềm bản quyền', amount: '' },
+  { id: 'c3', label: 'Hạ tầng & Data Center', amount: '' },
+  { id: 'c4', label: 'Phát triển phần mềm (vốn hóa)', amount: '' },
+  { id: 'c5', label: 'Khác (CAPEX)', amount: '' },
+];
+
+const DEFAULT_OPEX: LineItem[] = [
+  { id: 'o1', label: 'Nhân sự (lương, phụ cấp)', amount: '' },
+  { id: 'o2', label: 'Dịch vụ & Thuê ngoài', amount: '' },
+  { id: 'o3', label: 'Vận hành & Bảo trì hệ thống', amount: '' },
+  { id: 'o4', label: 'Đào tạo & Phát triển', amount: '' },
+  { id: 'o5', label: 'Chi phí văn phòng & Tiện ích', amount: '' },
+  { id: 'o6', label: 'Khác (OPEX)', amount: '' },
+];
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function fmt(n: number | string, currency = 'VND') {
   const num = typeof n === 'string' ? parseFloat(n) : n;
   if (isNaN(num)) return '0';
   if (currency === 'VND') {
-    if (num >= 1_000_000_000) return `${(num / 1_000_000_000).toFixed(1)} tỷ`;
+    if (num >= 1_000_000_000) return `${(num / 1_000_000_000).toFixed(2)} tỷ`;
     if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(0)} triệu`;
     return num.toLocaleString('vi-VN');
   }
   return num.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+}
+
+function fmtFull(n: number | string, currency = 'VND') {
+  const num = typeof n === 'string' ? parseFloat(n) : n;
+  if (isNaN(num) || num === 0) return '—';
+  if (currency === 'VND') return num.toLocaleString('vi-VN');
+  return num.toLocaleString('en-US');
+}
+
+function parseSubItems(notes: string): Array<{ label: string; amount: number }> {
+  try {
+    const parsed = JSON.parse(notes || '');
+    if (Array.isArray(parsed)) return parsed;
+  } catch {}
+  return [];
 }
 
 function statusBadge(s: string) {
@@ -190,7 +224,6 @@ export default function PortfolioBudgetPage() {
         )}
       </div>
 
-      {/* Create budget dialog */}
       {showCreate && (
         <CreateBudgetDialog
           onClose={() => setShowCreate(false)}
@@ -198,7 +231,6 @@ export default function PortfolioBudgetPage() {
         />
       )}
 
-      {/* Edit budget dialog */}
       {showEditBudget && detail && (
         <EditBudgetDialog
           budget={detail.budget}
@@ -255,19 +287,19 @@ function BudgetDetailPanel({
       <div className="grid grid-cols-3 gap-4 mb-6">
         <div className="p-4 rounded-lg border bg-card">
           <div className="text-xs text-muted-foreground mb-1">Tổng ngân sách</div>
-          <div className="text-xl font-bold">{fmt(budget.total_amount, currency)}</div>
+          <div className="text-xl font-bold font-mono">{fmt(budget.total_amount, currency)}</div>
           <div className="text-xs text-muted-foreground">{currency}</div>
         </div>
         <div className="p-4 rounded-lg border bg-card">
           <div className="text-xs text-muted-foreground mb-1">Đã phân bổ</div>
-          <div className={`text-xl font-bold ${summary.over_total ? 'text-red-600' : ''}`}>
+          <div className={`text-xl font-bold font-mono ${summary.over_total ? 'text-red-600' : ''}`}>
             {fmt(summary.total_allocated, currency)}
           </div>
           <div className="text-xs text-muted-foreground">{currency}</div>
         </div>
         <div className="p-4 rounded-lg border bg-card">
           <div className="text-xs text-muted-foreground mb-1">Còn lại</div>
-          <div className={`text-xl font-bold ${summary.over_total ? 'text-red-600' : 'text-green-600'}`}>
+          <div className={`text-xl font-bold font-mono ${summary.over_total ? 'text-red-600' : 'text-green-600'}`}>
             {fmt(Number(budget.total_amount) - summary.total_allocated, currency)}
           </div>
           <div className="text-xs text-muted-foreground">{currency}</div>
@@ -325,6 +357,8 @@ function OverviewTab({
     );
   }
 
+  const grandCeiling = categories.reduce((s, c) => s + Number(c.ceiling_amount), 0);
+
   return (
     <div className="space-y-4">
       {categories.map(cat => {
@@ -333,32 +367,88 @@ function OverviewTab({
         const ceiling = Number(cat.ceiling_amount);
         const pct = ceiling > 0 ? Math.min(100, (used / ceiling) * 100) : 0;
         const over = used > ceiling && ceiling > 0;
+        const subItems = parseSubItems(cat.notes);
+        const isCAPEX = cat.category === 'CAPEX';
+        const isOPEX = cat.category === 'OPEX';
+        const accentColor = isCAPEX
+          ? 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800'
+          : isOPEX
+          ? 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800'
+          : 'bg-muted/30';
+        const barColor = isCAPEX ? (over ? 'bg-red-500' : 'bg-blue-500') : isOPEX ? (over ? 'bg-red-500' : 'bg-amber-500') : 'bg-slate-500';
+        const pctOfTotal = grandCeiling > 0 ? ((ceiling / grandCeiling) * 100).toFixed(0) : '0';
 
         return (
-          <div key={cat.id} className="p-4 rounded-lg border bg-card">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <span className="font-medium">{cat.category}</span>
-                {over && <AlertTriangle className="w-4 h-4 text-amber-500" />}
+          <div key={cat.id} className={`rounded-lg border overflow-hidden ${accentColor}`}>
+            {/* Category header */}
+            <div className="px-4 py-3">
+              <div className="flex items-center justify-between mb-1.5">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-sm tracking-wide">{cat.category}</span>
+                  <span className="text-xs text-muted-foreground px-1.5 py-0.5 bg-background/60 rounded">
+                    {pctOfTotal}% tổng
+                  </span>
+                  {over && <AlertTriangle className="w-4 h-4 text-red-500" />}
+                </div>
+                <div className="text-right">
+                  <div className="text-xs text-muted-foreground">
+                    Đã dùng / Trần
+                  </div>
+                  <div className="text-sm font-mono font-semibold">
+                    <span className={over ? 'text-red-600' : ''}>{fmtFull(used, currency)}</span>
+                    <span className="text-muted-foreground"> / {fmtFull(ceiling, currency)}</span>
+                    <span className="text-xs text-muted-foreground ml-1">{currency}</span>
+                  </div>
+                </div>
               </div>
-              <span className="text-sm text-muted-foreground">
-                {fmt(used, currency)} / {fmt(ceiling, currency)} {currency}
-              </span>
+              <div className="h-2 bg-background/60 dark:bg-black/20 rounded-full overflow-hidden mb-1">
+                <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${pct}%` }} />
+              </div>
+              {over && (
+                <p className="text-xs text-red-600 mt-1 font-medium">
+                  ⚠ Vượt trần {fmtFull(used - ceiling, currency)} {currency}
+                </p>
+              )}
             </div>
-            <div className="h-2 bg-gray-200 rounded-full overflow-hidden mb-1">
-              <div
-                className={`h-full rounded-full ${over ? 'bg-amber-500' : 'bg-blue-500'}`}
-                style={{ width: `${pct}%` }}
-              />
-            </div>
-            {over && (
-              <p className="text-xs text-amber-600 mt-1">
-                Vượt trần {fmt(used - ceiling, currency)} {currency}
-              </p>
+
+            {/* Sub-items breakdown */}
+            {subItems.length > 0 && (
+              <div className="bg-background/70 dark:bg-background/10">
+                <div className="grid grid-cols-[1fr_auto] text-xs text-muted-foreground border-t px-4 py-1.5 font-medium">
+                  <span>Hạng mục chi tiết</span>
+                  <span className="text-right">Dự toán ({currency})</span>
+                </div>
+                {subItems.map((item, idx) => {
+                  const itemPct = ceiling > 0 ? ((item.amount / ceiling) * 100).toFixed(0) : '0';
+                  return (
+                    <div key={idx} className="grid grid-cols-[auto_1fr_auto_auto] items-center gap-2 px-4 py-2 border-t text-sm">
+                      <span className="text-muted-foreground text-xs w-5 text-right">{idx + 1}</span>
+                      <span className="text-foreground/80">{item.label}</span>
+                      <span className="text-xs text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded">{itemPct}%</span>
+                      <span className="font-mono text-sm text-right min-w-[120px]">{fmtFull(item.amount, currency)}</span>
+                    </div>
+                  );
+                })}
+                <div className="grid grid-cols-[1fr_auto] items-center px-4 py-2.5 border-t bg-muted/20">
+                  <span className="font-semibold text-sm">Tổng {cat.category}</span>
+                  <span className="font-bold font-mono text-sm">{fmtFull(ceiling, currency)} {currency}</span>
+                </div>
+              </div>
             )}
           </div>
         );
       })}
+
+      {/* Grand total */}
+      {categories.length > 0 && (
+        <div className="rounded-lg border bg-muted/50 px-5 py-4 flex items-center justify-between">
+          <span className="font-bold text-base">Tổng ngân sách kế hoạch</span>
+          <div className="text-right">
+            <div className="font-bold font-mono text-xl">{fmtFull(grandCeiling, currency)}</div>
+            <div className="text-xs text-muted-foreground">{currency} • {fmt(grandCeiling, currency)}</div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -414,13 +504,13 @@ function AllocationsTab({
               return (
                 <tr key={a.id} className="border-t hover:bg-muted/30">
                   <td className="p-3 font-medium">{a.project_name ?? <span className="italic text-muted-foreground">Chưa chọn dự án</span>}</td>
-                  <td className="p-3 text-right">{fmt(alloc, currency)}</td>
-                  <td className={`p-3 text-right ${over ? 'text-red-600 font-medium' : ''}`}>
-                    {fmt(est, currency)}
+                  <td className="p-3 text-right font-mono">{fmtFull(alloc, currency)}</td>
+                  <td className={`p-3 text-right font-mono ${over ? 'text-red-600 font-medium' : ''}`}>
+                    {fmtFull(est, currency)}
                     {over && <AlertTriangle className="w-3.5 h-3.5 inline ml-1 text-red-500" />}
                   </td>
-                  <td className="p-3 text-right">{fmt(a.total_approved, currency)}</td>
-                  <td className="p-3 text-right">{fmt(a.total_actual, currency)}</td>
+                  <td className="p-3 text-right font-mono">{fmtFull(a.total_approved, currency)}</td>
+                  <td className="p-3 text-right font-mono">{fmtFull(a.total_actual, currency)}</td>
                   <td className={`p-3 text-right ${over ? 'text-red-600' : ''}`}>{pct}%</td>
                   <td className="p-3">
                     <div className="flex gap-1 justify-end">
@@ -502,53 +592,66 @@ function CategoriesTab({
 
   return (
     <div className="space-y-3">
-      {categories.map(cat => (
-        <div key={cat.id} className="p-4 rounded-lg border bg-card flex items-start gap-3">
-          <div className="w-36">
-            <Input
-              defaultValue={cat.category}
-              onBlur={e => handleUpdate(cat, 'category', e.target.value)}
-              className="h-8 text-sm"
-            />
+      {categories.map(cat => {
+        const subItems = parseSubItems(cat.notes);
+        return (
+          <div key={cat.id} className="p-4 rounded-lg border bg-card flex items-start gap-3">
+            <div className="w-36">
+              <Input
+                defaultValue={cat.category}
+                onBlur={e => handleUpdate(cat, 'category', e.target.value)}
+                className="h-8 text-sm"
+              />
+            </div>
+            <div className="flex-1">
+              <Input
+                defaultValue={cat.ceiling_amount?.toString()}
+                onBlur={e => handleUpdate(cat, 'ceiling_amount', e.target.value)}
+                className="h-8 text-sm text-right font-mono"
+                placeholder={`Trần (${currency})`}
+              />
+              {cat.ceiling_amount > 0 && (
+                <p className="text-xs text-muted-foreground mt-1 text-right">{fmt(cat.ceiling_amount, currency)} {currency}</p>
+              )}
+            </div>
+            <div className="flex-1">
+              {subItems.length > 0 ? (
+                <div className="h-8 flex items-center px-2 text-xs text-muted-foreground bg-muted/30 rounded border">
+                  {subItems.length} hạng mục chi tiết
+                </div>
+              ) : (
+                <Input
+                  defaultValue={cat.notes}
+                  onBlur={e => handleUpdate(cat, 'notes', e.target.value)}
+                  className="h-8 text-sm"
+                  placeholder="Ghi chú"
+                />
+              )}
+            </div>
+            <Button size="sm" variant="ghost" onClick={() => handleDelete(cat.id)}>
+              <Trash2 className="w-4 h-4 text-red-500" />
+            </Button>
           </div>
-          <div className="flex-1">
-            <Input
-              defaultValue={cat.ceiling_amount?.toString()}
-              onBlur={e => handleUpdate(cat, 'ceiling_amount', e.target.value)}
-              className="h-8 text-sm text-right"
-              placeholder={`Trần (${currency})`}
-            />
-          </div>
-          <div className="flex-1">
-            <Input
-              defaultValue={cat.notes}
-              onBlur={e => handleUpdate(cat, 'notes', e.target.value)}
-              className="h-8 text-sm"
-              placeholder="Ghi chú"
-            />
-          </div>
-          <Button size="sm" variant="ghost" onClick={() => handleDelete(cat.id)}>
-            <Trash2 className="w-4 h-4 text-red-500" />
-          </Button>
-        </div>
-      ))}
+        );
+      })}
 
       {/* Add row */}
       <div className="p-4 rounded-lg border border-dashed bg-muted/30 flex items-start gap-3">
         <div className="w-36">
-          <Select value={newCat.category} onValueChange={v => setNewCat(p => ({ ...p, category: v ?? '' }))}>
-            <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Hạng mục" /></SelectTrigger>
-            <SelectContent>
-              {CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-            </SelectContent>
-          </Select>
+          <Input
+            value={newCat.category}
+            onChange={e => setNewCat(p => ({ ...p, category: e.target.value }))}
+            className="h-8 text-sm"
+            placeholder="Tên hạng mục"
+          />
         </div>
         <div className="flex-1">
           <Input
             value={newCat.ceiling_amount}
             onChange={e => setNewCat(p => ({ ...p, ceiling_amount: e.target.value }))}
-            className="h-8 text-sm text-right"
+            className="h-8 text-sm text-right font-mono"
             placeholder={`Trần (${currency})`}
+            type="number"
           />
         </div>
         <div className="flex-1">
@@ -569,98 +672,336 @@ function CategoriesTab({
 
 // ─── Dialogs ─────────────────────────────────────────────────────────────────
 
+// ── Line Item Table ──────────────────────────────────────────────────────────
+
+function LineItemTable({
+  title,
+  items,
+  setItems,
+  currency,
+  total,
+  accentClass,
+  totalLabelColor,
+  idPrefix,
+}: {
+  title: string;
+  items: LineItem[];
+  setItems: React.Dispatch<React.SetStateAction<LineItem[]>>;
+  currency: string;
+  total: number;
+  accentClass: string;
+  totalLabelColor: string;
+  idPrefix: string;
+}) {
+  const updateItem = (id: string, field: 'label' | 'amount', value: string) => {
+    setItems(prev => prev.map(item => item.id === id ? { ...item, [field]: value } : item));
+  };
+  const removeItem = (id: string) => setItems(prev => prev.filter(item => item.id !== id));
+  const addItem = () => setItems(prev => [...prev, { id: `${idPrefix}${Date.now()}`, label: '', amount: '' }]);
+
+  return (
+    <div className="rounded-lg border overflow-hidden">
+      {/* Section header */}
+      <div className={`px-4 py-2.5 flex items-center justify-between border-b ${accentClass}`}>
+        <span className="font-semibold text-sm tracking-wide">{title}</span>
+        <div className="text-right">
+          <span className={`font-bold font-mono text-sm ${totalLabelColor}`}>
+            {fmtFull(total, currency)}
+          </span>
+          {total > 0 && (
+            <span className={`text-xs ml-1 ${totalLabelColor} opacity-70`}>
+              ({fmt(total, currency)})
+            </span>
+          )}
+          <span className="text-xs text-muted-foreground ml-1">{currency}</span>
+        </div>
+      </div>
+
+      {/* Column headers */}
+      <div className="grid grid-cols-[24px_1fr_160px_28px] bg-muted/40 border-b text-xs text-muted-foreground font-medium">
+        <div className="p-2 text-center">#</div>
+        <div className="p-2">Hạng mục</div>
+        <div className="p-2 text-right">Dự toán ({currency})</div>
+        <div></div>
+      </div>
+
+      {/* Rows */}
+      {items.map((item, idx) => (
+        <div key={item.id} className="grid grid-cols-[24px_1fr_160px_28px] border-b items-center hover:bg-muted/20">
+          <div className="p-2 text-center text-xs text-muted-foreground">{idx + 1}</div>
+          <div className="px-1 py-1">
+            <Input
+              value={item.label}
+              onChange={e => updateItem(item.id, 'label', e.target.value)}
+              className="h-8 text-sm border-0 shadow-none focus-visible:ring-0 bg-transparent px-2"
+              placeholder="Tên hạng mục..."
+            />
+          </div>
+          <div className="px-1 py-1">
+            <div className="relative">
+              <Input
+                value={item.amount}
+                onChange={e => updateItem(item.id, 'amount', e.target.value)}
+                className="h-8 text-sm text-right border-0 shadow-none focus-visible:ring-0 bg-transparent px-2 font-mono"
+                type="number"
+                min="0"
+                placeholder="0"
+              />
+            </div>
+            {parseFloat(item.amount) > 0 && (
+              <p className="text-[10px] text-muted-foreground text-right px-2 leading-none">
+                {fmt(parseFloat(item.amount), currency)}
+              </p>
+            )}
+          </div>
+          <div className="flex items-center justify-center">
+            <button
+              onClick={() => removeItem(item.id)}
+              className="p-1 text-muted-foreground/40 hover:text-red-500 transition-colors"
+              title="Xóa dòng"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      ))}
+
+      {/* Add row button */}
+      <div className="px-3 py-2 border-b">
+        <button
+          onClick={addItem}
+          className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
+        >
+          <Plus className="w-3 h-3" /> Thêm hạng mục
+        </button>
+      </div>
+
+      {/* Total footer */}
+      <div className={`grid grid-cols-[24px_1fr_160px_28px] ${accentClass}`}>
+        <div></div>
+        <div className="p-3 font-semibold text-sm">Tổng {title.split(' ')[0]}</div>
+        <div className="p-3 text-right font-bold font-mono text-sm">
+          {fmtFull(total, currency)}
+        </div>
+        <div></div>
+      </div>
+    </div>
+  );
+}
+
+// ── Create Budget Dialog ──────────────────────────────────────────────────────
+
 function CreateBudgetDialog({ onClose, onCreated }: { onClose: () => void; onCreated: (id: number) => void }) {
   const [form, setForm] = useState({
     period_type: 'quarterly',
     period_label: '',
     start_date: '',
     end_date: '',
-    total_amount: '',
     currency: 'VND',
     notes: '',
   });
+  const [capexItems, setCapexItems] = useState<LineItem[]>(DEFAULT_CAPEX.map(i => ({ ...i })));
+  const [opexItems, setOpexItems] = useState<LineItem[]>(DEFAULT_OPEX.map(i => ({ ...i })));
   const [saving, setSaving] = useState(false);
+
+  const capexTotal = capexItems.reduce((s, i) => s + (parseFloat(i.amount) || 0), 0);
+  const opexTotal = opexItems.reduce((s, i) => s + (parseFloat(i.amount) || 0), 0);
+  const grandTotal = capexTotal + opexTotal;
 
   const handleSubmit = async () => {
     if (!form.period_label || !form.start_date || !form.end_date) {
-      toast.error('Vui lòng điền đầy đủ thông tin bắt buộc');
+      toast.error('Vui lòng điền đầy đủ: Nhãn kỳ, Ngày bắt đầu, Ngày kết thúc');
       return;
     }
     setSaving(true);
+
+    // 1. Create budget
     const res = await fetch('/api/portfolio/budgets', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...form, total_amount: parseFloat(form.total_amount) || 0 }),
+      body: JSON.stringify({ ...form, total_amount: grandTotal }),
     });
-    setSaving(false);
-    if (res.ok) {
-      const data = await res.json();
-      toast.success('Đã tạo kỳ ngân sách');
-      onCreated(data.id);
+    if (!res.ok) {
+      setSaving(false);
+      toast.error('Không thể tạo kỳ ngân sách');
+      return;
     }
+    const data = await res.json();
+    const budgetId = data.id;
+
+    // 2. Auto-create CAPEX category if items entered
+    const capexLines = capexItems.filter(i => parseFloat(i.amount) > 0 && i.label.trim());
+    if (capexTotal > 0) {
+      await fetch(`/api/portfolio/budgets/${budgetId}/categories`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          category: 'CAPEX',
+          ceiling_amount: capexTotal,
+          notes: JSON.stringify(capexLines.map(i => ({ label: i.label.trim(), amount: parseFloat(i.amount) || 0 }))),
+        }),
+      });
+    }
+
+    // 3. Auto-create OPEX category if items entered
+    const opexLines = opexItems.filter(i => parseFloat(i.amount) > 0 && i.label.trim());
+    if (opexTotal > 0) {
+      await fetch(`/api/portfolio/budgets/${budgetId}/categories`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          category: 'OPEX',
+          ceiling_amount: opexTotal,
+          notes: JSON.stringify(opexLines.map(i => ({ label: i.label.trim(), amount: parseFloat(i.amount) || 0 }))),
+        }),
+      });
+    }
+
+    setSaving(false);
+    toast.success('Đã tạo kỳ ngân sách');
+    onCreated(budgetId);
   };
 
   return (
     <Dialog open onOpenChange={() => onClose()}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader><DialogTitle>Tạo kỳ ngân sách mới</DialogTitle></DialogHeader>
-        <div className="space-y-4 py-2">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Loại kỳ</Label>
-              <Select value={form.period_type} onValueChange={v => setForm(p => ({ ...p, period_type: v ?? '' }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="quarterly">Quý</SelectItem>
-                  <SelectItem value="monthly">Tháng</SelectItem>
-                  <SelectItem value="yearly">Năm</SelectItem>
-                </SelectContent>
-              </Select>
+      <DialogContent className="max-w-3xl max-h-[92vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="text-lg">Tạo kỳ ngân sách mới</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-5 py-1">
+          {/* ── Basic info ── */}
+          <div className="rounded-lg border bg-muted/20 p-4 space-y-3">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Thông tin kỳ ngân sách</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs">Loại kỳ</Label>
+                <Select value={form.period_type} onValueChange={v => setForm(p => ({ ...p, period_type: v ?? '' }))}>
+                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="quarterly">Quý (Quarterly)</SelectItem>
+                    <SelectItem value="monthly">Tháng (Monthly)</SelectItem>
+                    <SelectItem value="yearly">Năm (Yearly)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs">Nhãn kỳ <span className="text-red-500">*</span></Label>
+                <Input
+                  value={form.period_label}
+                  onChange={e => setForm(p => ({ ...p, period_label: e.target.value }))}
+                  placeholder="VD: Q1-2026, FY2026..."
+                  className="h-9"
+                />
+              </div>
             </div>
-            <div>
-              <Label>Nhãn kỳ *</Label>
-              <Input value={form.period_label} onChange={e => setForm(p => ({ ...p, period_label: e.target.value }))} placeholder="Q1-2026" />
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <Label className="text-xs">Từ ngày <span className="text-red-500">*</span></Label>
+                <Input type="date" value={form.start_date} onChange={e => setForm(p => ({ ...p, start_date: e.target.value }))} className="h-9" />
+              </div>
+              <div>
+                <Label className="text-xs">Đến ngày <span className="text-red-500">*</span></Label>
+                <Input type="date" value={form.end_date} onChange={e => setForm(p => ({ ...p, end_date: e.target.value }))} className="h-9" />
+              </div>
+              <div>
+                <Label className="text-xs">Đơn vị tiền</Label>
+                <Select value={form.currency} onValueChange={v => setForm(p => ({ ...p, currency: v ?? '' }))}>
+                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="VND">VND — Việt Nam Đồng</SelectItem>
+                    <SelectItem value="USD">USD — US Dollar</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Ngày bắt đầu *</Label>
-              <Input type="date" value={form.start_date} onChange={e => setForm(p => ({ ...p, start_date: e.target.value }))} />
-            </div>
-            <div>
-              <Label>Ngày kết thúc *</Label>
-              <Input type="date" value={form.end_date} onChange={e => setForm(p => ({ ...p, end_date: e.target.value }))} />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Tổng ngân sách</Label>
-              <Input value={form.total_amount} onChange={e => setForm(p => ({ ...p, total_amount: e.target.value }))} placeholder="0" type="number" />
-            </div>
-            <div>
-              <Label>Đơn vị tiền</Label>
-              <Select value={form.currency} onValueChange={v => setForm(p => ({ ...p, currency: v ?? '' }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="VND">VND</SelectItem>
-                  <SelectItem value="USD">USD</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+
+          {/* ── CAPEX ── */}
           <div>
-            <Label>Ghi chú</Label>
-            <Textarea value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} rows={2} />
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+              Chi phí Vốn (CAPEX) — Capital Expenditure
+            </p>
+            <LineItemTable
+              title="CAPEX — Chi phí Vốn"
+              items={capexItems}
+              setItems={setCapexItems}
+              currency={form.currency}
+              total={capexTotal}
+              accentClass="bg-blue-50 dark:bg-blue-950/30"
+              totalLabelColor="text-blue-700 dark:text-blue-300"
+              idPrefix="cx"
+            />
+          </div>
+
+          {/* ── OPEX ── */}
+          <div>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+              Chi phí Vận hành (OPEX) — Operating Expenditure
+            </p>
+            <LineItemTable
+              title="OPEX — Chi phí Vận hành"
+              items={opexItems}
+              setItems={setOpexItems}
+              currency={form.currency}
+              total={opexTotal}
+              accentClass="bg-amber-50 dark:bg-amber-950/30"
+              totalLabelColor="text-amber-700 dark:text-amber-300"
+              idPrefix="ox"
+            />
+          </div>
+
+          {/* ── Grand Total ── */}
+          <div className="rounded-lg border-2 border-primary/20 bg-primary/5 px-5 py-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-bold text-base">Tổng Ngân Sách Kế Hoạch</p>
+                <p className="text-xs text-muted-foreground mt-0.5">CAPEX + OPEX = Tổng ngân sách kỳ</p>
+              </div>
+              <div className="text-right">
+                <p className="font-bold text-2xl font-mono">{fmtFull(grandTotal, form.currency)}</p>
+                <p className="text-sm text-muted-foreground font-mono">{fmt(grandTotal, form.currency)} {form.currency}</p>
+              </div>
+            </div>
+            {grandTotal > 0 && (
+              <div className="mt-3 grid grid-cols-2 gap-4 pt-3 border-t border-primary/10">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">CAPEX</span>
+                  <span className="font-mono font-medium text-blue-700 dark:text-blue-300">{fmtFull(capexTotal, form.currency)}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">OPEX</span>
+                  <span className="font-mono font-medium text-amber-700 dark:text-amber-300">{fmtFull(opexTotal, form.currency)}</span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* ── Notes ── */}
+          <div>
+            <Label className="text-xs">Ghi chú / Giả định ngân sách</Label>
+            <Textarea
+              value={form.notes}
+              onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
+              rows={2}
+              placeholder="Ví dụ: Ngân sách dựa trên kế hoạch dự án Q1-2026, tỷ giá USD/VND = 25,000..."
+              className="mt-1 text-sm"
+            />
           </div>
         </div>
-        <DialogFooter>
+
+        <DialogFooter className="gap-2">
           <Button variant="outline" onClick={onClose}>Hủy</Button>
-          <Button onClick={handleSubmit} disabled={saving}>Tạo</Button>
+          <Button onClick={handleSubmit} disabled={saving} className="min-w-[140px]">
+            {saving ? 'Đang tạo...' : 'Tạo kỳ ngân sách'}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
+
+// ── Edit Budget Dialog ────────────────────────────────────────────────────────
 
 function EditBudgetDialog({ budget, onClose, onSaved }: { budget: PortfolioBudget; onClose: () => void; onSaved: () => void }) {
   const [form, setForm] = useState({
@@ -722,6 +1063,9 @@ function EditBudgetDialog({ budget, onClose, onSaved }: { budget: PortfolioBudge
             <div>
               <Label>Tổng ngân sách</Label>
               <Input value={form.total_amount} onChange={e => setForm(p => ({ ...p, total_amount: e.target.value }))} type="number" />
+              {parseFloat(form.total_amount) > 0 && (
+                <p className="text-xs text-muted-foreground mt-1 font-mono">{fmt(parseFloat(form.total_amount), form.currency)}</p>
+              )}
             </div>
             <div>
               <Label>Đơn vị tiền</Label>
@@ -758,6 +1102,8 @@ function EditBudgetDialog({ budget, onClose, onSaved }: { budget: PortfolioBudge
     </Dialog>
   );
 }
+
+// ── Allocation Form Dialog ────────────────────────────────────────────────────
 
 function AllocationFormDialog({
   budgetId, projects, existing, onClose, onSaved,
@@ -818,7 +1164,11 @@ function AllocationFormDialog({
               onChange={e => setForm(p => ({ ...p, allocated_amount: e.target.value }))}
               type="number"
               placeholder="0"
+              className="font-mono"
             />
+            {parseFloat(form.allocated_amount) > 0 && (
+              <p className="text-xs text-muted-foreground mt-1">{fmt(parseFloat(form.allocated_amount), 'VND')} VND</p>
+            )}
           </div>
           <div>
             <Label>Ghi chú</Label>
