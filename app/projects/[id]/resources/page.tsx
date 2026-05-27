@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { Plus, Trash2, Copy, ChevronLeft, ChevronRight, Download, Filter } from 'lucide-react';
+import { Plus, Trash2, Copy, ChevronLeft, ChevronRight, Download, Filter, Target } from 'lucide-react';
 import ResourceImportDialog from '@/components/resources/ResourceImportDialog';
 
 type TeamMember = {
@@ -24,7 +24,7 @@ type PortfolioMember = {
   id: number; role: string; name: string; email: string; note: string;
 };
 
-type Project = { id: number; name: string; };
+type Project = { id: number; name: string; headcount_quota?: number; };
 
 const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
@@ -149,6 +149,9 @@ export default function ResourcesPage() {
   const [year, setYear] = useState(new Date().getFullYear());
   const [squadFilter, setSquadFilter] = useState('');
 
+  const [projectQuota, setProjectQuota] = useState(0);
+  const [quotaSaving, setQuotaSaving] = useState(false);
+
   const [importOpen, setImportOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
 
@@ -159,12 +162,14 @@ export default function ResourcesPage() {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
   const load = useCallback(async () => {
-    const [mRes, gRes] = await Promise.all([
+    const [mRes, gRes, pRes] = await Promise.all([
       fetch(`/api/projects/${id}/team`).then(r => r.json()),
       fetch('/api/resources').then(r => r.json()),
+      fetch(`/api/projects/${id}`).then(r => r.json()),
     ]);
     setMembers(mRes);
     setGlobalMembers(Array.isArray(gRes) ? gRes : []);
+    setProjectQuota(pRes?.headcount_quota ?? 0);
   }, [id]);
 
   useEffect(() => { load(); }, [load]);
@@ -269,6 +274,20 @@ export default function ResourcesPage() {
   const deleteRow = async (memberId: number) => {
     await fetch(`/api/projects/${id}/team?rowId=${memberId}`, { method: 'DELETE' });
     setMembers(m => m.filter(r => r.id !== memberId));
+  };
+
+  const saveProjectQuota = async (value: number) => {
+    if (quotaSaving) return;
+    setQuotaSaving(true);
+    try {
+      await fetch(`/api/projects/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ headcount_quota: value }),
+      });
+    } finally {
+      setQuotaSaving(false);
+    }
   };
 
   const exportExcel = async () => {
@@ -378,6 +397,65 @@ export default function ResourcesPage() {
             </Button>
           </div>
         </div>
+
+        {/* Quota summary bar */}
+        {(() => {
+          const actual = members.length;
+          const remaining = projectQuota - actual;
+          const pct = projectQuota > 0 ? Math.min((actual / projectQuota) * 100, 100) : 0;
+          const over = remaining < 0;
+          const atLimit = remaining === 0 && projectQuota > 0;
+          return (
+            <div className="flex items-center gap-4 flex-wrap bg-slate-50 border rounded-xl px-4 py-3 mb-4">
+              <div className="flex items-center gap-2">
+                <Target className="h-4 w-4 text-blue-500 shrink-0" />
+                <span className="text-xs text-slate-500 font-medium">Định biên KH:</span>
+                <input
+                  type="number"
+                  min={0}
+                  className="w-16 h-6 px-1.5 text-xs font-bold text-slate-800 border rounded focus:outline-none focus:ring-1 focus:ring-blue-400 text-center bg-white"
+                  value={projectQuota || ''}
+                  placeholder="0"
+                  onChange={e => setProjectQuota(Math.max(0, Number(e.target.value) || 0))}
+                  onBlur={() => saveProjectQuota(projectQuota)}
+                />
+              </div>
+              <div className="h-4 w-px bg-slate-200" />
+              <div className="text-xs">
+                <span className="text-slate-400">Thực tế: </span>
+                <span className="font-bold text-slate-700">{actual} nhân sự</span>
+              </div>
+              <div className="h-4 w-px bg-slate-200" />
+              <div className="text-xs">
+                <span className="text-slate-400">Độ phủ: </span>
+                <span className={`font-bold ${over ? 'text-blue-600' : atLimit ? 'text-green-600' : projectQuota === 0 ? 'text-slate-400' : 'text-amber-600'}`}>
+                  {projectQuota > 0 ? `${pct.toFixed(0)}%` : '—'}
+                </span>
+              </div>
+              {projectQuota > 0 && (
+                <>
+                  <div className="h-4 w-px bg-slate-200" />
+                  <div className="flex items-center gap-2 flex-1 min-w-[120px]">
+                    <div className="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all ${over ? 'bg-blue-500' : pct >= 100 ? 'bg-green-500' : pct >= 70 ? 'bg-amber-400' : 'bg-slate-400'}`}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                    <span className="text-[10px] font-medium text-slate-500 tabular-nums">{actual}/{projectQuota}</span>
+                  </div>
+                  <div className="h-4 w-px bg-slate-200" />
+                  <div className="text-xs">
+                    <span className="text-slate-400">Còn thiếu: </span>
+                    <span className={`font-bold ${remaining <= 0 ? 'text-green-600' : 'text-amber-600'}`}>
+                      {remaining <= 0 ? 'Đủ định biên' : `${remaining} người`}
+                    </span>
+                  </div>
+                </>
+              )}
+            </div>
+          );
+        })()}
 
         {/* Table */}
         <div className="rounded-xl border bg-white overflow-hidden shadow-sm">

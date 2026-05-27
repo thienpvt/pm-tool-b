@@ -272,6 +272,8 @@ async function migratePostgresSchema(pool: Pool) {
     `CREATE TABLE IF NOT EXISTS portfolio_members (id SERIAL PRIMARY KEY, company_id INTEGER REFERENCES companies(id) ON DELETE SET NULL, role TEXT DEFAULT '', name TEXT NOT NULL, email TEXT DEFAULT '', note TEXT DEFAULT '', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
     `ALTER TABLE portfolio_members ADD COLUMN IF NOT EXISTS member_type TEXT DEFAULT 'internal'`,
     `UPDATE portfolio_members SET member_type = 'external' WHERE LOWER(note) LIKE '%ai platform%' AND (member_type IS NULL OR member_type = 'internal')`,
+    `ALTER TABLE companies ADD COLUMN IF NOT EXISTS headcount_quota INTEGER DEFAULT 0`,
+    `ALTER TABLE projects ADD COLUMN IF NOT EXISTS headcount_quota INTEGER DEFAULT 0`,
   ];
   for (const sql of migrations) {
     try { await pool.query(sql); } catch { /* column already exists */ }

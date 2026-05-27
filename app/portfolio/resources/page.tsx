@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { Plus, Trash2, Upload, Search, Users, Building2 } from 'lucide-react';
+import { Plus, Trash2, Upload, Search, Users, Building2, Download, Target } from 'lucide-react';
 import PortfolioImportDialog from '@/components/resources/PortfolioImportDialog';
 
 type PortfolioMember = {
@@ -18,6 +18,59 @@ type PortfolioMember = {
   note: string;
   member_type: string;
 };
+
+// ── Quota summary bar ──────────────────────────────────────────────────────────
+function QuotaBar({ quota, used, onQuotaChange }: { quota: number; used: number; onQuotaChange: (v: number) => void }) {
+  const remaining = quota - used;
+  const pct = quota > 0 ? Math.min((used / quota) * 100, 100) : 0;
+  const overAllocated = remaining < 0;
+  const atLimit = remaining === 0 && quota > 0;
+
+  return (
+    <div className="flex items-center gap-4 flex-wrap bg-slate-50 border rounded-xl px-4 py-3 mb-4">
+      <div className="flex items-center gap-2">
+        <Target className="h-4 w-4 text-blue-500 shrink-0" />
+        <span className="text-xs text-slate-500 font-medium">Định biên khối:</span>
+        <input
+          type="number"
+          min={0}
+          className="w-16 h-6 px-1.5 text-xs font-bold text-slate-800 border rounded focus:outline-none focus:ring-1 focus:ring-blue-400 text-center bg-white"
+          value={quota || ''}
+          placeholder="0"
+          onChange={e => onQuotaChange(Math.max(0, Number(e.target.value) || 0))}
+        />
+      </div>
+      <div className="h-4 w-px bg-slate-200" />
+      <div className="text-xs">
+        <span className="text-slate-400">Đã phân bổ: </span>
+        <span className="font-bold text-slate-700">{used}</span>
+      </div>
+      <div className="h-4 w-px bg-slate-200" />
+      <div className="text-xs">
+        <span className="text-slate-400">Còn lại: </span>
+        <span className={`font-bold ${overAllocated ? 'text-red-600' : atLimit ? 'text-amber-600' : 'text-green-600'}`}>
+          {remaining}
+        </span>
+      </div>
+      {quota > 0 && (
+        <>
+          <div className="h-4 w-px bg-slate-200" />
+          <div className="flex items-center gap-2 flex-1 min-w-[120px]">
+            <div className="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all ${overAllocated ? 'bg-red-500' : atLimit ? 'bg-amber-400' : 'bg-green-400'}`}
+                style={{ width: `${pct}%` }}
+              />
+            </div>
+            <span className={`text-[10px] font-medium tabular-nums ${overAllocated ? 'text-red-600' : atLimit ? 'text-amber-600' : 'text-slate-500'}`}>
+              {pct.toFixed(0)}%
+            </span>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 type MemberTableProps = {
   members: PortfolioMember[];
@@ -156,13 +209,19 @@ export default function PortfolioResourcesPage() {
   const [addMemberType, setAddMemberType] = useState<'internal' | 'external'>('internal');
   const [addForm, setAddForm] = useState({ role: '', name: '', email: '', note: '' });
   const [addSaving, setAddSaving] = useState(false);
+  const [quota, setQuota] = useState(0);
+  const [quotaSaving, setQuotaSaving] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/portfolio/members');
-      const data = await res.json();
-      setMembers(Array.isArray(data) ? data : []);
+      const [membersRes, quotaRes] = await Promise.all([
+        fetch('/api/portfolio/members').then(r => r.json()),
+        fetch('/api/portfolio/quota').then(r => r.json()),
+      ]);
+      setMembers(Array.isArray(membersRes) ? membersRes : []);
+      setQuota(quotaRes.headcount_quota ?? 0);
     } finally {
       setLoading(false);
     }
@@ -212,6 +271,45 @@ export default function PortfolioResourcesPage() {
     }
   };
 
+  const saveQuota = async (value: number) => {
+    if (quotaSaving) return;
+    setQuotaSaving(true);
+    try {
+      await fetch('/api/portfolio/quota', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ headcount_quota: value }),
+      });
+    } finally {
+      setQuotaSaving(false);
+    }
+  };
+
+  const handleQuotaChange = (value: number) => {
+    setQuota(value);
+    saveQuota(value);
+  };
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const res = await fetch('/api/export/portfolio/members');
+      if (!res.ok) throw new Error('Export failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'ResourceManagement.xlsx';
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success('Exported successfully!');
+    } catch (e) {
+      toast.error(String(e));
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const internalCount = members.filter(m => m.member_type === 'internal').length;
   const externalCount = members.filter(m => m.member_type === 'external').length;
 
@@ -230,6 +328,15 @@ export default function PortfolioResourcesPage() {
               Danh sách nhân sự cấp portfolio — sử dụng để phân bổ vào các project
             </p>
           </div>
+          <Button
+            variant="outline"
+            onClick={handleExport}
+            disabled={exporting || members.length === 0}
+            className="gap-2 h-9 text-sm text-emerald-700 border-emerald-300 hover:bg-emerald-50"
+          >
+            <Download className={`h-4 w-4 ${exporting ? 'animate-bounce' : ''}`} />
+            {exporting ? 'Exporting...' : 'Export .xlsx'}
+          </Button>
         </div>
 
         {/* Search */}
@@ -262,6 +369,11 @@ export default function PortfolioResourcesPage() {
 
           <TabsContent value="internal">
             <p className="text-xs text-slate-400 mb-3">Nhân sự nội bộ — được phân bổ trực tiếp vào các dự án trong portfolio.</p>
+            <QuotaBar
+              quota={quota}
+              used={internalCount}
+              onQuotaChange={handleQuotaChange}
+            />
             <MemberTable
               members={members}
               loading={loading}
