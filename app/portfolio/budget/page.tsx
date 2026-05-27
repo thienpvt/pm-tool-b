@@ -718,7 +718,7 @@ function LineItemTable({
       </div>
 
       {/* Column headers */}
-      <div className="grid grid-cols-[24px_1fr_160px_28px] bg-muted/40 border-b text-xs text-muted-foreground font-medium">
+      <div className="grid grid-cols-[28px_1fr_200px_32px] bg-muted/40 border-b text-xs text-muted-foreground font-medium">
         <div className="p-2 text-center">#</div>
         <div className="p-2">Hạng mục</div>
         <div className="p-2 text-right">Dự toán ({currency})</div>
@@ -727,7 +727,7 @@ function LineItemTable({
 
       {/* Rows */}
       {items.map((item, idx) => (
-        <div key={item.id} className="grid grid-cols-[24px_1fr_160px_28px] border-b items-center hover:bg-muted/20">
+        <div key={item.id} className="grid grid-cols-[28px_1fr_200px_32px] border-b items-center hover:bg-muted/20">
           <div className="p-2 text-center text-xs text-muted-foreground">{idx + 1}</div>
           <div className="px-1 py-1">
             <Input
@@ -777,7 +777,7 @@ function LineItemTable({
       </div>
 
       {/* Total footer */}
-      <div className={`grid grid-cols-[24px_1fr_160px_28px] ${accentClass}`}>
+      <div className={`grid grid-cols-[28px_1fr_200px_32px] ${accentClass}`}>
         <div></div>
         <div className="p-3 font-semibold text-sm">Tổng {title.split(' ')[0]}</div>
         <div className="p-3 text-right font-bold font-mono text-sm">
@@ -864,7 +864,7 @@ function CreateBudgetDialog({ onClose, onCreated }: { onClose: () => void; onCre
 
   return (
     <Dialog open onOpenChange={() => onClose()}>
-      <DialogContent className="max-w-3xl max-h-[92vh] overflow-y-auto">
+      <DialogContent className="max-w-5xl w-[95vw] max-h-[95vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-lg">Tạo kỳ ngân sách mới</DialogTitle>
         </DialogHeader>
