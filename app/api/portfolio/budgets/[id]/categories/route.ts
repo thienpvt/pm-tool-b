@@ -4,7 +4,7 @@ import { getSessionFromRequest } from '@/lib/auth';
 
 type Params = { params: Promise<{ id: string }> };
 
-async function verifyOwnership(budgetId: string, companyId: number) {
+async function verifyOwnership(budgetId: string, companyId: number | null) {
   const db = await getDb();
   return db.get('SELECT id FROM portfolio_budgets WHERE id = ? AND company_id = ?', budgetId, companyId);
 }

@@ -4,7 +4,7 @@ import { getSessionFromRequest } from '@/lib/auth';
 
 type Params = { params: Promise<{ id: string }> };
 
-async function verifySystem(sysId: string, companyId: number) {
+async function verifySystem(sysId: string, companyId: number | null) {
   const db = await getDb();
   return db.get('SELECT id FROM operations_systems WHERE id = ? AND company_id = ?', sysId, companyId);
 }
