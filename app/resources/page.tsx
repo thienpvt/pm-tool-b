@@ -499,7 +499,7 @@ export default function GlobalResourcesPage() {
         <div className="grid grid-cols-4 gap-4 mb-6">
           <div className="bg-white rounded-xl border p-4">
             <p className="text-xs text-slate-500 mb-1">Total Members</p>
-            <p className="text-2xl font-bold text-slate-800">{totalPersons}</p>
+            <p className="text-2xl font-bold text-slate-800">{internalCount}</p>
           </div>
           <div className="bg-white rounded-xl border p-4">
             <p className="text-xs text-slate-500 mb-1">Total Allocations</p>
