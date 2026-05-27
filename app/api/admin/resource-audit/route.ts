@@ -57,3 +57,37 @@ export async function GET(req: NextRequest) {
     in_teams_not_in_portfolio: inTeamsNotInPortfolio,
   });
 }
+
+// POST: add all "in_teams_not_in_portfolio" as external portfolio members
+export async function POST(req: NextRequest) {
+  const user = await getSessionFromRequest(req);
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const db = await getDb();
+  const cid = user.company_id;
+
+  const missing = await db.all<{ name: string; role: string }>(
+    `SELECT DISTINCT tm.name, tm.role
+     FROM team_members tm
+     JOIN projects p ON p.id = tm.project_id
+     WHERE p.company_id = ?
+       AND LOWER(TRIM(tm.name)) NOT IN (
+         SELECT LOWER(TRIM(pm.name))
+         FROM portfolio_members pm
+         WHERE pm.company_id = ?
+       )
+     ORDER BY tm.name`,
+    cid, cid
+  );
+
+  let added = 0;
+  for (const m of missing) {
+    await db.run(
+      'INSERT INTO portfolio_members (company_id, role, name, email, note, member_type) VALUES (?, ?, ?, ?, ?, ?)',
+      cid, m.role || '', m.name.trim(), '', '', 'external'
+    );
+    added++;
+  }
+
+  return NextResponse.json({ added, members: missing });
+}

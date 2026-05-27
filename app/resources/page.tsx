@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { Search, ExternalLink, Users, ChevronRight, Download, Target } from 'lucide-react';
+import { Search, ExternalLink, Users, ChevronRight, Download, Target, Building2 } from 'lucide-react';
 
 type Member = {
   id: number;
@@ -290,20 +290,27 @@ export default function GlobalResourcesPage() {
   const [detailPerson, setDetailPerson] = useState<PersonSummary | null>(null);
   const [quota, setQuota] = useState(0);
   const [internalCount, setInternalCount] = useState(0);
+  const [portfolioMembers, setPortfolioMembers] = useState<{ id: number; name: string; role: string; email: string; member_type: string }[]>([]);
+  const [externalOpen, setExternalOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
   const quotaSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const loadPortfolio = () =>
+    Promise.all([
+      fetch('/api/portfolio/quota').then(r => r.json()),
+      fetch('/api/portfolio/members').then(r => r.json()),
+    ]).then(([q, m]) => {
+      const arr = Array.isArray(m) ? m : [];
+      setPortfolioMembers(arr);
+      setQuota(q.headcount_quota ?? 0);
+      setInternalCount(arr.filter((x: { member_type: string }) => x.member_type !== 'external').length);
+    });
 
   useEffect(() => {
     fetch('/api/resources')
       .then(r => r.json())
       .then(data => { setMembers(Array.isArray(data) ? data : []); setLoading(false); });
-    Promise.all([
-      fetch('/api/portfolio/quota').then(r => r.json()),
-      fetch('/api/portfolio/members').then(r => r.json()),
-    ]).then(([q, m]) => {
-      setQuota(q.headcount_quota ?? 0);
-      setInternalCount(Array.isArray(m) ? m.filter((x: { member_type: string }) => x.member_type !== 'external').length : 0);
-    });
+    loadPortfolio();
   }, []);
 
   const handleQuotaChange = (value: number) => {
@@ -340,6 +347,13 @@ export default function GlobalResourcesPage() {
 
   const now = new Date();
   const nowYM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+  // Derived from portfolio members
+  const externalMembers = portfolioMembers.filter(m => m.member_type === 'external');
+  const teamMemberNameSet = new Set(members.map(m => m.name.trim().toLowerCase()));
+  const unassignedInternal = portfolioMembers.filter(
+    m => m.member_type !== 'external' && !teamMemberNameSet.has(m.name.trim().toLowerCase())
+  );
 
   const domains = ['All', ...new Set(members.map(m => m.domain))].filter(Boolean).sort();
 
@@ -495,6 +509,47 @@ export default function GlobalResourcesPage() {
           );
         })()}
 
+        {/* External members bar */}
+        <div className="border rounded-xl mb-5 overflow-hidden">
+          <button
+            className="w-full flex items-center gap-3 px-4 py-3 bg-amber-50 hover:bg-amber-100 transition-colors text-left"
+            onClick={() => setExternalOpen(o => !o)}
+          >
+            <Building2 className="h-4 w-4 text-amber-600 shrink-0" />
+            <span className="text-xs font-medium text-amber-800">Nhân sự ngoài khối</span>
+            <span className="px-2 py-0.5 rounded-full bg-amber-200 text-amber-800 text-[10px] font-bold">{externalMembers.length}</span>
+            <span className="ml-auto text-[10px] text-amber-600">{externalOpen ? '▲ Thu gọn' : '▼ Xem danh sách'}</span>
+          </button>
+          {externalOpen && (
+            <div className="border-t">
+              {externalMembers.length === 0 ? (
+                <p className="text-xs text-slate-400 px-4 py-3">Chưa có nhân sự ngoài khối.</p>
+              ) : (
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="bg-slate-50 border-b">
+                      <th className="px-4 py-2 text-left text-slate-500 font-medium w-8">#</th>
+                      <th className="px-4 py-2 text-left text-slate-500 font-medium w-48">Tên</th>
+                      <th className="px-4 py-2 text-left text-slate-500 font-medium">Role</th>
+                      <th className="px-4 py-2 text-left text-slate-500 font-medium">Email</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {externalMembers.map((m, i) => (
+                      <tr key={m.id} className={`border-t ${i % 2 === 1 ? 'bg-slate-50/40' : ''}`}>
+                        <td className="px-4 py-2 text-slate-400">{i + 1}</td>
+                        <td className="px-4 py-2 font-medium text-slate-800">{m.name}</td>
+                        <td className="px-4 py-2 text-slate-500">{m.role || '—'}</td>
+                        <td className="px-4 py-2 text-slate-400">{m.email || '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          )}
+        </div>
+
         {/* Summary cards */}
         <div className="grid grid-cols-4 gap-4 mb-6">
           <div className="bg-white rounded-xl border p-4">
@@ -611,6 +666,34 @@ export default function GlobalResourcesPage() {
         <p className="text-xs text-slate-400 mt-3">
           Click vào dòng để xem chi tiết phân bổ · Tổng đến nay = tổng person-months từ đầu đến tháng hiện tại · Peak load = tháng cao nhất
         </p>
+
+        {/* Unassigned internal members */}
+        {unassignedInternal.length > 0 && (
+          <div className="mt-5 rounded-xl border bg-white overflow-hidden shadow-sm">
+            <div className="px-4 py-2.5 bg-slate-100 border-b flex items-center gap-2">
+              <span className="text-[11px] font-semibold text-slate-600 uppercase tracking-wide">Nhân sự chưa tham gia project nào</span>
+              <span className="px-1.5 py-0.5 rounded-full bg-slate-300 text-slate-700 text-[10px] font-bold">{unassignedInternal.length}</span>
+            </div>
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="bg-slate-50 border-b">
+                  <th className="px-4 py-2 text-left text-slate-500 font-medium">Tên</th>
+                  <th className="px-4 py-2 text-left text-slate-500 font-medium w-40">Role</th>
+                  <th className="px-4 py-2 text-left text-slate-500 font-medium w-52">Email</th>
+                </tr>
+              </thead>
+              <tbody>
+                {unassignedInternal.map((m, i) => (
+                  <tr key={m.id} className={`border-t ${i % 2 === 1 ? 'bg-slate-50/50' : ''}`}>
+                    <td className="px-4 py-2.5 font-medium text-slate-700">{m.name}</td>
+                    <td className="px-4 py-2.5 text-slate-500">{m.role || '—'}</td>
+                    <td className="px-4 py-2.5 text-slate-400">{m.email || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </main>
 
       <PersonDetailDialog person={detailPerson} onClose={() => setDetailPerson(null)} />
