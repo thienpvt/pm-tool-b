@@ -10,7 +10,9 @@ export async function GET(req: NextRequest) {
     const db = await getDb();
     const projects = user.is_admin
       ? await db.all(`SELECT p.*, c.name as program_name, c.industry as program_industry FROM projects p LEFT JOIN customers c ON p.customer_id = c.id ORDER BY p.created_at DESC`)
-      : await db.all(`SELECT p.*, c.name as program_name, c.industry as program_industry FROM projects p LEFT JOIN customers c ON p.customer_id = c.id WHERE p.company_id = ? ORDER BY p.created_at DESC`, user.company_id);
+      : user.company_id !== null
+        ? await db.all(`SELECT p.*, c.name as program_name, c.industry as program_industry FROM projects p LEFT JOIN customers c ON p.customer_id = c.id WHERE p.company_id = ? ORDER BY p.created_at DESC`, user.company_id)
+        : await db.all(`SELECT p.*, c.name as program_name, c.industry as program_industry FROM projects p LEFT JOIN customers c ON p.customer_id = c.id WHERE p.company_id IS NULL ORDER BY p.created_at DESC`);
     return NextResponse.json(projects);
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 500 });

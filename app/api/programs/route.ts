@@ -9,7 +9,9 @@ export async function GET(req: NextRequest) {
   const db = await getDb();
   const programs = user.is_admin
     ? await db.all('SELECT * FROM customers ORDER BY name')
-    : await db.all('SELECT * FROM customers WHERE company_id = ? ORDER BY name', user.company_id);
+    : user.company_id !== null
+      ? await db.all('SELECT * FROM customers WHERE company_id = ? ORDER BY name', user.company_id)
+      : await db.all('SELECT * FROM customers WHERE company_id IS NULL ORDER BY name');
 
   const projectCounts = await db.all('SELECT customer_id, COUNT(*) as count FROM projects WHERE customer_id IS NOT NULL GROUP BY customer_id') as { customer_id: number; count: number }[];
   const countMap = Object.fromEntries(projectCounts.map(r => [r.customer_id, r.count]));

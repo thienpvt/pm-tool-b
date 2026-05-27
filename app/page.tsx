@@ -408,7 +408,11 @@ export default function PortfolioDashboard() {
       {showOnboarding && meUser && (
         <OnboardingModal
           userName={meUser.display_name || meUser.username || 'there'}
-          onComplete={() => { setShowOnboarding(false); loadPortfolio(); }}
+          onComplete={() => {
+            setMeUser(u => u ? { ...u, onboarding_completed: 1 } : u);
+            setShowOnboarding(false);
+            loadPortfolio();
+          }}
         />
       )}
       <Sidebar />
