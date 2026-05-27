@@ -864,7 +864,7 @@ function CreateBudgetDialog({ onClose, onCreated }: { onClose: () => void; onCre
 
   return (
     <Dialog open onOpenChange={() => onClose()}>
-      <DialogContent className="max-w-5xl w-[95vw] max-h-[95vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-4xl max-h-[95vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-lg">Tạo kỳ ngân sách mới</DialogTitle>
         </DialogHeader>
