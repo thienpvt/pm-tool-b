@@ -56,19 +56,20 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const body = await req.json();
-  const { type, group_name, name, planned_amount, actual_amount, unit, notes } = body;
+  const { type, group_name, name, planned_amount, approved_amount, actual_amount, unit, notes } = body;
 
   if (!name?.trim()) return NextResponse.json({ error: 'Name is required' }, { status: 400 });
   if (!['CAPEX', 'OPEX'].includes(type)) return NextResponse.json({ error: 'Invalid type' }, { status: 400 });
 
   const result = await db.run(
-    `INSERT INTO budget_items (project_id, type, group_name, name, planned_amount, actual_amount, unit, notes)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO budget_items (project_id, type, group_name, name, planned_amount, approved_amount, actual_amount, unit, notes)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     id,
     type,
     group_name?.trim() ?? '',
     name.trim(),
     Number(planned_amount) || 0,
+    Number(approved_amount) || 0,
     Number(actual_amount) || 0,
     unit?.trim() || 'USD',
     notes?.trim() ?? ''

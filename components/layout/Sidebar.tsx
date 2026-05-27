@@ -37,7 +37,9 @@ const NAV = [
   { href: '/', icon: LayoutDashboard, label: 'Portfolio' },
   { href: '/portfolio/roadmap', icon: Map, label: 'Portfolio Roadmap' },
   { href: '/portfolio/report', icon: FileBarChart2, label: 'Portfolio Report' },
+  { href: '/portfolio/budget', icon: DollarSign, label: 'Portfolio Budget' },
   { href: '/resources', icon: UserCog, label: 'Resource Management' },
+  { href: '/operations', icon: ShieldCheck, label: 'Operations' },
   { href: '/programs', icon: Building2, label: 'Programs' },
 ];
 

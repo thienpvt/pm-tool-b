@@ -28,7 +28,8 @@ type BudgetItem = {
   id: number; project_id: number;
   type: 'CAPEX' | 'OPEX';
   group_name: string; name: string;
-  planned_amount: number; actual_amount: number;
+  planned_amount: number; approved_amount: number; actual_amount: number;
+  budget_status: string;
   unit: string; notes: string;
   expenses: BudgetExpense[];
 };
@@ -46,7 +47,7 @@ const UNIT_PRESETS = [
 
 const EMPTY_FORM = {
   type: 'CAPEX' as 'CAPEX' | 'OPEX',
-  group_name: '', name: '', planned_amount: '', actual_amount: '', unit: 'USD', notes: '',
+  group_name: '', name: '', planned_amount: '', approved_amount: '', actual_amount: '', unit: 'USD', notes: '',
 };
 const EMPTY_EXP = {
   expense_date: new Date().toISOString().slice(0, 10),
@@ -148,6 +149,8 @@ export default function BudgetPage() {
   const [completionPct, setCompletion]  = useState(0);
   const [loading, setLoading]           = useState(true);
   const [tab, setTab]                   = useState<'ALL' | 'CAPEX' | 'OPEX'>('ALL');
+  const [projectBudgetStatus, setProjectBudgetStatus] = useState('draft');
+  const [allocation, setAllocation]     = useState<{ allocated_amount: number; period_label: string; portfolio_budget_id: number } | null>(null);
   const [openGroups, setOpenGroups]     = useState<Set<string>>(new Set());
   const [expandedItems, setExpandedItems] = useState<Set<number>>(new Set());
   const [dialogOpen, setDialogOpen]     = useState(false);
@@ -161,21 +164,46 @@ export default function BudgetPage() {
   const [unitOpen, setUnitOpen]         = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
 
-  const load = useCallback(() => {
-    fetch(`/api/projects/${projectId}/budget`)
-      .then(r => r.json())
-      .then(d => {
-        const mapped = (d.items as any[]).map(i => ({
-          ...i,
-          planned_amount: Number(i.planned_amount),
-          actual_amount:  Number(i.actual_amount),
-          expenses: (i.expenses ?? []).map((e: any) => ({ ...e, amount: Number(e.amount) })),
-        }));
-        setItems(mapped);
-        setCompletion(d.completion_pct ?? 0);
-        setOpenGroups(new Set(mapped.map((i: BudgetItem) => `${i.type}::${i.group_name}`)));
-        setLoading(false);
-      });
+  const load = useCallback(async () => {
+    const [budgetRes, projRes] = await Promise.all([
+      fetch(`/api/projects/${projectId}/budget`),
+      fetch(`/api/projects/${projectId}`),
+    ]);
+    if (budgetRes.ok) {
+      const d = await budgetRes.json();
+      const mapped = (d.items as any[]).map(i => ({
+        ...i,
+        planned_amount:   Number(i.planned_amount),
+        approved_amount:  Number(i.approved_amount ?? 0),
+        actual_amount:    Number(i.actual_amount),
+        budget_status:    i.budget_status ?? 'draft',
+        expenses: (i.expenses ?? []).map((e: any) => ({ ...e, amount: Number(e.amount) })),
+      }));
+      setItems(mapped);
+      setCompletion(d.completion_pct ?? 0);
+      setOpenGroups(new Set(mapped.map((i: BudgetItem) => `${i.type}::${i.group_name}`)));
+      setLoading(false);
+    }
+    if (projRes.ok) {
+      const proj = await projRes.json();
+      setProjectBudgetStatus(proj.budget_status ?? 'draft');
+    }
+    // Fetch portfolio allocation for this project
+    const budgetsRes = await fetch('/api/portfolio/budgets');
+    if (budgetsRes.ok) {
+      const budgets = await budgetsRes.json() as any[];
+      for (const b of budgets) {
+        const detailRes = await fetch(`/api/portfolio/budgets/${b.id}/allocations`);
+        if (detailRes.ok) {
+          const allocs = await detailRes.json() as any[];
+          const myAlloc = allocs.find((a: any) => String(a.project_id) === String(projectId));
+          if (myAlloc) {
+            setAllocation({ allocated_amount: Number(myAlloc.allocated_amount), period_label: b.period_label, portfolio_budget_id: b.id });
+            break;
+          }
+        }
+      }
+    }
   }, [projectId]);
 
   useEffect(() => { load(); }, [load]);
@@ -194,19 +222,20 @@ export default function BudgetPage() {
   );
 
   const totals = useMemo(() => {
-    const planned = items.reduce((s, i) => s + i.planned_amount, 0);
-    const actual  = items.reduce((s, i) => s + i.actual_amount, 0);
-    const capexP  = items.filter(i => i.type === 'CAPEX').reduce((s, i) => s + i.planned_amount, 0);
-    const opexP   = items.filter(i => i.type === 'OPEX').reduce((s, i) => s + i.planned_amount, 0);
-    const capexA  = items.filter(i => i.type === 'CAPEX').reduce((s, i) => s + i.actual_amount, 0);
-    const opexA   = items.filter(i => i.type === 'OPEX').reduce((s, i) => s + i.actual_amount, 0);
+    const planned  = items.reduce((s, i) => s + i.planned_amount, 0);
+    const approved = items.reduce((s, i) => s + i.approved_amount, 0);
+    const actual   = items.reduce((s, i) => s + i.actual_amount, 0);
+    const capexP   = items.filter(i => i.type === 'CAPEX').reduce((s, i) => s + i.planned_amount, 0);
+    const opexP    = items.filter(i => i.type === 'OPEX').reduce((s, i) => s + i.planned_amount, 0);
+    const capexA   = items.filter(i => i.type === 'CAPEX').reduce((s, i) => s + i.actual_amount, 0);
+    const opexA    = items.filter(i => i.type === 'OPEX').reduce((s, i) => s + i.actual_amount, 0);
     const remaining = planned - actual;
     const util = utilPct(planned, actual);
     const ev   = completionPct > 0 ? (planned * completionPct) / 100 : 0;
     const cpi  = actual > 0 ? ev / actual : null;
     const eac  = cpi && cpi > 0 ? planned / cpi : actual > 0 ? actual : null;
     const etc  = eac !== null ? eac - actual : null;
-    return { planned, actual, capexP, opexP, capexA, opexA, remaining, util, ev, cpi, eac, etc };
+    return { planned, approved, actual, capexP, opexP, capexA, opexA, remaining, util, ev, cpi, eac, etc };
   }, [items, completionPct]);
 
   const groups = useMemo(() => {
@@ -243,11 +272,22 @@ export default function BudgetPage() {
     setEditItem(item);
     setForm({
       type: item.type, group_name: item.group_name, name: item.name,
-      planned_amount: String(item.planned_amount),
-      actual_amount:  String(item.actual_amount),
+      planned_amount:  String(item.planned_amount),
+      approved_amount: String(item.approved_amount ?? 0),
+      actual_amount:   String(item.actual_amount),
       unit: item.unit, notes: item.notes,
     });
     setDialogOpen(true);
+  }
+
+  async function handleSubmitForApproval() {
+    const res = await fetch(`/api/projects/${projectId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ budget_status: 'submitted' }),
+    });
+    if (res.ok) { toast.success('Budget submitted for approval'); setProjectBudgetStatus('submitted'); }
+    else toast.error('Failed to submit');
   }
 
   async function handleSave() {
@@ -255,8 +295,9 @@ export default function BudgetPage() {
     setSaving(true);
     const body = {
       ...form,
-      planned_amount: parseFloat(form.planned_amount) || 0,
-      actual_amount:  parseFloat(form.actual_amount)  || 0,
+      planned_amount:  parseFloat(form.planned_amount)  || 0,
+      approved_amount: parseFloat(form.approved_amount) || 0,
+      actual_amount:   parseFloat(form.actual_amount)   || 0,
     };
     const url    = editItem ? `/api/projects/${projectId}/budget/${editItem.id}` : `/api/projects/${projectId}/budget`;
     const method = editItem ? 'PUT' : 'POST';
@@ -331,7 +372,11 @@ export default function BudgetPage() {
   );
 
   const isOverBudget = totals.actual > totals.planned && totals.planned > 0;
-  const GRID = '28px 80px 1fr 130px 140px 70px 68px 90px 56px';
+  const isOverAllocation = allocation !== null && totals.planned > allocation.allocated_amount;
+  const GRID = '28px 80px 1fr 120px 120px 120px 60px 60px 70px 56px';
+
+  const BUDGET_STATUS_LABELS: Record<string, string> = { draft: 'Draft', submitted: 'Pending Approval', approved: 'Approved' };
+  const BUDGET_STATUS_COLORS: Record<string, string> = { draft: 'bg-gray-100 text-gray-700', submitted: 'bg-amber-100 text-amber-700', approved: 'bg-green-100 text-green-700' };
 
   return (
     <div className="flex flex-col lg:flex-row min-h-screen bg-slate-50">
@@ -345,15 +390,46 @@ export default function BudgetPage() {
               <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
                 <DollarSign className="h-6 w-6 text-blue-500" />
                 Budget &amp; Cost
+                <span className={`px-2 py-0.5 rounded text-xs font-medium ${BUDGET_STATUS_COLORS[projectBudgetStatus] ?? BUDGET_STATUS_COLORS.draft}`}>
+                  {BUDGET_STATUS_LABELS[projectBudgetStatus] ?? projectBudgetStatus}
+                </span>
               </h1>
               <p className="text-sm text-slate-500 mt-0.5">
                 Plan and track project expenditure · CAPEX &amp; OPEX
               </p>
             </div>
-            <Button onClick={openAdd} className="bg-blue-600 hover:bg-blue-700 gap-2">
-              <Plus className="h-4 w-4" /> Add Item
-            </Button>
+            <div className="flex items-center gap-2">
+              {projectBudgetStatus === 'draft' && items.length > 0 && (
+                <Button variant="outline" onClick={handleSubmitForApproval} className="gap-2 text-amber-700 border-amber-300 hover:bg-amber-50">
+                  Submit for Approval
+                </Button>
+              )}
+              <Button onClick={openAdd} className="bg-blue-600 hover:bg-blue-700 gap-2">
+                <Plus className="h-4 w-4" /> Add Item
+              </Button>
+            </div>
           </div>
+
+          {/* ── Allocation warning ── */}
+          {allocation && (
+            <div className={`rounded-lg border px-4 py-3 flex items-center gap-3 text-sm ${isOverAllocation ? 'bg-red-50 border-red-200' : 'bg-blue-50 border-blue-200'}`}>
+              <AlertCircle className={`h-4 w-4 shrink-0 ${isOverAllocation ? 'text-red-500' : 'text-blue-500'}`} />
+              <div>
+                <span className={`font-semibold ${isOverAllocation ? 'text-red-700' : 'text-blue-700'}`}>
+                  Phân bổ từ khối [{allocation.period_label}]: {fmtAmount(allocation.allocated_amount, dominantUnit)}
+                </span>
+                {isOverAllocation ? (
+                  <span className="ml-2 text-red-600">
+                    ⚠ Vượt phân bổ {fmtAmount(totals.planned - allocation.allocated_amount, dominantUnit)}
+                  </span>
+                ) : (
+                  <span className="ml-2 text-blue-500">
+                    · Còn {fmtAmount(allocation.allocated_amount - totals.planned, dominantUnit)}
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* ── KPI Cards ── */}
           <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
@@ -477,7 +553,8 @@ export default function BudgetPage() {
               <span />
               <span>Type</span>
               <span>Name</span>
-              <span className="text-right">Planned</span>
+              <span className="text-right">Estimate</span>
+              <span className="text-right">Approved</span>
               <span className="text-right">Actual</span>
               <span className="text-right">Unit</span>
               <span className="text-right">Util%</span>
@@ -549,6 +626,9 @@ export default function BudgetPage() {
                           <span className="text-xs font-semibold text-slate-700 truncate pr-2">{item.name}</span>
                           <span className="text-xs text-right text-slate-600 font-medium tabular-nums">
                             {fmtAmount(item.planned_amount, item.unit)}
+                          </span>
+                          <span className={`text-xs text-right font-medium tabular-nums ${item.approved_amount > 0 && item.approved_amount !== item.planned_amount ? 'text-amber-600 font-semibold' : 'text-slate-600'}`}>
+                            {item.approved_amount > 0 ? fmtAmount(item.approved_amount, item.unit) : '—'}
                           </span>
                           <div className="flex flex-col items-end">
                             <span className={`text-xs font-semibold tabular-nums ${over ? 'text-red-600' : 'text-slate-700'}`}>
@@ -651,6 +731,11 @@ export default function BudgetPage() {
                 <span /><span />
                 <span className="text-slate-500 font-semibold">TOTAL</span>
                 <span className="text-right tabular-nums">{fmtAmount(filtered.reduce((s, i) => s + i.planned_amount, 0), dominantUnit)}</span>
+                <span className="text-right tabular-nums text-amber-700">
+                  {filtered.reduce((s, i) => s + i.approved_amount, 0) > 0
+                    ? fmtAmount(filtered.reduce((s, i) => s + i.approved_amount, 0), dominantUnit)
+                    : '—'}
+                </span>
                 <span className={`text-right tabular-nums ${isOverBudget ? 'text-red-600' : ''}`}>
                   {fmtAmount(filtered.reduce((s, i) => s + i.actual_amount, 0), dominantUnit)}
                 </span>
@@ -800,9 +885,9 @@ export default function BudgetPage() {
               <p className="text-[10px] text-slate-400 mt-1">Currency symbols auto-applied: $USD €EUR £GBP ₫VND ¥JPY …</p>
             </div>
             {/* Amounts */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <div>
-                <Label className="text-xs">Planned Amount</Label>
+                <Label className="text-xs">Estimate</Label>
                 <Input
                   className="mt-1.5"
                   type="text"
@@ -815,10 +900,23 @@ export default function BudgetPage() {
                 />
               </div>
               <div>
+                <Label className="text-xs">Approved</Label>
+                <Input
+                  className="mt-1.5"
+                  type="text"
+                  inputMode="decimal"
+                  value={focusedField === 'approved' ? form.approved_amount : formatDisplayAmount(form.approved_amount)}
+                  onFocus={() => setFocusedField('approved')}
+                  onBlur={() => setFocusedField(null)}
+                  onChange={e => setForm(f => ({ ...f, approved_amount: e.target.value.replace(/[^0-9.]/g, '') }))}
+                  placeholder="0"
+                />
+              </div>
+              <div>
                 <Label className="text-xs">
-                  Actual Amount
+                  Actual
                   {editItem && editItem.expenses.length > 0 && (
-                    <span className="ml-1 text-blue-500">(auto from expenses)</span>
+                    <span className="ml-1 text-blue-500">(auto)</span>
                   )}
                 </Label>
                 <Input
@@ -834,7 +932,7 @@ export default function BudgetPage() {
                   disabled={!!(editItem && editItem.expenses.length > 0)}
                 />
                 {editItem && editItem.expenses.length > 0 && (
-                  <p className="text-[10px] text-blue-500 mt-0.5">Calculated from {editItem.expenses.length} expense {editItem.expenses.length === 1 ? 'entry' : 'entries'}</p>
+                  <p className="text-[10px] text-blue-500 mt-0.5">From {editItem.expenses.length} entries</p>
                 )}
               </div>
             </div>

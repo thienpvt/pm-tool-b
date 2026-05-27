@@ -243,6 +243,77 @@ async function initPostgresSchema(db: DbClient) {
       email TEXT DEFAULT '',
       note TEXT DEFAULT '',
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE TABLE IF NOT EXISTS portfolio_budgets (
+      id SERIAL PRIMARY KEY,
+      company_id INTEGER REFERENCES companies(id) ON DELETE SET NULL,
+      period_type TEXT NOT NULL DEFAULT 'quarterly',
+      period_label TEXT NOT NULL,
+      start_date TEXT NOT NULL,
+      end_date TEXT NOT NULL,
+      total_amount NUMERIC(15,2) NOT NULL DEFAULT 0,
+      currency TEXT NOT NULL DEFAULT 'VND',
+      status TEXT NOT NULL DEFAULT 'draft',
+      notes TEXT DEFAULT '',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE TABLE IF NOT EXISTS portfolio_budget_categories (
+      id SERIAL PRIMARY KEY,
+      portfolio_budget_id INTEGER NOT NULL REFERENCES portfolio_budgets(id) ON DELETE CASCADE,
+      category TEXT NOT NULL,
+      ceiling_amount NUMERIC(15,2) NOT NULL DEFAULT 0,
+      notes TEXT DEFAULT ''
+    );
+    CREATE TABLE IF NOT EXISTS portfolio_budget_allocations (
+      id SERIAL PRIMARY KEY,
+      portfolio_budget_id INTEGER NOT NULL REFERENCES portfolio_budgets(id) ON DELETE CASCADE,
+      project_id INTEGER REFERENCES projects(id) ON DELETE SET NULL,
+      allocated_amount NUMERIC(15,2) NOT NULL DEFAULT 0,
+      notes TEXT DEFAULT '',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE TABLE IF NOT EXISTS operations_systems (
+      id SERIAL PRIMARY KEY,
+      company_id INTEGER REFERENCES companies(id) ON DELETE SET NULL,
+      project_id INTEGER REFERENCES projects(id) ON DELETE SET NULL,
+      name TEXT NOT NULL,
+      description TEXT DEFAULT '',
+      go_live_date TEXT,
+      status TEXT NOT NULL DEFAULT 'active',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE TABLE IF NOT EXISTS operations_budget_items (
+      id SERIAL PRIMARY KEY,
+      operations_system_id INTEGER NOT NULL REFERENCES operations_systems(id) ON DELETE CASCADE,
+      category TEXT NOT NULL DEFAULT 'OPEX',
+      name TEXT NOT NULL,
+      planned_amount NUMERIC(15,2) NOT NULL DEFAULT 0,
+      actual_amount NUMERIC(15,2) NOT NULL DEFAULT 0,
+      unit TEXT NOT NULL DEFAULT 'VND/month',
+      period_label TEXT DEFAULT '',
+      notes TEXT DEFAULT ''
+    );
+    CREATE TABLE IF NOT EXISTS operations_expenses (
+      id SERIAL PRIMARY KEY,
+      operations_system_id INTEGER NOT NULL REFERENCES operations_systems(id) ON DELETE CASCADE,
+      expense_date DATE NOT NULL DEFAULT CURRENT_DATE,
+      category TEXT DEFAULT 'OPEX',
+      description TEXT NOT NULL DEFAULT '',
+      amount NUMERIC(15,2) NOT NULL DEFAULT 0,
+      reference TEXT DEFAULT '',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE TABLE IF NOT EXISTS operations_incidents (
+      id SERIAL PRIMARY KEY,
+      operations_system_id INTEGER NOT NULL REFERENCES operations_systems(id) ON DELETE CASCADE,
+      title TEXT NOT NULL,
+      severity TEXT NOT NULL DEFAULT 'Medium',
+      description TEXT DEFAULT '',
+      reported_at TEXT NOT NULL,
+      resolved_at TEXT,
+      cost_impact NUMERIC(15,2) DEFAULT 0,
+      status TEXT NOT NULL DEFAULT 'Open',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `);
 }
@@ -274,6 +345,16 @@ async function migratePostgresSchema(pool: Pool) {
     `UPDATE portfolio_members SET member_type = 'external' WHERE LOWER(note) LIKE '%ai platform%' AND (member_type IS NULL OR member_type = 'internal')`,
     `ALTER TABLE companies ADD COLUMN IF NOT EXISTS headcount_quota INTEGER DEFAULT 0`,
     `ALTER TABLE projects ADD COLUMN IF NOT EXISTS headcount_quota INTEGER DEFAULT 0`,
+    `ALTER TABLE budget_items ADD COLUMN IF NOT EXISTS approved_amount NUMERIC(15,2) DEFAULT 0`,
+    `ALTER TABLE budget_items ADD COLUMN IF NOT EXISTS budget_status TEXT DEFAULT 'draft'`,
+    `ALTER TABLE projects ADD COLUMN IF NOT EXISTS budget_status TEXT DEFAULT 'draft'`,
+    `CREATE TABLE IF NOT EXISTS portfolio_budgets (id SERIAL PRIMARY KEY, company_id INTEGER REFERENCES companies(id) ON DELETE SET NULL, period_type TEXT NOT NULL DEFAULT 'quarterly', period_label TEXT NOT NULL, start_date TEXT NOT NULL, end_date TEXT NOT NULL, total_amount NUMERIC(15,2) NOT NULL DEFAULT 0, currency TEXT NOT NULL DEFAULT 'VND', status TEXT NOT NULL DEFAULT 'draft', notes TEXT DEFAULT '', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
+    `CREATE TABLE IF NOT EXISTS portfolio_budget_categories (id SERIAL PRIMARY KEY, portfolio_budget_id INTEGER NOT NULL REFERENCES portfolio_budgets(id) ON DELETE CASCADE, category TEXT NOT NULL, ceiling_amount NUMERIC(15,2) NOT NULL DEFAULT 0, notes TEXT DEFAULT '')`,
+    `CREATE TABLE IF NOT EXISTS portfolio_budget_allocations (id SERIAL PRIMARY KEY, portfolio_budget_id INTEGER NOT NULL REFERENCES portfolio_budgets(id) ON DELETE CASCADE, project_id INTEGER REFERENCES projects(id) ON DELETE SET NULL, allocated_amount NUMERIC(15,2) NOT NULL DEFAULT 0, notes TEXT DEFAULT '', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
+    `CREATE TABLE IF NOT EXISTS operations_systems (id SERIAL PRIMARY KEY, company_id INTEGER REFERENCES companies(id) ON DELETE SET NULL, project_id INTEGER REFERENCES projects(id) ON DELETE SET NULL, name TEXT NOT NULL, description TEXT DEFAULT '', go_live_date TEXT, status TEXT NOT NULL DEFAULT 'active', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
+    `CREATE TABLE IF NOT EXISTS operations_budget_items (id SERIAL PRIMARY KEY, operations_system_id INTEGER NOT NULL REFERENCES operations_systems(id) ON DELETE CASCADE, category TEXT NOT NULL DEFAULT 'OPEX', name TEXT NOT NULL, planned_amount NUMERIC(15,2) NOT NULL DEFAULT 0, actual_amount NUMERIC(15,2) NOT NULL DEFAULT 0, unit TEXT NOT NULL DEFAULT 'VND/month', period_label TEXT DEFAULT '', notes TEXT DEFAULT '')`,
+    `CREATE TABLE IF NOT EXISTS operations_expenses (id SERIAL PRIMARY KEY, operations_system_id INTEGER NOT NULL REFERENCES operations_systems(id) ON DELETE CASCADE, expense_date DATE NOT NULL DEFAULT CURRENT_DATE, category TEXT DEFAULT 'OPEX', description TEXT NOT NULL DEFAULT '', amount NUMERIC(15,2) NOT NULL DEFAULT 0, reference TEXT DEFAULT '', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
+    `CREATE TABLE IF NOT EXISTS operations_incidents (id SERIAL PRIMARY KEY, operations_system_id INTEGER NOT NULL REFERENCES operations_systems(id) ON DELETE CASCADE, title TEXT NOT NULL, severity TEXT NOT NULL DEFAULT 'Medium', description TEXT DEFAULT '', reported_at TEXT NOT NULL, resolved_at TEXT, cost_impact NUMERIC(15,2) DEFAULT 0, status TEXT NOT NULL DEFAULT 'Open', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
   ];
   for (const sql of migrations) {
     try { await pool.query(sql); } catch { /* column already exists */ }

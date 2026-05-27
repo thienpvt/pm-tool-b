@@ -22,18 +22,19 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
   if (!ctx) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const body = await req.json();
-  const { type, group_name, name, planned_amount, actual_amount, unit, notes } = body;
+  const { type, group_name, name, planned_amount, approved_amount, actual_amount, unit, notes } = body;
 
   if (!name?.trim()) return NextResponse.json({ error: 'Name is required' }, { status: 400 });
   if (!['CAPEX', 'OPEX'].includes(type)) return NextResponse.json({ error: 'Invalid type' }, { status: 400 });
 
   await ctx.db.run(
-    `UPDATE budget_items SET type=?, group_name=?, name=?, planned_amount=?, actual_amount=?, unit=?, notes=?
+    `UPDATE budget_items SET type=?, group_name=?, name=?, planned_amount=?, approved_amount=?, actual_amount=?, unit=?, notes=?
      WHERE id=? AND project_id=?`,
     type,
     group_name?.trim() ?? '',
     name.trim(),
     Number(planned_amount) || 0,
+    Number(approved_amount) || 0,
     Number(actual_amount) || 0,
     unit?.trim() || 'USD',
     notes?.trim() ?? '',
