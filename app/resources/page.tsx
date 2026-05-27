@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import Sidebar from '@/components/layout/Sidebar';
 import { Badge } from '@/components/ui/badge';
@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Search, ExternalLink, Users, ChevronRight } from 'lucide-react';
+import { toast } from 'sonner';
+import { Search, ExternalLink, Users, ChevronRight, Download, Target } from 'lucide-react';
 
 type Member = {
   id: number;
@@ -287,12 +288,55 @@ export default function GlobalResourcesPage() {
   const [filterDomain, setFilterDomain] = useState('All');
   const [loading, setLoading] = useState(true);
   const [detailPerson, setDetailPerson] = useState<PersonSummary | null>(null);
+  const [quota, setQuota] = useState(0);
+  const [internalCount, setInternalCount] = useState(0);
+  const [exporting, setExporting] = useState(false);
+  const quotaSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     fetch('/api/resources')
       .then(r => r.json())
       .then(data => { setMembers(Array.isArray(data) ? data : []); setLoading(false); });
+    Promise.all([
+      fetch('/api/portfolio/quota').then(r => r.json()),
+      fetch('/api/portfolio/members').then(r => r.json()),
+    ]).then(([q, m]) => {
+      setQuota(q.headcount_quota ?? 0);
+      setInternalCount(Array.isArray(m) ? m.filter((x: { member_type: string }) => x.member_type !== 'external').length : 0);
+    });
   }, []);
+
+  const handleQuotaChange = (value: number) => {
+    setQuota(value);
+    if (quotaSaveTimer.current) clearTimeout(quotaSaveTimer.current);
+    quotaSaveTimer.current = setTimeout(() => {
+      fetch('/api/portfolio/quota', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ headcount_quota: value }),
+      });
+    }, 600);
+  };
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const res = await fetch('/api/export/portfolio/members');
+      if (!res.ok) throw new Error('Export failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'ResourceManagement.xlsx';
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success('Exported successfully!');
+    } catch (e) {
+      toast.error(String(e));
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const now = new Date();
   const nowYM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -374,17 +418,82 @@ export default function GlobalResourcesPage() {
       <Sidebar />
       <main className="flex-1 p-4 lg:p-6 overflow-x-auto">
         {/* Header */}
-        <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
           <div>
             <h1 className="text-xl font-bold text-slate-800">Resource Management</h1>
             <p className="text-xs text-slate-400 mt-0.5">Tổng hợp capacity tất cả members across all projects</p>
           </div>
-          <Link href="/portfolio/resources">
-            <Button variant="outline" className="gap-2 h-9 text-sm">
-              <Users className="h-4 w-4" /> Manage Members
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={handleExport}
+              disabled={exporting}
+              className="gap-2 h-9 text-sm text-emerald-700 border-emerald-300 hover:bg-emerald-50"
+            >
+              <Download className={`h-4 w-4 ${exporting ? 'animate-bounce' : ''}`} />
+              {exporting ? 'Exporting...' : 'Export .xlsx'}
             </Button>
-          </Link>
+            <Link href="/portfolio/resources">
+              <Button variant="outline" className="gap-2 h-9 text-sm">
+                <Users className="h-4 w-4" /> Manage Members
+              </Button>
+            </Link>
+          </div>
         </div>
+
+        {/* Quota bar */}
+        {(() => {
+          const remaining = quota - internalCount;
+          const pct = quota > 0 ? Math.min((internalCount / quota) * 100, 100) : 0;
+          const over = remaining < 0;
+          const atLimit = remaining === 0 && quota > 0;
+          return (
+            <div className="flex items-center gap-4 flex-wrap bg-slate-50 border rounded-xl px-4 py-3 mb-5">
+              <div className="flex items-center gap-2">
+                <Target className="h-4 w-4 text-blue-500 shrink-0" />
+                <span className="text-xs text-slate-500 font-medium">Định biên khối:</span>
+                <input
+                  type="number"
+                  min={0}
+                  className="w-16 h-6 px-1.5 text-xs font-bold text-slate-800 border rounded focus:outline-none focus:ring-1 focus:ring-blue-400 text-center bg-white"
+                  value={quota || ''}
+                  placeholder="0"
+                  onChange={e => handleQuotaChange(Math.max(0, Number(e.target.value) || 0))}
+                />
+              </div>
+              <div className="h-4 w-px bg-slate-200" />
+              <div className="text-xs">
+                <span className="text-slate-400">Đã phân bổ: </span>
+                <span className="font-bold text-slate-700">{internalCount} nhân sự</span>
+              </div>
+              <div className="h-4 w-px bg-slate-200" />
+              <div className="text-xs">
+                <span className="text-slate-400">Còn lại: </span>
+                <span className={`font-bold ${over ? 'text-red-600' : atLimit ? 'text-amber-600' : 'text-green-600'}`}>
+                  {quota > 0 ? remaining : '—'}
+                </span>
+              </div>
+              {quota > 0 && (
+                <>
+                  <div className="h-4 w-px bg-slate-200" />
+                  <div className="flex items-center gap-2 flex-1 min-w-[140px]">
+                    <div className="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all ${over ? 'bg-red-500' : atLimit ? 'bg-amber-400' : 'bg-green-400'}`}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                    <span className={`text-[10px] font-medium tabular-nums ${over ? 'text-red-600' : 'text-slate-500'}`}>
+                      {pct.toFixed(0)}%
+                    </span>
+                  </div>
+                </>
+              )}
+              <div className="h-4 w-px bg-slate-200" />
+              <span className="text-[10px] text-slate-400">Nhân sự trong khối · chỉnh trong <Link href="/portfolio/resources" className="text-blue-500 hover:underline">Manage Members</Link></span>
+            </div>
+          );
+        })()}
 
         {/* Summary cards */}
         <div className="grid grid-cols-4 gap-4 mb-6">
