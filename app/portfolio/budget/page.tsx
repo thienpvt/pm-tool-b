@@ -802,7 +802,7 @@ function AllocationFormDialog({
         <div className="space-y-4 py-2">
           <div>
             <Label>Dự án</Label>
-            <Select value={form.project_id} onValueChange={v => setForm(p => ({ ...p, project_id: v }))}>
+            <Select value={form.project_id ?? ''} onValueChange={v => setForm(p => ({ ...p, project_id: v ?? '' }))}>
               <SelectTrigger><SelectValue placeholder="Chọn dự án" /></SelectTrigger>
               <SelectContent>
                 {projects.map(p => (

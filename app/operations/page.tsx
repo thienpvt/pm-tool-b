@@ -247,7 +247,7 @@ function CreateSystemDialog({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label>Dự án gốc</Label>
-              <Select value={form.project_id} onValueChange={v => setForm(p => ({ ...p, project_id: v }))}>
+              <Select value={form.project_id ?? ''} onValueChange={v => setForm(p => ({ ...p, project_id: v ?? '' }))}>
                 <SelectTrigger><SelectValue placeholder="Chọn dự án (tùy chọn)" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">— Không liên kết —</SelectItem>
