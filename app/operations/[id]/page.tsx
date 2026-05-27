@@ -503,7 +503,7 @@ function EditSystemDialog({
           </div>
           <div>
             <Label>Trạng thái</Label>
-            <Select value={form.status} onValueChange={v => setForm(p => ({ ...p, status: v }))}>
+            <Select value={form.status} onValueChange={v => setForm(p => ({ ...p, status: v ?? '' }))}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="active">Active</SelectItem>
@@ -567,7 +567,7 @@ function BudgetItemFormDialog({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label>Hạng mục</Label>
-              <Select value={form.category} onValueChange={v => setForm(p => ({ ...p, category: v }))}>
+              <Select value={form.category} onValueChange={v => setForm(p => ({ ...p, category: v ?? '' }))}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>{CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
               </Select>
@@ -644,7 +644,7 @@ function ExpenseFormDialog({ sysId, onClose, onSaved }: { sysId: string; onClose
             </div>
             <div>
               <Label>Hạng mục</Label>
-              <Select value={form.category} onValueChange={v => setForm(p => ({ ...p, category: v }))}>
+              <Select value={form.category} onValueChange={v => setForm(p => ({ ...p, category: v ?? '' }))}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>{CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
               </Select>
@@ -724,7 +724,7 @@ function IncidentFormDialog({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label>Severity</Label>
-              <Select value={form.severity} onValueChange={v => setForm(p => ({ ...p, severity: v }))}>
+              <Select value={form.severity} onValueChange={v => setForm(p => ({ ...p, severity: v ?? '' }))}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {['Critical', 'High', 'Medium', 'Low'].map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
@@ -733,7 +733,7 @@ function IncidentFormDialog({
             </div>
             <div>
               <Label>Trạng thái</Label>
-              <Select value={form.status} onValueChange={v => setForm(p => ({ ...p, status: v }))}>
+              <Select value={form.status} onValueChange={v => setForm(p => ({ ...p, status: v ?? '' }))}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {['Open', 'In Progress', 'Resolved'].map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}

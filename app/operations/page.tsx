@@ -264,7 +264,7 @@ function CreateSystemDialog({
           </div>
           <div>
             <Label>Trạng thái</Label>
-            <Select value={form.status} onValueChange={v => setForm(p => ({ ...p, status: v }))}>
+            <Select value={form.status} onValueChange={v => setForm(p => ({ ...p, status: v ?? '' }))}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="active">Active</SelectItem>

@@ -536,7 +536,7 @@ function CategoriesTab({
       {/* Add row */}
       <div className="p-4 rounded-lg border border-dashed bg-muted/30 flex items-start gap-3">
         <div className="w-36">
-          <Select value={newCat.category} onValueChange={v => setNewCat(p => ({ ...p, category: v }))}>
+          <Select value={newCat.category} onValueChange={v => setNewCat(p => ({ ...p, category: v ?? '' }))}>
             <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Hạng mục" /></SelectTrigger>
             <SelectContent>
               {CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
@@ -608,7 +608,7 @@ function CreateBudgetDialog({ onClose, onCreated }: { onClose: () => void; onCre
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label>Loại kỳ</Label>
-              <Select value={form.period_type} onValueChange={v => setForm(p => ({ ...p, period_type: v }))}>
+              <Select value={form.period_type} onValueChange={v => setForm(p => ({ ...p, period_type: v ?? '' }))}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="quarterly">Quý</SelectItem>
@@ -639,7 +639,7 @@ function CreateBudgetDialog({ onClose, onCreated }: { onClose: () => void; onCre
             </div>
             <div>
               <Label>Đơn vị tiền</Label>
-              <Select value={form.currency} onValueChange={v => setForm(p => ({ ...p, currency: v }))}>
+              <Select value={form.currency} onValueChange={v => setForm(p => ({ ...p, currency: v ?? '' }))}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="VND">VND</SelectItem>
@@ -694,7 +694,7 @@ function EditBudgetDialog({ budget, onClose, onSaved }: { budget: PortfolioBudge
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label>Loại kỳ</Label>
-              <Select value={form.period_type} onValueChange={v => setForm(p => ({ ...p, period_type: v }))}>
+              <Select value={form.period_type} onValueChange={v => setForm(p => ({ ...p, period_type: v ?? '' }))}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="quarterly">Quý</SelectItem>
@@ -725,7 +725,7 @@ function EditBudgetDialog({ budget, onClose, onSaved }: { budget: PortfolioBudge
             </div>
             <div>
               <Label>Đơn vị tiền</Label>
-              <Select value={form.currency} onValueChange={v => setForm(p => ({ ...p, currency: v }))}>
+              <Select value={form.currency} onValueChange={v => setForm(p => ({ ...p, currency: v ?? '' }))}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="VND">VND</SelectItem>
@@ -735,7 +735,7 @@ function EditBudgetDialog({ budget, onClose, onSaved }: { budget: PortfolioBudge
             </div>
             <div>
               <Label>Trạng thái</Label>
-              <Select value={form.status} onValueChange={v => setForm(p => ({ ...p, status: v }))}>
+              <Select value={form.status} onValueChange={v => setForm(p => ({ ...p, status: v ?? '' }))}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="draft">Draft</SelectItem>
