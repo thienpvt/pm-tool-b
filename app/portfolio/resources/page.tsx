@@ -339,6 +339,13 @@ export default function PortfolioResourcesPage() {
           </Button>
         </div>
 
+        {/* Quota bar — always visible */}
+        <QuotaBar
+          quota={quota}
+          used={internalCount}
+          onQuotaChange={handleQuotaChange}
+        />
+
         {/* Search */}
         <div className="flex items-center gap-3 mb-4">
           <div className="relative max-w-xs">
@@ -369,11 +376,6 @@ export default function PortfolioResourcesPage() {
 
           <TabsContent value="internal">
             <p className="text-xs text-slate-400 mb-3">Nhân sự nội bộ — được phân bổ trực tiếp vào các dự án trong portfolio.</p>
-            <QuotaBar
-              quota={quota}
-              used={internalCount}
-              onQuotaChange={handleQuotaChange}
-            />
             <MemberTable
               members={members}
               loading={loading}
