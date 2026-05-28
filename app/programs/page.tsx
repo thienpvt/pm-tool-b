@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import {
   Plus, Pencil, Trash2, Building2, Mail, Phone, Globe,
-  FolderKanban, ChevronRight, Search,
+  FolderKanban, ChevronRight, Search, Users,
 } from 'lucide-react';
 
 type Program = {
@@ -19,6 +19,18 @@ type Program = {
   contact_name: string; contact_email: string; contact_phone: string;
   website: string; notes: string; created_at: string;
   project_count: number;
+};
+
+type ProjectAllocation = {
+  project_id: number;
+  project_name: string;
+  allocated_headcount: number;
+};
+
+type ProgramResources = {
+  program_id: number;
+  portfolio_allocated: number;
+  projects: ProjectAllocation[];
 };
 
 const INDUSTRIES = [
@@ -67,11 +79,202 @@ const EMPTY: Partial<Program> = {
   contact_phone: '', website: '', notes: '',
 };
 
+// ── Resource allocation dialog ─────────────────────────────────────────────────
+function ResourceAllocDialog({
+  program,
+  open,
+  onOpenChange,
+}: {
+  program: Program;
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+}) {
+  const [resources, setResources] = useState<ProgramResources | null>(null);
+  const [localValues, setLocalValues] = useState<Record<number, string>>({});
+  const [loading, setLoading] = useState(false);
+
+  const load = useCallback(async () => {
+    if (!open) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/programs/${program.id}/project-allocations`);
+      const data = await res.json();
+      setResources(data);
+      const vals: Record<number, string> = {};
+      for (const p of data.projects ?? []) {
+        vals[p.project_id] = String(p.allocated_headcount);
+      }
+      setLocalValues(vals);
+    } finally {
+      setLoading(false);
+    }
+  }, [open, program.id]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const saveAlloc = async (projectId: number, headcount: number) => {
+    const res = await fetch(`/api/programs/${program.id}/project-allocations`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ project_id: projectId, allocated_headcount: headcount }),
+    });
+    if (!res.ok) { toast.error('Lưu thất bại'); return; }
+    toast.success('Đã cập nhật');
+    load();
+  };
+
+  if (!resources) return null;
+
+  const totalDistributed = resources.projects.reduce((s, p) => s + p.allocated_headcount, 0);
+  const remaining = resources.portfolio_allocated - totalDistributed;
+  const pct = resources.portfolio_allocated > 0
+    ? Math.min((totalDistributed / resources.portfolio_allocated) * 100, 100)
+    : 0;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Users className="h-4 w-4 text-blue-500" />
+            Phân bổ nhân sự — {program.name}
+          </DialogTitle>
+        </DialogHeader>
+
+        {loading ? (
+          <div className="py-8 text-center text-slate-400 text-sm">Loading...</div>
+        ) : (
+          <div className="space-y-5 py-1">
+            {/* Summary bar */}
+            <div className="flex items-center gap-4 flex-wrap bg-slate-50 border rounded-xl px-4 py-3">
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-slate-500 font-medium">Được phân bổ từ Portfolio:</span>
+                <span className="text-sm font-bold text-blue-700">{resources.portfolio_allocated}</span>
+              </div>
+              <div className="h-4 w-px bg-slate-200" />
+              <div className="text-xs">
+                <span className="text-slate-400">Đã phân bổ xuống project: </span>
+                <span className="font-bold text-slate-700">{totalDistributed}</span>
+              </div>
+              <div className="h-4 w-px bg-slate-200" />
+              <div className="text-xs">
+                <span className="text-slate-400">Còn lại: </span>
+                <span className={`font-bold ${remaining < 0 ? 'text-red-600' : remaining === 0 && resources.portfolio_allocated > 0 ? 'text-amber-600' : 'text-green-600'}`}>
+                  {remaining}
+                </span>
+              </div>
+              {resources.portfolio_allocated > 0 && (
+                <>
+                  <div className="h-4 w-px bg-slate-200" />
+                  <div className="flex items-center gap-2 flex-1 min-w-[100px]">
+                    <div className="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all ${remaining < 0 ? 'bg-red-500' : pct >= 100 ? 'bg-amber-400' : 'bg-green-400'}`}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                    <span className="text-[10px] font-medium text-slate-500 tabular-nums">{pct.toFixed(0)}%</span>
+                  </div>
+                </>
+              )}
+              {resources.portfolio_allocated === 0 && (
+                <p className="text-xs text-amber-600 ml-1">
+                  Chưa được phân bổ từ Portfolio. Vào <strong>Resource Management → Phân bổ Program</strong> để thiết lập.
+                </p>
+              )}
+            </div>
+
+            {/* Project allocation table */}
+            {resources.projects.length === 0 ? (
+              <div className="text-center py-8 text-slate-400 text-sm rounded-xl border bg-white">
+                Program này chưa có project nào. Tạo project và gắn vào program trước.
+              </div>
+            ) : (
+              <div className="rounded-xl border bg-white overflow-hidden">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="bg-[#1e293b] text-white">
+                      <th className="px-3 py-3 text-left">#</th>
+                      <th className="px-3 py-3 text-left">Project</th>
+                      <th className="px-3 py-3 text-center w-40">Định biên phân bổ</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {resources.projects.map((p, i) => {
+                      const localVal = localValues[p.project_id] ?? String(p.allocated_headcount);
+                      return (
+                        <tr key={p.project_id} className={`border-t hover:bg-slate-50 ${i % 2 ? 'bg-slate-50/40' : ''}`}>
+                          <td className="px-3 py-2 text-slate-400">{i + 1}</td>
+                          <td className="px-3 py-2 font-medium text-slate-700">{p.project_name}</td>
+                          <td className="px-3 py-2 text-center">
+                            <input
+                              type="number"
+                              min={0}
+                              className="w-20 h-6 px-1.5 text-xs font-bold text-slate-800 border rounded focus:outline-none focus:ring-1 focus:ring-blue-400 text-center bg-white"
+                              value={localVal}
+                              onChange={e => setLocalValues(v => ({ ...v, [p.project_id]: e.target.value }))}
+                              onBlur={() => saveAlloc(p.project_id, Math.max(0, Number(localVal) || 0))}
+                            />
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t bg-slate-50">
+                      <td colSpan={2} className="px-3 py-2 text-xs font-semibold text-slate-600">Tổng</td>
+                      <td className="px-3 py-2 text-center text-xs font-bold text-slate-800">{totalDistributed}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Đóng</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ── Mini resource badge for program card ───────────────────────────────────────
+function ProgramResourceBadge({ programId }: { programId: number }) {
+  const [data, setData] = useState<ProgramResources | null>(null);
+
+  useEffect(() => {
+    fetch(`/api/programs/${programId}/project-allocations`)
+      .then(r => r.json())
+      .then(setData)
+      .catch(() => null);
+  }, [programId]);
+
+  if (!data || data.portfolio_allocated === 0) return null;
+
+  const distributed = data.projects.reduce((s, p) => s + p.allocated_headcount, 0);
+  const remaining = data.portfolio_allocated - distributed;
+
+  return (
+    <div className="flex items-center gap-2 text-xs text-slate-500 mt-1">
+      <Users className="h-3 w-3 text-blue-400 shrink-0" />
+      <span className="text-blue-600 font-semibold">{data.portfolio_allocated}</span>
+      <span>từ Portfolio</span>
+      <span className="text-slate-300">·</span>
+      <span className={remaining < 0 ? 'text-red-500 font-semibold' : 'text-slate-400'}>
+        còn {remaining}
+      </span>
+    </div>
+  );
+}
+
 export default function ProgramsPage() {
   const [programs, setPrograms] = useState<Program[]>([]);
   const [editing, setEditing] = useState<Partial<Program> | null>(null);
   const [search, setSearch] = useState('');
   const [deleting, setDeleting] = useState<Program | null>(null);
+  const [resourceProgram, setResourceProgram] = useState<Program | null>(null);
 
   const load = useCallback(() => {
     fetch('/api/programs').then(r => r.json()).then(setPrograms);
@@ -164,8 +367,16 @@ export default function ProgramsPage() {
                         {c.industry}
                       </Badge>
                     )}
+                    <ProgramResourceBadge programId={c.id} />
                   </div>
                   <div className="flex gap-1 shrink-0">
+                    <button
+                      onClick={() => setResourceProgram(c)}
+                      className="p-1.5 text-slate-300 hover:text-blue-500 rounded transition-colors"
+                      title="Quản lý nhân sự"
+                    >
+                      <Users className="h-3.5 w-3.5" />
+                    </button>
                     <button onClick={() => setEditing({ ...c })} className="p-1.5 text-slate-300 hover:text-blue-500 rounded transition-colors">
                       <Pencil className="h-3.5 w-3.5" />
                     </button>
@@ -211,15 +422,32 @@ export default function ProgramsPage() {
                     <span className="font-semibold text-blue-600">{c.project_count}</span>
                     <span>{c.project_count === 1 ? 'project' : 'projects'}</span>
                   </div>
-                  <Link href={`/?program=${c.id}`} className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-0.5">
-                    View projects <ChevronRight className="h-3 w-3" />
-                  </Link>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => setResourceProgram(c)}
+                      className="text-xs text-purple-600 hover:text-purple-700 flex items-center gap-0.5 font-medium"
+                    >
+                      <Users className="h-3 w-3" /> Nhân sự
+                    </button>
+                    <Link href={`/?program=${c.id}`} className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-0.5">
+                      View projects <ChevronRight className="h-3 w-3" />
+                    </Link>
+                  </div>
                 </div>
               </div>
             ))}
           </div>
         </div>
       </main>
+
+      {/* Resource allocation dialog */}
+      {resourceProgram && (
+        <ResourceAllocDialog
+          program={resourceProgram}
+          open={!!resourceProgram}
+          onOpenChange={o => { if (!o) setResourceProgram(null); }}
+        />
+      )}
 
       {/* Add / Edit Dialog */}
       <Dialog open={!!editing} onOpenChange={o => { if (!o) setEditing(null); }}>

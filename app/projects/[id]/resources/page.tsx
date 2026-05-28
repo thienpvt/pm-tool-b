@@ -24,7 +24,7 @@ type PortfolioMember = {
   id: number; role: string; name: string; email: string; note: string;
 };
 
-type Project = { id: number; name: string; headcount_quota?: number; };
+type Project = { id: number; name: string; headcount_quota?: number; customer_id?: number; };
 
 const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
@@ -149,8 +149,8 @@ export default function ResourcesPage() {
   const [year, setYear] = useState(new Date().getFullYear());
   const [squadFilter, setSquadFilter] = useState('');
 
-  const [projectQuota, setProjectQuota] = useState(0);
-  const [quotaSaving, setQuotaSaving] = useState(false);
+  const [programAllocated, setProgramAllocated] = useState(0);
+  const [programName, setProgramName] = useState<string | null>(null);
 
   const [importOpen, setImportOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -169,7 +169,18 @@ export default function ResourcesPage() {
     ]);
     setMembers(mRes);
     setGlobalMembers(Array.isArray(gRes) ? gRes : []);
-    setProjectQuota(pRes?.headcount_quota ?? 0);
+    const customerId = pRes?.customer_id;
+    if (customerId) {
+      try {
+        const allocRes = await fetch(`/api/programs/${customerId}/project-allocations`).then(r => r.json());
+        const proj = (allocRes.projects ?? []).find((p: { project_id: number; allocated_headcount: number }) => p.project_id === Number(id));
+        setProgramAllocated(proj?.allocated_headcount ?? 0);
+        setProgramName(allocRes.program_name ?? null);
+      } catch { /* no allocation yet */ }
+    } else {
+      setProgramAllocated(0);
+      setProgramName(null);
+    }
   }, [id]);
 
   useEffect(() => { load(); }, [load]);
@@ -274,20 +285,6 @@ export default function ResourcesPage() {
   const deleteRow = async (memberId: number) => {
     await fetch(`/api/projects/${id}/team?rowId=${memberId}`, { method: 'DELETE' });
     setMembers(m => m.filter(r => r.id !== memberId));
-  };
-
-  const saveProjectQuota = async (value: number) => {
-    if (quotaSaving) return;
-    setQuotaSaving(true);
-    try {
-      await fetch(`/api/projects/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ headcount_quota: value }),
-      });
-    } finally {
-      setQuotaSaving(false);
-    }
   };
 
   const exportExcel = async () => {
@@ -398,27 +395,25 @@ export default function ResourcesPage() {
           </div>
         </div>
 
-        {/* Quota summary bar */}
+        {/* Quota summary bar — read-only, driven by program allocation */}
         {(() => {
           const actual = members.length;
-          const remaining = projectQuota - actual;
-          const pct = projectQuota > 0 ? Math.min((actual / projectQuota) * 100, 100) : 0;
+          const quota = programAllocated;
+          const remaining = quota - actual;
+          const pct = quota > 0 ? Math.min((actual / quota) * 100, 100) : 0;
           const over = remaining < 0;
-          const atLimit = remaining === 0 && projectQuota > 0;
+          const atLimit = remaining === 0 && quota > 0;
           return (
             <div className="flex items-center gap-4 flex-wrap bg-slate-50 border rounded-xl px-4 py-3 mb-4">
               <div className="flex items-center gap-2">
-                <Target className="h-4 w-4 text-blue-500 shrink-0" />
-                <span className="text-xs text-slate-500 font-medium">Định biên KH:</span>
-                <input
-                  type="number"
-                  min={0}
-                  className="w-16 h-6 px-1.5 text-xs font-bold text-slate-800 border rounded focus:outline-none focus:ring-1 focus:ring-blue-400 text-center bg-white"
-                  value={projectQuota || ''}
-                  placeholder="0"
-                  onChange={e => setProjectQuota(Math.max(0, Number(e.target.value) || 0))}
-                  onBlur={() => saveProjectQuota(projectQuota)}
-                />
+                <Target className="h-4 w-4 text-purple-500 shrink-0" />
+                <span className="text-xs text-slate-500 font-medium">Định biên từ Program:</span>
+                <span className="text-xs font-bold text-slate-800">
+                  {quota > 0 ? quota : <span className="text-slate-400 font-normal italic">Chưa phân bổ</span>}
+                </span>
+                {programName && (
+                  <span className="text-[10px] text-slate-400">({programName})</span>
+                )}
               </div>
               <div className="h-4 w-px bg-slate-200" />
               <div className="text-xs">
@@ -428,11 +423,11 @@ export default function ResourcesPage() {
               <div className="h-4 w-px bg-slate-200" />
               <div className="text-xs">
                 <span className="text-slate-400">Độ phủ: </span>
-                <span className={`font-bold ${over ? 'text-blue-600' : atLimit ? 'text-green-600' : projectQuota === 0 ? 'text-slate-400' : 'text-amber-600'}`}>
-                  {projectQuota > 0 ? `${pct.toFixed(0)}%` : '—'}
+                <span className={`font-bold ${over ? 'text-blue-600' : atLimit ? 'text-green-600' : quota === 0 ? 'text-slate-400' : 'text-amber-600'}`}>
+                  {quota > 0 ? `${pct.toFixed(0)}%` : '—'}
                 </span>
               </div>
-              {projectQuota > 0 && (
+              {quota > 0 && (
                 <>
                   <div className="h-4 w-px bg-slate-200" />
                   <div className="flex items-center gap-2 flex-1 min-w-[120px]">
@@ -442,7 +437,7 @@ export default function ResourcesPage() {
                         style={{ width: `${pct}%` }}
                       />
                     </div>
-                    <span className="text-[10px] font-medium text-slate-500 tabular-nums">{actual}/{projectQuota}</span>
+                    <span className="text-[10px] font-medium text-slate-500 tabular-nums">{actual}/{quota}</span>
                   </div>
                   <div className="h-4 w-px bg-slate-200" />
                   <div className="text-xs">
@@ -452,6 +447,11 @@ export default function ResourcesPage() {
                     </span>
                   </div>
                 </>
+              )}
+              {quota === 0 && (
+                <span className="text-[10px] text-slate-400 ml-1">
+                  Vào <strong>Program Management</strong> → nhấn icon nhân sự để phân bổ
+                </span>
               )}
             </div>
           );

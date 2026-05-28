@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { Plus, Trash2, Upload, Search, Users, Building2, Download, Target } from 'lucide-react';
+import { Plus, Trash2, Upload, Search, Users, Building2, Download, Target, ChevronDown } from 'lucide-react';
 import PortfolioImportDialog from '@/components/resources/PortfolioImportDialog';
 
 type PortfolioMember = {
@@ -19,8 +19,20 @@ type PortfolioMember = {
   member_type: string;
 };
 
+type ProgramAllocation = {
+  id: number;
+  program_id: number;
+  program_name: string;
+  allocated_headcount: number;
+};
+
+type Program = { id: number; name: string; };
+
 // ── Quota summary bar ──────────────────────────────────────────────────────────
-function QuotaBar({ quota, used, onQuotaChange }: { quota: number; used: number; onQuotaChange: (v: number) => void }) {
+function QuotaBar({ quota, used, label, onQuotaChange }: {
+  quota: number; used: number; label: string;
+  onQuotaChange?: (v: number) => void;
+}) {
   const remaining = quota - used;
   const pct = quota > 0 ? Math.min((used / quota) * 100, 100) : 0;
   const overAllocated = remaining < 0;
@@ -30,15 +42,19 @@ function QuotaBar({ quota, used, onQuotaChange }: { quota: number; used: number;
     <div className="flex items-center gap-4 flex-wrap bg-slate-50 border rounded-xl px-4 py-3 mb-4">
       <div className="flex items-center gap-2">
         <Target className="h-4 w-4 text-blue-500 shrink-0" />
-        <span className="text-xs text-slate-500 font-medium">Định biên khối:</span>
-        <input
-          type="number"
-          min={0}
-          className="w-16 h-6 px-1.5 text-xs font-bold text-slate-800 border rounded focus:outline-none focus:ring-1 focus:ring-blue-400 text-center bg-white"
-          value={quota || ''}
-          placeholder="0"
-          onChange={e => onQuotaChange(Math.max(0, Number(e.target.value) || 0))}
-        />
+        <span className="text-xs text-slate-500 font-medium">{label}:</span>
+        {onQuotaChange ? (
+          <input
+            type="number"
+            min={0}
+            className="w-16 h-6 px-1.5 text-xs font-bold text-slate-800 border rounded focus:outline-none focus:ring-1 focus:ring-blue-400 text-center bg-white"
+            value={quota || ''}
+            placeholder="0"
+            onChange={e => onQuotaChange(Math.max(0, Number(e.target.value) || 0))}
+          />
+        ) : (
+          <span className="text-xs font-bold text-slate-800">{quota}</span>
+        )}
       </div>
       <div className="h-4 w-px bg-slate-200" />
       <div className="text-xs">
@@ -200,6 +216,170 @@ function MemberTable({
   );
 }
 
+// ── Program allocation tab ─────────────────────────────────────────────────────
+function ProgramAllocationsTab({
+  quota,
+  allocations,
+  programs,
+  loading,
+  onSave,
+  onDelete,
+}: {
+  quota: number;
+  allocations: ProgramAllocation[];
+  programs: Program[];
+  loading: boolean;
+  onSave: (programId: number, headcount: number) => void;
+  onDelete: (id: number) => void;
+}) {
+  const [addOpen, setAddOpen] = useState(false);
+  const [addProgramId, setAddProgramId] = useState('');
+  const [addHeadcount, setAddHeadcount] = useState('');
+  const [localValues, setLocalValues] = useState<Record<number, string>>({});
+
+  const totalAllocated = allocations.reduce((s, a) => s + a.allocated_headcount, 0);
+  const allocatedProgramIds = new Set(allocations.map(a => a.program_id));
+  const availablePrograms = programs.filter(p => !allocatedProgramIds.has(p.id));
+
+  const handleAdd = () => {
+    if (!addProgramId) { toast.error('Chọn program'); return; }
+    const h = Math.max(0, Number(addHeadcount) || 0);
+    onSave(Number(addProgramId), h);
+    setAddOpen(false);
+    setAddProgramId('');
+    setAddHeadcount('');
+  };
+
+  return (
+    <div>
+      <QuotaBar
+        quota={quota}
+        used={totalAllocated}
+        label="Định biên khối"
+      />
+
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-xs text-slate-500">
+          {allocations.length} program{allocations.length !== 1 ? 's' : ''} được phân bổ
+        </span>
+        <Button
+          onClick={() => setAddOpen(true)}
+          disabled={availablePrograms.length === 0}
+          className="bg-blue-600 hover:bg-blue-700 gap-2 h-8 text-xs"
+        >
+          <Plus className="h-3.5 w-3.5" /> Phân bổ Program
+        </Button>
+      </div>
+
+      <div className="rounded-xl border bg-white overflow-hidden shadow-sm">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="bg-[#1e293b] text-white">
+              <th className="px-3 py-3 text-left">#</th>
+              <th className="px-3 py-3 text-left">Program</th>
+              <th className="px-3 py-3 text-center w-36">Định biên phân bổ</th>
+              <th className="px-3 py-3 w-10"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr><td colSpan={4} className="text-center py-10 text-slate-400">Loading...</td></tr>
+            ) : allocations.length === 0 ? (
+              <tr>
+                <td colSpan={4} className="text-center py-10 text-slate-400">
+                  Chưa phân bổ nhân sự cho program nào. Nhấn &quot;Phân bổ Program&quot; để bắt đầu.
+                </td>
+              </tr>
+            ) : (
+              allocations.map((row, i) => {
+                const localVal = localValues[row.id] ?? String(row.allocated_headcount);
+                return (
+                  <tr key={row.id} className={`border-t hover:bg-slate-50 ${i % 2 ? 'bg-slate-50/40' : ''}`}>
+                    <td className="px-3 py-2 text-slate-400">{i + 1}</td>
+                    <td className="px-3 py-2 font-medium text-slate-700">{row.program_name}</td>
+                    <td className="px-3 py-2 text-center">
+                      <input
+                        type="number"
+                        min={0}
+                        className="w-20 h-6 px-1.5 text-xs font-bold text-slate-800 border rounded focus:outline-none focus:ring-1 focus:ring-blue-400 text-center bg-white"
+                        value={localVal}
+                        onChange={e => setLocalValues(v => ({ ...v, [row.id]: e.target.value }))}
+                        onBlur={() => {
+                          const h = Math.max(0, Number(localVal) || 0);
+                          onSave(row.program_id, h);
+                        }}
+                      />
+                    </td>
+                    <td className="px-3 py-2 text-center">
+                      <button
+                        onClick={() => onDelete(row.id)}
+                        className="text-slate-300 hover:text-red-500 transition-colors"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+          {allocations.length > 0 && (
+            <tfoot>
+              <tr className="border-t bg-slate-50">
+                <td colSpan={2} className="px-3 py-2 text-xs font-semibold text-slate-600">Tổng</td>
+                <td className="px-3 py-2 text-center text-xs font-bold text-slate-800">{totalAllocated}</td>
+                <td />
+              </tr>
+            </tfoot>
+          )}
+        </table>
+      </div>
+
+      {/* Add allocation dialog */}
+      <Dialog open={addOpen} onOpenChange={o => { if (!o) setAddOpen(false); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Phân bổ nhân sự cho Program</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <Label>Program *</Label>
+              <div className="relative mt-1.5">
+                <select
+                  className="w-full h-9 px-3 pr-8 text-sm border border-slate-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none"
+                  value={addProgramId}
+                  onChange={e => setAddProgramId(e.target.value)}
+                >
+                  <option value="">Chọn program...</option>
+                  {availablePrograms.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+                <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+              </div>
+            </div>
+            <div>
+              <Label>Số người phân bổ</Label>
+              <Input
+                className="mt-1.5"
+                type="number"
+                min={0}
+                value={addHeadcount}
+                onChange={e => setAddHeadcount(e.target.value)}
+                placeholder="0"
+                autoFocus
+                onKeyDown={e => e.key === 'Enter' && handleAdd()}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddOpen(false)}>Hủy</Button>
+            <Button onClick={handleAdd} className="bg-blue-600 hover:bg-blue-700">Phân bổ</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
 export default function PortfolioResourcesPage() {
   const [members, setMembers] = useState<PortfolioMember[]>([]);
   const [loading, setLoading] = useState(true);
@@ -212,6 +392,11 @@ export default function PortfolioResourcesPage() {
   const [quota, setQuota] = useState(0);
   const [quotaSaving, setQuotaSaving] = useState(false);
   const [exporting, setExporting] = useState(false);
+
+  // Program allocations
+  const [programAllocations, setProgramAllocations] = useState<ProgramAllocation[]>([]);
+  const [programs, setPrograms] = useState<Program[]>([]);
+  const [allocLoading, setAllocLoading] = useState(true);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -227,7 +412,21 @@ export default function PortfolioResourcesPage() {
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  const loadAllocations = useCallback(async () => {
+    setAllocLoading(true);
+    try {
+      const [allocRes, programsRes] = await Promise.all([
+        fetch('/api/portfolio/program-allocations').then(r => r.json()),
+        fetch('/api/programs').then(r => r.json()),
+      ]);
+      setProgramAllocations(Array.isArray(allocRes) ? allocRes : []);
+      setPrograms(Array.isArray(programsRes) ? programsRes : []);
+    } finally {
+      setAllocLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { load(); loadAllocations(); }, [load, loadAllocations]);
 
   const updateField = (id: number, field: keyof PortfolioMember, value: string) => {
     setMembers(ms => ms.map(m => m.id === id ? { ...m, [field]: value } : m));
@@ -310,6 +509,23 @@ export default function PortfolioResourcesPage() {
     }
   };
 
+  const handleSaveProgramAlloc = async (programId: number, headcount: number) => {
+    const res = await fetch('/api/portfolio/program-allocations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ program_id: programId, allocated_headcount: headcount }),
+    });
+    if (!res.ok) { toast.error('Lưu thất bại'); return; }
+    toast.success('Đã cập nhật phân bổ');
+    loadAllocations();
+  };
+
+  const handleDeleteProgramAlloc = async (id: number) => {
+    await fetch(`/api/portfolio/program-allocations/${id}`, { method: 'DELETE' });
+    toast.success('Đã xóa phân bổ');
+    loadAllocations();
+  };
+
   const internalCount = members.filter(m => m.member_type === 'internal').length;
   const externalCount = members.filter(m => m.member_type === 'external').length;
 
@@ -325,7 +541,7 @@ export default function PortfolioResourcesPage() {
               Resource Management
             </h1>
             <p className="text-xs text-slate-400 mt-0.5">
-              Danh sách nhân sự cấp portfolio — sử dụng để phân bổ vào các project
+              Quản lý nhân sự portfolio — phân bổ từ portfolio xuống program, từ program xuống project
             </p>
           </div>
           <Button
@@ -337,26 +553,6 @@ export default function PortfolioResourcesPage() {
             <Download className={`h-4 w-4 ${exporting ? 'animate-bounce' : ''}`} />
             {exporting ? 'Exporting...' : 'Export .xlsx'}
           </Button>
-        </div>
-
-        {/* Quota bar — always visible */}
-        <QuotaBar
-          quota={quota}
-          used={internalCount}
-          onQuotaChange={handleQuotaChange}
-        />
-
-        {/* Search */}
-        <div className="flex items-center gap-3 mb-4">
-          <div className="relative max-w-xs">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
-            <Input
-              className="pl-8 h-8 text-sm"
-              placeholder="Search name, role, email..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-            />
-          </div>
         </div>
 
         {/* Tabs */}
@@ -372,9 +568,33 @@ export default function PortfolioResourcesPage() {
               Nhân sự ngoài khối
               <span className="ml-1 px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 text-[10px] font-bold">{externalCount}</span>
             </TabsTrigger>
+            <TabsTrigger value="programs" className="gap-2">
+              <Target className="h-3.5 w-3.5" />
+              Phân bổ Program
+              <span className="ml-1 px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700 text-[10px] font-bold">{programAllocations.length}</span>
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="internal">
+            {/* Quota bar for internal staff */}
+            <QuotaBar
+              quota={quota}
+              used={internalCount}
+              label="Định biên khối"
+              onQuotaChange={handleQuotaChange}
+            />
+            {/* Search */}
+            <div className="flex items-center gap-3 mb-4">
+              <div className="relative max-w-xs">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                <Input
+                  className="pl-8 h-8 text-sm"
+                  placeholder="Search name, role, email..."
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                />
+              </div>
+            </div>
             <p className="text-xs text-slate-400 mb-3">Nhân sự nội bộ — được phân bổ trực tiếp vào các dự án trong portfolio.</p>
             <MemberTable
               members={members}
@@ -390,6 +610,18 @@ export default function PortfolioResourcesPage() {
           </TabsContent>
 
           <TabsContent value="external">
+            {/* Search */}
+            <div className="flex items-center gap-3 mb-4">
+              <div className="relative max-w-xs">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                <Input
+                  className="pl-8 h-8 text-sm"
+                  placeholder="Search name, role, email..."
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                />
+              </div>
+            </div>
             <p className="text-xs text-slate-400 mb-3">Nhân sự mượn ngoài khối — nguồn lực hỗ trợ từ bên ngoài tổ chức.</p>
             <MemberTable
               members={members}
@@ -401,6 +633,20 @@ export default function PortfolioResourcesPage() {
               onDeleteRow={deleteRow}
               onAddClick={() => openAdd('external')}
               onImportClick={() => setImportOpen(true)}
+            />
+          </TabsContent>
+
+          <TabsContent value="programs">
+            <p className="text-xs text-slate-400 mb-4">
+              Phân bổ định biên từ portfolio xuống từng program. Trong mỗi program, PM có thể tiếp tục phân bổ xuống project.
+            </p>
+            <ProgramAllocationsTab
+              quota={quota}
+              allocations={programAllocations}
+              programs={programs}
+              loading={allocLoading}
+              onSave={handleSaveProgramAlloc}
+              onDelete={handleDeleteProgramAlloc}
             />
           </TabsContent>
         </Tabs>
