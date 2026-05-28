@@ -155,7 +155,7 @@ function ResourceAllocDialog({
               <div className="h-4 w-px bg-slate-200" />
               <div className="text-xs">
                 <span className="text-slate-400">Đã phân bổ xuống project: </span>
-                <span className="font-bold text-slate-700">{parseFloat(totalDistributed.toFixed(2))}</span>
+                <span className="font-bold text-slate-700">{totalDistributed.toFixed(2)}</span>
               </div>
               <div className="h-4 w-px bg-slate-200" />
               <div className="text-xs">
@@ -197,7 +197,7 @@ function ResourceAllocDialog({
                     <tr className="bg-[#1e293b] text-white">
                       <th className="px-3 py-3 text-left">#</th>
                       <th className="px-3 py-3 text-left">Project</th>
-                      <th className="px-3 py-3 text-center w-40">Định biên phân bổ</th>
+                      <th className="px-3 py-3 text-center w-40">Số FTE phân bổ</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -224,7 +224,7 @@ function ResourceAllocDialog({
                   <tfoot>
                     <tr className="border-t bg-slate-50">
                       <td colSpan={2} className="px-3 py-2 text-xs font-semibold text-slate-600">Tổng</td>
-                      <td className="px-3 py-2 text-center text-xs font-bold text-slate-800">{totalDistributed}</td>
+                      <td className="px-3 py-2 text-center text-xs font-bold text-slate-800">{totalDistributed.toFixed(2)}</td>
                     </tr>
                   </tfoot>
                 </table>
