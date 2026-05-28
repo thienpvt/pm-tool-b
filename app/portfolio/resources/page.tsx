@@ -22,14 +22,11 @@ type PortfolioMember = {
 };
 
 type ProgramAllocation = {
-  id: number;
   program_id: number;
   program_name: string;
   allocated_headcount: number;
   actual_fte: number;
 };
-
-type Program = { id: number; name: string; };
 
 // ── FTE KPI summary bar ────────────────────────────────────────────────────────
 function FteKpiBar({ total, delivery, overhead }: { total: number; delivery: number; overhead: number; }) {
@@ -359,35 +356,18 @@ function ExternalMemberTable({
 function ProgramAllocationsTab({
   quota,
   allocations,
-  programs,
   loading,
   onSave,
-  onDelete,
 }: {
   quota: number;
   allocations: ProgramAllocation[];
-  programs: Program[];
   loading: boolean;
   onSave: (programId: number, headcount: number) => void;
-  onDelete: (id: number) => void;
 }) {
-  const [addOpen, setAddOpen] = useState(false);
-  const [addProgramId, setAddProgramId] = useState('');
-  const [addHeadcount, setAddHeadcount] = useState('');
   const [localValues, setLocalValues] = useState<Record<number, string>>({});
 
-  const totalAllocated = allocations.reduce((s, a) => s + a.allocated_headcount, 0);
-  const allocatedProgramIds = new Set(allocations.map(a => a.program_id));
-  const availablePrograms = programs.filter(p => !allocatedProgramIds.has(p.id));
-
-  const handleAdd = () => {
-    if (!addProgramId) { toast.error('Chọn program'); return; }
-    const h = Math.max(0, Number(addHeadcount) || 0);
-    onSave(Number(addProgramId), h);
-    setAddOpen(false);
-    setAddProgramId('');
-    setAddHeadcount('');
-  };
+  const totalAllocated = allocations.reduce((s, a) => s + (Number(a.allocated_headcount) || 0), 0);
+  const totalActual = allocations.reduce((s, a) => s + (Number(a.actual_fte) || 0), 0);
 
   return (
     <div>
@@ -412,46 +392,33 @@ function ProgramAllocationsTab({
         </div>
       </div>
 
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-xs text-slate-500">
-          {allocations.length} program{allocations.length !== 1 ? 's' : ''} được phân bổ
-        </span>
-        <Button
-          onClick={() => setAddOpen(true)}
-          disabled={availablePrograms.length === 0}
-          className="bg-blue-600 hover:bg-blue-700 gap-2 h-8 text-xs"
-        >
-          <Plus className="h-3.5 w-3.5" /> Phân bổ Program
-        </Button>
-      </div>
-
       <div className="rounded-xl border bg-white overflow-hidden shadow-sm">
         <table className="w-full text-xs">
           <thead>
             <tr className="bg-[#1e293b] text-white">
               <th className="px-3 py-3 text-left">#</th>
               <th className="px-3 py-3 text-left">Program</th>
-              <th className="px-3 py-3 text-center w-36">Số FTE phân bổ</th>
-              <th className="px-3 py-3 text-center w-36">Số FTE thực tế</th>
-              <th className="px-3 py-3 w-10"></th>
+              <th className="px-3 py-3 text-center w-40">Số FTE phân bổ</th>
+              <th className="px-3 py-3 text-center w-40">Số FTE thực tế</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={5} className="text-center py-10 text-slate-400">Loading...</td></tr>
+              <tr><td colSpan={4} className="text-center py-10 text-slate-400">Loading...</td></tr>
             ) : allocations.length === 0 ? (
               <tr>
-                <td colSpan={5} className="text-center py-10 text-slate-400">
-                  Chưa phân bổ nhân sự cho program nào. Nhấn &quot;Phân bổ Program&quot; để bắt đầu.
+                <td colSpan={4} className="text-center py-10 text-slate-400">
+                  Chưa có program nào. Tạo program trong mục Programs để bắt đầu.
                 </td>
               </tr>
             ) : (
               allocations.map((row, i) => {
-                const localVal = localValues[row.id] ?? String(row.allocated_headcount);
+                const localVal = localValues[row.program_id] ?? String(row.allocated_headcount);
                 const actualFte = Number(row.actual_fte) || 0;
-                const overAllocated = actualFte > row.allocated_headcount && row.allocated_headcount > 0;
+                const allocated = Number(row.allocated_headcount) || 0;
+                const overActual = actualFte > allocated && allocated > 0;
                 return (
-                  <tr key={row.id} className={`border-t hover:bg-slate-50 ${i % 2 ? 'bg-slate-50/40' : ''}`}>
+                  <tr key={row.program_id} className={`border-t hover:bg-slate-50 ${i % 2 ? 'bg-slate-50/40' : ''}`}>
                     <td className="px-3 py-2 text-slate-400">{i + 1}</td>
                     <td className="px-3 py-2 font-medium text-slate-700">{row.program_name}</td>
                     <td className="px-3 py-2 text-center">
@@ -460,25 +427,14 @@ function ProgramAllocationsTab({
                         min={0}
                         className="w-20 h-6 px-1.5 text-xs font-bold text-slate-800 border rounded focus:outline-none focus:ring-1 focus:ring-blue-400 text-center bg-white"
                         value={localVal}
-                        onChange={e => setLocalValues(v => ({ ...v, [row.id]: e.target.value }))}
-                        onBlur={() => {
-                          const h = Math.max(0, Number(localVal) || 0);
-                          onSave(row.program_id, h);
-                        }}
+                        onChange={e => setLocalValues(v => ({ ...v, [row.program_id]: e.target.value }))}
+                        onBlur={() => onSave(row.program_id, Math.max(0, Number(localVal) || 0))}
                       />
                     </td>
                     <td className="px-3 py-2 text-center">
-                      <span className={`font-bold tabular-nums ${overAllocated ? 'text-red-600' : actualFte > 0 ? 'text-emerald-600' : 'text-slate-400'}`}>
-                        {actualFte}
+                      <span className={`font-bold tabular-nums ${overActual ? 'text-red-600' : actualFte > 0 ? 'text-emerald-600' : 'text-slate-400'}`}>
+                        {actualFte > 0 ? actualFte : '—'}
                       </span>
-                    </td>
-                    <td className="px-3 py-2 text-center">
-                      <button
-                        onClick={() => onDelete(row.id)}
-                        className="text-slate-300 hover:text-red-500 transition-colors"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
                     </td>
                   </tr>
                 );
@@ -491,56 +447,13 @@ function ProgramAllocationsTab({
                 <td colSpan={2} className="px-3 py-2 text-xs font-semibold text-slate-600">Tổng</td>
                 <td className="px-3 py-2 text-center text-xs font-bold text-slate-800">{totalAllocated}</td>
                 <td className="px-3 py-2 text-center text-xs font-bold text-emerald-700">
-                  {allocations.reduce((s, a) => s + (Number(a.actual_fte) || 0), 0)}
+                  {totalActual > 0 ? totalActual : '—'}
                 </td>
-                <td />
               </tr>
             </tfoot>
           )}
         </table>
       </div>
-
-      {/* Add allocation dialog */}
-      <Dialog open={addOpen} onOpenChange={o => { if (!o) setAddOpen(false); }}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Phân bổ nhân sự cho Program</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div>
-              <Label>Program *</Label>
-              <div className="relative mt-1.5">
-                <select
-                  className="w-full h-9 px-3 pr-8 text-sm border border-slate-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none"
-                  value={addProgramId}
-                  onChange={e => setAddProgramId(e.target.value)}
-                >
-                  <option value="">Chọn program...</option>
-                  {availablePrograms.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </select>
-                <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
-              </div>
-            </div>
-            <div>
-              <Label>Số FTE phân bổ</Label>
-              <Input
-                className="mt-1.5"
-                type="number"
-                min={0}
-                value={addHeadcount}
-                onChange={e => setAddHeadcount(e.target.value)}
-                placeholder="0"
-                autoFocus
-                onKeyDown={e => e.key === 'Enter' && handleAdd()}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAddOpen(false)}>Hủy</Button>
-            <Button onClick={handleAdd} className="bg-blue-600 hover:bg-blue-700">Phân bổ</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
@@ -561,7 +474,6 @@ export default function PortfolioResourcesPage() {
 
   // Program allocations
   const [programAllocations, setProgramAllocations] = useState<ProgramAllocation[]>([]);
-  const [programs, setPrograms] = useState<Program[]>([]);
   const [allocLoading, setAllocLoading] = useState(true);
 
   const load = useCallback(async () => {
@@ -581,12 +493,8 @@ export default function PortfolioResourcesPage() {
   const loadAllocations = useCallback(async () => {
     setAllocLoading(true);
     try {
-      const [allocRes, programsRes] = await Promise.all([
-        fetch('/api/portfolio/program-allocations').then(r => r.json()),
-        fetch('/api/programs').then(r => r.json()),
-      ]);
+      const allocRes = await fetch('/api/portfolio/program-allocations').then(r => r.json());
       setProgramAllocations(Array.isArray(allocRes) ? allocRes : []);
-      setPrograms(Array.isArray(programsRes) ? programsRes : []);
     } finally {
       setAllocLoading(false);
     }
@@ -683,12 +591,6 @@ export default function PortfolioResourcesPage() {
     });
     if (!res.ok) { toast.error('Lưu thất bại'); return; }
     toast.success('Đã cập nhật phân bổ');
-    loadAllocations();
-  };
-
-  const handleDeleteProgramAlloc = async (id: number) => {
-    await fetch(`/api/portfolio/program-allocations/${id}`, { method: 'DELETE' });
-    toast.success('Đã xóa phân bổ');
     loadAllocations();
   };
 
@@ -859,10 +761,8 @@ export default function PortfolioResourcesPage() {
             <ProgramAllocationsTab
               quota={quota}
               allocations={programAllocations}
-              programs={programs}
               loading={allocLoading}
               onSave={handleSaveProgramAlloc}
-              onDelete={handleDeleteProgramAlloc}
             />
           </TabsContent>
         </Tabs>

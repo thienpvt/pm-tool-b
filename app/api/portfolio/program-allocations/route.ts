@@ -2,26 +2,25 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
 import { getSessionFromRequest } from '@/lib/auth';
 
-// GET: return all programs with their allocated headcount and actual FTE for this company
+// GET: ALL programs for this company with their allocation + actual FTE
 export async function GET(req: NextRequest) {
   const user = await getSessionFromRequest(req);
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const db = await getDb();
+  if (!user.company_id) return NextResponse.json([]);
 
-  // actual_fte = sum of current-month capacity_json values across all team_members
-  // in projects belonging to each program (projects.customer_id = program_id)
+  const db = await getDb();
   const rows = await db.all<{
-    id: number; program_id: number; program_name: string; allocated_headcount: number; actual_fte: number;
+    program_id: number; program_name: string; allocated_headcount: number; actual_fte: number;
   }>(
-    `SELECT ppa.id, ppa.program_id, c.name AS program_name, ppa.allocated_headcount,
+    `SELECT
+       c.id AS program_id,
+       c.name AS program_name,
+       COALESCE(ppa.allocated_headcount, 0) AS allocated_headcount,
        COALESCE((
          SELECT ROUND(CAST(SUM(
            COALESCE(
              CASE WHEN tm.capacity_json IS NOT NULL AND length(trim(tm.capacity_json)) > 2
-                  THEN CAST(
-                    (tm.capacity_json::jsonb ->> TO_CHAR(CURRENT_DATE, 'YYYY-MM'))
-                    AS FLOAT
-                  )
+                  THEN CAST((tm.capacity_json::jsonb ->> TO_CHAR(CURRENT_DATE, 'YYYY-MM')) AS FLOAT)
                   ELSE NULL
              END,
              0
@@ -29,19 +28,20 @@ export async function GET(req: NextRequest) {
          ) AS NUMERIC), 1)
          FROM team_members tm
          JOIN projects p ON p.id = tm.project_id
-         WHERE p.customer_id = ppa.program_id
+         WHERE p.customer_id = c.id
            AND p.company_id = ?
        ), 0) AS actual_fte
-     FROM portfolio_program_allocations ppa
-     JOIN customers c ON c.id = ppa.program_id
-     WHERE ppa.company_id = ?
+     FROM customers c
+     LEFT JOIN portfolio_program_allocations ppa
+       ON ppa.program_id = c.id AND ppa.company_id = ?
+     WHERE c.company_id = ?
      ORDER BY c.name`,
-    user.company_id, user.company_id
+    user.company_id, user.company_id, user.company_id
   );
   return NextResponse.json(rows);
 }
 
-// POST: upsert allocation (program_id, allocated_headcount)
+// POST: upsert allocation — atomic ON CONFLICT DO UPDATE
 export async function POST(req: NextRequest) {
   const user = await getSessionFromRequest(req);
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -49,21 +49,16 @@ export async function POST(req: NextRequest) {
   if (!program_id) return NextResponse.json({ error: 'program_id required' }, { status: 400 });
   const headcount = Math.max(0, Number(allocated_headcount) || 0);
   const db = await getDb();
-  // upsert
-  const existing = await db.get<{ id: number }>(
-    'SELECT id FROM portfolio_program_allocations WHERE company_id = ? AND program_id = ?',
-    user.company_id, program_id
-  );
-  if (existing) {
+  try {
     await db.run(
-      'UPDATE portfolio_program_allocations SET allocated_headcount = ? WHERE id = ?',
-      headcount, existing.id
+      `INSERT INTO portfolio_program_allocations (company_id, program_id, allocated_headcount)
+       VALUES (?, ?, ?)
+       ON CONFLICT (company_id, program_id) DO UPDATE SET allocated_headcount = EXCLUDED.allocated_headcount`,
+      user.company_id, program_id, headcount
     );
-    return NextResponse.json({ id: existing.id, program_id, allocated_headcount: headcount });
+    return NextResponse.json({ program_id, allocated_headcount: headcount });
+  } catch (e) {
+    console.error('program-allocations POST error:', e);
+    return NextResponse.json({ error: 'Failed to save' }, { status: 500 });
   }
-  const row = await db.get<{ id: number }>(
-    'INSERT INTO portfolio_program_allocations (company_id, program_id, allocated_headcount) VALUES (?, ?, ?) RETURNING id',
-    user.company_id, program_id, headcount
-  );
-  return NextResponse.json({ id: row?.id, program_id, allocated_headcount: headcount });
 }
