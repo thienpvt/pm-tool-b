@@ -125,10 +125,11 @@ function ResourceAllocDialog({
 
   if (!resources) return null;
 
-  const totalDistributed = resources.projects.reduce((s, p) => s + p.allocated_headcount, 0);
-  const remaining = resources.portfolio_allocated - totalDistributed;
-  const pct = resources.portfolio_allocated > 0
-    ? Math.min((totalDistributed / resources.portfolio_allocated) * 100, 100)
+  const totalDistributed = resources.projects.reduce((s, p) => s + (Number(p.allocated_headcount) || 0), 0);
+  const portfolioAllocated = Number(resources.portfolio_allocated) || 0;
+  const remaining = parseFloat((portfolioAllocated - totalDistributed).toFixed(2));
+  const pct = portfolioAllocated > 0
+    ? Math.min((totalDistributed / portfolioAllocated) * 100, 100)
     : 0;
 
   return (
@@ -149,21 +150,21 @@ function ResourceAllocDialog({
             <div className="flex items-center gap-4 flex-wrap bg-slate-50 border rounded-xl px-4 py-3">
               <div className="flex items-center gap-2">
                 <span className="text-xs text-slate-500 font-medium">Được phân bổ từ Portfolio:</span>
-                <span className="text-sm font-bold text-blue-700">{resources.portfolio_allocated}</span>
+                <span className="text-sm font-bold text-blue-700">{portfolioAllocated}</span>
               </div>
               <div className="h-4 w-px bg-slate-200" />
               <div className="text-xs">
                 <span className="text-slate-400">Đã phân bổ xuống project: </span>
-                <span className="font-bold text-slate-700">{totalDistributed}</span>
+                <span className="font-bold text-slate-700">{parseFloat(totalDistributed.toFixed(2))}</span>
               </div>
               <div className="h-4 w-px bg-slate-200" />
               <div className="text-xs">
                 <span className="text-slate-400">Còn lại: </span>
-                <span className={`font-bold ${remaining < 0 ? 'text-red-600' : remaining === 0 && resources.portfolio_allocated > 0 ? 'text-amber-600' : 'text-green-600'}`}>
+                <span className={`font-bold ${remaining < 0 ? 'text-red-600' : remaining === 0 && portfolioAllocated > 0 ? 'text-amber-600' : 'text-green-600'}`}>
                   {remaining}
                 </span>
               </div>
-              {resources.portfolio_allocated > 0 && (
+              {portfolioAllocated > 0 && (
                 <>
                   <div className="h-4 w-px bg-slate-200" />
                   <div className="flex items-center gap-2 flex-1 min-w-[100px]">
@@ -177,7 +178,7 @@ function ResourceAllocDialog({
                   </div>
                 </>
               )}
-              {resources.portfolio_allocated === 0 && (
+              {portfolioAllocated === 0 && (
                 <p className="text-xs text-amber-600 ml-1">
                   Chưa được phân bổ từ Portfolio. Vào <strong>Resource Management → Phân bổ Program</strong> để thiết lập.
                 </p>
@@ -251,15 +252,16 @@ function ProgramResourceBadge({ programId }: { programId: number }) {
       .catch(() => null);
   }, [programId]);
 
-  if (!data || data.portfolio_allocated === 0) return null;
+  const portfolioAlloc = Number(data.portfolio_allocated) || 0;
+  if (!data || portfolioAlloc === 0) return null;
 
-  const distributed = data.projects.reduce((s, p) => s + p.allocated_headcount, 0);
-  const remaining = data.portfolio_allocated - distributed;
+  const distributed = data.projects.reduce((s, p) => s + (Number(p.allocated_headcount) || 0), 0);
+  const remaining = parseFloat((portfolioAlloc - distributed).toFixed(2));
 
   return (
     <div className="flex items-center gap-2 text-xs text-slate-500 mt-1">
       <Users className="h-3 w-3 text-blue-400 shrink-0" />
-      <span className="text-blue-600 font-semibold">{data.portfolio_allocated}</span>
+      <span className="text-blue-600 font-semibold">{portfolioAlloc}</span>
       <span>từ Portfolio</span>
       <span className="text-slate-300">·</span>
       <span className={remaining < 0 ? 'text-red-500 font-semibold' : 'text-slate-400'}>
