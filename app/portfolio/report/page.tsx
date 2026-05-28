@@ -1291,54 +1291,37 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
     }
     h += `</div>`;
 
-    // Col 3: Narrative text
+    // Col 3: Overallocated people list (>2 projects)
     {
-      const totalInternalPeople = ps ? ps.totalInternal : 0;
-      const totalAllocSlots     = ps ? ps.totalAllocated : 0;
-      const fteShortfall = fs.programFillRates
-        .filter(p => p.allocated > p.actual)
-        .reduce((s, p) => s + (p.allocated - p.actual), 0);
-      const overPrograms = fs.programFillRates.filter(p => p.fillRate > 100);
-      const underPrograms = fs.programFillRates.filter(p => p.allocated > 0 && p.fillRate < 90);
-
-      const overheadNote = overheadPct > 35
-        ? (isVN ? `Tỷ trọng Overhead ${overheadPct}% cho thấy cơ cấu đang hơi nặng về quản lý — cần theo dõi để không ảnh hưởng đến năng lực delivery.`
-                : `Overhead at ${overheadPct}% suggests a management-heavy structure — monitor to avoid delivery capacity impact.`)
-        : (isVN ? `Tỷ trọng Overhead ${overheadPct}% ở mức hợp lý, delivery chiếm ${deliveryPct}% năng lực thực thi.`
-                : `Overhead ratio of ${overheadPct}% is healthy; delivery holds ${deliveryPct}% of execution capacity.`);
-
-      let para1: string, para2: string, para3: string;
-      if (isVN) {
-        para1 = `Tổng định biên trong khối là ${fs.headcountQuota > 0 ? fs.headcountQuota + ' người' : 'chưa thiết lập'}. Khi đếm lượt tham gia theo từng program, tổng lượt lên tới ${totalAllocSlots} — cao hơn ${totalInternalPeople} người thực do nhiều nhân sự share nhiều program (đếm trùng khi tính đầu người). Quy về FTE tháng ${fs.currentMonth}, tổng FTE đang sử dụng là ${totalUsedFte.toFixed(1)} FTE${fs.headcountQuota > 0 ? `, tương đương utilization ${fs.utilizationPct}% so với định biên` : ''}.`;
-        para2 = `Cơ cấu năng lực phân rã: ${fs.deliveryFte.toFixed(1)} FTE Delivery (${deliveryPct}% — tạo đầu ra trực tiếp cho các program), ${overheadTotalFte.toFixed(1)} FTE Overhead (${overheadPct}% — bao gồm quản lý/lãnh đạo khối), và ${fs.benchFte.toFixed(1)} FTE Bench chưa phân bổ (${benchPct}%). ${overheadNote}`;
-        if (fs.programFillRates.length === 0) {
-          para3 = 'Chưa có dữ liệu định biên theo program — vui lòng thiết lập phân bổ headcount ở trang Nguồn lực.';
-        } else if (fteShortfall <= 0 && overPrograms.length === 0) {
-          para3 = `Fill rate toàn khối đạt ${fs.blockFillRate}% — tất cả program đều đã lấp đầy hoặc vượt định biên. Không có nhu cầu tuyển dụng tại thời điểm này.`;
-        } else {
-          const shortList = underPrograms.map(p => `${p.programName} (${p.fillRate}%, thiếu ${(p.allocated - p.actual).toFixed(1)} FTE)`).join('; ');
-          const overList  = overPrograms.map(p => p.programName).join(', ');
-          para3 = `Fill rate toàn khối: ${fs.blockFillRate}%${shortList ? '. Các program chưa đủ định biên: ' + shortList : ''}. Tổng FTE còn thiếu ${fteShortfall.toFixed(1)} FTE — quy ra cần tuyển thêm khoảng ${fs.peopleNeeded} người (làm tròn lên từ tổng thiếu hụt, không làm tròn lẻ ở từng program).${overList ? ' Program ' + overList + ' có fill rate >100% — nên xem xét điều chuyển nội bộ trước khi mở thêm headcount.' : ''}`;
-        }
+      const overalloc = ps ? ps.overallocated : [];
+      h += `<div class="rpd-panel" style="display:flex;flex-direction:column;gap:0;">`;
+      h += `<div class="rpd-ptitle">${isVN?'Nhân sự tham gia &gt; 2 Squad/Dự án':'Personnel in &gt; 2 Squad/Projects'}</div>`;
+      if (overalloc.length === 0) {
+        h += `<div style="display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12px;color:#16A34A;">`;
+        h += `<span style="width:8px;height:8px;border-radius:50%;background:#16A34A;flex-shrink:0;display:inline-block;"></span>`;
+        h += `${isVN?'Không có nhân sự nào đang tham gia hơn 2 Squad/Dự án.':'No personnel currently in more than 2 Squad/Projects.'}`;
+        h += `</div>`;
       } else {
-        para1 = `Total block headcount quota: ${fs.headcountQuota > 0 ? fs.headcountQuota + ' people' : 'not set'}. Counting program participation slots, the total reaches ${totalAllocSlots} — higher than the ${totalInternalPeople} actual headcount due to shared resources across programs (person-counting double-counts multi-program staff). Expressed in FTE for ${fs.currentMonth}, total used FTE is ${totalUsedFte.toFixed(1)}${fs.headcountQuota > 0 ? `, equating to ${fs.utilizationPct}% utilization against quota` : ''}.`;
-        para2 = `Capacity structure: ${fs.deliveryFte.toFixed(1)} FTE Delivery (${deliveryPct}% — direct program output), ${overheadTotalFte.toFixed(1)} FTE Overhead (${overheadPct}% — management and leadership), and ${fs.benchFte.toFixed(1)} FTE Bench unallocated (${benchPct}%). ${overheadNote}`;
-        if (fs.programFillRates.length === 0) {
-          para3 = 'No program headcount allocations configured — set up program quotas on the Resources page.';
-        } else if (fteShortfall <= 0 && overPrograms.length === 0) {
-          para3 = `Block fill rate is ${fs.blockFillRate}% — all programs are fully staffed or above quota. No immediate hiring need.`;
-        } else {
-          const shortList = underPrograms.map(p => `${p.programName} (${p.fillRate}%, short ${(p.allocated - p.actual).toFixed(1)} FTE)`).join('; ');
-          const overList  = overPrograms.map(p => p.programName).join(', ');
-          para3 = `Block fill rate: ${fs.blockFillRate}%${shortList ? '. Under-staffed programs: ' + shortList : ''}. Total FTE shortfall is ${fteShortfall.toFixed(1)} FTE — equivalent to approximately ${fs.peopleNeeded} hire(s) (aggregated before rounding up; not rounded per program).${overList ? ' Program(s) ' + overList + ' exceed 100% fill rate — consider internal redeployment before opening new headcount.' : ''}`;
-        }
+        h += `<table style="width:100%;border-collapse:collapse;font-size:11px;margin-top:4px;">`;
+        h += `<thead><tr>`;
+        h += `<th style="text-align:left;padding:4px 8px 6px;color:#9CA3AF;font-size:10px;text-transform:uppercase;letter-spacing:0.8px;border-bottom:1px solid #E5E7EB;">${isVN?'Nhân sự':'Name'}</th>`;
+        h += `<th style="text-align:left;padding:4px 8px 6px;color:#9CA3AF;font-size:10px;text-transform:uppercase;letter-spacing:0.8px;border-bottom:1px solid #E5E7EB;">${isVN?'Vai trò':'Role'}</th>`;
+        h += `<th style="text-align:center;padding:4px 8px 6px;color:#9CA3AF;font-size:10px;text-transform:uppercase;letter-spacing:0.8px;border-bottom:1px solid #E5E7EB;">${isVN?'Số DA':'#'}</th>`;
+        h += `<th style="text-align:left;padding:4px 8px 6px;color:#9CA3AF;font-size:10px;text-transform:uppercase;letter-spacing:0.8px;border-bottom:1px solid #E5E7EB;">${isVN?'Danh sách Squad/DA':'Squad/Projects'}</th>`;
+        h += `</tr></thead><tbody>`;
+        overalloc.forEach(person => {
+          const projStr = person.projects.join(', ');
+          const projDisplay = projStr.length > 38 ? projStr.slice(0, 38) + '…' : projStr;
+          h += `<tr>`;
+          h += `<td style="padding:6px 8px;border-bottom:1px solid #F3F4F6;font-weight:600;color:#111827;">${person.name}</td>`;
+          h += `<td style="padding:6px 8px;border-bottom:1px solid #F3F4F6;color:#6B7280;">${person.role || '—'}</td>`;
+          h += `<td style="padding:6px 8px;border-bottom:1px solid #F3F4F6;text-align:center;"><span style="background:#FEF2F2;color:#DC2626;border:1px solid #FECACA;border-radius:4px;padding:1px 7px;font-weight:700;">${person.projects.length}</span></td>`;
+          h += `<td style="padding:6px 8px;border-bottom:1px solid #F3F4F6;color:#6B7280;font-size:10px;">${projDisplay}</td>`;
+          h += `</tr>`;
+        });
+        h += `</tbody></table>`;
+        h += `<div style="margin-top:8px;padding:6px 10px;background:#FEF2F2;border-radius:4px;font-size:11px;color:#DC2626;">[!] ${isVN?'Cần rà soát phân bổ để đảm bảo chất lượng và tiến độ.':'Review allocations to ensure quality and delivery.'}</div>`;
       }
-
-      h += `<div class="rpd-panel" style="display:flex;flex-direction:column;gap:10px;">`;
-      h += `<div class="rpd-ptitle">${isVN?'Diễn giải':'Analysis'}</div>`;
-      h += `<p style="font-size:12px;color:#374151;line-height:1.7;margin:0;">${para1}</p>`;
-      h += `<p style="font-size:12px;color:#374151;line-height:1.7;margin:0;">${para2}</p>`;
-      h += `<p style="font-size:12px;color:#374151;line-height:1.7;margin:0;">${para3}</p>`;
       h += `</div>`;
     }
 
@@ -1379,69 +1362,6 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
     h += `</div>`;
   }
 
-  // Project detail blocks
-  allProjects.forEach((p, pIdx) => {
-    const color = pCol(pIdx);
-    const totalEpics = (p.epicStats ?? []).length;
-    const ragC = ragCol(p.rag);
-    h += `<div class="rpd-pb">`;
-    h += `<div class="rpd-pb-hd"><div class="rpd-pb-ico" style="background:${color}22;color:${color};">${p.name.slice(0,2).toUpperCase()}</div>`;
-    h += `<div style="flex:1;min-width:0;"><p class="rpd-pb-nm">${p.name}</p><p class="rpd-pb-sb">${[p.program_name, p.current_phase, p.pm_name ? 'PM: '+p.pm_name : ''].filter(Boolean).join(' · ')}</p></div>`;
-    h += `<div style="margin-left:auto;display:flex;align-items:center;gap:20px;flex-shrink:0;">`;
-    h += `<div style="text-align:center;"><div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;color:#9CA3AF;margin-bottom:3px;">${isVN?'Tiến độ':'Progress'}</div><div style="font-size:22px;font-weight:700;color:${color};line-height:1;">${p.completion_pct}%</div></div>`;
-    h += `<div style="text-align:center;"><div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;color:#9CA3AF;margin-bottom:3px;">RAG</div><div style="font-size:12px;font-weight:700;color:${ragC};display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:50%;background:${ragC};display:inline-block;"></span>${p.rag.toUpperCase()}</div></div>`;
-    h += `<div style="text-align:center;"><div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;color:#9CA3AF;margin-bottom:3px;">${isVN?'Epic':'Epics'}</div><div style="font-size:18px;font-weight:700;color:#111827;line-height:1;">${totalEpics}</div></div>`;
-    h += `</div></div>`;
-    h += `<div class="rpd-pb-bar"><div style="height:2px;background:${color};width:${p.completion_pct}%;"></div></div>`;
-    h += `<div class="rpd-pb-body">`;
-    if (p.epicStats && p.epicStats.length > 0) {
-      h += `<table class="rpd-et"><thead><tr>`;
-      h += `<th style="width:4px;padding:6px 4px 8px;"></th>`;
-      h += `<th>${isVN?'Epic / Nhóm công việc':'Epic / Work Group'}</th>`;
-      h += `<th>${isVN?'Trạng thái':'Status'}</th>`;
-      h += `<th style="min-width:100px;">${isVN?'Tiến độ':'Progress'}</th>`;
-      h += `<th style="text-align:right;width:44px;">%</th>`;
-      h += `<th style="text-align:right;width:68px;">${isVN?'Xong/Tổng':'Done/Total'}</th>`;
-      h += `<th style="text-align:right;width:82px;">${isVN?'Bắt đầu':'Start'}</th>`;
-      h += `<th style="text-align:right;width:82px;">${isVN?'Kết thúc':'End'}</th>`;
-      h += `</tr></thead><tbody>`;
-      p.epicStats.forEach(e => {
-        const st = epicSt(e.pct);
-        const ec = epicStCol(st);
-        const sd = e.start_date ? fmtDate(e.start_date) : 'N/A';
-        const ed = e.end_date ? fmtDate(e.end_date) : 'N/A';
-        h += `<tr>`;
-        h += `<td style="padding:9px 4px;"><div style="width:3px;height:20px;border-radius:2px;background:${ec};"></div></td>`;
-        h += `<td style="font-weight:500;color:#111827;">${e.phase}</td>`;
-        h += `<td><span class="rpd-stag" style="background:${epicStBg(st)};border:1px solid ${epicStBdr(st)};color:${ec};">${epicStLbl(st)}</span></td>`;
-        h += `<td><div class="rpd-pgbar"><div class="rpd-pgfill" style="width:${e.pct}%;background:${ec};"></div></div></td>`;
-        h += `<td style="font-weight:700;color:${ec};text-align:right;">${e.pct}%</td>`;
-        h += `<td style="color:#9CA3AF;text-align:right;font-size:11px;">${e.done}/${e.total}</td>`;
-        h += `<td style="color:#6B7280;text-align:right;font-size:11px;">${sd}</td>`;
-        h += `<td style="color:#6B7280;text-align:right;font-size:11px;">${ed}</td>`;
-        h += `</tr>`;
-      });
-      h += `</tbody></table>`;
-    } else {
-      h += `<p style="color:#9CA3AF;font-size:12px;font-style:italic;margin:0;">${isVN?'Chưa có dữ liệu epic.':'No epic data available.'}</p>`;
-    }
-    if (p.epicStats && p.epicStats.length > 0) {
-      const epicsDoneCount = p.epicStats.filter(e => e.pct >= 100).length;
-      const epicsInProgCount = p.epicStats.filter(e => e.pct > 0 && e.pct < 100).length;
-      const epicsNotStartedCount = p.epicStats.filter(e => e.pct === 0).length;
-      h += `<div class="rpd-act-sum"><p class="rpd-act-ttl">${isVN?'Tổng hợp epic':'Epic Summary'}</p><div class="rpd-act-row">`;
-      const epicItems = [
-        {l:isVN?'Hoàn thành':'Done',              v:epicsDoneCount,      c:'#111827'},
-        {l:isVN?'Đang triển khai':'In Progress',  v:epicsInProgCount,    c:'#E8192C'},
-        {l:isVN?'Chưa bắt đầu':'Not Started',     v:epicsNotStartedCount,c:'#9CA3AF'},
-      ];
-      epicItems.forEach(a => {
-        h += `<div class="rpd-act-st"><p class="rpd-act-num" style="color:${a.c};">${a.v}</p><p class="rpd-act-lbl">${a.l}</p></div>`;
-      });
-      h += `</div></div>`;
-    }
-    h += `</div></div>`;
-  });
 
   // ── Legend / Annotation
   h += `<div class="rpd-zsep"></div>`;
