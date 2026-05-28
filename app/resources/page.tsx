@@ -292,46 +292,49 @@ type PortfolioMember = {
   current_month_fte: number; overhead_remaining: number;
 };
 
-function FteKpiBar({ quota, allProjectFte, overheadRemainingFte, internalMembers }: {
+function FteKpiBar({ quota, deliveryFte, overheadFte, internalMembers }: {
   quota: number;
-  allProjectFte: number;
-  overheadRemainingFte: number;
+  deliveryFte: number;
+  overheadFte: number;
   internalMembers: PortfolioMember[];
 }) {
-  const [listOpen, setListOpen] = useState<'project' | 'overhead' | 'bench' | null>(null);
+  const [listOpen, setListOpen] = useState<'delivery' | 'overhead' | 'bench' | null>(null);
 
-  const base = quota > 0 ? quota : Math.max(1, allProjectFte + overheadRemainingFte);
-  const bench = Math.max(0, base - allProjectFte - overheadRemainingFte);
-  const pctProject = base > 0 ? (allProjectFte / base) * 100 : 0;
-  const pctOverhead = base > 0 ? (overheadRemainingFte / base) * 100 : 0;
+  const base = quota > 0 ? quota : Math.max(1, deliveryFte + overheadFte);
+  const bench = Math.max(0, base - deliveryFte - overheadFte);
+  const pctDelivery = base > 0 ? (deliveryFte / base) * 100 : 0;
+  const pctOverhead = base > 0 ? (overheadFte / base) * 100 : 0;
   const pctBench = base > 0 ? (bench / base) * 100 : 0;
   const fmtFte = (v: number) => parseFloat(v.toFixed(3)).toString();
 
-  const projectMembers = internalMembers
-    .filter(m => m.current_month_fte > 0)
+  // Card 1: delivery members với current_month_fte > 0
+  const deliveryMembers = internalMembers
+    .filter(m => m.member_category !== 'overhead' && m.current_month_fte > 0)
     .sort((a, b) => b.current_month_fte - a.current_month_fte);
+  // Card 2: tất cả overhead members, tổng FTE = current_month_fte + overhead_remaining
   const overheadMembers = internalMembers
     .filter(m => m.member_category === 'overhead')
-    .sort((a, b) => b.overhead_remaining - a.overhead_remaining);
+    .sort((a, b) => (b.current_month_fte + b.overhead_remaining) - (a.current_month_fte + a.overhead_remaining));
+  // Card 3: delivery members chưa phân bổ vào dự án nào
   const benchMembers = internalMembers
-    .filter(m => m.current_month_fte === 0 && m.member_category !== 'overhead')
+    .filter(m => m.member_category !== 'overhead' && m.current_month_fte === 0)
     .sort((a, b) => a.name.localeCompare(b.name));
 
-  const listConfig: Record<'project' | 'overhead' | 'bench', {
+  const listConfig: Record<'delivery' | 'overhead' | 'bench', {
     title: string; members: PortfolioMember[];
     fteLabel: string; fteValue: (m: PortfolioMember) => string;
   }> = {
-    project: {
-      title: `Nhân sự phân bổ dự án (${projectMembers.length} người)`,
-      members: projectMembers,
+    delivery: {
+      title: `Nhân sự Delivery phân bổ dự án (${deliveryMembers.length} người)`,
+      members: deliveryMembers,
       fteLabel: 'FTE tháng này',
       fteValue: m => fmtFte(m.current_month_fte),
     },
     overhead: {
-      title: `Nhân sự Overhead còn lại (${overheadMembers.length} người)`,
+      title: `Nhân sự Overhead (${overheadMembers.length} người)`,
       members: overheadMembers,
-      fteLabel: 'Overhead còn lại',
-      fteValue: m => fmtFte(m.overhead_remaining),
+      fteLabel: 'FTE overhead',
+      fteValue: m => fmtFte(m.current_month_fte + m.overhead_remaining),
     },
     bench: {
       title: `Nhân sự Bench — chưa phân bổ (${benchMembers.length} người)`,
@@ -343,7 +346,7 @@ function FteKpiBar({ quota, allProjectFte, overheadRemainingFte, internalMembers
 
   const current = listOpen ? listConfig[listOpen] : null;
 
-  const viewBtn = (key: 'project' | 'overhead' | 'bench', colorClass: string) => (
+  const viewBtn = (key: 'delivery' | 'overhead' | 'bench', colorClass: string) => (
     <button
       onClick={() => setListOpen(key)}
       className={`flex items-center gap-1 text-[10px] ${colorClass} font-medium hover:underline`}
@@ -357,37 +360,37 @@ function FteKpiBar({ quota, allProjectFte, overheadRemainingFte, internalMembers
       <div className="grid grid-cols-3 gap-3 mb-5">
         <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex flex-col gap-1">
           <div className="flex items-center gap-1.5 text-[10px] text-blue-500 font-semibold uppercase tracking-wide">
-            <Briefcase className="h-3 w-3" /> FTE phân bổ dự án
+            <Briefcase className="h-3 w-3" /> FTE Delivery
           </div>
-          <div className="text-2xl font-bold text-blue-700">{fmtFte(allProjectFte)}</div>
-          <div className="text-xs text-blue-500">{pctProject.toFixed(0)}% của {quota > 0 ? quota : 'tổng'} FTE</div>
+          <div className="text-2xl font-bold text-blue-700">{fmtFte(deliveryFte)}</div>
+          <div className="text-xs text-blue-500">{pctDelivery.toFixed(0)}% của {quota > 0 ? quota : 'tổng'} FTE</div>
           <div className="h-1.5 bg-blue-100 rounded-full overflow-hidden mt-1">
-            <div className="h-full bg-blue-500 rounded-full" style={{ width: `${Math.min(pctProject, 100)}%` }} />
+            <div className="h-full bg-blue-500 rounded-full" style={{ width: `${Math.min(pctDelivery, 100)}%` }} />
           </div>
           <div className="flex items-center justify-between mt-0.5">
-            <div className="text-[10px] text-blue-400">Delivery + Overhead trong dự án</div>
-            {viewBtn('project', 'text-blue-500 hover:text-blue-700')}
+            <div className="text-[10px] text-blue-400">Nhân sự delivery tham gia dự án</div>
+            {viewBtn('delivery', 'text-blue-500 hover:text-blue-700')}
           </div>
         </div>
 
         <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex flex-col gap-1">
           <div className="flex items-center gap-1.5 text-[10px] text-amber-500 font-semibold uppercase tracking-wide">
-            <Shield className="h-3 w-3" /> FTE Overhead còn lại
+            <Shield className="h-3 w-3" /> FTE Overhead
           </div>
-          <div className="text-2xl font-bold text-amber-700">{fmtFte(overheadRemainingFte)}</div>
+          <div className="text-2xl font-bold text-amber-700">{fmtFte(overheadFte)}</div>
           <div className="text-xs text-amber-500">{pctOverhead.toFixed(0)}% của {quota > 0 ? quota : 'tổng'} FTE</div>
           <div className="h-1.5 bg-amber-100 rounded-full overflow-hidden mt-1">
             <div className="h-full bg-amber-400 rounded-full" style={{ width: `${Math.min(pctOverhead, 100)}%` }} />
           </div>
           <div className="flex items-center justify-between mt-0.5">
-            <div className="text-[10px] text-amber-400">Quản lý / lãnh đạo — không trong dự án</div>
+            <div className="text-[10px] text-amber-400">Quản lý / lãnh đạo / hỗ trợ (trong + ngoài dự án)</div>
             {viewBtn('overhead', 'text-amber-500 hover:text-amber-700')}
           </div>
         </div>
 
         <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 flex flex-col gap-1">
           <div className="flex items-center gap-1.5 text-[10px] text-slate-500 font-semibold uppercase tracking-wide">
-            <Users className="h-3 w-3" /> % Bench
+            <Users className="h-3 w-3" /> % Bench (dư)
           </div>
           <div className={`text-2xl font-bold ${bench > 0 ? 'text-emerald-600' : 'text-slate-400'}`}>
             {pctBench.toFixed(0)}%
@@ -397,7 +400,7 @@ function FteKpiBar({ quota, allProjectFte, overheadRemainingFte, internalMembers
             <div className="h-full bg-emerald-400 rounded-full" style={{ width: `${Math.min(pctBench, 100)}%` }} />
           </div>
           <div className="flex items-center justify-between mt-0.5">
-            <div className="text-[10px] text-slate-400">Chưa phân bổ (quota − dự án − overhead)</div>
+            <div className="text-[10px] text-slate-400">Năng lực chưa dùng (quota − delivery − overhead)</div>
             {viewBtn('bench', 'text-slate-500 hover:text-slate-700')}
           </div>
         </div>
@@ -515,11 +518,16 @@ export default function GlobalResourcesPage() {
   const nowYM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
   // FTE breakdowns from portfolio members
+  // % Delivery = FTE delivery phân bổ / tổng FTE khối
+  // % Overhead = FTE overhead toàn bộ (trong dự án + ngoài dự án) / tổng FTE khối
+  // % Bench    = (quota − delivery − overhead) / tổng FTE khối
   const internalMembers = portfolioMembers.filter(m => m.member_type !== 'external');
-  const allProjectFte = internalMembers.reduce((s, m) => s + (Number(m.current_month_fte) || 0), 0);
-  const overheadRemainingFte = internalMembers
+  const deliveryFte = internalMembers
+    .filter(m => m.member_category !== 'overhead')
+    .reduce((s, m) => s + (Number(m.current_month_fte) || 0), 0);
+  const overheadTotalFte = internalMembers
     .filter(m => m.member_category === 'overhead')
-    .reduce((s, m) => s + (Number(m.overhead_remaining) || 0), 0);
+    .reduce((s, m) => s + (Number(m.current_month_fte) || 0) + (Number(m.overhead_remaining) || 0), 0);
 
   // Derived from portfolio members
   const externalMembers = portfolioMembers.filter(m => m.member_type === 'external');
@@ -649,8 +657,8 @@ export default function GlobalResourcesPage() {
         {/* FTE KPI cards */}
         <FteKpiBar
           quota={quota > 0 ? quota : internalCount}
-          allProjectFte={allProjectFte}
-          overheadRemainingFte={overheadRemainingFte}
+          deliveryFte={deliveryFte}
+          overheadFte={overheadTotalFte}
           internalMembers={internalMembers}
         />
 
