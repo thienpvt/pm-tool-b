@@ -41,24 +41,29 @@ export async function GET(req: NextRequest) {
   return NextResponse.json(rows);
 }
 
-// POST: upsert allocation — atomic ON CONFLICT DO UPDATE
+// POST: upsert — UPDATE first, INSERT if no rows matched
 export async function POST(req: NextRequest) {
   const user = await getSessionFromRequest(req);
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const { program_id, allocated_headcount } = await req.json();
   if (!program_id) return NextResponse.json({ error: 'program_id required' }, { status: 400 });
   const headcount = Math.max(0, Number(allocated_headcount) || 0);
+  const pid = Number(program_id);
   const db = await getDb();
   try {
-    await db.run(
-      `INSERT INTO portfolio_program_allocations (company_id, program_id, allocated_headcount)
-       VALUES (?, ?, ?)
-       ON CONFLICT (company_id, program_id) DO UPDATE SET allocated_headcount = EXCLUDED.allocated_headcount`,
-      user.company_id, program_id, headcount
+    const upd = await db.run(
+      'UPDATE portfolio_program_allocations SET allocated_headcount = ? WHERE company_id = ? AND program_id = ?',
+      headcount, user.company_id, pid
     );
-    return NextResponse.json({ program_id, allocated_headcount: headcount });
+    if (upd.changes === 0) {
+      await db.run(
+        'INSERT INTO portfolio_program_allocations (company_id, program_id, allocated_headcount) VALUES (?, ?, ?)',
+        user.company_id, pid, headcount
+      );
+    }
+    return NextResponse.json({ program_id: pid, allocated_headcount: headcount });
   } catch (e) {
     console.error('program-allocations POST error:', e);
-    return NextResponse.json({ error: 'Failed to save' }, { status: 500 });
+    return NextResponse.json({ error: String(e) }, { status: 500 });
   }
 }
