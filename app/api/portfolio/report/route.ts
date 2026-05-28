@@ -305,6 +305,99 @@ export async function GET(req: NextRequest) {
     overallocated,
   };
 
+  // ─── FTE-based resource stats ─────────────────────────────────────────────
+  let fteStats = null;
+  if (user.company_id) {
+    const companyRow = await db.get<{ headcount_quota: number }>(
+      'SELECT headcount_quota FROM companies WHERE id = ?', user.company_id
+    );
+    const headcountQuota = Number(companyRow?.headcount_quota ?? 0);
+
+    const membersFte = await db.all(`
+      SELECT
+        pm.member_category,
+        pm.overhead_remaining,
+        COALESCE((
+          SELECT SUM(
+            CASE WHEN tm.capacity_json IS NOT NULL AND length(trim(tm.capacity_json)) > 2
+                 THEN CAST((tm.capacity_json::jsonb ->> TO_CHAR(CURRENT_DATE, 'YYYY-MM')) AS FLOAT)
+                 ELSE 0
+            END
+          )
+          FROM team_members tm
+          JOIN projects p ON p.id = tm.project_id
+          WHERE LOWER(TRIM(tm.name)) = LOWER(TRIM(pm.name))
+            AND p.company_id = pm.company_id
+        ), 0) AS current_month_fte
+      FROM portfolio_members pm
+      WHERE pm.member_type = 'internal' AND pm.company_id = ?
+    `, user.company_id) as { member_category: string; overhead_remaining: number; current_month_fte: number }[];
+
+    const deliveryFte = membersFte
+      .filter(m => m.member_category !== 'overhead')
+      .reduce((s, m) => s + (Number(m.current_month_fte) || 0), 0);
+    const overheadProjectFte = membersFte
+      .filter(m => m.member_category === 'overhead')
+      .reduce((s, m) => s + (Number(m.current_month_fte) || 0), 0);
+    const overheadRemainingFte = membersFte
+      .filter(m => m.member_category === 'overhead')
+      .reduce((s, m) => s + (Number(m.overhead_remaining) || 0), 0);
+    const totalUsedFte = deliveryFte + overheadProjectFte + overheadRemainingFte;
+    const benchFte = Math.max(0, headcountQuota - totalUsedFte);
+
+    const programAllocRows = await db.all(`
+      SELECT
+        c.name AS program_name,
+        COALESCE(ppa.allocated_headcount, 0) AS allocated,
+        COALESCE((
+          SELECT ROUND(CAST(SUM(
+            COALESCE(
+              CASE WHEN tm.capacity_json IS NOT NULL AND length(trim(tm.capacity_json)) > 2
+                   THEN CAST((tm.capacity_json::jsonb ->> TO_CHAR(CURRENT_DATE, 'YYYY-MM')) AS FLOAT)
+                   ELSE NULL
+              END, 0
+            )
+          ) AS NUMERIC), 1)
+          FROM team_members tm
+          JOIN projects p ON p.id = tm.project_id
+          WHERE p.customer_id = c.id AND p.company_id = ?
+        ), 0) AS actual
+      FROM customers c
+      LEFT JOIN portfolio_program_allocations ppa ON ppa.program_id = c.id AND ppa.company_id = ?
+      WHERE c.company_id = ?
+      ORDER BY c.name
+    `, user.company_id, user.company_id, user.company_id) as { program_name: string; allocated: number; actual: number }[];
+
+    const programFillRates = programAllocRows
+      .map(r => ({
+        programName: r.program_name,
+        allocated: Number(r.allocated) || 0,
+        actual: Number(r.actual) || 0,
+        fillRate: Number(r.allocated) > 0 ? Math.round((Number(r.actual) / Number(r.allocated)) * 100) : 0,
+      }))
+      .sort((a, b) => b.fillRate - a.fillRate);
+
+    const totalAllocSum = programFillRates.reduce((s, p) => s + p.allocated, 0);
+    const totalActualSum = programFillRates.reduce((s, p) => s + p.actual, 0);
+    const blockFillRate = totalAllocSum > 0 ? Math.round((totalActualSum / totalAllocSum) * 100) : 0;
+    const fteShortfall = programFillRates
+      .filter(p => p.allocated > p.actual)
+      .reduce((s, p) => s + (p.allocated - p.actual), 0);
+
+    fteStats = {
+      headcountQuota,
+      deliveryFte: parseFloat(deliveryFte.toFixed(1)),
+      overheadProjectFte: parseFloat(overheadProjectFte.toFixed(1)),
+      overheadRemainingFte: parseFloat(overheadRemainingFte.toFixed(1)),
+      benchFte: parseFloat(benchFte.toFixed(1)),
+      utilizationPct: headcountQuota > 0 ? Math.round((totalUsedFte / headcountQuota) * 100) : 0,
+      blockFillRate,
+      programFillRates,
+      peopleNeeded: Math.ceil(fteShortfall),
+      currentMonth: new Date().toLocaleDateString('vi-VN', { month: 'long', year: 'numeric' }),
+    };
+  }
+
   return NextResponse.json({
     projects: enrichedProjects,
     programs: byProgram,
@@ -325,6 +418,7 @@ export async function GET(req: NextRequest) {
     recentlyCompleted,
     completedByProject,
     personnelStats,
+    fteStats,
     periodStart: startParam,
     periodEnd: endParam,
     reportDate: todayStr,

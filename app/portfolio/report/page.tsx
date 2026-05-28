@@ -45,6 +45,19 @@ type PersonnelStats = {
   projectAllocations: { projectName: string; memberCount: number }[];
   overallocated: { name: string; role: string; projects: string[] }[];
 };
+type FteProgramRate = { programName: string; allocated: number; actual: number; fillRate: number; };
+type FteStats = {
+  headcountQuota: number;
+  deliveryFte: number;
+  overheadProjectFte: number;
+  overheadRemainingFte: number;
+  benchFte: number;
+  utilizationPct: number;
+  blockFillRate: number;
+  programFillRates: FteProgramRate[];
+  peopleNeeded: number;
+  currentMonth: string;
+};
 type PortfolioReportData = {
   projects: ProjectRow[];
   programs: ProgramGroup[];
@@ -59,6 +72,7 @@ type PortfolioReportData = {
   recentlyCompleted: RecentDone[];
   completedByProject: Record<string, CompletedGroup>;
   personnelStats: PersonnelStats;
+  fteStats?: FteStats | null;
   periodStart: string;
   periodEnd: string;
   reportDate: string;
@@ -277,12 +291,14 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
     lines.push(`  Squad/Dự án quá hạn    : ${overdue.length}`);
     lines.push(`  ${'─'.repeat(50)}`);
     lines.push('');
-    if (data.personnelStats) {
-      const ps = data.personnelStats;
-      lines.push('  NHÂN SỰ TRONG KHỐI:');
+    if (data.fteStats) {
+      const fs = data.fteStats;
+      const usedFte = fs.deliveryFte + fs.overheadProjectFte + fs.overheadRemainingFte;
+      lines.push('  NHÂN SỰ & NGUỒN LỰC KHỐI:');
       lines.push(`  ${'─'.repeat(50)}`);
-      lines.push(`  Tổng nhân sự trong khối: ${ps.totalInternal}      Phân bổ vào DA   : ${ps.totalAllocated}`);
-      lines.push(`  Phân bổ > 2 Squad/DA   : ${ps.overallocated.length}      (xem chi tiết mục VIII)`);
+      lines.push(`  Định biên                : ${fs.headcountQuota > 0 ? fs.headcountQuota + ' người' : 'chưa thiết lập'}`);
+      lines.push(`  FTE khả dụng net         : ${usedFte.toFixed(1)} FTE      Utilization: ${fs.headcountQuota > 0 ? fs.utilizationPct + '%' : '—'}`);
+      lines.push(`  Fill rate khối           : ${fs.programFillRates.length > 0 ? fs.blockFillRate + '%' : '—'}           Cần tuyển  : ${fs.peopleNeeded} người`);
       lines.push(`  ${'─'.repeat(50)}`);
       lines.push('');
     }
@@ -447,58 +463,82 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
     }
     lines.push('');
 
-    // ── VIII. Personnel Overview ─────────────────────────────────────────────
-    if (data.personnelStats) {
+    // ── VIII. Resource Allocation & Block Headcount Coverage ────────────────
+    if (data.fteStats) {
+      const fs = data.fteStats;
       const ps = data.personnelStats;
+      const usedFte = fs.deliveryFte + fs.overheadProjectFte + fs.overheadRemainingFte;
+      const overheadTotalFte = parseFloat((fs.overheadProjectFte + fs.overheadRemainingFte).toFixed(1));
+      const donutBase = fs.headcountQuota > 0 ? fs.headcountQuota : parseFloat((usedFte + fs.benchFte).toFixed(1));
+      const deliveryPct = donutBase > 0 ? Math.round((fs.deliveryFte / donutBase) * 100) : 0;
+      const overheadPct = donutBase > 0 ? Math.round((overheadTotalFte / donutBase) * 100) : 0;
+      const benchPct    = donutBase > 0 ? Math.round((fs.benchFte / donutBase) * 100) : 0;
+      const fteShortfall = fs.programFillRates
+        .filter(p => p.allocated > p.actual)
+        .reduce((s, p) => s + (p.allocated - p.actual), 0);
+      const overPrograms  = fs.programFillRates.filter(p => p.fillRate > 100);
+      const underPrograms = fs.programFillRates.filter(p => p.allocated > 0 && p.fillRate < 90);
+
       lines.push(D);
-      lines.push('  VIII. TỔNG QUAN NHÂN SỰ TRONG KHỐI');
+      lines.push('  VIII. PHÂN BỔ NGUỒN LỰC & ĐỘ PHỦ ĐỊNH BIÊN TOÀN KHỐI');
       lines.push(D);
       lines.push('');
-      lines.push('  A. THỐNG KÊ NHÂN SỰ:');
+
+      // KPI table
+      const KW = { lb: 38, vl: 22 } as const;
+      const kRow = (lb: string, vl: string) => `  │ ${lb.padEnd(KW.lb)} │ ${vl.padStart(KW.vl)} │`;
+      lines.push(`  ┌${'─'.repeat(KW.lb+2)}┬${'─'.repeat(KW.vl+2)}┐`);
+      lines.push(`  │ ${'CHỈ SỐ'.padEnd(KW.lb)} │ ${'GIÁ TRỊ'.padStart(KW.vl)} │`);
+      lines.push(`  ├${'─'.repeat(KW.lb+2)}┼${'─'.repeat(KW.vl+2)}┤`);
+      lines.push(kRow('Định biên (người)',       fs.headcountQuota > 0 ? `${fs.headcountQuota} người` : 'chưa thiết lập'));
+      lines.push(kRow('FTE khả dụng net (%FTE)', `${usedFte.toFixed(1)} FTE`));
+      lines.push(kRow('Utilization (%)',          fs.headcountQuota > 0 ? `${fs.utilizationPct}%` : '—'));
+      lines.push(kRow('Fill rate khối (%FTE)',    fs.programFillRates.length > 0 ? `${fs.blockFillRate}%` : '—'));
+      lines.push(kRow('Số người cần tuyển (người)', `${fs.peopleNeeded} người`));
+      lines.push(`  └${'─'.repeat(KW.lb+2)}┴${'─'.repeat(KW.vl+2)}┘`);
       lines.push('');
-      const NS = { lb: 42, vl: 20 } as const;
-      const nsRow = (lb: string, vl: string) => `  │ ${lb.padEnd(NS.lb)} │ ${vl.padStart(NS.vl)} │`;
-      const nsHL = (l: string, r: string) => `  ${l}${'─'.repeat(NS.lb+2)}┼${'─'.repeat(NS.vl+2)}${r}`;
-      lines.push(`  ┌${'─'.repeat(NS.lb+2)}┬${'─'.repeat(NS.vl+2)}┐`);
-      lines.push(`  │ ${'CHỈ SỐ'.padEnd(NS.lb)} │ ${'GIÁ TRỊ'.padStart(NS.vl)} │`);
-      lines.push(nsHL('├', '┤'));
-      lines.push(nsRow('Tổng nhân sự trong khối (MAC)', String(ps.totalInternal)));
-      lines.push(nsRow('Tổng lượt phân bổ vào Squad/DA', `${ps.totalAllocated} lượt`));
-      lines.push(nsRow('Trung bình số DA mỗi người', ps.totalInternal > 0 ? `${(ps.totalAllocated / ps.totalInternal).toFixed(1)} DA/người` : '—'));
-      lines.push(nsRow('Nhân sự phân bổ > 2 Squad/DA', `${ps.overallocated.length} người`));
-      lines.push(`  └${'─'.repeat(NS.lb+2)}┴${'─'.repeat(NS.vl+2)}┘`);
+
+      // Capacity structure
+      lines.push('  A. CƠ CẤU NĂNG LỰC KHỐI (FTE):');
+      lines.push(`  ${'─'.repeat(60)}`);
+      const bar = (pct: number) => '█'.repeat(Math.round(pct / 5)) + '░'.repeat(20 - Math.round(pct / 5));
+      lines.push(`  Delivery  [${bar(deliveryPct)}] ${String(deliveryPct).padStart(3)}%  (${fs.deliveryFte.toFixed(1)} FTE)`);
+      lines.push(`  Overhead  [${bar(overheadPct)}] ${String(overheadPct).padStart(3)}%  (${overheadTotalFte.toFixed(1)} FTE)`);
+      lines.push(`  Bench     [${bar(benchPct)}] ${String(benchPct).padStart(3)}%  (${fs.benchFte.toFixed(1)} FTE)`);
+      lines.push(`  ${'─'.repeat(60)}`);
+      if (ps) lines.push(`  Định biên: ${fs.headcountQuota > 0 ? fs.headcountQuota + ' người' : '?'}  ·  Nhân sự thực tế trong khối: ${ps.totalInternal} người`);
+      lines.push(`  Lưu ý: tổng lượt phân bổ đầu người ${ps ? ps.totalAllocated : '?'} > ${ps ? ps.totalInternal : '?'} người do shared resource.`);
+      lines.push(`          Quy về FTE mới phản ánh đúng năng lực thực dùng.`);
       lines.push('');
-      lines.push('  Chú thích: Nhân sự ngoài khối không được tính trong báo cáo này.');
-      lines.push(`             ${ps.totalAllocated} lượt phân bổ / ${ps.totalInternal} người = mỗi người tham gia TB ${ps.totalInternal > 0 ? (ps.totalAllocated / ps.totalInternal).toFixed(1) : 0} DA.`);
-      lines.push('');
-      if (ps.projectAllocations.length > 0) {
-        lines.push('  B. PHÂN BỔ NHÂN SỰ THEO SQUAD/DỰ ÁN (top 10):');
+
+      // Fill rate by program
+      if (fs.programFillRates.length > 0) {
+        lines.push('  B. FILL RATE THEO PROGRAM (FTE, sắp xếp giảm dần):');
         lines.push('');
-        const PA = { nm: 30, ct: 10 } as const;
-        lines.push(`  ┌${'─'.repeat(PA.nm+2)}┬${'─'.repeat(PA.ct+2)}┐`);
-        lines.push(`  │ ${'SQUAD/DỰ ÁN'.padEnd(PA.nm)} │ ${'SỐ NGƯỜI'.padStart(PA.ct)} │`);
-        lines.push(`  ├${'─'.repeat(PA.nm+2)}┼${'─'.repeat(PA.ct+2)}┤`);
-        ps.projectAllocations.slice(0, 10).forEach(a => {
-          const nm = a.projectName.length > PA.nm ? a.projectName.slice(0, PA.nm - 1) + '…' : a.projectName;
-          lines.push(`  │ ${nm.padEnd(PA.nm)} │ ${String(a.memberCount).padStart(PA.ct)} │`);
+        const PF = { nm: 24, al: 8, ac: 8, fr: 8 } as const;
+        lines.push(`  ┌${'─'.repeat(PF.nm+2)}┬${'─'.repeat(PF.al+2)}┬${'─'.repeat(PF.ac+2)}┬${'─'.repeat(PF.fr+2)}┐`);
+        lines.push(`  │ ${'PROGRAM'.padEnd(PF.nm)} │ ${'ĐN FTE'.padStart(PF.al)} │ ${'TT FTE'.padStart(PF.ac)} │ ${'FILL%'.padStart(PF.fr)} │`);
+        lines.push(`  ├${'─'.repeat(PF.nm+2)}┼${'─'.repeat(PF.al+2)}┼${'─'.repeat(PF.ac+2)}┼${'─'.repeat(PF.fr+2)}┤`);
+        fs.programFillRates.forEach(p => {
+          const nm = p.programName.length > PF.nm ? p.programName.slice(0, PF.nm - 1) + '…' : p.programName;
+          const flag = p.fillRate > 100 ? ' !' : p.fillRate < 70 ? ' ▼' : '';
+          lines.push(`  │ ${nm.padEnd(PF.nm)} │ ${p.allocated.toFixed(1).padStart(PF.al)} │ ${p.actual.toFixed(1).padStart(PF.ac)} │ ${(String(p.fillRate) + '%' + flag).padStart(PF.fr)} │`);
         });
-        lines.push(`  └${'─'.repeat(PA.nm+2)}┴${'─'.repeat(PA.ct+2)}┘`);
+        lines.push(`  └${'─'.repeat(PF.nm+2)}┴${'─'.repeat(PF.al+2)}┴${'─'.repeat(PF.ac+2)}┴${'─'.repeat(PF.fr+2)}┘`);
         lines.push('');
-      }
-      if (ps.overallocated.length > 0) {
-        lines.push('  C. NHÂN SỰ PHÂN BỔ > 2 SQUAD/DỰ ÁN (cần chú ý):');
-        lines.push('');
-        ps.overallocated.forEach((person, i) => {
-          lines.push(`     ${String(i+1).padStart(2)}.  ${person.name}${person.role ? ` (${person.role})` : ''} — ${person.projects.length} Squad/DA`);
-          lines.push(`          Squad/DA: ${person.projects.join(' · ')}`);
-          if (i < ps.overallocated.length - 1) lines.push('');
-        });
-        lines.push('');
-        lines.push('  [!] Nhân sự phân bổ vào quá nhiều Squad/Dự án đồng thời có thể ảnh hưởng đến chất lượng');
-        lines.push('      và tiến độ. Đề nghị PM rà soát và cân bằng lại phân bổ.');
-      } else {
-        lines.push('  C. NHÂN SỰ PHÂN BỔ > 2 SQUAD/DỰ ÁN:');
-        lines.push('     Không có nhân sự nào đang phân bổ vào hơn 2 Squad/Dự án cùng lúc.');
+        if (overPrograms.length > 0) {
+          lines.push(`  [!] Program vượt định biên (>100%): ${overPrograms.map(p => p.programName).join(', ')}`);
+          lines.push(`      → Nên xem xét điều chuyển nội bộ thay vì mở headcount mới.`);
+        }
+        if (underPrograms.length > 0) {
+          lines.push(`  [▼] Program chưa đủ định biên (<90%): ${underPrograms.map(p => `${p.programName} (${p.fillRate}%)`).join(', ')}`);
+        }
+        if (fteShortfall > 0) {
+          lines.push(`  Tổng FTE còn thiếu: ${fteShortfall.toFixed(1)} FTE → cần tuyển khoảng ${fs.peopleNeeded} người`);
+          lines.push(`  (Làm tròn lên từ tổng thiếu hụt toàn khối, không làm tròn lẻ ở từng program.)`);
+        } else {
+          lines.push(`  Fill rate toàn khối đạt ${fs.blockFillRate}% — không có nhu cầu tuyển dụng hiện tại.`);
+        }
       }
       lines.push('');
     }
@@ -565,12 +605,14 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
     lines.push(`  Overdue Squad/Projects  : ${overdue.length}`);
     lines.push(`  ${'─'.repeat(50)}`);
     lines.push('');
-    if (data.personnelStats) {
-      const ps = data.personnelStats;
-      lines.push('  PERSONNEL (MAC BLOCK):');
+    if (data.fteStats) {
+      const fs = data.fteStats;
+      const usedFteEN = fs.deliveryFte + fs.overheadProjectFte + fs.overheadRemainingFte;
+      lines.push('  PERSONNEL & RESOURCES:');
       lines.push(`  ${'─'.repeat(50)}`);
-      lines.push(`  Total Internal Members  : ${ps.totalInternal}      Allocated Slots  : ${ps.totalAllocated}`);
-      lines.push(`  Allocated > 2 S/Proj    : ${ps.overallocated.length}      (see Section VIII for details)`);
+      lines.push(`  Headcount Quota         : ${fs.headcountQuota > 0 ? fs.headcountQuota + ' people' : 'not set'}`);
+      lines.push(`  Net Used FTE            : ${usedFteEN.toFixed(1)} FTE     Utilization: ${fs.headcountQuota > 0 ? fs.utilizationPct + '%' : '—'}`);
+      lines.push(`  Block Fill Rate         : ${fs.programFillRates.length > 0 ? fs.blockFillRate + '%' : '—'}        Hire Needed: ${fs.peopleNeeded} people`);
       lines.push(`  ${'─'.repeat(50)}`);
       lines.push('');
     }
@@ -735,57 +777,79 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
     }
     lines.push('');
 
-    // ── VIII. Personnel Overview ─────────────────────────────────────────────
-    if (data.personnelStats) {
+    // ── VIII. Resource Allocation & Block Headcount Coverage ────────────────
+    if (data.fteStats) {
+      const fs = data.fteStats;
       const ps = data.personnelStats;
+      const usedFteEN = fs.deliveryFte + fs.overheadProjectFte + fs.overheadRemainingFte;
+      const overheadTotalFteEN = parseFloat((fs.overheadProjectFte + fs.overheadRemainingFte).toFixed(1));
+      const donutBaseEN = fs.headcountQuota > 0 ? fs.headcountQuota : parseFloat((usedFteEN + fs.benchFte).toFixed(1));
+      const deliveryPctEN = donutBaseEN > 0 ? Math.round((fs.deliveryFte / donutBaseEN) * 100) : 0;
+      const overheadPctEN = donutBaseEN > 0 ? Math.round((overheadTotalFteEN / donutBaseEN) * 100) : 0;
+      const benchPctEN    = donutBaseEN > 0 ? Math.round((fs.benchFte / donutBaseEN) * 100) : 0;
+      const fteShortfallEN = fs.programFillRates
+        .filter(p => p.allocated > p.actual)
+        .reduce((s, p) => s + (p.allocated - p.actual), 0);
+      const overProgramsEN  = fs.programFillRates.filter(p => p.fillRate > 100);
+      const underProgramsEN = fs.programFillRates.filter(p => p.allocated > 0 && p.fillRate < 90);
+
       lines.push(D);
-      lines.push('  VIII. PERSONNEL OVERVIEW — MAC BLOCK');
+      lines.push('  VIII. RESOURCE ALLOCATION & BLOCK HEADCOUNT COVERAGE');
       lines.push(D);
       lines.push('');
-      lines.push('  A. PERSONNEL SUMMARY:');
+
+      const KW2 = { lb: 38, vl: 22 } as const;
+      const kRow2 = (lb: string, vl: string) => `  │ ${lb.padEnd(KW2.lb)} │ ${vl.padStart(KW2.vl)} │`;
+      lines.push(`  ┌${'─'.repeat(KW2.lb+2)}┬${'─'.repeat(KW2.vl+2)}┐`);
+      lines.push(`  │ ${'METRIC'.padEnd(KW2.lb)} │ ${'VALUE'.padStart(KW2.vl)} │`);
+      lines.push(`  ├${'─'.repeat(KW2.lb+2)}┼${'─'.repeat(KW2.vl+2)}┤`);
+      lines.push(kRow2('Headcount quota (people)',      fs.headcountQuota > 0 ? `${fs.headcountQuota} people` : 'not set'));
+      lines.push(kRow2('Net used FTE (%FTE)',           `${usedFteEN.toFixed(1)} FTE`));
+      lines.push(kRow2('Utilization (%)',               fs.headcountQuota > 0 ? `${fs.utilizationPct}%` : '—'));
+      lines.push(kRow2('Block fill rate (%FTE)',        fs.programFillRates.length > 0 ? `${fs.blockFillRate}%` : '—'));
+      lines.push(kRow2('People needed (hire)',          `${fs.peopleNeeded} people`));
+      lines.push(`  └${'─'.repeat(KW2.lb+2)}┴${'─'.repeat(KW2.vl+2)}┘`);
       lines.push('');
-      const NS2 = { lb: 42, vl: 20 } as const;
-      const nsRow2 = (lb: string, vl: string) => `  │ ${lb.padEnd(NS2.lb)} │ ${vl.padStart(NS2.vl)} │`;
-      lines.push(`  ┌${'─'.repeat(NS2.lb+2)}┬${'─'.repeat(NS2.vl+2)}┐`);
-      lines.push(`  │ ${'METRIC'.padEnd(NS2.lb)} │ ${'VALUE'.padStart(NS2.vl)} │`);
-      lines.push(`  ├${'─'.repeat(NS2.lb+2)}┼${'─'.repeat(NS2.vl+2)}┤`);
-      lines.push(nsRow2('Total internal personnel (MAC block)', String(ps.totalInternal)));
-      lines.push(nsRow2('Total Squad/Project allocation slots', `${ps.totalAllocated} slots`));
-      lines.push(nsRow2('Avg. Squad/Projects per person', ps.totalInternal > 0 ? `${(ps.totalAllocated / ps.totalInternal).toFixed(1)} S/proj/person` : '—'));
-      lines.push(nsRow2('Personnel allocated to > 2 Squad/Proj', `${ps.overallocated.length} people`));
-      lines.push(`  └${'─'.repeat(NS2.lb+2)}┴${'─'.repeat(NS2.vl+2)}┘`);
+
+      lines.push('  A. BLOCK CAPACITY STRUCTURE (FTE):');
+      lines.push(`  ${'─'.repeat(60)}`);
+      const barEN = (pct: number) => '█'.repeat(Math.round(pct / 5)) + '░'.repeat(20 - Math.round(pct / 5));
+      lines.push(`  Delivery  [${barEN(deliveryPctEN)}] ${String(deliveryPctEN).padStart(3)}%  (${fs.deliveryFte.toFixed(1)} FTE)`);
+      lines.push(`  Overhead  [${barEN(overheadPctEN)}] ${String(overheadPctEN).padStart(3)}%  (${overheadTotalFteEN.toFixed(1)} FTE)`);
+      lines.push(`  Bench     [${barEN(benchPctEN)}] ${String(benchPctEN).padStart(3)}%  (${fs.benchFte.toFixed(1)} FTE)`);
+      lines.push(`  ${'─'.repeat(60)}`);
+      if (ps) lines.push(`  Quota: ${fs.headcountQuota > 0 ? fs.headcountQuota + ' people' : '?'}  ·  Actual headcount in block: ${ps.totalInternal} people`);
+      lines.push(`  Note: ${ps ? ps.totalAllocated : '?'} allocation slots > ${ps ? ps.totalInternal : '?'} people due to shared resources.`);
+      lines.push(`        FTE is the correct unit for summing across programs — not headcount.`);
       lines.push('');
-      lines.push('  Note: External (non-MAC) personnel are excluded from this report.');
-      lines.push(`        ${ps.totalAllocated} allocation slots / ${ps.totalInternal} people = avg ${ps.totalInternal > 0 ? (ps.totalAllocated / ps.totalInternal).toFixed(1) : 0} projects per person.`);
-      lines.push('');
-      if (ps.projectAllocations.length > 0) {
-        lines.push('  B. ALLOCATION BY SQUAD/PROJECT (top 10):');
+
+      if (fs.programFillRates.length > 0) {
+        lines.push('  B. FILL RATE BY PROGRAM (FTE, sorted descending):');
         lines.push('');
-        const PA2 = { nm: 30, ct: 10 } as const;
-        lines.push(`  ┌${'─'.repeat(PA2.nm+2)}┬${'─'.repeat(PA2.ct+2)}┐`);
-        lines.push(`  │ ${'SQUAD/PROJECT'.padEnd(PA2.nm)} │ ${'# PEOPLE'.padStart(PA2.ct)} │`);
-        lines.push(`  ├${'─'.repeat(PA2.nm+2)}┼${'─'.repeat(PA2.ct+2)}┤`);
-        ps.projectAllocations.slice(0, 10).forEach(a => {
-          const nm = a.projectName.length > PA2.nm ? a.projectName.slice(0, PA2.nm - 1) + '…' : a.projectName;
-          lines.push(`  │ ${nm.padEnd(PA2.nm)} │ ${String(a.memberCount).padStart(PA2.ct)} │`);
+        const PF2 = { nm: 24, al: 8, ac: 8, fr: 8 } as const;
+        lines.push(`  ┌${'─'.repeat(PF2.nm+2)}┬${'─'.repeat(PF2.al+2)}┬${'─'.repeat(PF2.ac+2)}┬${'─'.repeat(PF2.fr+2)}┐`);
+        lines.push(`  │ ${'PROGRAM'.padEnd(PF2.nm)} │ ${'ALLOC'.padStart(PF2.al)} │ ${'ACTUAL'.padStart(PF2.ac)} │ ${'FILL%'.padStart(PF2.fr)} │`);
+        lines.push(`  ├${'─'.repeat(PF2.nm+2)}┼${'─'.repeat(PF2.al+2)}┼${'─'.repeat(PF2.ac+2)}┼${'─'.repeat(PF2.fr+2)}┤`);
+        fs.programFillRates.forEach(p => {
+          const nm = p.programName.length > PF2.nm ? p.programName.slice(0, PF2.nm - 1) + '…' : p.programName;
+          const flag = p.fillRate > 100 ? ' !' : p.fillRate < 70 ? ' ▼' : '';
+          lines.push(`  │ ${nm.padEnd(PF2.nm)} │ ${p.allocated.toFixed(1).padStart(PF2.al)} │ ${p.actual.toFixed(1).padStart(PF2.ac)} │ ${(String(p.fillRate) + '%' + flag).padStart(PF2.fr)} │`);
         });
-        lines.push(`  └${'─'.repeat(PA2.nm+2)}┴${'─'.repeat(PA2.ct+2)}┘`);
+        lines.push(`  └${'─'.repeat(PF2.nm+2)}┴${'─'.repeat(PF2.al+2)}┴${'─'.repeat(PF2.ac+2)}┴${'─'.repeat(PF2.fr+2)}┘`);
         lines.push('');
-      }
-      if (ps.overallocated.length > 0) {
-        lines.push('  C. PERSONNEL ALLOCATED TO > 2 SQUAD/PROJECTS (attention required):');
-        lines.push('');
-        ps.overallocated.forEach((person, i) => {
-          lines.push(`     ${String(i+1).padStart(2)}.  ${person.name}${person.role ? ` (${person.role})` : ''} — ${person.projects.length} Squad/Proj`);
-          lines.push(`          Squad/Proj: ${person.projects.join(' · ')}`);
-          if (i < ps.overallocated.length - 1) lines.push('');
-        });
-        lines.push('');
-        lines.push('  [!] Personnel allocated across too many concurrent Squad/Projects may impact quality');
-        lines.push('      and delivery. PMs should review and rebalance allocations.');
-      } else {
-        lines.push('  C. PERSONNEL ALLOCATED TO > 2 SQUAD/PROJECTS:');
-        lines.push('     No personnel currently allocated to more than 2 Squad/Projects simultaneously.');
+        if (overProgramsEN.length > 0) {
+          lines.push(`  [!] Programs above quota (>100%): ${overProgramsEN.map(p => p.programName).join(', ')}`);
+          lines.push(`      → Consider internal redeployment before opening new headcount.`);
+        }
+        if (underProgramsEN.length > 0) {
+          lines.push(`  [▼] Under-staffed programs (<90%): ${underProgramsEN.map(p => `${p.programName} (${p.fillRate}%)`).join(', ')}`);
+        }
+        if (fteShortfallEN > 0) {
+          lines.push(`  Total FTE shortfall: ${fteShortfallEN.toFixed(1)} FTE → approx. ${fs.peopleNeeded} hire(s) needed`);
+          lines.push(`  (Rounded up from the aggregate block shortfall — not rounded per program.)`);
+        } else {
+          lines.push(`  Block fill rate: ${fs.blockFillRate}% — no current hiring need.`);
+        }
       }
       lines.push('');
     }
@@ -912,6 +976,45 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
       ? `<text x="${cx}" y="${cy - 4}" text-anchor="middle" font-size="16" font-weight="700" fill="#111827">${centerPct}%</text><text x="${cx}" y="${cy + 13}" text-anchor="middle" font-size="9" fill="#6B7280">${isVN?'xong':'done'}</text>`
       : '';
     return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">${paths}${hole}${lbl}</svg>`;
+  }
+
+  // SVG horizontal bar chart — fill rate by program
+  function svgHBarChart(items: FteProgramRate[]): string {
+    if (items.length === 0) return '';
+    const maxPct = 120;
+    const barH = 18;
+    const gap = 9;
+    const labelW = 120;
+    const barAreaW = 240;
+    const annW = 90;
+    const totalW = labelW + barAreaW + annW;
+    const totalH = items.length * (barH + gap) + 28;
+    let s = `<svg width="100%" viewBox="0 0 ${totalW} ${totalH}" style="display:block;overflow:visible;">`;
+    // gridlines
+    [0, 30, 60, 90, 100, 120].forEach(pct => {
+      const x = labelW + (pct / maxPct) * barAreaW;
+      const col = pct === 90 ? 'rgba(22,163,74,0.35)' : 'rgba(0,0,0,0.06)';
+      s += `<line x1="${x.toFixed(1)}" y1="0" x2="${x.toFixed(1)}" y2="${totalH - 18}" stroke="${col}" stroke-width="1"/>`;
+      s += `<text x="${x.toFixed(1)}" y="${totalH - 4}" text-anchor="middle" font-size="8" fill="#9CA3AF">${pct}%</text>`;
+    });
+    items.forEach((item, i) => {
+      const y = i * (barH + gap) + 2;
+      const clampedPct = Math.min(item.fillRate, maxPct);
+      const bw = (clampedPct / maxPct) * barAreaW;
+      const col = item.fillRate >= 90 ? '#16A34A' : item.fillRate >= 70 ? '#D97706' : '#DC2626';
+      const lbl = item.programName.length > 16 ? item.programName.slice(0, 16) + '…' : item.programName;
+      s += `<text x="${labelW - 6}" y="${y + barH - 4}" text-anchor="end" font-size="9.5" fill="#374151">${lbl}</text>`;
+      s += `<rect x="${labelW}" y="${y}" width="${barAreaW}" height="${barH}" fill="#F3F4F6" rx="3"/>`;
+      if (bw > 0) s += `<rect x="${labelW}" y="${y}" width="${bw.toFixed(1)}" height="${barH}" fill="${col}" rx="3" opacity="0.85"/>`;
+      if (item.fillRate > 100) {
+        const x100 = labelW + (100 / maxPct) * barAreaW;
+        s += `<line x1="${x100.toFixed(1)}" y1="${y}" x2="${x100.toFixed(1)}" y2="${y + barH}" stroke="rgba(0,0,0,0.25)" stroke-width="1" stroke-dasharray="2,2"/>`;
+      }
+      const ann = item.allocated > 0 ? `${item.fillRate}% · ${item.actual}/${item.allocated} FTE` : `${item.actual} FTE (—)`;
+      s += `<text x="${labelW + barAreaW + 6}" y="${y + barH - 4}" font-size="9" fill="#374151">${ann}</text>`;
+    });
+    s += `</svg>`;
+    return s;
   }
 
   // SVG bar chart — stacked 3-segment: Done (green) / In Progress (blue) / Not Started (gray)
@@ -1116,87 +1219,130 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
   h += `<div style="display:flex;align-items:center;gap:5px;font-size:11px;color:#6B7280;"><div style="width:10px;height:10px;border-radius:2px;background:#E5E7EB;border:1px solid #D1D5DB;display:inline-block;"></div>${isVN?'Chưa bắt đầu':'Not Started'}</div>`;
   h += `</div></div></div>`;
 
-  // ── Personnel Section ────────────────────────────────────────────────────
-  if (data.personnelStats) {
+  // ── Personnel Section — FTE-based resource allocation & headcount coverage ─
+  if (data.fteStats) {
+    const fs = data.fteStats;
     const ps = data.personnelStats;
-    const avgPerPerson = ps.totalInternal > 0 ? (ps.totalAllocated / ps.totalInternal).toFixed(1) : '0';
+    const totalUsedFte = fs.deliveryFte + fs.overheadProjectFte + fs.overheadRemainingFte;
+    const overheadTotalFte = parseFloat((fs.overheadProjectFte + fs.overheadRemainingFte).toFixed(1));
+    const donutBase = fs.headcountQuota > 0 ? fs.headcountQuota : parseFloat((totalUsedFte + fs.benchFte).toFixed(1));
+    const deliveryPct  = donutBase > 0 ? Math.round((fs.deliveryFte     / donutBase) * 100) : 0;
+    const overheadPct  = donutBase > 0 ? Math.round((overheadTotalFte   / donutBase) * 100) : 0;
+    const benchPct     = donutBase > 0 ? Math.round((fs.benchFte        / donutBase) * 100) : 0;
+    const utilColor    = fs.utilizationPct >= 95 ? '#DC2626' : fs.utilizationPct >= 70 ? '#D97706' : '#16A34A';
+    const fillColor    = fs.blockFillRate  >= 90 ? '#16A34A' : fs.blockFillRate  >= 70 ? '#D97706' : '#DC2626';
+    const hireColor    = fs.peopleNeeded   === 0 ? '#16A34A' : '#DC2626';
+
+    // KPI card helper (inline)
+    const kpiCard = (title: string, val: string, unit: string, valCol: string, bg: string) =>
+      `<div style="background:${bg};border:1px solid ${valCol}22;border-radius:8px;padding:14px 10px;text-align:center;">` +
+      `<div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#6B7280;margin-bottom:6px;">${title}</div>` +
+      `<div style="font-size:26px;font-weight:700;color:${valCol};line-height:1;">${val}</div>` +
+      `<div style="font-size:10px;color:#9CA3AF;margin-top:4px;">${unit}</div></div>`;
 
     h += `<div style="margin-top:14px;">`;
-    h += `<div style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#0891B2;margin:0 0 12px;display:flex;align-items:center;gap:10px;"><span style="width:21px;height:21px;border-radius:50%;background:#0891B2;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0;">NS</span>${isVN?'Tổng quan nhân sự trong khối':'Internal Personnel Overview'}</div>`;
+    h += `<div class="rpd-zlbl" style="color:#0891B2;"><span class="rpd-znum" style="background:#0891B2;">NS</span>${isVN?'Phân bổ nguồn lực &amp; độ phủ định biên toàn khối':'Resource Allocation &amp; Block Headcount Coverage'}</div>`;
 
-    // Stats row: 3 big number cards
-    h += `<div style="display:flex;gap:10px;margin-bottom:12px;">`;
-    // Card 1: Total internal
-    h += `<div class="rpd-panel" style="flex:1;text-align:center;padding:16px 10px;">`;
-    h += `<div style="font-size:30px;font-weight:700;color:#111827;line-height:1;">${ps.totalInternal}</div>`;
-    h += `<div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#6B7280;margin-top:6px;">${isVN?'Nhân sự trong khối':'Internal Members'}</div>`;
+    // ── 5 KPI cards
+    h += `<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:14px;">`;
+    h += kpiCard(isVN?'Định biên':'Headcount Quota', fs.headcountQuota > 0 ? String(fs.headcountQuota) : '—', isVN?'người':'people', '#111827', '#F8F9FA');
+    h += kpiCard(isVN?'FTE khả dụng net':'Net Used FTE', totalUsedFte.toFixed(1), '%FTE', '#2563EB', '#EFF6FF');
+    h += kpiCard('Utilization', fs.headcountQuota > 0 ? `${fs.utilizationPct}%` : '—', isVN?'của định biên':'of quota', utilColor, `${utilColor}11`);
+    h += kpiCard(isVN?'Fill rate khối':'Block Fill Rate', fs.programFillRates.length > 0 ? `${fs.blockFillRate}%` : '—', '% FTE', fillColor, `${fillColor}11`);
+    h += kpiCard(isVN?'Cần tuyển':'Hire Needed', String(fs.peopleNeeded), isVN?'người':'people', hireColor, `${hireColor}11`);
     h += `</div>`;
-    // Card 2: Total allocated slots (with comparison arrow)
-    const moreOrLess = ps.totalAllocated > ps.totalInternal;
-    h += `<div class="rpd-panel" style="flex:1;text-align:center;padding:16px 10px;border-color:${moreOrLess?'#2563EB55':'#E5E7EB'};">`;
-    h += `<div style="font-size:30px;font-weight:700;color:${moreOrLess?'#2563EB':'#111827'};line-height:1;">${ps.totalAllocated}</div>`;
-    h += `<div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#6B7280;margin-top:6px;">${isVN?'Lượt phân bổ vào DA':'Allocation Slots'}</div>`;
-    h += `<div style="font-size:11px;color:#9CA3AF;margin-top:4px;">≈ ${avgPerPerson} ${isVN?'DA/người':'proj/person'}</div>`;
-    h += `</div>`;
-    // Card 3: Overallocated (>2 projects)
-    const hasOverallocated = ps.overallocated.length > 0;
-    h += `<div class="rpd-panel" style="flex:1;text-align:center;padding:16px 10px;border-color:${hasOverallocated?'#DC262655':'#E5E7EB'};">`;
-    h += `<div style="font-size:30px;font-weight:700;color:${hasOverallocated?'#DC2626':'#16A34A'};line-height:1;">${ps.overallocated.length}</div>`;
-    h += `<div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#6B7280;margin-top:6px;">${isVN?'Phân bổ > 2 Squad/DA':'Allocated > 2 Squad/Proj'}</div>`;
-    h += `<div style="font-size:11px;color:${hasOverallocated?'#DC2626':'#9CA3AF'};margin-top:4px;">${hasOverallocated?(isVN?'Cần chú ý':'Needs attention'):(isVN?'Ổn định':'OK')}</div>`;
-    h += `</div>`;
-    h += `</div>`; // stats row
 
-    // Pie chart + overallocated table side by side
-    h += `<div style="display:flex;gap:12px;margin-bottom:10px;">`;
+    // ── Donut + Fill rate bar + Narrative (3 cols)
+    h += `<div style="display:grid;grid-template-columns:1fr 1.2fr 1.5fr;gap:12px;margin-bottom:14px;">`;
 
-    // Pie chart: personnel allocation by project
-    if (ps.projectAllocations.length > 0) {
-      const pieSegs = ps.projectAllocations.slice(0, 8).map((a, i) => ({ val: a.memberCount, color: pCol(i) }));
-      const pieTotal = ps.projectAllocations.reduce((s, a) => s + a.memberCount, 0);
-      const pctCenter = ps.totalInternal > 0 ? Math.round((pieTotal / ps.totalInternal) * 100) : 0;
-      h += `<div class="rpd-panel" style="flex:1;min-width:0;">`;
-      h += `<div class="rpd-ptitle">${isVN?'Phân bổ nhân sự theo Squad/DA':'Personnel Allocation by Squad/Project'}</div>`;
-      h += `<div class="rpd-pie-lay"><div style="flex-shrink:0;">${svgDonut(pieSegs, 130, 52, 32, pctCenter)}</div>`;
-      h += `<div class="rpd-pie-leg" style="max-height:120px;overflow:auto;">`;
-      ps.projectAllocations.slice(0, 8).forEach((a, i) => {
-        const pct = pieTotal > 0 ? Math.round(a.memberCount / pieTotal * 100) : 0;
-        const nm = a.projectName.length > 20 ? a.projectName.slice(0, 20) + '…' : a.projectName;
-        h += `<div class="rpd-leg-row"><div class="rpd-leg-dot" style="background:${pCol(i)};"></div>${nm}<span class="rpd-leg-val">${a.memberCount} <span style="color:#9CA3AF;font-size:10px;">(${pct}%)</span></span></div>`;
-      });
-      h += `</div></div>`;
-      h += `<div style="margin-top:8px;padding-top:6px;border-top:1px solid #E5E7EB;font-size:11px;color:#6B7280;">${isVN?'Nhân sự ngoài khối không được tính':'External personnel excluded'}</div>`;
+    // Col 1: Donut — Delivery / Overhead / Bench
+    const donutSegs = [
+      { val: fs.deliveryFte,   color: '#2563EB' },
+      { val: overheadTotalFte, color: '#D97706' },
+      { val: fs.benchFte,      color: '#D1D5DB' },
+    ].filter(s => s.val > 0);
+    h += `<div class="rpd-panel">`;
+    h += `<div class="rpd-ptitle">${isVN?'Cơ cấu năng lực khối (FTE)':'Block Capacity Structure (FTE)'}</div>`;
+    h += `<div class="rpd-pie-lay"><div style="flex-shrink:0;">${svgDonut(donutSegs, 120, 48, 30, deliveryPct)}</div>`;
+    h += `<div class="rpd-pie-leg">`;
+    const donutLegend = [
+      { label: 'Delivery', val: fs.deliveryFte,   pct: deliveryPct,  color: '#2563EB' },
+      { label: 'Overhead', val: overheadTotalFte,  pct: overheadPct,  color: '#D97706' },
+      { label: 'Bench',    val: fs.benchFte,        pct: benchPct,     color: '#D1D5DB' },
+    ];
+    donutLegend.forEach(l => {
+      h += `<div class="rpd-leg-row"><div class="rpd-leg-dot" style="background:${l.color};border:1px solid rgba(0,0,0,0.1);"></div>${l.label}<span class="rpd-leg-val">${l.val.toFixed(1)} <span style="color:#9CA3AF;font-size:10px;">(${l.pct}%)</span></span></div>`;
+    });
+    h += `<div style="margin-top:6px;padding-top:6px;border-top:1px solid #E5E7EB;font-size:10px;color:#6B7280;">${isVN?'Tổng định biên':'Quota'}: <strong style="color:#111827;">${fs.headcountQuota > 0 ? fs.headcountQuota : donutBase} ${isVN?'người':'ppl'}</strong></div>`;
+    h += `</div></div></div>`;
+
+    // Col 2: Horizontal bar chart — fill rate by program
+    h += `<div class="rpd-panel">`;
+    h += `<div class="rpd-ptitle">${isVN?'Fill rate theo Program (FTE)':'Fill Rate by Program (FTE)'}</div>`;
+    if (fs.programFillRates.length > 0) {
+      h += svgHBarChart(fs.programFillRates);
+      h += `<div style="display:flex;gap:12px;margin-top:8px;font-size:10px;color:#6B7280;">`;
+      h += `<span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:2px;background:#16A34A;display:inline-block;"></span>≥90%</span>`;
+      h += `<span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:2px;background:#D97706;display:inline-block;"></span>70–89%</span>`;
+      h += `<span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:2px;background:#DC2626;display:inline-block;"></span>&lt;70%</span>`;
+      h += `</div>`;
+    } else {
+      h += `<p style="font-size:11px;color:#9CA3AF;margin:12px 0;">${isVN?'Chưa có dữ liệu phân bổ program.':'No program allocation data.'}</p>`;
+    }
+    h += `</div>`;
+
+    // Col 3: Narrative text
+    {
+      const totalInternalPeople = ps ? ps.totalInternal : 0;
+      const totalAllocSlots     = ps ? ps.totalAllocated : 0;
+      const fteShortfall = fs.programFillRates
+        .filter(p => p.allocated > p.actual)
+        .reduce((s, p) => s + (p.allocated - p.actual), 0);
+      const overPrograms = fs.programFillRates.filter(p => p.fillRate > 100);
+      const underPrograms = fs.programFillRates.filter(p => p.allocated > 0 && p.fillRate < 90);
+
+      const overheadNote = overheadPct > 35
+        ? (isVN ? `Tỷ trọng Overhead ${overheadPct}% cho thấy cơ cấu đang hơi nặng về quản lý — cần theo dõi để không ảnh hưởng đến năng lực delivery.`
+                : `Overhead at ${overheadPct}% suggests a management-heavy structure — monitor to avoid delivery capacity impact.`)
+        : (isVN ? `Tỷ trọng Overhead ${overheadPct}% ở mức hợp lý, delivery chiếm ${deliveryPct}% năng lực thực thi.`
+                : `Overhead ratio of ${overheadPct}% is healthy; delivery holds ${deliveryPct}% of execution capacity.`);
+
+      let para1: string, para2: string, para3: string;
+      if (isVN) {
+        para1 = `Tổng định biên trong khối là ${fs.headcountQuota > 0 ? fs.headcountQuota + ' người' : 'chưa thiết lập'}. Khi đếm lượt tham gia theo từng program, tổng lượt lên tới ${totalAllocSlots} — cao hơn ${totalInternalPeople} người thực do nhiều nhân sự share nhiều program (đếm trùng khi tính đầu người). Quy về FTE tháng ${fs.currentMonth}, tổng FTE đang sử dụng là ${totalUsedFte.toFixed(1)} FTE${fs.headcountQuota > 0 ? `, tương đương utilization ${fs.utilizationPct}% so với định biên` : ''}.`;
+        para2 = `Cơ cấu năng lực phân rã: ${fs.deliveryFte.toFixed(1)} FTE Delivery (${deliveryPct}% — tạo đầu ra trực tiếp cho các program), ${overheadTotalFte.toFixed(1)} FTE Overhead (${overheadPct}% — bao gồm quản lý/lãnh đạo khối), và ${fs.benchFte.toFixed(1)} FTE Bench chưa phân bổ (${benchPct}%). ${overheadNote}`;
+        if (fs.programFillRates.length === 0) {
+          para3 = 'Chưa có dữ liệu định biên theo program — vui lòng thiết lập phân bổ headcount ở trang Nguồn lực.';
+        } else if (fteShortfall <= 0 && overPrograms.length === 0) {
+          para3 = `Fill rate toàn khối đạt ${fs.blockFillRate}% — tất cả program đều đã lấp đầy hoặc vượt định biên. Không có nhu cầu tuyển dụng tại thời điểm này.`;
+        } else {
+          const shortList = underPrograms.map(p => `${p.programName} (${p.fillRate}%, thiếu ${(p.allocated - p.actual).toFixed(1)} FTE)`).join('; ');
+          const overList  = overPrograms.map(p => p.programName).join(', ');
+          para3 = `Fill rate toàn khối: ${fs.blockFillRate}%${shortList ? '. Các program chưa đủ định biên: ' + shortList : ''}. Tổng FTE còn thiếu ${fteShortfall.toFixed(1)} FTE — quy ra cần tuyển thêm khoảng ${fs.peopleNeeded} người (làm tròn lên từ tổng thiếu hụt, không làm tròn lẻ ở từng program).${overList ? ' Program ' + overList + ' có fill rate >100% — nên xem xét điều chuyển nội bộ trước khi mở thêm headcount.' : ''}`;
+        }
+      } else {
+        para1 = `Total block headcount quota: ${fs.headcountQuota > 0 ? fs.headcountQuota + ' people' : 'not set'}. Counting program participation slots, the total reaches ${totalAllocSlots} — higher than the ${totalInternalPeople} actual headcount due to shared resources across programs (person-counting double-counts multi-program staff). Expressed in FTE for ${fs.currentMonth}, total used FTE is ${totalUsedFte.toFixed(1)}${fs.headcountQuota > 0 ? `, equating to ${fs.utilizationPct}% utilization against quota` : ''}.`;
+        para2 = `Capacity structure: ${fs.deliveryFte.toFixed(1)} FTE Delivery (${deliveryPct}% — direct program output), ${overheadTotalFte.toFixed(1)} FTE Overhead (${overheadPct}% — management and leadership), and ${fs.benchFte.toFixed(1)} FTE Bench unallocated (${benchPct}%). ${overheadNote}`;
+        if (fs.programFillRates.length === 0) {
+          para3 = 'No program headcount allocations configured — set up program quotas on the Resources page.';
+        } else if (fteShortfall <= 0 && overPrograms.length === 0) {
+          para3 = `Block fill rate is ${fs.blockFillRate}% — all programs are fully staffed or above quota. No immediate hiring need.`;
+        } else {
+          const shortList = underPrograms.map(p => `${p.programName} (${p.fillRate}%, short ${(p.allocated - p.actual).toFixed(1)} FTE)`).join('; ');
+          const overList  = overPrograms.map(p => p.programName).join(', ');
+          para3 = `Block fill rate: ${fs.blockFillRate}%${shortList ? '. Under-staffed programs: ' + shortList : ''}. Total FTE shortfall is ${fteShortfall.toFixed(1)} FTE — equivalent to approximately ${fs.peopleNeeded} hire(s) (aggregated before rounding up; not rounded per program).${overList ? ' Program(s) ' + overList + ' exceed 100% fill rate — consider internal redeployment before opening new headcount.' : ''}`;
+        }
+      }
+
+      h += `<div class="rpd-panel" style="display:flex;flex-direction:column;gap:10px;">`;
+      h += `<div class="rpd-ptitle">${isVN?'Diễn giải':'Analysis'}</div>`;
+      h += `<p style="font-size:12px;color:#374151;line-height:1.7;margin:0;">${para1}</p>`;
+      h += `<p style="font-size:12px;color:#374151;line-height:1.7;margin:0;">${para2}</p>`;
+      h += `<p style="font-size:12px;color:#374151;line-height:1.7;margin:0;">${para3}</p>`;
       h += `</div>`;
     }
 
-    // Overallocated table
-    h += `<div class="rpd-panel" style="flex:1.2;min-width:0;">`;
-    h += `<div class="rpd-ptitle">${isVN?'Nhân sự phân bổ > 2 Squad/DA':'Personnel Allocated to > 2 Squad/Projects'}</div>`;
-    if (ps.overallocated.length === 0) {
-      h += `<p style="font-size:12px;color:#16A34A;display:flex;align-items:center;gap:6px;margin:12px 0;"><span style="width:8px;height:8px;border-radius:50%;background:#16A34A;display:inline-block;"></span>${isVN?'Không có nhân sự nào phân bổ vào hơn 2 Squad/Dự án':'No personnel allocated to more than 2 Squad/Projects'}</p>`;
-    } else {
-      h += `<table style="width:100%;border-collapse:collapse;font-size:11px;">`;
-      h += `<thead><tr>`;
-      h += `<th style="text-align:left;padding:4px 8px 6px;color:#9CA3AF;font-size:10px;text-transform:uppercase;letter-spacing:0.8px;border-bottom:1px solid #E5E7EB;">${isVN?'Nhân sự':'Name'}</th>`;
-      h += `<th style="text-align:left;padding:4px 8px 6px;color:#9CA3AF;font-size:10px;text-transform:uppercase;letter-spacing:0.8px;border-bottom:1px solid #E5E7EB;">${isVN?'Vai trò':'Role'}</th>`;
-      h += `<th style="text-align:center;padding:4px 8px 6px;color:#9CA3AF;font-size:10px;text-transform:uppercase;letter-spacing:0.8px;border-bottom:1px solid #E5E7EB;">${isVN?'Số DA':'Projects'}</th>`;
-      h += `<th style="text-align:left;padding:4px 8px 6px;color:#9CA3AF;font-size:10px;text-transform:uppercase;letter-spacing:0.8px;border-bottom:1px solid #E5E7EB;">${isVN?'Danh sách Squad/DA':'Squad/Project List'}</th>`;
-      h += `</tr></thead><tbody>`;
-      ps.overallocated.forEach(person => {
-        const projStr = person.projects.join(', ');
-        const projDisplay = projStr.length > 40 ? projStr.slice(0, 40) + '…' : projStr;
-        h += `<tr>`;
-        h += `<td style="padding:6px 8px;border-bottom:1px solid #F3F4F6;font-weight:600;color:#111827;">${person.name}</td>`;
-        h += `<td style="padding:6px 8px;border-bottom:1px solid #F3F4F6;color:#6B7280;">${person.role || '—'}</td>`;
-        h += `<td style="padding:6px 8px;border-bottom:1px solid #F3F4F6;text-align:center;"><span style="background:#FEF2F2;color:#DC2626;border:1px solid #FECACA;border-radius:4px;padding:1px 7px;font-weight:700;">${person.projects.length}</span></td>`;
-        h += `<td style="padding:6px 8px;border-bottom:1px solid #F3F4F6;color:#6B7280;font-size:10px;">${projDisplay}</td>`;
-        h += `</tr>`;
-      });
-      h += `</tbody></table>`;
-      h += `<div style="margin-top:8px;padding:6px 10px;background:#FEF2F2;border-radius:4px;font-size:11px;color:#DC2626;">[!] ${isVN?'Cần rà soát phân bổ để đảm bảo chất lượng và tiến độ Squad/Dự án.':'Review allocations to ensure Squad/Project quality and delivery.'}</div>`;
-    }
-    h += `</div>`;
-    h += `</div>`; // flex row
+    h += `</div>`; // 3-col grid
     h += `</div>`; // personnel section
   }
 
