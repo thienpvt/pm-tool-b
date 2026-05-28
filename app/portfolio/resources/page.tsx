@@ -421,7 +421,7 @@ function ProgramAllocationsTab({
         <div className="text-xs">
           <span className="text-slate-400">Còn lại: </span>
           <span className={`font-bold ${totalAllocated > quota && quota > 0 ? 'text-red-600' : 'text-green-600'}`}>
-            {quota > 0 ? quota - totalAllocated : '—'}
+            {quota > 0 ? parseFloat((quota - totalAllocated).toFixed(2)) : '—'}
           </span>
         </div>
       </div>
