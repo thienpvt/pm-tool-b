@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { Search, ExternalLink, Users, ChevronRight, Download, Target, Building2 } from 'lucide-react';
+import { Search, ExternalLink, Users, ChevronRight, Download, Target, Building2, Briefcase, Shield } from 'lucide-react';
 
 type Member = {
   id: number;
@@ -285,6 +285,62 @@ function PersonDetailDialog({
   );
 }
 
+// ── FTE KPI summary cards ──────────────────────────────────────────────────────
+function FteKpiBar({ quota, allProjectFte, overheadRemainingFte }: {
+  quota: number;
+  allProjectFte: number;
+  overheadRemainingFte: number;
+}) {
+  const base = quota > 0 ? quota : Math.max(1, allProjectFte + overheadRemainingFte);
+  const bench = Math.max(0, base - allProjectFte - overheadRemainingFte);
+  const pctProject = base > 0 ? (allProjectFte / base) * 100 : 0;
+  const pctOverhead = base > 0 ? (overheadRemainingFte / base) * 100 : 0;
+  const pctBench = base > 0 ? (bench / base) * 100 : 0;
+  const fmtFte = (v: number) => parseFloat(v.toFixed(3)).toString();
+
+  return (
+    <div className="grid grid-cols-3 gap-3 mb-5">
+      <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex flex-col gap-1">
+        <div className="flex items-center gap-1.5 text-[10px] text-blue-500 font-semibold uppercase tracking-wide">
+          <Briefcase className="h-3 w-3" /> FTE phân bổ dự án
+        </div>
+        <div className="text-2xl font-bold text-blue-700">{fmtFte(allProjectFte)}</div>
+        <div className="text-xs text-blue-500">{pctProject.toFixed(0)}% của {quota > 0 ? quota : 'tổng'} FTE</div>
+        <div className="h-1.5 bg-blue-100 rounded-full overflow-hidden mt-1">
+          <div className="h-full bg-blue-500 rounded-full" style={{ width: `${Math.min(pctProject, 100)}%` }} />
+        </div>
+        <div className="text-[10px] text-blue-400 mt-0.5">Delivery + Overhead trong dự án</div>
+      </div>
+
+      <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex flex-col gap-1">
+        <div className="flex items-center gap-1.5 text-[10px] text-amber-500 font-semibold uppercase tracking-wide">
+          <Shield className="h-3 w-3" /> FTE Overhead còn lại
+        </div>
+        <div className="text-2xl font-bold text-amber-700">{fmtFte(overheadRemainingFte)}</div>
+        <div className="text-xs text-amber-500">{pctOverhead.toFixed(0)}% của {quota > 0 ? quota : 'tổng'} FTE</div>
+        <div className="h-1.5 bg-amber-100 rounded-full overflow-hidden mt-1">
+          <div className="h-full bg-amber-400 rounded-full" style={{ width: `${Math.min(pctOverhead, 100)}%` }} />
+        </div>
+        <div className="text-[10px] text-amber-400 mt-0.5">Quản lý / lãnh đạo — không trong dự án</div>
+      </div>
+
+      <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 flex flex-col gap-1">
+        <div className="flex items-center gap-1.5 text-[10px] text-slate-500 font-semibold uppercase tracking-wide">
+          <Users className="h-3 w-3" /> % Bench
+        </div>
+        <div className={`text-2xl font-bold ${bench > 0 ? 'text-emerald-600' : 'text-slate-400'}`}>
+          {pctBench.toFixed(0)}%
+        </div>
+        <div className="text-xs text-slate-500">{fmtFte(bench)} / {quota > 0 ? quota : '?'} FTE</div>
+        <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden mt-1">
+          <div className="h-full bg-emerald-400 rounded-full" style={{ width: `${Math.min(pctBench, 100)}%` }} />
+        </div>
+        <div className="text-[10px] text-slate-400 mt-0.5">Chưa phân bổ (quota − dự án − overhead)</div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function GlobalResourcesPage() {
   const [members, setMembers] = useState<Member[]>([]);
@@ -294,7 +350,10 @@ export default function GlobalResourcesPage() {
   const [detailPerson, setDetailPerson] = useState<PersonSummary | null>(null);
   const [quota, setQuota] = useState(0);
   const [internalCount, setInternalCount] = useState(0);
-  const [portfolioMembers, setPortfolioMembers] = useState<{ id: number; name: string; role: string; email: string; member_type: string }[]>([]);
+  const [portfolioMembers, setPortfolioMembers] = useState<{
+    id: number; name: string; role: string; email: string; member_type: string;
+    member_category: string; current_month_fte: number; overhead_remaining: number;
+  }[]>([]);
   const [externalOpen, setExternalOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
   const quotaSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -351,6 +410,13 @@ export default function GlobalResourcesPage() {
 
   const now = new Date();
   const nowYM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+  // FTE breakdowns from portfolio members
+  const internalMembers = portfolioMembers.filter(m => m.member_type !== 'external');
+  const allProjectFte = internalMembers.reduce((s, m) => s + (Number(m.current_month_fte) || 0), 0);
+  const overheadRemainingFte = internalMembers
+    .filter(m => m.member_category === 'overhead')
+    .reduce((s, m) => s + (Number(m.overhead_remaining) || 0), 0);
 
   // Derived from portfolio members
   const externalMembers = portfolioMembers.filter(m => m.member_type === 'external');
@@ -459,59 +525,30 @@ export default function GlobalResourcesPage() {
           </div>
         </div>
 
-        {/* Quota bar */}
-        {(() => {
-          const remaining = quota - internalCount;
-          const pct = quota > 0 ? Math.min((internalCount / quota) * 100, 100) : 0;
-          const over = remaining < 0;
-          const atLimit = remaining === 0 && quota > 0;
-          return (
-            <div className="flex items-center gap-4 flex-wrap bg-slate-50 border rounded-xl px-4 py-3 mb-5">
-              <div className="flex items-center gap-2">
-                <Target className="h-4 w-4 text-blue-500 shrink-0" />
-                <span className="text-xs text-slate-500 font-medium">Định biên khối:</span>
-                <input
-                  type="number"
-                  min={0}
-                  className="w-16 h-6 px-1.5 text-xs font-bold text-slate-800 border rounded focus:outline-none focus:ring-1 focus:ring-blue-400 text-center bg-white"
-                  value={quota || ''}
-                  placeholder="0"
-                  onChange={e => handleQuotaChange(Math.max(0, Number(e.target.value) || 0))}
-                />
-              </div>
-              <div className="h-4 w-px bg-slate-200" />
-              <div className="text-xs">
-                <span className="text-slate-400">Đã phân bổ: </span>
-                <span className="font-bold text-slate-700">{internalCount} nhân sự</span>
-              </div>
-              <div className="h-4 w-px bg-slate-200" />
-              <div className="text-xs">
-                <span className="text-slate-400">Còn lại: </span>
-                <span className={`font-bold ${over ? 'text-red-600' : atLimit ? 'text-amber-600' : 'text-green-600'}`}>
-                  {quota > 0 ? remaining : '—'}
-                </span>
-              </div>
-              {quota > 0 && (
-                <>
-                  <div className="h-4 w-px bg-slate-200" />
-                  <div className="flex items-center gap-2 flex-1 min-w-[140px]">
-                    <div className="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all ${over ? 'bg-red-500' : atLimit ? 'bg-amber-400' : 'bg-green-400'}`}
-                        style={{ width: `${pct}%` }}
-                      />
-                    </div>
-                    <span className={`text-[10px] font-medium tabular-nums ${over ? 'text-red-600' : 'text-slate-500'}`}>
-                      {pct.toFixed(0)}%
-                    </span>
-                  </div>
-                </>
-              )}
-              <div className="h-4 w-px bg-slate-200" />
-              <span className="text-[10px] text-slate-400">Nhân sự trong khối · chỉnh trong <Link href="/portfolio/resources" className="text-blue-500 hover:underline">Manage Members</Link></span>
-            </div>
-          );
-        })()}
+        {/* Quota input row */}
+        <div className="flex items-center gap-3 mb-4 bg-slate-50 border rounded-xl px-4 py-2.5">
+          <Target className="h-4 w-4 text-blue-500 shrink-0" />
+          <span className="text-xs text-slate-500 font-medium">Định biên khối:</span>
+          <input
+            type="number"
+            min={0}
+            className="w-16 h-6 px-1.5 text-xs font-bold text-slate-800 border rounded focus:outline-none focus:ring-1 focus:ring-blue-400 text-center bg-white"
+            value={quota || ''}
+            placeholder="0"
+            onChange={e => handleQuotaChange(Math.max(0, Number(e.target.value) || 0))}
+          />
+          <div className="h-4 w-px bg-slate-200" />
+          <span className="text-xs text-slate-400">Đã phân bổ: <span className="font-bold text-slate-700">{internalCount} nhân sự</span></span>
+          <div className="h-4 w-px bg-slate-200" />
+          <span className="text-[10px] text-slate-400">Chỉnh trong <Link href="/portfolio/resources" className="text-blue-500 hover:underline">Manage Members</Link></span>
+        </div>
+
+        {/* FTE KPI cards */}
+        <FteKpiBar
+          quota={quota > 0 ? quota : internalCount}
+          allProjectFte={allProjectFte}
+          overheadRemainingFte={overheadRemainingFte}
+        />
 
         {/* External members bar */}
         <div className="border rounded-xl mb-5 overflow-hidden">
