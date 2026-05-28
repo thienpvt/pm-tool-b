@@ -373,6 +373,7 @@ async function migratePostgresSchema(pool: Pool) {
     `CREATE TABLE IF NOT EXISTS operations_incidents (id SERIAL PRIMARY KEY, operations_system_id INTEGER NOT NULL REFERENCES operations_systems(id) ON DELETE CASCADE, title TEXT NOT NULL, severity TEXT NOT NULL DEFAULT 'Medium', description TEXT DEFAULT '', reported_at TEXT NOT NULL, resolved_at TEXT, cost_impact NUMERIC(15,2) DEFAULT 0, status TEXT NOT NULL DEFAULT 'Open', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
     `CREATE TABLE IF NOT EXISTS portfolio_program_allocations (id SERIAL PRIMARY KEY, company_id INTEGER REFERENCES companies(id) ON DELETE CASCADE, program_id INTEGER REFERENCES customers(id) ON DELETE CASCADE, allocated_headcount INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, UNIQUE(company_id, program_id))`,
     `CREATE TABLE IF NOT EXISTS program_project_allocations (id SERIAL PRIMARY KEY, program_id INTEGER REFERENCES customers(id) ON DELETE CASCADE, project_id INTEGER REFERENCES projects(id) ON DELETE CASCADE, allocated_headcount INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, UNIQUE(program_id, project_id))`,
+    `ALTER TABLE portfolio_members ADD COLUMN IF NOT EXISTS member_category TEXT DEFAULT 'delivery'`,
   ];
   for (const sql of migrations) {
     try { await pool.query(sql); } catch { /* column already exists */ }
