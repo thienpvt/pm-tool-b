@@ -1244,12 +1244,11 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
     h += `<div class="rpd-zlbl" style="color:#0891B2;"><span class="rpd-znum" style="background:#0891B2;">NS</span>${isVN?'Phân bổ nguồn lực &amp; độ phủ định biên toàn khối':'Resource Allocation &amp; Block Headcount Coverage'}</div>`;
 
     // ── 5 KPI cards
-    h += `<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:14px;">`;
+    h += `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px;">`;
     h += kpiCard(isVN?'Định biên':'Headcount Quota', fs.headcountQuota > 0 ? String(fs.headcountQuota) : '—', isVN?'người':'people', '#111827', '#F8F9FA');
     h += kpiCard(isVN?'FTE khả dụng net':'Net Used FTE', totalUsedFte.toFixed(1), 'FTE', '#2563EB', '#EFF6FF');
     h += kpiCard('Utilization', fs.headcountQuota > 0 ? `${fs.utilizationPct}%` : '—', isVN?'của định biên':'of quota', utilColor, `${utilColor}11`);
     h += kpiCard(isVN?'Fill rate khối':'Block Fill Rate', fs.programFillRates.length > 0 ? `${fs.blockFillRate}%` : '—', '% FTE', fillColor, `${fillColor}11`);
-    h += kpiCard(isVN?'Cần tuyển':'Hire Needed', String(fs.peopleNeeded), isVN?'người':'people', hireColor, `${hireColor}11`);
     h += `</div>`;
 
     // ── Row 1: Donut (left) + Fill rate bar chart (right)
