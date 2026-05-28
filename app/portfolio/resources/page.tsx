@@ -19,6 +19,8 @@ type PortfolioMember = {
   member_type: string;
   member_category: string; // 'delivery' | 'overhead'
   program_count: number;
+  overhead_remaining: number; // fraction 0-1: overhead time NOT in any project
+  current_month_fte: number; // sum of project capacity for current month
 };
 
 type ProgramAllocation = {
@@ -29,36 +31,46 @@ type ProgramAllocation = {
 };
 
 // ── FTE KPI summary bar ────────────────────────────────────────────────────────
-function FteKpiBar({ total, delivery, overhead }: { total: number; delivery: number; overhead: number; }) {
-  const bench = Math.max(0, total - delivery - overhead);
-  const pctDelivery = total > 0 ? (delivery / total) * 100 : 0;
-  const pctOverhead = total > 0 ? (overhead / total) * 100 : 0;
-  const pctBench = total > 0 ? (bench / total) * 100 : 0;
+// allProjectFte = sum current_month_fte of ALL internal members (delivery + overhead in project)
+// overheadRemainingFte = sum overhead_remaining of overhead members (non-project overhead time)
+// total portfolio FTE = allProjectFte + overheadRemainingFte
+function FteKpiBar({ quota, allProjectFte, overheadRemainingFte }: {
+  quota: number;
+  allProjectFte: number;
+  overheadRemainingFte: number;
+}) {
+  const base = quota > 0 ? quota : Math.max(1, allProjectFte + overheadRemainingFte);
+  const bench = Math.max(0, base - allProjectFte - overheadRemainingFte);
+  const pctProject = base > 0 ? (allProjectFte / base) * 100 : 0;
+  const pctOverhead = base > 0 ? (overheadRemainingFte / base) * 100 : 0;
+  const pctBench = base > 0 ? (bench / base) * 100 : 0;
+
+  const fmtFte = (v: number) => parseFloat(v.toFixed(3)).toString();
 
   return (
     <div className="grid grid-cols-3 gap-3 mb-4">
       <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex flex-col gap-1">
         <div className="flex items-center gap-1.5 text-[10px] text-blue-500 font-semibold uppercase tracking-wide">
-          <Briefcase className="h-3 w-3" /> % Delivery
+          <Briefcase className="h-3 w-3" /> FTE phân bổ dự án
         </div>
-        <div className="text-2xl font-bold text-blue-700">{pctDelivery.toFixed(0)}%</div>
-        <div className="text-xs text-blue-500">{delivery} / {total} FTE</div>
+        <div className="text-2xl font-bold text-blue-700">{fmtFte(allProjectFte)}</div>
+        <div className="text-xs text-blue-500">{pctProject.toFixed(0)}% của {quota > 0 ? quota : 'tổng'} FTE</div>
         <div className="h-1.5 bg-blue-100 rounded-full overflow-hidden mt-1">
-          <div className="h-full bg-blue-500 rounded-full" style={{ width: `${pctDelivery}%` }} />
+          <div className="h-full bg-blue-500 rounded-full" style={{ width: `${Math.min(pctProject, 100)}%` }} />
         </div>
-        <div className="text-[10px] text-blue-400 mt-0.5">Năng lực tạo đầu ra cho program</div>
+        <div className="text-[10px] text-blue-400 mt-0.5">Delivery + Overhead trong dự án</div>
       </div>
 
       <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex flex-col gap-1">
         <div className="flex items-center gap-1.5 text-[10px] text-amber-500 font-semibold uppercase tracking-wide">
-          <Shield className="h-3 w-3" /> % Overhead
+          <Shield className="h-3 w-3" /> FTE Overhead còn lại
         </div>
-        <div className="text-2xl font-bold text-amber-700">{pctOverhead.toFixed(0)}%</div>
-        <div className="text-xs text-amber-500">{overhead} / {total} FTE</div>
+        <div className="text-2xl font-bold text-amber-700">{fmtFte(overheadRemainingFte)}</div>
+        <div className="text-xs text-amber-500">{pctOverhead.toFixed(0)}% của {quota > 0 ? quota : 'tổng'} FTE</div>
         <div className="h-1.5 bg-amber-100 rounded-full overflow-hidden mt-1">
-          <div className="h-full bg-amber-400 rounded-full" style={{ width: `${pctOverhead}%` }} />
+          <div className="h-full bg-amber-400 rounded-full" style={{ width: `${Math.min(pctOverhead, 100)}%` }} />
         </div>
-        <div className="text-[10px] text-amber-400 mt-0.5">Quản lý / lãnh đạo / hỗ trợ</div>
+        <div className="text-[10px] text-amber-400 mt-0.5">Quản lý / lãnh đạo — không trong dự án</div>
       </div>
 
       <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 flex flex-col gap-1">
@@ -68,11 +80,11 @@ function FteKpiBar({ total, delivery, overhead }: { total: number; delivery: num
         <div className={`text-2xl font-bold ${bench > 0 ? 'text-emerald-600' : 'text-slate-400'}`}>
           {pctBench.toFixed(0)}%
         </div>
-        <div className="text-xs text-slate-500">{bench} / {total} FTE</div>
+        <div className="text-xs text-slate-500">{fmtFte(bench)} / {quota > 0 ? quota : '?'} FTE</div>
         <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden mt-1">
-          <div className="h-full bg-emerald-400 rounded-full" style={{ width: `${pctBench}%` }} />
+          <div className="h-full bg-emerald-400 rounded-full" style={{ width: `${Math.min(pctBench, 100)}%` }} />
         </div>
-        <div className="text-[10px] text-slate-400 mt-0.5">Năng lực chưa dùng</div>
+        <div className="text-[10px] text-slate-400 mt-0.5">Chưa phân bổ (quota − dự án − overhead)</div>
       </div>
     </div>
   );
@@ -142,17 +154,18 @@ function InternalMemberTable({
                 <th className="px-3 py-3 text-left">Note</th>
                 <th className="px-3 py-3 text-center w-24">Phân loại</th>
                 {isDelivery && <th className="px-3 py-3 text-center w-24">Programs</th>}
+                {!isDelivery && <th className="px-3 py-3 text-center w-28">Còn lại (FTE)</th>}
                 <th className="px-3 py-3 w-10"></th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={isDelivery ? 8 : 7} className="text-center py-12 text-slate-400">Loading...</td>
+                  <td colSpan={8} className="text-center py-12 text-slate-400">Loading...</td>
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={isDelivery ? 8 : 7} className="text-center py-12 text-slate-400">
+                  <td colSpan={8} className="text-center py-12 text-slate-400">
                     {totalInCategory === 0
                       ? 'Chưa có thành viên. Nhấn "Add Member" hoặc "Import" để bắt đầu.'
                       : 'Không tìm thấy thành viên phù hợp.'}
@@ -222,6 +235,27 @@ function InternalMemberTable({
                         ) : (
                           <span className="text-slate-300">—</span>
                         )}
+                      </td>
+                    )}
+                    {!isDelivery && (
+                      <td className="px-3 py-2 text-center">
+                        <div className="flex items-center justify-center gap-1">
+                          <input
+                            type="number"
+                            min={0}
+                            max={1}
+                            step={0.05}
+                            className="w-14 h-6 px-1 text-xs border rounded text-center focus:outline-none focus:ring-1 focus:ring-amber-400 bg-white"
+                            value={Number(row.overhead_remaining) || 0}
+                            title="FTE không phân bổ vào dự án (0–1, e.g. 0.7 = 70%)"
+                            onChange={e => {
+                              const val = Math.min(1, Math.max(0, Number(e.target.value) || 0));
+                              onUpdateField(row.id, 'overhead_remaining' as keyof PortfolioMember, String(val));
+                            }}
+                            onBlur={() => onSaveRow({ ...row, overhead_remaining: Number(row.overhead_remaining) || 0 })}
+                          />
+                          <span className="text-[10px] text-slate-400">FTE</span>
+                        </div>
                       </td>
                     )}
                     <td className="px-3 py-2">
@@ -504,7 +538,11 @@ export default function PortfolioResourcesPage() {
   useEffect(() => { load(); loadAllocations(); }, [load, loadAllocations]);
 
   const updateField = (id: number, field: keyof PortfolioMember, value: string) => {
-    setMembers(ms => ms.map(m => m.id === id ? { ...m, [field]: value } : m));
+    setMembers(ms => ms.map(m => {
+      if (m.id !== id) return m;
+      if (field === 'overhead_remaining') return { ...m, overhead_remaining: Number(value) || 0 };
+      return { ...m, [field]: value };
+    }));
   };
 
   const saveRow = async (row: PortfolioMember) => {
@@ -600,6 +638,11 @@ export default function PortfolioResourcesPage() {
   const internalCount = internalMembers.length;
   const deliveryCount = internalMembers.filter(m => m.member_category !== 'overhead').length;
   const overheadCount = internalMembers.filter(m => m.member_category === 'overhead').length;
+  // Actual FTE: project allocations this month (all members) + overhead remaining (not in project)
+  const allProjectFte = internalMembers.reduce((s, m) => s + (Number(m.current_month_fte) || 0), 0);
+  const overheadRemainingFte = internalMembers
+    .filter(m => m.member_category === 'overhead')
+    .reduce((s, m) => s + (Number(m.overhead_remaining) || 0), 0);
 
   return (
     <div className="flex flex-col lg:flex-row min-h-screen">
@@ -665,9 +708,9 @@ export default function PortfolioResourcesPage() {
 
             {/* FTE KPI bar */}
             <FteKpiBar
-              total={quota > 0 ? quota : internalCount}
-              delivery={deliveryCount}
-              overhead={overheadCount}
+              quota={quota > 0 ? quota : internalCount}
+              allProjectFte={allProjectFte}
+              overheadRemainingFte={overheadRemainingFte}
             />
 
             {/* Search */}

@@ -48,6 +48,10 @@ const PHASE_COLOR: Record<string, string> = {
   Closing:    'bg-green-100 text-green-700',
 };
 
+function fmtFte(v: number): string {
+  return parseFloat(Number(v).toFixed(3)).toString();
+}
+
 function LoadBar({ value, max = 1 }: { value: number; max?: number }) {
   const pct = Math.min(value / Math.max(max, 1), 1) * 100;
   const over = value > 1;
@@ -114,12 +118,12 @@ function PersonDetailDialog({
             <div className="flex gap-3">
               <div className="text-center bg-white/10 rounded-lg px-4 py-2">
                 <p className="text-xs text-slate-300 mb-0.5">Tổng đến nay</p>
-                <p className="text-xl font-bold text-white">{grandToDate.toFixed(1)}</p>
+                <p className="text-xl font-bold text-white">{fmtFte(grandToDate)}</p>
                 <p className="text-[10px] text-slate-400">person-months</p>
               </div>
               <div className="text-center bg-white/10 rounded-lg px-4 py-2">
                 <p className="text-xs text-slate-300 mb-0.5">Tương lai</p>
-                <p className="text-xl font-bold text-white">{grandFuture.toFixed(1)}</p>
+                <p className="text-xl font-bold text-white">{fmtFte(grandFuture)}</p>
                 <p className="text-[10px] text-slate-400">person-months</p>
               </div>
               <div className="text-center bg-white/10 rounded-lg px-4 py-2">
@@ -225,7 +229,7 @@ function PersonDetailDialog({
                           return (
                             <td key={mo} className="px-2 py-2.5 text-center bg-blue-50/20 border-l border-blue-50">
                               {val != null && Number(val) !== 0
-                                ? <span className="font-semibold text-blue-700">{Number(val).toFixed(1)}</span>
+                                ? <span className="font-semibold text-blue-700">{fmtFte(Number(val))}</span>
                                 : <span className="text-slate-200">—</span>}
                             </td>
                           );
@@ -235,7 +239,7 @@ function PersonDetailDialog({
                           return (
                             <td key={mo} className="px-2 py-2.5 text-center border-l border-slate-100">
                               {val != null && Number(val) !== 0
-                                ? <span className="text-slate-600">{Number(val).toFixed(1)}</span>
+                                ? <span className="text-slate-600">{fmtFte(Number(val))}</span>
                                 : <span className="text-slate-200">—</span>}
                             </td>
                           );
@@ -251,7 +255,7 @@ function PersonDetailDialog({
                         return (
                           <td key={mo} className="px-2 py-2.5 text-center bg-blue-50/40 border-l border-blue-100">
                             {total > 0
-                              ? <span className={total > 1 ? 'text-red-600 font-bold' : 'text-blue-700'}>{total.toFixed(1)}</span>
+                              ? <span className={total > 1 ? 'text-red-600 font-bold' : 'text-blue-700'}>{fmtFte(total)}</span>
                               : <span className="text-slate-300">—</span>}
                           </td>
                         );
@@ -261,7 +265,7 @@ function PersonDetailDialog({
                         return (
                           <td key={mo} className="px-2 py-2.5 text-center border-l border-slate-100">
                             {total > 0
-                              ? <span className={total > 1 ? 'text-red-600 font-bold' : 'text-slate-600'}>{total.toFixed(1)}</span>
+                              ? <span className={total > 1 ? 'text-red-600 font-bold' : 'text-slate-600'}>{fmtFte(total)}</span>
                               : <span className="text-slate-300">—</span>}
                           </td>
                         );

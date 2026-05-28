@@ -374,6 +374,7 @@ async function migratePostgresSchema(pool: Pool) {
     `CREATE TABLE IF NOT EXISTS portfolio_program_allocations (id SERIAL PRIMARY KEY, company_id INTEGER REFERENCES companies(id) ON DELETE CASCADE, program_id INTEGER REFERENCES customers(id) ON DELETE CASCADE, allocated_headcount INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, UNIQUE(company_id, program_id))`,
     `CREATE TABLE IF NOT EXISTS program_project_allocations (id SERIAL PRIMARY KEY, program_id INTEGER REFERENCES customers(id) ON DELETE CASCADE, project_id INTEGER REFERENCES projects(id) ON DELETE CASCADE, allocated_headcount INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, UNIQUE(program_id, project_id))`,
     `ALTER TABLE portfolio_members ADD COLUMN IF NOT EXISTS member_category TEXT DEFAULT 'delivery'`,
+    `ALTER TABLE portfolio_members ADD COLUMN IF NOT EXISTS overhead_remaining FLOAT DEFAULT 0`,
     `ALTER TABLE portfolio_program_allocations ALTER COLUMN allocated_headcount TYPE NUMERIC(6,1)`,
     `ALTER TABLE program_project_allocations ALTER COLUMN allocated_headcount TYPE NUMERIC(6,1)`,
   ];
