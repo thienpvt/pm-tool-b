@@ -982,11 +982,11 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
   function svgHBarChart(items: FteProgramRate[]): string {
     if (items.length === 0) return '';
     const maxPct = 120;
-    const barH = 18;
-    const gap = 9;
-    const labelW = 120;
-    const barAreaW = 240;
-    const annW = 90;
+    const barH = 20;
+    const gap = 10;
+    const labelW = 130;
+    const barAreaW = 360;
+    const annW = 110;
     const totalW = labelW + barAreaW + annW;
     const totalH = items.length * (barH + gap) + 28;
     let s = `<svg width="100%" viewBox="0 0 ${totalW} ${totalH}" style="display:block;overflow:visible;">`;
@@ -1252,8 +1252,8 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
     h += kpiCard(isVN?'Cần tuyển':'Hire Needed', String(fs.peopleNeeded), isVN?'người':'people', hireColor, `${hireColor}11`);
     h += `</div>`;
 
-    // ── Donut + Fill rate bar + Narrative (3 cols)
-    h += `<div style="display:grid;grid-template-columns:1fr 1.2fr 1.5fr;gap:12px;margin-bottom:14px;">`;
+    // ── Row 1: Donut (left) + Fill rate bar chart (right)
+    h += `<div style="display:grid;grid-template-columns:1fr 2fr;gap:12px;margin-bottom:12px;">`;
 
     // Col 1: Donut — Delivery / Overhead / Bench
     const donutSegs = [
@@ -1263,7 +1263,7 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
     ].filter(s => s.val > 0);
     h += `<div class="rpd-panel">`;
     h += `<div class="rpd-ptitle">${isVN?'Cơ cấu năng lực khối (FTE)':'Block Capacity Structure (FTE)'}</div>`;
-    h += `<div class="rpd-pie-lay"><div style="flex-shrink:0;">${svgDonut(donutSegs, 120, 48, 30, deliveryPct)}</div>`;
+    h += `<div class="rpd-pie-lay"><div style="flex-shrink:0;">${svgDonut(donutSegs, 140, 56, 34, deliveryPct)}</div>`;
     h += `<div class="rpd-pie-leg">`;
     const donutLegend = [
       { label: 'Delivery', val: fs.deliveryFte,   pct: deliveryPct,  color: '#2563EB' },
@@ -1273,7 +1273,7 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
     donutLegend.forEach(l => {
       h += `<div class="rpd-leg-row"><div class="rpd-leg-dot" style="background:${l.color};border:1px solid rgba(0,0,0,0.1);"></div>${l.label}<span class="rpd-leg-val">${l.val.toFixed(1)} <span style="color:#9CA3AF;font-size:10px;">(${l.pct}%)</span></span></div>`;
     });
-    h += `<div style="margin-top:6px;padding-top:6px;border-top:1px solid #E5E7EB;font-size:10px;color:#6B7280;">${isVN?'Tổng định biên':'Quota'}: <strong style="color:#111827;">${fs.headcountQuota > 0 ? fs.headcountQuota : donutBase} ${isVN?'người':'ppl'}</strong></div>`;
+    h += `<div style="margin-top:8px;padding-top:6px;border-top:1px solid #E5E7EB;font-size:11px;color:#6B7280;">${isVN?'Tổng định biên':'Quota'}: <strong style="color:#111827;">${fs.headcountQuota > 0 ? fs.headcountQuota : donutBase} ${isVN?'người':'ppl'}</strong></div>`;
     h += `</div></div></div>`;
 
     // Col 2: Horizontal bar chart — fill rate by program
@@ -1281,7 +1281,7 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
     h += `<div class="rpd-ptitle">${isVN?'Fill rate theo Program (FTE)':'Fill Rate by Program (FTE)'}</div>`;
     if (fs.programFillRates.length > 0) {
       h += svgHBarChart(fs.programFillRates);
-      h += `<div style="display:flex;gap:12px;margin-top:8px;font-size:10px;color:#6B7280;">`;
+      h += `<div style="display:flex;gap:16px;margin-top:8px;font-size:10px;color:#6B7280;">`;
       h += `<span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:2px;background:#16A34A;display:inline-block;"></span>≥90%</span>`;
       h += `<span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:2px;background:#D97706;display:inline-block;"></span>70–89%</span>`;
       h += `<span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:2px;background:#DC2626;display:inline-block;"></span>&lt;70%</span>`;
@@ -1291,41 +1291,41 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
     }
     h += `</div>`;
 
-    // Col 3: Overallocated people list (>2 projects)
+    h += `</div>`; // row 1 grid
+
+    // ── Row 2: Full-width overallocated people table
     {
       const overalloc = ps ? ps.overallocated : [];
-      h += `<div class="rpd-panel" style="display:flex;flex-direction:column;gap:0;">`;
+      h += `<div class="rpd-panel" style="margin-bottom:14px;">`;
       h += `<div class="rpd-ptitle">${isVN?'Nhân sự tham gia &gt; 2 Squad/Dự án':'Personnel in &gt; 2 Squad/Projects'}</div>`;
       if (overalloc.length === 0) {
-        h += `<div style="display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12px;color:#16A34A;">`;
+        h += `<div style="display:flex;align-items:center;gap:8px;padding:8px 0;font-size:12px;color:#16A34A;">`;
         h += `<span style="width:8px;height:8px;border-radius:50%;background:#16A34A;flex-shrink:0;display:inline-block;"></span>`;
         h += `${isVN?'Không có nhân sự nào đang tham gia hơn 2 Squad/Dự án.':'No personnel currently in more than 2 Squad/Projects.'}`;
         h += `</div>`;
       } else {
-        h += `<table style="width:100%;border-collapse:collapse;font-size:11px;margin-top:4px;">`;
+        h += `<table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:4px;">`;
         h += `<thead><tr>`;
-        h += `<th style="text-align:left;padding:4px 8px 6px;color:#9CA3AF;font-size:10px;text-transform:uppercase;letter-spacing:0.8px;border-bottom:1px solid #E5E7EB;">${isVN?'Nhân sự':'Name'}</th>`;
-        h += `<th style="text-align:left;padding:4px 8px 6px;color:#9CA3AF;font-size:10px;text-transform:uppercase;letter-spacing:0.8px;border-bottom:1px solid #E5E7EB;">${isVN?'Vai trò':'Role'}</th>`;
-        h += `<th style="text-align:center;padding:4px 8px 6px;color:#9CA3AF;font-size:10px;text-transform:uppercase;letter-spacing:0.8px;border-bottom:1px solid #E5E7EB;">${isVN?'Số DA':'#'}</th>`;
-        h += `<th style="text-align:left;padding:4px 8px 6px;color:#9CA3AF;font-size:10px;text-transform:uppercase;letter-spacing:0.8px;border-bottom:1px solid #E5E7EB;">${isVN?'Danh sách Squad/DA':'Squad/Projects'}</th>`;
+        h += `<th style="text-align:left;padding:6px 12px 8px;color:#9CA3AF;font-size:10px;text-transform:uppercase;letter-spacing:0.8px;border-bottom:1px solid #E5E7EB;">${isVN?'Nhân sự':'Name'}</th>`;
+        h += `<th style="text-align:left;padding:6px 12px 8px;color:#9CA3AF;font-size:10px;text-transform:uppercase;letter-spacing:0.8px;border-bottom:1px solid #E5E7EB;">${isVN?'Vai trò':'Role'}</th>`;
+        h += `<th style="text-align:center;padding:6px 12px 8px;color:#9CA3AF;font-size:10px;text-transform:uppercase;letter-spacing:0.8px;border-bottom:1px solid #E5E7EB;width:60px;">${isVN?'Số DA':'#'}</th>`;
+        h += `<th style="text-align:left;padding:6px 12px 8px;color:#9CA3AF;font-size:10px;text-transform:uppercase;letter-spacing:0.8px;border-bottom:1px solid #E5E7EB;">${isVN?'Danh sách Squad/Dự án':'Squad/Projects'}</th>`;
         h += `</tr></thead><tbody>`;
-        overalloc.forEach(person => {
-          const projStr = person.projects.join(', ');
-          const projDisplay = projStr.length > 38 ? projStr.slice(0, 38) + '…' : projStr;
-          h += `<tr>`;
-          h += `<td style="padding:6px 8px;border-bottom:1px solid #F3F4F6;font-weight:600;color:#111827;">${person.name}</td>`;
-          h += `<td style="padding:6px 8px;border-bottom:1px solid #F3F4F6;color:#6B7280;">${person.role || '—'}</td>`;
-          h += `<td style="padding:6px 8px;border-bottom:1px solid #F3F4F6;text-align:center;"><span style="background:#FEF2F2;color:#DC2626;border:1px solid #FECACA;border-radius:4px;padding:1px 7px;font-weight:700;">${person.projects.length}</span></td>`;
-          h += `<td style="padding:6px 8px;border-bottom:1px solid #F3F4F6;color:#6B7280;font-size:10px;">${projDisplay}</td>`;
+        overalloc.forEach((person, idx) => {
+          const bg = idx % 2 === 1 ? 'background:#FAFAFA;' : '';
+          h += `<tr style="${bg}">`;
+          h += `<td style="padding:8px 12px;border-bottom:1px solid #F3F4F6;font-weight:600;color:#111827;">${person.name}</td>`;
+          h += `<td style="padding:8px 12px;border-bottom:1px solid #F3F4F6;color:#6B7280;">${person.role || '—'}</td>`;
+          h += `<td style="padding:8px 12px;border-bottom:1px solid #F3F4F6;text-align:center;"><span style="background:#FEF2F2;color:#DC2626;border:1px solid #FECACA;border-radius:4px;padding:2px 8px;font-weight:700;">${person.projects.length}</span></td>`;
+          h += `<td style="padding:8px 12px;border-bottom:1px solid #F3F4F6;color:#374151;font-size:11px;">${person.projects.join(' · ')}</td>`;
           h += `</tr>`;
         });
         h += `</tbody></table>`;
-        h += `<div style="margin-top:8px;padding:6px 10px;background:#FEF2F2;border-radius:4px;font-size:11px;color:#DC2626;">[!] ${isVN?'Cần rà soát phân bổ để đảm bảo chất lượng và tiến độ.':'Review allocations to ensure quality and delivery.'}</div>`;
+        h += `<div style="margin-top:10px;padding:7px 12px;background:#FEF2F2;border-radius:4px;font-size:11px;color:#DC2626;">[!] ${isVN?'Cần rà soát phân bổ để đảm bảo chất lượng và tiến độ.':'Review allocations to ensure quality and delivery.'}</div>`;
       }
       h += `</div>`;
     }
 
-    h += `</div>`; // 3-col grid
     h += `</div>`; // personnel section
   }
 
