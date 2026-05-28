@@ -425,6 +425,7 @@ function ProgramAllocationsTab({
                       <input
                         type="number"
                         min={0}
+                        step="0.1"
                         className="w-20 h-6 px-1.5 text-xs font-bold text-slate-800 border rounded focus:outline-none focus:ring-1 focus:ring-blue-400 text-center bg-white"
                         value={localVal}
                         onChange={e => setLocalValues(v => ({ ...v, [row.program_id]: e.target.value }))}
