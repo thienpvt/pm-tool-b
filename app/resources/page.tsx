@@ -286,11 +286,20 @@ function PersonDetailDialog({
 }
 
 // ── FTE KPI summary cards ──────────────────────────────────────────────────────
-function FteKpiBar({ quota, allProjectFte, overheadRemainingFte }: {
+type PortfolioMember = {
+  id: number; name: string; role: string; email: string;
+  member_type: string; member_category: string;
+  current_month_fte: number; overhead_remaining: number;
+};
+
+function FteKpiBar({ quota, allProjectFte, overheadRemainingFte, internalMembers }: {
   quota: number;
   allProjectFte: number;
   overheadRemainingFte: number;
+  internalMembers: PortfolioMember[];
 }) {
+  const [listOpen, setListOpen] = useState<'project' | 'overhead' | 'bench' | null>(null);
+
   const base = quota > 0 ? quota : Math.max(1, allProjectFte + overheadRemainingFte);
   const bench = Math.max(0, base - allProjectFte - overheadRemainingFte);
   const pctProject = base > 0 ? (allProjectFte / base) * 100 : 0;
@@ -298,46 +307,140 @@ function FteKpiBar({ quota, allProjectFte, overheadRemainingFte }: {
   const pctBench = base > 0 ? (bench / base) * 100 : 0;
   const fmtFte = (v: number) => parseFloat(v.toFixed(3)).toString();
 
+  const projectMembers = internalMembers
+    .filter(m => m.current_month_fte > 0)
+    .sort((a, b) => b.current_month_fte - a.current_month_fte);
+  const overheadMembers = internalMembers
+    .filter(m => m.member_category === 'overhead')
+    .sort((a, b) => b.overhead_remaining - a.overhead_remaining);
+  const benchMembers = internalMembers
+    .filter(m => m.current_month_fte === 0 && m.member_category !== 'overhead')
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  const listConfig: Record<'project' | 'overhead' | 'bench', {
+    title: string; members: PortfolioMember[];
+    fteLabel: string; fteValue: (m: PortfolioMember) => string;
+  }> = {
+    project: {
+      title: `Nhân sự phân bổ dự án (${projectMembers.length} người)`,
+      members: projectMembers,
+      fteLabel: 'FTE tháng này',
+      fteValue: m => fmtFte(m.current_month_fte),
+    },
+    overhead: {
+      title: `Nhân sự Overhead còn lại (${overheadMembers.length} người)`,
+      members: overheadMembers,
+      fteLabel: 'Overhead còn lại',
+      fteValue: m => fmtFte(m.overhead_remaining),
+    },
+    bench: {
+      title: `Nhân sự Bench — chưa phân bổ (${benchMembers.length} người)`,
+      members: benchMembers,
+      fteLabel: '',
+      fteValue: () => '—',
+    },
+  };
+
+  const current = listOpen ? listConfig[listOpen] : null;
+
+  const viewBtn = (key: 'project' | 'overhead' | 'bench', colorClass: string) => (
+    <button
+      onClick={() => setListOpen(key)}
+      className={`flex items-center gap-1 text-[10px] ${colorClass} font-medium hover:underline`}
+    >
+      <Users className="h-2.5 w-2.5" /> Xem DS
+    </button>
+  );
+
   return (
-    <div className="grid grid-cols-3 gap-3 mb-5">
-      <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex flex-col gap-1">
-        <div className="flex items-center gap-1.5 text-[10px] text-blue-500 font-semibold uppercase tracking-wide">
-          <Briefcase className="h-3 w-3" /> FTE phân bổ dự án
+    <>
+      <div className="grid grid-cols-3 gap-3 mb-5">
+        <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex flex-col gap-1">
+          <div className="flex items-center gap-1.5 text-[10px] text-blue-500 font-semibold uppercase tracking-wide">
+            <Briefcase className="h-3 w-3" /> FTE phân bổ dự án
+          </div>
+          <div className="text-2xl font-bold text-blue-700">{fmtFte(allProjectFte)}</div>
+          <div className="text-xs text-blue-500">{pctProject.toFixed(0)}% của {quota > 0 ? quota : 'tổng'} FTE</div>
+          <div className="h-1.5 bg-blue-100 rounded-full overflow-hidden mt-1">
+            <div className="h-full bg-blue-500 rounded-full" style={{ width: `${Math.min(pctProject, 100)}%` }} />
+          </div>
+          <div className="flex items-center justify-between mt-0.5">
+            <div className="text-[10px] text-blue-400">Delivery + Overhead trong dự án</div>
+            {viewBtn('project', 'text-blue-500 hover:text-blue-700')}
+          </div>
         </div>
-        <div className="text-2xl font-bold text-blue-700">{fmtFte(allProjectFte)}</div>
-        <div className="text-xs text-blue-500">{pctProject.toFixed(0)}% của {quota > 0 ? quota : 'tổng'} FTE</div>
-        <div className="h-1.5 bg-blue-100 rounded-full overflow-hidden mt-1">
-          <div className="h-full bg-blue-500 rounded-full" style={{ width: `${Math.min(pctProject, 100)}%` }} />
+
+        <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex flex-col gap-1">
+          <div className="flex items-center gap-1.5 text-[10px] text-amber-500 font-semibold uppercase tracking-wide">
+            <Shield className="h-3 w-3" /> FTE Overhead còn lại
+          </div>
+          <div className="text-2xl font-bold text-amber-700">{fmtFte(overheadRemainingFte)}</div>
+          <div className="text-xs text-amber-500">{pctOverhead.toFixed(0)}% của {quota > 0 ? quota : 'tổng'} FTE</div>
+          <div className="h-1.5 bg-amber-100 rounded-full overflow-hidden mt-1">
+            <div className="h-full bg-amber-400 rounded-full" style={{ width: `${Math.min(pctOverhead, 100)}%` }} />
+          </div>
+          <div className="flex items-center justify-between mt-0.5">
+            <div className="text-[10px] text-amber-400">Quản lý / lãnh đạo — không trong dự án</div>
+            {viewBtn('overhead', 'text-amber-500 hover:text-amber-700')}
+          </div>
         </div>
-        <div className="text-[10px] text-blue-400 mt-0.5">Delivery + Overhead trong dự án</div>
+
+        <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 flex flex-col gap-1">
+          <div className="flex items-center gap-1.5 text-[10px] text-slate-500 font-semibold uppercase tracking-wide">
+            <Users className="h-3 w-3" /> % Bench
+          </div>
+          <div className={`text-2xl font-bold ${bench > 0 ? 'text-emerald-600' : 'text-slate-400'}`}>
+            {pctBench.toFixed(0)}%
+          </div>
+          <div className="text-xs text-slate-500">{fmtFte(bench)} / {quota > 0 ? quota : '?'} FTE</div>
+          <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden mt-1">
+            <div className="h-full bg-emerald-400 rounded-full" style={{ width: `${Math.min(pctBench, 100)}%` }} />
+          </div>
+          <div className="flex items-center justify-between mt-0.5">
+            <div className="text-[10px] text-slate-400">Chưa phân bổ (quota − dự án − overhead)</div>
+            {viewBtn('bench', 'text-slate-500 hover:text-slate-700')}
+          </div>
+        </div>
       </div>
 
-      <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex flex-col gap-1">
-        <div className="flex items-center gap-1.5 text-[10px] text-amber-500 font-semibold uppercase tracking-wide">
-          <Shield className="h-3 w-3" /> FTE Overhead còn lại
-        </div>
-        <div className="text-2xl font-bold text-amber-700">{fmtFte(overheadRemainingFte)}</div>
-        <div className="text-xs text-amber-500">{pctOverhead.toFixed(0)}% của {quota > 0 ? quota : 'tổng'} FTE</div>
-        <div className="h-1.5 bg-amber-100 rounded-full overflow-hidden mt-1">
-          <div className="h-full bg-amber-400 rounded-full" style={{ width: `${Math.min(pctOverhead, 100)}%` }} />
-        </div>
-        <div className="text-[10px] text-amber-400 mt-0.5">Quản lý / lãnh đạo — không trong dự án</div>
-      </div>
-
-      <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 flex flex-col gap-1">
-        <div className="flex items-center gap-1.5 text-[10px] text-slate-500 font-semibold uppercase tracking-wide">
-          <Users className="h-3 w-3" /> % Bench
-        </div>
-        <div className={`text-2xl font-bold ${bench > 0 ? 'text-emerald-600' : 'text-slate-400'}`}>
-          {pctBench.toFixed(0)}%
-        </div>
-        <div className="text-xs text-slate-500">{fmtFte(bench)} / {quota > 0 ? quota : '?'} FTE</div>
-        <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden mt-1">
-          <div className="h-full bg-emerald-400 rounded-full" style={{ width: `${Math.min(pctBench, 100)}%` }} />
-        </div>
-        <div className="text-[10px] text-slate-400 mt-0.5">Chưa phân bổ (quota − dự án − overhead)</div>
-      </div>
-    </div>
+      <Dialog open={listOpen !== null} onOpenChange={open => { if (!open) setListOpen(null); }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-sm">{current?.title}</DialogTitle>
+          </DialogHeader>
+          <div className="max-h-96 overflow-y-auto">
+            {current?.members.length === 0 ? (
+              <p className="text-xs text-slate-400 py-6 text-center">Không có nhân sự</p>
+            ) : (
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="bg-slate-50 border-b sticky top-0">
+                    <th className="px-3 py-2 text-left text-slate-500 font-medium w-8">#</th>
+                    <th className="px-3 py-2 text-left text-slate-500 font-medium">Tên</th>
+                    <th className="px-3 py-2 text-left text-slate-500 font-medium">Role</th>
+                    {current?.fteLabel && (
+                      <th className="px-3 py-2 text-right text-slate-500 font-medium">{current.fteLabel}</th>
+                    )}
+                  </tr>
+                </thead>
+                <tbody>
+                  {current?.members.map((m, i) => (
+                    <tr key={m.id} className={`border-t ${i % 2 === 1 ? 'bg-slate-50/50' : ''}`}>
+                      <td className="px-3 py-2 text-slate-400">{i + 1}</td>
+                      <td className="px-3 py-2 font-medium text-slate-800">{m.name}</td>
+                      <td className="px-3 py-2 text-slate-500">{m.role || '—'}</td>
+                      {current?.fteLabel && (
+                        <td className="px-3 py-2 text-right font-semibold text-slate-700">{current.fteValue(m)}</td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
@@ -548,6 +651,7 @@ export default function GlobalResourcesPage() {
           quota={quota > 0 ? quota : internalCount}
           allProjectFte={allProjectFte}
           overheadRemainingFte={overheadRemainingFte}
+          internalMembers={internalMembers}
         />
 
         {/* External members bar */}
