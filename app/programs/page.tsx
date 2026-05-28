@@ -252,8 +252,9 @@ function ProgramResourceBadge({ programId }: { programId: number }) {
       .catch(() => null);
   }, [programId]);
 
+  if (!data) return null;
   const portfolioAlloc = Number(data.portfolio_allocated) || 0;
-  if (!data || portfolioAlloc === 0) return null;
+  if (portfolioAlloc === 0) return null;
 
   const distributed = data.projects.reduce((s, p) => s + (Number(p.allocated_headcount) || 0), 0);
   const remaining = parseFloat((portfolioAlloc - distributed).toFixed(2));
