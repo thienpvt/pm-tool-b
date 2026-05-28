@@ -307,17 +307,21 @@ function FteKpiBar({ quota, deliveryFte, overheadFte, internalMembers }: {
   const pctBench = base > 0 ? (bench / base) * 100 : 0;
   const fmtFte = (v: number) => parseFloat(v.toFixed(3)).toString();
 
-  // Card 1: delivery members với current_month_fte > 0
+  // Overhead = member_category === 'overhead' HOẶC có overhead_remaining > 0 (phòng khi category null)
+  const isOverhead = (m: PortfolioMember) =>
+    m.member_category === 'overhead' || Number(m.overhead_remaining) > 0;
+
+  // Card 1: delivery members có FTE dự án > 0
   const deliveryMembers = internalMembers
-    .filter(m => m.member_category !== 'overhead' && m.current_month_fte > 0)
+    .filter(m => !isOverhead(m) && m.current_month_fte > 0)
     .sort((a, b) => b.current_month_fte - a.current_month_fte);
-  // Card 2: tất cả overhead members, tổng FTE = current_month_fte + overhead_remaining
+  // Card 2: tất cả overhead members (trong dự án + ngoài dự án)
   const overheadMembers = internalMembers
-    .filter(m => m.member_category === 'overhead')
+    .filter(m => isOverhead(m))
     .sort((a, b) => (b.current_month_fte + b.overhead_remaining) - (a.current_month_fte + a.overhead_remaining));
-  // Card 3: delivery members chưa phân bổ vào dự án nào
+  // Card 3: delivery members chưa phân bổ dự án nào (không phải overhead)
   const benchMembers = internalMembers
-    .filter(m => m.member_category !== 'overhead' && m.current_month_fte === 0)
+    .filter(m => !isOverhead(m) && m.current_month_fte === 0)
     .sort((a, b) => a.name.localeCompare(b.name));
 
   const listConfig: Record<'delivery' | 'overhead' | 'bench', {
@@ -390,12 +394,12 @@ function FteKpiBar({ quota, deliveryFte, overheadFte, internalMembers }: {
 
         <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 flex flex-col gap-1">
           <div className="flex items-center gap-1.5 text-[10px] text-slate-500 font-semibold uppercase tracking-wide">
-            <Users className="h-3 w-3" /> % Bench (dư)
+            <Users className="h-3 w-3" /> Bench (dư)
           </div>
           <div className={`text-2xl font-bold ${bench > 0 ? 'text-emerald-600' : 'text-slate-400'}`}>
-            {pctBench.toFixed(0)}%
+            {fmtFte(bench)}
           </div>
-          <div className="text-xs text-slate-500">{fmtFte(bench)} / {quota > 0 ? quota : '?'} FTE</div>
+          <div className="text-xs text-slate-500">{pctBench.toFixed(0)}% của {quota > 0 ? quota : '?'} FTE</div>
           <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden mt-1">
             <div className="h-full bg-emerald-400 rounded-full" style={{ width: `${Math.min(pctBench, 100)}%` }} />
           </div>
