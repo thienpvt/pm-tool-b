@@ -175,6 +175,38 @@ const SUMMARY_TEMPLATES = {
   },
 };
 
+// ─── Email Prompt Templates ───────────────────────────────────────────────────
+const EMAIL_PROMPT_TEMPLATES = [
+  {
+    id: 'executive',
+    label: 'Báo cáo điều hành',
+    icon: '📊',
+    description: 'Đầy đủ 7 phần, phù hợp báo cáo định kỳ cho Ban Lãnh đạo',
+    instruction: 'Soạn email báo cáo tình hình portfolio toàn diện gửi Ban Lãnh đạo. Bao gồm đầy đủ 7 phần: (1) Tóm tắt điều hành, (2) KPI chính dạng bảng, (3) Tình trạng sức khoẻ dự án theo Program với bảng màu RAG, phân tích nguyên nhân dự án đỏ/vàng, (4) Rủi ro và vấn đề trọng yếu top 5, (5) Cột mốc sắp tới 30 ngày, (6) Đánh giá xu hướng và nhận định PMO về điểm mạnh/yếu, (7) Khuyến nghị hành động cụ thể CẦN lãnh đạo quyết định hoặc hỗ trợ — nêu rõ người/team đề xuất phụ trách và timeline.',
+  },
+  {
+    id: 'quick',
+    label: 'Cập nhật nhanh',
+    icon: '⚡',
+    description: 'Ngắn gọn, chỉ highlights và action items quan trọng',
+    instruction: 'Soạn email executive brief tình hình portfolio. Tập trung vào: (1) 3-4 điểm nổi bật quan trọng nhất trong kỳ, (2) Dự án/rủi ro cần chú ý ngay (nêu cụ thể nguyên nhân), (3) 2-3 hành động ưu tiên cần thực hiện ngay với người phụ trách đề xuất. Ngắn gọn, súc tích, không quá 350 từ. Ưu tiên rõ ràng và actionable hơn đầy đủ.',
+  },
+  {
+    id: 'risk',
+    label: 'Cảnh báo rủi ro',
+    icon: '⚠️',
+    description: 'Tập trung dự án đỏ/vàng, escalation và quyết định cần thiết',
+    instruction: 'Soạn email cảnh báo rủi ro portfolio gửi Ban Lãnh đạo. Tập trung vào: (1) Phân tích chi tiết các dự án đỏ/vàng — nguyên nhân gốc rễ, tác động kinh doanh, phương án xử lý hiện tại và kết quả dự kiến, (2) Rủi ro/vấn đề trọng yếu cần leo thang lên Lãnh đạo — nêu cụ thể điểm bị block, (3) Đề xuất quyết định hoặc hỗ trợ cụ thể cần từ Lãnh đạo để unblock, kèm impact nếu không xử lý kịp. Tone: khẩn cấp nhưng chuyên nghiệp, dựa trên dữ liệu.',
+  },
+  {
+    id: 'milestone',
+    label: 'Review tiến độ',
+    icon: '🎯',
+    description: 'Thành tựu đã đạt, tiến độ thực tế và cột mốc sắp tới',
+    instruction: 'Soạn email review tiến độ và thành tựu dự án gửi Ban Lãnh đạo. Tập trung vào: (1) Thành tựu nổi bật đã hoàn thành trong kỳ — nêu ý nghĩa và tác động kinh doanh của chúng, (2) Trạng thái cột mốc quan trọng sắp tới — on-track vs. at-risk với nguyên nhân, (3) Tiến độ tổng thể so với kế hoạch ban đầu — có đang gia tăng hay chậm lại?, (4) Cảnh báo sớm về deliverables có nguy cơ trễ và đề xuất biện pháp phòng ngừa. Cân bằng giữa ghi nhận thành công và cảnh báo rủi ro tiếp theo.',
+  },
+] as const;
+
 function pickSummary(status: 'red' | 'amber' | 'green', lang: 'vn' | 'en'): string {
   const pool = SUMMARY_TEMPLATES[lang][status];
   const week = Math.floor(Date.now() / (7 * 24 * 60 * 60 * 1000));
@@ -928,6 +960,30 @@ function mdToHtml(text: string): string {
   html += '</div>'; return html;
 }
 
+// ─── Email document wrapper (table-based for Outlook compat) ─────────────────
+function wrapEmailDocument(innerHtml: string, companyName: string): string {
+  const year = new Date().getFullYear();
+  return `<!DOCTYPE html>
+<html lang="vi">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Portfolio Report</title></head>
+<body style="margin:0;padding:0;background-color:#f1f5f9;font-family:Arial,Helvetica,sans-serif;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;">
+  <tr><td style="padding:24px 12px;">
+    <table role="presentation" style="max-width:780px;margin:0 auto;width:100%;">
+      <tr><td style="background:#ffffff;border-radius:12px;overflow:hidden;padding:32px;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
+        ${innerHtml}
+      </td></tr>
+      <tr><td style="padding:16px 0;text-align:center;font-size:11px;color:#94a3b8;line-height:1.8;">
+        ${companyName ? `<strong style="color:#64748b;">${companyName}</strong> · ` : ''}Báo cáo Portfolio · Bảo mật — Chỉ dành cho Ban Lãnh đạo<br>
+        &copy; ${year} ${companyName || 'PMO'}. Gửi từ PMO Tool.
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body>
+</html>`;
+}
+
 // ─── Build HTML Report (black / white / red theme) ───────────────────────────
 function buildHtmlReport(data: PortfolioReportData, language: string, periodStart: string, periodEnd: string, companyName = ''): string {
   const isVN = language === 'Vietnamese';
@@ -1455,6 +1511,16 @@ export default function PortfolioReportPage() {
   const previewRef = useRef<HTMLDivElement>(null);
   const [selectedProjectIds, setSelectedProjectIds] = useState<Set<number>>(new Set());
   const [showProjectSelector, setShowProjectSelector] = useState(false);
+  // Email modal state
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [emailRecipients, setEmailRecipients] = useState('');
+  const [emailSubject, setEmailSubject] = useState('');
+  const [selectedPromptId, setSelectedPromptId] = useState<string>('executive');
+  const [customPromptText, setCustomPromptText] = useState('');
+  const [showCustomPrompt, setShowCustomPrompt] = useState(false);
+  const [generatedEmailHtml, setGeneratedEmailHtml] = useState('');
+  const [generatingEmail, setGeneratingEmail] = useState(false);
+  const [sendingEmail, setSendingEmail] = useState(false);
 
   const loadConfig = useCallback(async () => {
     const res = await fetch('/api/config');
@@ -1670,26 +1736,100 @@ export default function PortfolioReportPage() {
     }
   };
 
-  const sendEmail = async () => {
-    if (!report) { toast.error('Generate a report first'); return; }
-    const subject = encodeURIComponent(`[${companyName}] Portfolio Status Report — ${new Date().toLocaleDateString('en-GB', { month: 'long', day: 'numeric', year: 'numeric' })}`);
-    // Try to copy HTML to clipboard so paste into email body preserves formatting
-    if (htmlReport) {
-      try {
-        const fullHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="format-detection" content="telephone=no,address=no,email=no,date=no,url=no"><style type="text/css">a,a:link,a:visited,a:hover{color:inherit!important;text-decoration:none!important;}</style></head><body style="margin:0;padding:0;background:#f8fafc;">${htmlReport}</body></html>`;
-        const blob = new Blob([fullHtml], { type: 'text/html' });
-        await navigator.clipboard.write([new ClipboardItem({ 'text/html': blob })]);
-      } catch {
-        navigator.clipboard.writeText(report).catch(() => {});
+  const openEmailModal = () => {
+    if (!data) { toast.error('Chưa có dữ liệu portfolio'); return; }
+    setEmailRecipients(ceoEmail || '');
+    setGeneratedEmailHtml('');
+    setEmailSubject('');
+    setShowCustomPrompt(false);
+    setShowEmailModal(true);
+  };
+
+  const generateEmailContent = async () => {
+    if (!data) return;
+    setGeneratingEmail(true);
+    setGeneratedEmailHtml('');
+    try {
+      const fd = selectedProjectIds.size > 0 ? filterDataByProjects(data, selectedProjectIds) : data;
+      const template = EMAIL_PROMPT_TEMPLATES.find(t => t.id === selectedPromptId) ?? EMAIL_PROMPT_TEMPLATES[0];
+      const instruction = showCustomPrompt && customPromptText.trim() ? customPromptText : template.instruction;
+
+      const portfolioPayload = {
+        reportDate: new Date().toLocaleDateString('vi-VN', { day: 'numeric', month: 'long', year: 'numeric' }),
+        periodStart,
+        periodEnd,
+        kpi: fd.kpi,
+        programs: fd.programs.map(c => ({
+          name: c.name, industry: c.industry,
+          projects: c.projects.map(p => ({
+            name: p.name, current_phase: p.current_phase, completion_pct: p.completion_pct,
+            open_risks: p.open_risks, open_issues: p.open_issues,
+            days_until_deadline: p.days_until_deadline, rag: p.rag, pm_name: p.pm_name,
+            done_activities: p.done_activities, total_activities: p.total_activities,
+          })),
+        })),
+        noProgramProjects: fd.noProgramProjects.map(p => ({
+          name: p.name, current_phase: p.current_phase, completion_pct: p.completion_pct,
+          open_risks: p.open_risks, open_issues: p.open_issues,
+          days_until_deadline: p.days_until_deadline, rag: p.rag, pm_name: p.pm_name,
+          done_activities: p.done_activities, total_activities: p.total_activities,
+        })),
+        topRisks: fd.topRisks.map(r => ({ priority: r.priority, description: r.description, project_name: r.project_name })),
+        topIssues: fd.topIssues.map(i => ({ priority: i.priority, description: i.description, project_name: i.project_name })),
+        upcomingMilestones: fd.upcomingMilestones.map(m => ({ plan_end: m.plan_end, activity: m.activity, project_name: m.project_name })),
+        completedByProject: fd.completedByProject,
+        fteStats: fd.fteStats ?? null,
+      };
+
+      const res = await fetch('/api/portfolio/report/generate-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ portfolioData: portfolioPayload, promptInstruction: instruction, language }),
+      });
+      const d = await res.json();
+      if (!res.ok) {
+        toast.error(d.error === 'NO_API_KEY'
+          ? 'Cần cấu hình Anthropic API key trước'
+          : (d.error ?? 'Tạo nội dung email thất bại'));
+        return;
       }
-    } else {
-      navigator.clipboard.writeText(report).catch(() => {});
+      setGeneratedEmailHtml(d.emailHtml);
+      if (d.subject) setEmailSubject(d.subject);
+    } finally {
+      setGeneratingEmail(false);
     }
-    const shortBody = encodeURIComponent(
-      `${language === 'Vietnamese' ? 'Kính gửi,' : 'Dear CEO,'}\n\nPlease find the portfolio status report below.\n\n[Report content copied to clipboard — paste here]\n\n---\nSent via ${companyName ? companyName + ' ' : ''}PMO`
-    );
-    window.open(`mailto:${ceoEmail}?subject=${subject}&body=${shortBody}`, '_self');
-    toast.success('Email client opened. Report copied — paste into email body to keep formatting.');
+  };
+
+  const sendEmailViaApi = async () => {
+    const toList = emailRecipients.split(',').map((e: string) => e.trim()).filter((e: string) => e.includes('@'));
+    if (!toList.length) { toast.error('Nhập ít nhất một email hợp lệ'); return; }
+    if (!generatedEmailHtml) { toast.error('Vui lòng tạo nội dung email trước'); return; }
+
+    setSendingEmail(true);
+    try {
+      const wrappedHtml = wrapEmailDocument(generatedEmailHtml, companyName);
+      const res = await fetch('/api/portfolio/report/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: toList,
+          subject: emailSubject || `[${companyName || 'PMO'}] Báo cáo Portfolio`,
+          htmlBody: wrappedHtml,
+          textBody: '',
+        }),
+      });
+      const d = await res.json();
+      if (!res.ok) {
+        toast.error(d.error === 'NO_RESEND_KEY'
+          ? 'Email chưa cấu hình — cần thêm RESEND_API_KEY vào Railway'
+          : (d.error ?? 'Gửi email thất bại'));
+        return;
+      }
+      toast.success(`Đã gửi báo cáo đến ${toList.join(', ')}`);
+      setShowEmailModal(false);
+    } finally {
+      setSendingEmail(false);
+    }
   };
 
   const allProjects = data ? [...data.programs.flatMap(c => c.projects), ...data.noProgramProjects] : [];
@@ -2324,8 +2464,8 @@ export default function PortfolioReportPage() {
                   <Button variant="outline" onClick={exportTxt} className="h-7 text-xs gap-1 px-2 border-slate-600 text-slate-200 hover:text-slate-900 bg-transparent hover:bg-white">
                     <Download className="h-3 w-3" /> .txt
                   </Button>
-                  <Button onClick={sendEmail} className="h-7 text-xs gap-1 px-2 bg-blue-600 hover:bg-blue-700">
-                    <Mail className="h-3 w-3" /> Send Email
+                  <Button onClick={openEmailModal} className="h-7 text-xs gap-1 px-2 bg-blue-600 hover:bg-blue-700">
+                    <Mail className="h-3 w-3" /> Gửi Email
                   </Button>
                 </div>
               )}
@@ -2391,11 +2531,11 @@ export default function PortfolioReportPage() {
             <div className="bg-white border rounded-xl p-4">
               <h3 className="text-sm font-bold text-slate-700 flex items-center gap-2 mb-3">
                 <Mail className="h-4 w-4 text-blue-500" />
-                Send to CEO
+                Gửi Email Báo Cáo
               </h3>
               <div className="flex gap-2 items-end flex-wrap">
                 <div className="flex-1 min-w-[200px]">
-                  <label className="text-xs text-slate-400 mb-1 block">CEO Email address</label>
+                  <label className="text-xs text-slate-400 mb-1 block">Email mặc định (Lãnh đạo)</label>
                   <Input
                     type="email"
                     className="h-9 text-sm"
@@ -2405,14 +2545,14 @@ export default function PortfolioReportPage() {
                   />
                 </div>
                 <Button variant="outline" onClick={saveCeoEmail} disabled={savingEmail || !ceoEmail} className="h-9 text-xs shrink-0">
-                  {savingEmail ? 'Saving...' : 'Save'}
+                  {savingEmail ? 'Đang lưu...' : 'Lưu'}
                 </Button>
-                <Button onClick={sendEmail} disabled={!report} className="h-9 gap-2 text-sm bg-blue-600 hover:bg-blue-700 shrink-0">
-                  <Mail className="h-4 w-4" /> Open Email Client
+                <Button onClick={openEmailModal} className="h-9 gap-2 text-sm bg-blue-600 hover:bg-blue-700 shrink-0">
+                  <Mail className="h-4 w-4" /> Soạn & Gửi Email
                 </Button>
               </div>
               <p className="text-[11px] text-slate-400 mt-2">
-                Report content will be copied to clipboard. Paste it into the email body after the client opens.
+                Claude sẽ tổng hợp dữ liệu report thành email chuyên nghiệp rồi gửi trực tiếp đến hộp thư người nhận.
               </p>
             </div>
           )}
@@ -2427,6 +2567,159 @@ export default function PortfolioReportPage() {
 
         </div>
       </main>
+
+      {/* ── Email Modal ──────────────────────────────────────────────────────── */}
+      {showEmailModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b shrink-0">
+              <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                <Mail className="h-4 w-4 text-blue-600" />
+                Soạn & Gửi Email Báo Cáo Portfolio
+              </h3>
+              <button
+                onClick={() => setShowEmailModal(false)}
+                className="text-slate-400 hover:text-slate-600 text-lg leading-none"
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Scrollable body */}
+            <div className="overflow-y-auto flex-1 p-5 space-y-4">
+
+              {/* Prompt template selector */}
+              <div>
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2 block">
+                  Chọn loại email
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  {EMAIL_PROMPT_TEMPLATES.map(t => (
+                    <button
+                      key={t.id}
+                      onClick={() => {
+                        setSelectedPromptId(t.id);
+                        if (showCustomPrompt) setCustomPromptText(t.instruction);
+                      }}
+                      className={`text-left p-3 rounded-lg border transition-all ${selectedPromptId === t.id ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'}`}
+                    >
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <span className="text-sm">{t.icon}</span>
+                        <span className="text-xs font-semibold text-slate-700">{t.label}</span>
+                        {selectedPromptId === t.id && <span className="ml-auto text-xs text-blue-600 font-bold">✓</span>}
+                      </div>
+                      <p className="text-[11px] text-slate-400 leading-tight">{t.description}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Custom prompt toggle */}
+              <div>
+                <button
+                  onClick={() => {
+                    if (!showCustomPrompt) {
+                      const template = EMAIL_PROMPT_TEMPLATES.find(t => t.id === selectedPromptId);
+                      setCustomPromptText(template?.instruction ?? '');
+                    }
+                    setShowCustomPrompt(v => !v);
+                  }}
+                  className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1 font-medium"
+                >
+                  <span className="text-[10px]">{showCustomPrompt ? '▲' : '▼'}</span>
+                  {showCustomPrompt ? 'Ẩn tùy chỉnh lệnh' : 'Tùy chỉnh lệnh cho Claude'}
+                </button>
+                {showCustomPrompt && (
+                  <Textarea
+                    className="mt-2 text-xs font-mono min-h-[90px] resize-none border-slate-300"
+                    value={customPromptText}
+                    onChange={e => setCustomPromptText(e.target.value)}
+                    placeholder="Nhập lệnh tùy chỉnh cho Claude..."
+                  />
+                )}
+              </div>
+
+              {/* Generate button */}
+              <Button
+                onClick={generateEmailContent}
+                disabled={generatingEmail || !data}
+                className="w-full gap-2 bg-violet-600 hover:bg-violet-700 disabled:opacity-50"
+              >
+                {generatingEmail
+                  ? <><Loader2 className="h-4 w-4 animate-spin" /> Claude đang soạn email...</>
+                  : <><Sparkles className="h-4 w-4" /> Tạo nội dung email với Claude</>
+                }
+              </Button>
+
+              {/* Preview */}
+              {generatedEmailHtml && !generatingEmail && (
+                <div>
+                  <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2 block">
+                    Xem trước nội dung email
+                  </label>
+                  <div
+                    className="border border-slate-200 rounded-lg overflow-auto max-h-[320px] bg-white p-4 text-sm"
+                    dangerouslySetInnerHTML={{ __html: generatedEmailHtml }}
+                  />
+                </div>
+              )}
+
+              {/* Subject + Recipients — only show after generation */}
+              {generatedEmailHtml && !generatingEmail && (
+                <div className="space-y-3 pt-1 border-t">
+                  <div>
+                    <label className="text-xs font-medium text-slate-500 mb-1 block">Tiêu đề email</label>
+                    <Input
+                      className="h-9 text-sm"
+                      value={emailSubject}
+                      onChange={e => setEmailSubject(e.target.value)}
+                      placeholder={`[${companyName || 'PMO'}] Báo cáo Portfolio...`}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-slate-500 mb-1 block">
+                      Gửi đến <span className="text-slate-400 font-normal">(nhiều email cách nhau bằng dấu phẩy)</span>
+                    </label>
+                    <Input
+                      className="h-9 text-sm"
+                      placeholder="ceo@company.com, director@company.com"
+                      value={emailRecipients}
+                      onChange={e => setEmailRecipients(e.target.value)}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="flex gap-2 justify-end px-5 py-4 border-t shrink-0">
+              <Button
+                variant="outline"
+                onClick={() => setShowEmailModal(false)}
+                disabled={sendingEmail}
+                className="h-9 text-xs"
+              >
+                Hủy
+              </Button>
+              {generatedEmailHtml && !generatingEmail && (
+                <Button
+                  onClick={sendEmailViaApi}
+                  disabled={sendingEmail || !emailRecipients.trim()}
+                  className="h-9 gap-2 text-sm bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {sendingEmail
+                    ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Đang gửi...</>
+                    : <><Mail className="h-3.5 w-3.5" /> Gửi Email</>
+                  }
+                </Button>
+              )}
+            </div>
+
+          </div>
+        </div>
+      )}
     </div>
   );
 }
