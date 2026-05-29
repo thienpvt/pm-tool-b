@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { Search, ExternalLink, Users, ChevronRight, Download, Target, Building2, Briefcase, Shield } from 'lucide-react';
+import { Search, ExternalLink, Users, ChevronRight, ChevronLeft, Download, Target, Building2, Briefcase, Shield } from 'lucide-react';
 
 type Member = {
   id: number;
@@ -343,8 +343,8 @@ function FteKpiBar({ quota, deliveryFte, overheadFte, internalMembers }: {
     bench: {
       title: `Nhân sự Bench — chưa phân bổ (${benchMembers.length} người)`,
       members: benchMembers,
-      fteLabel: '',
-      fteValue: () => '—',
+      fteLabel: 'FTE còn lại',
+      fteValue: (m) => (1 - Number(m.current_month_fte)).toFixed(2),
     },
   };
 
@@ -466,6 +466,8 @@ export default function GlobalResourcesPage() {
   }[]>([]);
   const [externalOpen, setExternalOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const quotaSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const loadPortfolio = () =>
@@ -485,6 +487,8 @@ export default function GlobalResourcesPage() {
       .then(data => { setMembers(Array.isArray(data) ? data : []); setLoading(false); });
     loadPortfolio();
   }, []);
+
+  useEffect(() => { setPage(1); }, [search, filterDomain]);
 
   const handleQuotaChange = (value: number) => {
     setQuota(value);
@@ -592,6 +596,29 @@ export default function GlobalResourcesPage() {
     domainGroups.get(d)!.push(p);
   }
   const sortedDomains = [...domainGroups.keys()].sort();
+
+  // Pagination over flat person list
+  const allPersonsSorted: Array<{ person: PersonSummary; domain: string }> = [];
+  for (const domain of sortedDomains) {
+    for (const p of domainGroups.get(domain) ?? []) {
+      allPersonsSorted.push({ person: p, domain });
+    }
+  }
+  const totalPersonsCount = allPersonsSorted.length;
+  const totalPages = Math.max(1, Math.ceil(totalPersonsCount / pageSize));
+  const pageStart = (page - 1) * pageSize;
+  const pageEnd = Math.min(pageStart + pageSize, totalPersonsCount);
+  const paginatedList = allPersonsSorted.slice(pageStart, pageEnd);
+
+  const paginatedGroups = new Map<string, PersonSummary[]>();
+  const paginatedDomainOrder: string[] = [];
+  for (const { person, domain } of paginatedList) {
+    if (!paginatedGroups.has(domain)) {
+      paginatedGroups.set(domain, []);
+      paginatedDomainOrder.push(domain);
+    }
+    paginatedGroups.get(domain)!.push(person);
+  }
 
   // Summary stats (from all members, not filtered)
   const totalPersons = new Set(members.map(m => m.name.trim().toLowerCase())).size;
@@ -764,8 +791,8 @@ export default function GlobalResourcesPage() {
                 </tr>
               </thead>
               <tbody>
-                {sortedDomains.map(domain => {
-                  const persons = domainGroups.get(domain) ?? [];
+                {paginatedDomainOrder.map(domain => {
+                  const persons = paginatedGroups.get(domain) ?? [];
                   return (
                     <>
                       <tr key={`d-${domain}`}>
@@ -817,6 +844,45 @@ export default function GlobalResourcesPage() {
                 })}
               </tbody>
             </table>
+            {/* Pagination controls */}
+            <div className="flex items-center justify-between px-4 py-2.5 border-t bg-slate-50 text-xs text-slate-500">
+              <div className="flex items-center gap-2">
+                <span>
+                  {totalPersonsCount === 0 ? '0' : pageStart + 1}–{pageEnd} / {totalPersonsCount} nhân sự
+                </span>
+                <div className="h-3 w-px bg-slate-200" />
+                <span>Số dòng:</span>
+                <Select value={String(pageSize)} onValueChange={v => { setPageSize(Number(v)); setPage(1); }}>
+                  <SelectTrigger className="h-6 w-16 text-xs px-2">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[10, 20, 50, 100].map(n => (
+                      <SelectItem key={n} value={String(n)}>{n}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Button
+                  variant="outline"
+                  className="h-6 px-2 text-xs"
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                >
+                  <ChevronLeft className="h-3 w-3" />
+                </Button>
+                <span className="text-slate-600 tabular-nums">Trang {page}/{totalPages}</span>
+                <Button
+                  variant="outline"
+                  className="h-6 px-2 text-xs"
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  disabled={page >= totalPages}
+                >
+                  <ChevronRight className="h-3 w-3" />
+                </Button>
+              </div>
+            </div>
           </div>
         )}
 
