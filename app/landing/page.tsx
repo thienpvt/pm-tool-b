@@ -5,6 +5,7 @@ import {
   BarChart3, ShieldAlert, FileBarChart2, Calendar, Users,
   DollarSign, ChevronRight, CheckCircle2, Menu, X,
   TrendingUp, Target, Zap, ArrowRight, Activity, Download, Sparkles,
+  ClipboardList,
 } from 'lucide-react';
 
 function KoinoboriIcon({ className }: { className?: string }) {
@@ -76,8 +77,35 @@ const CAPABILITIES = [
   { icon: Download,   value: '1-click', label: 'PDF / PPT export',     sub: 'Board-ready in seconds' },
 ];
 
+const EMPTY_DEMO = { full_name: '', phone: '', email: '', company_name: '' };
+
 export default function LandingPage() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [demoOpen, setDemoOpen] = useState(false);
+  const [demoForm, setDemoForm] = useState(EMPTY_DEMO);
+  const [demoLoading, setDemoLoading] = useState(false);
+  const [demoSuccess, setDemoSuccess] = useState(false);
+
+  const submitDemo = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!demoForm.full_name.trim() || !demoForm.phone.trim() || !demoForm.email.trim() || !demoForm.company_name.trim()) return;
+    setDemoLoading(true);
+    try {
+      const res = await fetch('/api/demo-requests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(demoForm),
+      });
+      if (res.ok) {
+        setDemoSuccess(true);
+        setDemoForm(EMPTY_DEMO);
+      }
+    } finally {
+      setDemoLoading(false);
+    }
+  };
+
+  const openDemo = () => { setDemoSuccess(false); setDemoForm(EMPTY_DEMO); setDemoOpen(true); };
 
   return (
     <div className="min-h-screen bg-white text-slate-900 antialiased">
@@ -99,6 +127,12 @@ export default function LandingPage() {
           </nav>
 
           <div className="hidden md:flex items-center gap-3">
+            <button
+              onClick={openDemo}
+              className="px-5 py-2 text-sm font-semibold text-blue-600 border border-blue-200 hover:bg-blue-50 rounded-lg transition-colors"
+            >
+              Đăng ký trải nghiệm
+            </button>
             <Link
               href="/login"
               className="px-5 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
@@ -121,7 +155,10 @@ export default function LandingPage() {
           <div className="md:hidden border-t border-slate-100 bg-white px-4 py-4 flex flex-col gap-3">
             <a href="#features" onClick={() => setMobileOpen(false)} className="py-2 text-sm font-medium text-slate-700">Features</a>
             <a href="#how-it-works" onClick={() => setMobileOpen(false)} className="py-2 text-sm font-medium text-slate-700">How it works</a>
-            <Link href="/login" className="mt-2 text-center py-2.5 text-sm font-semibold text-white bg-blue-600 rounded-lg">
+            <button onClick={() => { setMobileOpen(false); openDemo(); }} className="mt-1 text-center py-2.5 text-sm font-semibold text-blue-600 border border-blue-200 rounded-lg">
+              Đăng ký trải nghiệm
+            </button>
+            <Link href="/login" className="text-center py-2.5 text-sm font-semibold text-white bg-blue-600 rounded-lg">
               Sign In
             </Link>
           </div>
@@ -156,20 +193,20 @@ export default function LandingPage() {
           </p>
 
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link
-              href="/login"
+            <button
+              onClick={openDemo}
               className="inline-flex items-center gap-2 px-8 py-3.5 text-sm font-bold text-white bg-blue-600 hover:bg-blue-500 rounded-xl transition-colors shadow-lg shadow-blue-900/40"
             >
-              Sign In to your workspace
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-            <a
-              href="#features"
+              <ClipboardList className="h-4 w-4" />
+              Đăng ký trải nghiệm
+            </button>
+            <Link
+              href="/login"
               className="inline-flex items-center gap-2 px-8 py-3.5 text-sm font-semibold text-slate-300 hover:text-white border border-slate-700 hover:border-slate-500 rounded-xl transition-colors"
             >
-              Explore features
-              <ChevronRight className="h-4 w-4" />
-            </a>
+              Sign In
+              <ArrowRight className="h-4 w-4" />
+            </Link>
           </div>
 
           {/* Capabilities bar */}
@@ -591,11 +628,123 @@ export default function LandingPage() {
           <p className="text-xs text-slate-600">
             Project Management · AI-Powered · Built for PMOs
           </p>
-          <Link href="/login" className="text-xs font-semibold text-blue-500 hover:text-blue-400 transition-colors">
-            Sign In →
-          </Link>
+          <div className="flex items-center gap-4">
+            <button onClick={openDemo} className="text-xs font-semibold text-blue-400 hover:text-blue-300 transition-colors">
+              Đăng ký trải nghiệm →
+            </button>
+            <Link href="/login" className="text-xs font-semibold text-blue-500 hover:text-blue-400 transition-colors">
+              Sign In →
+            </Link>
+          </div>
         </div>
       </footer>
+
+      {/* ── Demo Request Modal ───────────────────────────────────────────────── */}
+      {demoOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setDemoOpen(false)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 sm:p-8">
+            <button
+              onClick={() => setDemoOpen(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 transition-colors"
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            {demoSuccess ? (
+              <div className="text-center py-6">
+                <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <CheckCircle2 className="h-7 w-7 text-green-500" />
+                </div>
+                <h3 className="text-lg font-bold text-slate-900 mb-2">Đã nhận yêu cầu!</h3>
+                <p className="text-sm text-slate-500 mb-6">
+                  Cảm ơn bạn đã đăng ký. Chúng tôi sẽ liên hệ với bạn trong thời gian sớm nhất.
+                </p>
+                <button
+                  onClick={() => setDemoOpen(false)}
+                  className="px-6 py-2.5 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition-colors"
+                >
+                  Đóng
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center shrink-0">
+                    <ClipboardList className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-900">Đăng ký trải nghiệm</h3>
+                    <p className="text-xs text-slate-500">Để lại thông tin, chúng tôi sẽ liên hệ với bạn</p>
+                  </div>
+                </div>
+
+                <form onSubmit={submitDemo} className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+                      Họ và tên <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={demoForm.full_name}
+                      onChange={e => setDemoForm(f => ({ ...f, full_name: e.target.value }))}
+                      placeholder="Nguyễn Văn A"
+                      className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+                      Số điện thoại <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="tel"
+                      required
+                      value={demoForm.phone}
+                      onChange={e => setDemoForm(f => ({ ...f, phone: e.target.value }))}
+                      placeholder="0912 345 678"
+                      className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+                      Email <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      value={demoForm.email}
+                      onChange={e => setDemoForm(f => ({ ...f, email: e.target.value }))}
+                      placeholder="email@congty.com"
+                      className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+                      Tên công ty <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={demoForm.company_name}
+                      onChange={e => setDemoForm(f => ({ ...f, company_name: e.target.value }))}
+                      placeholder="Công ty TNHH ABC"
+                      className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={demoLoading}
+                    className="w-full py-3 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-60 rounded-xl transition-colors mt-2"
+                  >
+                    {demoLoading ? 'Đang gửi...' : 'Gửi đăng ký'}
+                  </button>
+                </form>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
     </div>
   );

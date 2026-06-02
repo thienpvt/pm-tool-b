@@ -348,6 +348,16 @@ async function initPostgresSchema(db: DbClient) {
       milestone_id INTEGER NOT NULL REFERENCES milestones(id) ON DELETE CASCADE,
       activity_id INTEGER NOT NULL REFERENCES activities(id) ON DELETE CASCADE,
       UNIQUE(milestone_id, activity_id)
+    );
+    CREATE TABLE IF NOT EXISTS demo_requests (
+      id SERIAL PRIMARY KEY,
+      full_name TEXT NOT NULL,
+      phone TEXT NOT NULL,
+      email TEXT NOT NULL,
+      company_name TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending',
+      notes TEXT DEFAULT '',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `);
 }
@@ -404,6 +414,7 @@ async function migratePostgresSchema(pool: Pool) {
     `CREATE TABLE IF NOT EXISTS milestone_epics (id SERIAL PRIMARY KEY, milestone_id INTEGER NOT NULL REFERENCES milestones(id) ON DELETE CASCADE, activity_id INTEGER NOT NULL REFERENCES activities(id) ON DELETE CASCADE, UNIQUE(milestone_id, activity_id))`,
     // Sync ALL projects' company_id to match their customer's company_id (definitive data fix)
     `UPDATE projects SET company_id = c.company_id FROM customers c WHERE projects.customer_id = c.id AND c.company_id IS NOT NULL`,
+    `CREATE TABLE IF NOT EXISTS demo_requests (id SERIAL PRIMARY KEY, full_name TEXT NOT NULL, phone TEXT NOT NULL, email TEXT NOT NULL, company_name TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending', notes TEXT DEFAULT '', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
   ];
   for (const sql of migrations) {
     try { await pool.query(sql); } catch { /* column already exists */ }
