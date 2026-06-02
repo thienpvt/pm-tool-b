@@ -334,6 +334,20 @@ async function initPostgresSchema(db: DbClient) {
       allocated_headcount INTEGER DEFAULT 0,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       UNIQUE(program_id, project_id)
+    );
+    CREATE TABLE IF NOT EXISTS milestones (
+      id SERIAL PRIMARY KEY,
+      project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      start_date TEXT,
+      end_date TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE TABLE IF NOT EXISTS milestone_epics (
+      id SERIAL PRIMARY KEY,
+      milestone_id INTEGER NOT NULL REFERENCES milestones(id) ON DELETE CASCADE,
+      activity_id INTEGER NOT NULL REFERENCES activities(id) ON DELETE CASCADE,
+      UNIQUE(milestone_id, activity_id)
     )
   `);
 }
@@ -386,6 +400,8 @@ async function migratePostgresSchema(pool: Pool) {
     `ALTER TABLE projects ADD COLUMN IF NOT EXISTS project_owner TEXT DEFAULT ''`,
     `ALTER TABLE projects ADD COLUMN IF NOT EXISTS budget NUMERIC(15,2) DEFAULT 0`,
     `ALTER TABLE projects ADD COLUMN IF NOT EXISTS budget_currency TEXT DEFAULT 'VND'`,
+    `CREATE TABLE IF NOT EXISTS milestones (id SERIAL PRIMARY KEY, project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE, name TEXT NOT NULL, start_date TEXT, end_date TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
+    `CREATE TABLE IF NOT EXISTS milestone_epics (id SERIAL PRIMARY KEY, milestone_id INTEGER NOT NULL REFERENCES milestones(id) ON DELETE CASCADE, activity_id INTEGER NOT NULL REFERENCES activities(id) ON DELETE CASCADE, UNIQUE(milestone_id, activity_id))`,
   ];
   for (const sql of migrations) {
     try { await pool.query(sql); } catch { /* column already exists */ }

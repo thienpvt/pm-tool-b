@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { toast } from 'sonner';
 import {
   Calendar, Users, MessageSquare, AlertTriangle, FileText,
-  Download, Pencil, Trash2, Building2, ClipboardList,
+  Download, Pencil, Trash2, Building2, ClipboardList, Flag,
 } from 'lucide-react';
 
 const CURRENCIES = ['VND', 'USD', 'EUR', 'JPY', 'SGD', 'GBP', 'AUD'];
@@ -42,6 +42,7 @@ function formatBudget(amount: number, currency: string): string {
 
 const QUICK_LINKS = [
   { href: '/timeline',      icon: Calendar,       label: 'Project Timeline',  desc: 'Quản lý activities & deliverables' },
+  { href: '/milestones',    icon: Flag,            label: 'Milestones',        desc: 'Các mốc quan trọng của project' },
   { href: '/resources',     icon: Users,           label: 'Resource Plan',     desc: 'Team members & capacity' },
   { href: '/communication', icon: MessageSquare,   label: 'Communication',     desc: 'Meetings & escalation path' },
   { href: '/risks',         icon: AlertTriangle,   label: 'Risks & Issues',    desc: 'Risk register & issue log' },
