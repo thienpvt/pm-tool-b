@@ -2,7 +2,7 @@
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import Sidebar from '@/components/layout/Sidebar';
-import { ChevronDown, ChevronRight, ChevronLeft, Building2, Map, CalendarDays, Download } from 'lucide-react';
+import { ChevronDown, ChevronRight, ChevronLeft, Building2, Map, CalendarDays, Download, Filter, X } from 'lucide-react';
 import { toPng } from 'html-to-image';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -103,6 +103,8 @@ export default function PortfolioRoadmap() {
   const [selectedYear, setYear]   = useState(() => new Date().getFullYear());
   const [viewMonths, setViewMonths] = useState<[number, number]>([0, 11]);
   const [exporting, setExporting] = useState(false);
+  const [filterProgram, setFilterProgram] = useState<number | null>(null);
+  const [filterProject, setFilterProject] = useState<number | null>(null);
   const roadmapRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -146,19 +148,47 @@ export default function PortfolioRoadmap() {
     return (ms - tl.rStart.getTime()) / tl.totalMs * 100;
   }, [tl]);
 
+  const availableProjects = useMemo((): ProjectRow[] => {
+    if (!data) return [];
+    if (filterProgram === null) {
+      return [
+        ...data.programs.flatMap((p: ProgramGroup) => p.projects),
+        ...data.noProgramProjects,
+      ].sort((a, b) => a.name.localeCompare(b.name));
+    }
+    if (filterProgram === 0) {
+      return [...data.noProgramProjects].sort((a, b) => a.name.localeCompare(b.name));
+    }
+    const prog = data.programs.find((p: ProgramGroup) => p.id === filterProgram);
+    return (prog?.projects ?? []).slice().sort((a, b) => a.name.localeCompare(b.name));
+  }, [data, filterProgram]);
+
   const groups = useMemo((): ProgramGroup[] => {
     if (!data) return [];
-    const filter = (ps: ProjectRow[]) => ps.filter(p => projectInYear(p, selectedYear));
-    return [
+    const yearFilter = (ps: ProjectRow[]) =>
+      ps.filter(p => filterProject === p.id ? true : projectInYear(p, selectedYear));
+
+    let result: ProgramGroup[] = [
       ...data.programs
-        .map((c: ProgramGroup) => ({ ...c, projects: filter(c.projects) }))
+        .map((c: ProgramGroup) => ({ ...c, projects: yearFilter(c.projects) }))
         .filter((c: ProgramGroup) => c.projects.length > 0),
       ...((() => {
-        const ps = filter(data.noProgramProjects);
+        const ps = yearFilter(data.noProgramProjects);
         return ps.length ? [{ id: 0, name: 'Unassigned', industry: '', projects: ps }] : [];
       })()),
     ];
-  }, [data, selectedYear]);
+
+    if (filterProgram !== null) {
+      result = result.filter(g => g.id === filterProgram);
+    }
+    if (filterProject !== null) {
+      result = result
+        .map(g => ({ ...g, projects: g.projects.filter((p: ProjectRow) => p.id === filterProject) }))
+        .filter(g => g.projects.length > 0);
+    }
+
+    return result;
+  }, [data, selectedYear, filterProgram, filterProject]);
 
   const setYearAndReset = useCallback((y: number) => {
     setYear(y);
@@ -331,6 +361,47 @@ export default function PortfolioRoadmap() {
           <span className="text-[11px] text-slate-400 ml-1">
             {tl.months.length} month{tl.months.length !== 1 ? 's' : ''} shown
           </span>
+
+          <span className="text-slate-300">|</span>
+
+          {/* Program / Project filter */}
+          <Filter className="h-3 w-3 text-slate-400 shrink-0" />
+          <select
+            value={filterProgram ?? ''}
+            onChange={e => {
+              const val = e.target.value === '' ? null : +e.target.value;
+              setFilterProgram(val);
+              setFilterProject(null);
+            }}
+            className="text-xs border border-slate-200 rounded-md px-1.5 py-1 text-slate-700 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400"
+          >
+            <option value="">Tất cả Program</option>
+            {data?.programs.map((p: ProgramGroup) => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+            {data?.noProgramProjects.length ? <option value={0}>Unassigned</option> : null}
+          </select>
+
+          <select
+            value={filterProject ?? ''}
+            onChange={e => setFilterProject(e.target.value === '' ? null : +e.target.value)}
+            className="text-xs border border-slate-200 rounded-md px-1.5 py-1 text-slate-700 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400"
+          >
+            <option value="">Tất cả Project</option>
+            {availableProjects.map((p: ProjectRow) => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
+
+          {(filterProgram !== null || filterProject !== null) && (
+            <button
+              onClick={() => { setFilterProgram(null); setFilterProject(null); }}
+              className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100 transition-colors"
+            >
+              <X className="h-3 w-3" />
+              Xóa filter
+            </button>
+          )}
         </div>
 
         {/* ── Legend ── */}
