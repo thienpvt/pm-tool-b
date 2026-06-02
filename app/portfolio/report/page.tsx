@@ -10,8 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import {
   Sparkles, Eye, Copy, Download, Mail, KeyRound, RefreshCw,
-  TrendingUp, FileText, ShieldAlert, Bug, CheckCircle2, AlertCircle,
-  Calendar, ChevronRight, User, Building2, CalendarRange, Loader2, Image, FileDown, Filter, ChevronDown,
+  TrendingUp, FileText, CheckCircle2, AlertCircle,
+  Calendar, ChevronRight, Building2, CalendarRange, Loader2, Image, FileDown, Filter, ChevronDown,
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -83,13 +83,6 @@ const SAVED_PROMPTS_KEY = 'portfolio_email_saved_prompts';
 const MAX_SAVED_PROMPTS = 5;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-function fmtDeadline(days: number | null, isVN: boolean): string {
-  if (days === null) return '—';
-  if (days < 0) return isVN ? `Quá hạn ${Math.abs(days)}d` : `Overdue ${Math.abs(days)}d`;
-  if (days === 0) return isVN ? 'Hôm nay' : 'Today';
-  return isVN ? `Còn ${days}d` : `${days}d left`;
-}
-
 function fmtDate(s: string | null | undefined): string {
   if (!s) return '—';
   try {
@@ -119,14 +112,6 @@ function progressColor(pct: number): string {
   if (pct >= 40) return 'bg-blue-500';
   if (pct >= 20) return 'bg-amber-400';
   return 'bg-red-400';
-}
-
-function deadlineColor(days: number | null): string {
-  if (days === null) return 'text-slate-400';
-  if (days < 0) return 'text-red-600 font-semibold';
-  if (days <= 7) return 'text-red-500 font-medium';
-  if (days <= 14) return 'text-amber-600 font-medium';
-  return 'text-slate-600';
 }
 
 // ─── Summary Templates (rotates weekly) ──────────────────────────────────────
@@ -339,49 +324,9 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
       lines.push('');
     }
 
-    // ── II. Portfolio Health Matrix ──────────────────────────────────────────
+    // ── II. Completed in Period ──────────────────────────────────────────────
     lines.push(D);
-    lines.push('  II. MA TRẬN SỨC KHỎE PORTFOLIO');
-    lines.push(D);
-    lines.push('');
-    lines.push(tHL('┌', '┬', '┐'));
-    lines.push(tRow('#', 'TRẠNG THÁI', 'SQUAD/DỰ ÁN', 'CHƯƠNG TRÌNH', 'PHASE', '%', 'DEADLINE'));
-    lines.push(tHL('├', '┼', '┤'));
-    sorted.forEach((p, i) => {
-      const stLabel = p.rag === 'red' ? '● ĐỎ' : p.rag === 'amber' ? '● VÀNG' : '● XANH';
-      const dl = p.days_until_deadline;
-      const dlStr = dl === null ? '—' : dl < 0 ? `QUÁ HẠN ${Math.abs(dl)}d` : `${dl}d còn`;
-      lines.push(tRow(String(i + 1), stLabel, p.name, p.program_name || '—', p.current_phase, String(p.completion_pct) + '%', dlStr));
-    });
-    lines.push(tHL('└', '┴', '┘'));
-    lines.push('');
-    lines.push(`  Tổng kết:  ${green.length} XANH   ·   ${amber.length} VÀNG   ·   ${red.length} ĐỎ`);
-    lines.push('');
-
-    // Per-project US progress details
-    if (allProjects.some(p => p.total_activities > 0)) {
-      lines.push('  CHI TIẾT TIẾN ĐỘ USER STORY / ACTIVITY:');
-      lines.push(`  ${'─'.repeat(80)}`);
-      sorted.forEach((p, i) => {
-        if (p.total_activities === 0) return;
-        lines.push(`  ${String(i+1).padStart(2)}. ${p.name}${p.program_name ? ` (${p.program_name})` : ''} — ${p.current_phase}`);
-        lines.push(`      Tiến độ (TT): ${String(p.completion_pct).padStart(3)}%   |   Hoàn thành: ${p.done_activities}   Đang thực hiện: ${p.in_progress_activities}   Chưa bắt đầu: ${p.not_started_activities}   Tổng: ${p.total_activities} US`);
-        if (p.epicStats && p.epicStats.length > 0) {
-          p.epicStats.forEach(e => {
-            const bar = '█'.repeat(Math.round(e.pct / 10)) + '░'.repeat(10 - Math.round(e.pct / 10));
-            const sd = e.start_date ?? 'N/A';
-            const ed = e.end_date ?? 'N/A';
-            lines.push(`      ▸ ${rp(e.phase, 20)}  [${bar}]  ${String(e.pct).padStart(3)}%  (${String(e.done).padStart(2)}/${String(e.total).padStart(2)} US)  ${sd} → ${ed}`);
-          });
-        }
-        if (i < sorted.length - 1) lines.push('');
-      });
-      lines.push('');
-    }
-
-    // ── III. Completed in Period ──────────────────────────────────────────────
-    lines.push(D);
-    lines.push('  III. TIẾN ĐỘ THEO KỲ — HOÀN THÀNH TRONG GIAI ĐOẠN');
+    lines.push('  II. TIẾN ĐỘ THEO KỲ — HOÀN THÀNH TRONG GIAI ĐOẠN');
     lines.push(D);
     lines.push(`  Kỳ báo cáo: ${periodStart} → ${periodEnd}`);
     lines.push('');
@@ -399,82 +344,9 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
     }
     lines.push('');
 
-    // ── IV. Risks & Issues ───────────────────────────────────────────────────
+    // ── III. Actions Required ────────────────────────────────────────────────
     lines.push(D);
-    lines.push('  IV. RỦI RO & VẤN ĐỀ NGHIÊM TRỌNG');
-    lines.push(D);
-    lines.push('');
-    lines.push('  A. RỦI RO ĐANG MỞ:');
-    if (data.topRisks.length === 0) {
-      lines.push('     Không có rủi ro mở ở cấp portfolio.');
-    } else {
-      data.topRisks.slice(0, 6).forEach((r, i) => {
-        lines.push(`     ${String(i+1).padStart(2)}.  [${r.priority.toUpperCase()}]  ${r.description}`);
-        lines.push(`          Squad/DA  : ${r.project_name}${r.program_name ? ` (${r.program_name})` : ''}`);
-        lines.push(`          Danh mục  : ${r.category || '—'}`);
-        lines.push(`          Giảm thiểu: ${r.mitigation || 'Đang đánh giá'}`);
-        if (i < Math.min(data.topRisks.length, 6) - 1) lines.push('');
-      });
-    }
-    lines.push('');
-    lines.push('  B. VẤN ĐỀ ĐANG MỞ:');
-    if (data.topIssues.length === 0) {
-      lines.push('     Không có vấn đề mở ở cấp portfolio.');
-    } else {
-      data.topIssues.slice(0, 6).forEach((r, i) => {
-        lines.push(`     ${String(i+1).padStart(2)}.  [${r.priority.toUpperCase()}]  ${r.description}`);
-        lines.push(`          Squad/DA: ${r.project_name}${r.program_name ? ` (${r.program_name})` : ''}`);
-        lines.push(`          Xử lý   : ${r.mitigation || 'Đang điều tra'}`);
-        if (i < Math.min(data.topIssues.length, 6) - 1) lines.push('');
-      });
-    }
-    lines.push('');
-
-    // ── V. Upcoming Milestones ───────────────────────────────────────────────
-    lines.push(D);
-    lines.push('  V.  MILESTONE SẮP TỚI — 30 NGÀY TỚI');
-    lines.push(D);
-    lines.push('');
-    if (data.upcomingMilestones.length === 0) {
-      lines.push('  Không có milestone quan trọng nào trong 30 ngày tới.');
-    } else {
-      lines.push(mlHL('┌', '┬', '┐'));
-      lines.push(mlRow('NGÀY', 'HOẠT ĐỘNG / DELIVERABLE', 'SQUAD/DA', '%'));
-      lines.push(mlHL('├', '┼', '┤'));
-      data.upcomingMilestones.forEach(m => {
-        const label = m.deliverable ? `${m.activity} / ${m.deliverable}` : m.activity;
-        lines.push(mlRow(m.plan_end || '—', label, m.project_name, String(m.completion_pct ?? 0) + '%'));
-      });
-      lines.push(mlHL('└', '┴', '┘'));
-    }
-    lines.push('');
-
-    // ── VI. Program Scorecard ───────────────────────────────────────────────
-    lines.push(D);
-    lines.push('  VI. BẢNG ĐIỂM CHƯƠNG TRÌNH');
-    lines.push(D);
-    lines.push('');
-    lines.push(csHL('┌', '┬', '┐'));
-    lines.push(csRow('CHƯƠNG TRÌNH', 'DA', 'ACTIVE', 'TB %', 'SỨC KHỎE', 'RỦI RO', 'VẤN ĐỀ'));
-    lines.push(csHL('├', '┼', '┤'));
-    data.programs.forEach(c => {
-      if (c.projects.length === 0) return;
-      const avgPct = Math.round(c.projects.reduce((s, p) => s + p.completion_pct, 0) / c.projects.length);
-      const activeCount = c.projects.filter(p => p.current_phase !== 'Closing').length;
-      const worstRag = c.projects.some(p => p.rag === 'red') ? '● ĐỎ' : c.projects.some(p => p.rag === 'amber') ? '● VÀNG' : '● XANH';
-      const risks = c.projects.reduce((s, p) => s + p.open_risks, 0);
-      const issues = c.projects.reduce((s, p) => s + p.open_issues, 0);
-      lines.push(csRow(c.name, String(c.projects.length), String(activeCount), String(avgPct) + '%', worstRag, String(risks), String(issues)));
-    });
-    lines.push(csHL('└', '┴', '┘'));
-    if (data.noProgramProjects.length > 0) {
-      lines.push(`\n  Lưu ý: ${data.noProgramProjects.length} Squad/Dự án chưa được gán cho chương trình.`);
-    }
-    lines.push('');
-
-    // ── VII. Actions Required ────────────────────────────────────────────────
-    lines.push(D);
-    lines.push('  VII. HÀNH ĐỘNG CẦN THIẾT — Steering Committee / CEO');
+    lines.push('  III. HÀNH ĐỘNG CẦN THIẾT — Steering Committee / CEO');
     lines.push(D);
     lines.push('');
     const criticalRisksVN = data.topRisks.filter(r => r.priority === 'Critical');
@@ -499,7 +371,7 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
     }
     lines.push('');
 
-    // ── VIII. Resource Allocation & Block Headcount Coverage ────────────────
+    // ── IV. Resource Allocation & Block Headcount Coverage ────────────────
     if (data.fteStats) {
       const fs = data.fteStats;
       const ps = data.personnelStats;
@@ -516,7 +388,7 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
       const underPrograms = fs.programFillRates.filter(p => p.allocated > 0 && p.fillRate < 90);
 
       lines.push(D);
-      lines.push('  VIII. PHÂN BỔ NGUỒN LỰC & ĐỘ PHỦ ĐỊNH BIÊN TOÀN KHỐI');
+      lines.push('  IV. PHÂN BỔ NGUỒN LỰC & ĐỘ PHỦ ĐỊNH BIÊN TOÀN KHỐI');
       lines.push(D);
       lines.push('');
 
@@ -653,49 +525,9 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
       lines.push('');
     }
 
-    // ── II. Portfolio Health Matrix ──────────────────────────────────────────
+    // ── II. Completed in Period ──────────────────────────────────────────────
     lines.push(D);
-    lines.push('  II. PORTFOLIO HEALTH MATRIX');
-    lines.push(D);
-    lines.push('');
-    lines.push(tHL('┌', '┬', '┐'));
-    lines.push(tRow('#', 'STATUS', 'SQUAD/PROJECT', 'PROGRAM', 'PHASE', 'PCT', 'DEADLINE'));
-    lines.push(tHL('├', '┼', '┤'));
-    sorted.forEach((p, i) => {
-      const stLabel = p.rag === 'red' ? '● RED' : p.rag === 'amber' ? '● AMBER' : '● GREEN';
-      const dl = p.days_until_deadline;
-      const dlStr = dl === null ? '—' : dl < 0 ? `OVERDUE ${Math.abs(dl)}d` : `${dl}d left`;
-      lines.push(tRow(String(i + 1), stLabel, p.name, p.program_name || '—', p.current_phase, String(p.completion_pct) + '%', dlStr));
-    });
-    lines.push(tHL('└', '┴', '┘'));
-    lines.push('');
-    lines.push(`  Summary:  ${green.length} GREEN   ·   ${amber.length} AMBER   ·   ${red.length} RED`);
-    lines.push('');
-
-    // Per-project US progress details
-    if (allProjects.some(p => p.total_activities > 0)) {
-      lines.push('  SQUAD/PROJECT PROGRESS DETAILS:');
-      lines.push(`  ${'─'.repeat(80)}`);
-      sorted.forEach((p, i) => {
-        if (p.total_activities === 0) return;
-        lines.push(`  ${String(i+1).padStart(2)}. ${p.name}${p.program_name ? ` (${p.program_name})` : ''} — ${p.current_phase}`);
-        lines.push(`      Progress (weighted): ${String(p.completion_pct).padStart(3)}%   |   Done: ${p.done_activities}   In Progress: ${p.in_progress_activities}   Not Started: ${p.not_started_activities}   Total: ${p.total_activities} US`);
-        if (p.epicStats && p.epicStats.length > 0) {
-          p.epicStats.forEach(e => {
-            const bar = '█'.repeat(Math.round(e.pct / 10)) + '░'.repeat(10 - Math.round(e.pct / 10));
-            const sd = e.start_date ?? 'N/A';
-            const ed = e.end_date ?? 'N/A';
-            lines.push(`      ▸ ${rp(e.phase, 20)}  [${bar}]  ${String(e.pct).padStart(3)}%  (${String(e.done).padStart(2)}/${String(e.total).padStart(2)} US)  ${sd} → ${ed}`);
-          });
-        }
-        if (i < sorted.length - 1) lines.push('');
-      });
-      lines.push('');
-    }
-
-    // ── III. Completed in Period ──────────────────────────────────────────────
-    lines.push(D);
-    lines.push('  III. PROGRESS REPORT — COMPLETED IN PERIOD');
+    lines.push('  II. PROGRESS REPORT — COMPLETED IN PERIOD');
     lines.push(D);
     lines.push(`  Reporting Period: ${periodStart} → ${periodEnd}`);
     lines.push('');
@@ -713,82 +545,9 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
     }
     lines.push('');
 
-    // ── IV. Critical Risks & Issues ──────────────────────────────────────────
+    // ── III. Actions Required ────────────────────────────────────────────────
     lines.push(D);
-    lines.push('  IV. CRITICAL RISKS & ISSUES');
-    lines.push(D);
-    lines.push('');
-    lines.push('  A. OPEN RISKS:');
-    if (data.topRisks.length === 0) {
-      lines.push('     No open risks at portfolio level.');
-    } else {
-      data.topRisks.slice(0, 6).forEach((r, i) => {
-        lines.push(`     ${String(i+1).padStart(2)}.  [${r.priority.toUpperCase()}]  ${r.description}`);
-        lines.push(`          Squad/Proj : ${r.project_name}${r.program_name ? ` (${r.program_name})` : ''}`);
-        lines.push(`          Category   : ${r.category || '—'}`);
-        lines.push(`          Mitigation : ${r.mitigation || 'Under assessment'}`);
-        if (i < Math.min(data.topRisks.length, 6) - 1) lines.push('');
-      });
-    }
-    lines.push('');
-    lines.push('  B. OPEN ISSUES:');
-    if (data.topIssues.length === 0) {
-      lines.push('     No open issues at portfolio level.');
-    } else {
-      data.topIssues.slice(0, 6).forEach((r, i) => {
-        lines.push(`     ${String(i+1).padStart(2)}.  [${r.priority.toUpperCase()}]  ${r.description}`);
-        lines.push(`          Squad/Proj : ${r.project_name}${r.program_name ? ` (${r.program_name})` : ''}`);
-        lines.push(`          Resolution : ${r.mitigation || 'Under investigation'}`);
-        if (i < Math.min(data.topIssues.length, 6) - 1) lines.push('');
-      });
-    }
-    lines.push('');
-
-    // ── V. Upcoming Milestones ───────────────────────────────────────────────
-    lines.push(D);
-    lines.push('  V.  UPCOMING MILESTONES — Next 30 Days');
-    lines.push(D);
-    lines.push('');
-    if (data.upcomingMilestones.length === 0) {
-      lines.push('  No significant milestones in the next 30 days.');
-    } else {
-      lines.push(mlHL('┌', '┬', '┐'));
-      lines.push(mlRow('DATE', 'MILESTONE / DELIVERABLE', 'SQUAD/PROJ', 'PCT'));
-      lines.push(mlHL('├', '┼', '┤'));
-      data.upcomingMilestones.forEach(m => {
-        const label = m.deliverable ? `${m.activity} / ${m.deliverable}` : m.activity;
-        lines.push(mlRow(m.plan_end || '—', label, m.project_name, String(m.completion_pct ?? 0) + '%'));
-      });
-      lines.push(mlHL('└', '┴', '┘'));
-    }
-    lines.push('');
-
-    // ── VI. Program Scorecard ───────────────────────────────────────────────
-    lines.push(D);
-    lines.push('  VI. PROGRAM PORTFOLIO SCORECARD');
-    lines.push(D);
-    lines.push('');
-    lines.push(csHL('┌', '┬', '┐'));
-    lines.push(csRow('PROGRAM', 'S/PROJ', 'ACTIVE', 'AVG %', 'HEALTH', 'RISKS', 'ISSUES'));
-    lines.push(csHL('├', '┼', '┤'));
-    data.programs.forEach(c => {
-      if (c.projects.length === 0) return;
-      const avgPct = Math.round(c.projects.reduce((s, p) => s + p.completion_pct, 0) / c.projects.length);
-      const activeCount = c.projects.filter(p => p.current_phase !== 'Closing').length;
-      const worstRag = c.projects.some(p => p.rag === 'red') ? '● RED' : c.projects.some(p => p.rag === 'amber') ? '● AMBER' : '● GREEN';
-      const risks = c.projects.reduce((s, p) => s + p.open_risks, 0);
-      const issues = c.projects.reduce((s, p) => s + p.open_issues, 0);
-      lines.push(csRow(c.name, String(c.projects.length), String(activeCount), String(avgPct) + '%', worstRag, String(risks), String(issues)));
-    });
-    lines.push(csHL('└', '┴', '┘'));
-    if (data.noProgramProjects.length > 0) {
-      lines.push(`\n  Note: ${data.noProgramProjects.length} Squad/Project(s) not assigned to any program.`);
-    }
-    lines.push('');
-
-    // ── VII. Actions Required ────────────────────────────────────────────────
-    lines.push(D);
-    lines.push('  VII. ACTIONS REQUIRED — Steering Committee / CEO');
+    lines.push('  III. ACTIONS REQUIRED — Steering Committee / CEO');
     lines.push(D);
     lines.push('');
     const criticalRisksEN = data.topRisks.filter(r => r.priority === 'Critical');
@@ -813,7 +572,7 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
     }
     lines.push('');
 
-    // ── VIII. Resource Allocation & Block Headcount Coverage ────────────────
+    // ── IV. Resource Allocation & Block Headcount Coverage ────────────────
     if (data.fteStats) {
       const fs = data.fteStats;
       const ps = data.personnelStats;
@@ -830,7 +589,7 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
       const underProgramsEN = fs.programFillRates.filter(p => p.allocated > 0 && p.fillRate < 90);
 
       lines.push(D);
-      lines.push('  VIII. RESOURCE ALLOCATION & BLOCK HEADCOUNT COVERAGE');
+      lines.push('  IV. RESOURCE ALLOCATION & BLOCK HEADCOUNT COVERAGE');
       lines.push(D);
       lines.push('');
 
@@ -1871,13 +1630,6 @@ export default function PortfolioReportPage() {
   const red = allProjects.filter(p => p.rag === 'red');
   const amber = allProjects.filter(p => p.rag === 'amber');
   const green = allProjects.filter(p => p.rag === 'green');
-  const isVN = language === 'Vietnamese';
-
-  // Sorted projects for table: red → amber → green
-  const sortedProjects = [...allProjects].sort((a, b) => {
-    const o: Record<string, number> = { red: 0, amber: 1, green: 2 };
-    return o[a.rag] - o[b.rag];
-  });
 
   return (
     <div className="flex flex-col lg:flex-row min-h-screen bg-slate-50">
@@ -1992,7 +1744,7 @@ export default function PortfolioReportPage() {
                 <div className="px-4 py-2.5 bg-slate-800 flex items-center gap-2">
                   <CheckCircle2 className="h-3.5 w-3.5 text-green-400" />
                   <span className="text-xs font-bold text-white">
-                    III. Completed in Period — {fmtDateShort(periodStart)} → {fmtDateShort(periodEnd)}
+                    II. Completed in Period — {fmtDateShort(periodStart)} → {fmtDateShort(periodEnd)}
                   </span>
                   <Badge className="ml-auto bg-green-600 text-white border-0 text-[10px]">
                     {Object.values(data.completedByProject).reduce((s, g) => s + g.activities.length, 0)} items
@@ -2162,306 +1914,7 @@ export default function PortfolioReportPage() {
             )}
           </div>
 
-          {/* ── 5. Portfolio Health Matrix ── */}
-          {data && (
-            <div className="bg-white border rounded-xl overflow-hidden">
-              <div className="flex items-center justify-between px-5 py-3.5 bg-slate-800">
-                <h2 className="text-sm font-bold text-white flex items-center gap-2">
-                  <TrendingUp className="h-4 w-4 text-slate-300" />
-                  II. Portfolio Health Matrix
-                </h2>
-                <Badge className="bg-slate-600 text-slate-200 border-0 text-xs">{allProjects.length} projects</Badge>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-slate-100 text-slate-500 text-xs uppercase tracking-wide">
-                      <th className="px-4 py-2.5 text-left w-8">#</th>
-                      <th className="px-4 py-2.5 text-left">Status</th>
-                      <th className="px-4 py-2.5 text-left">Project</th>
-                      <th className="px-4 py-2.5 text-left">Program</th>
-                      <th className="px-4 py-2.5 text-left">Phase</th>
-                      <th className="px-4 py-2.5 text-left w-32">Progress</th>
-                      <th className="px-4 py-2.5 text-left">Deadline</th>
-                      <th className="px-4 py-2.5 text-left">PM</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {sortedProjects.map((p, i) => (
-                      <tr key={p.id} className={`hover:bg-slate-50 transition-colors ${RAG_ROW[p.rag]}`}>
-                        <td className="px-4 py-3 text-xs text-slate-400">{i + 1}</td>
-                        <td className="px-4 py-3">
-                          <span className="flex items-center gap-1.5">
-                            <span className={`w-2.5 h-2.5 rounded-full ${RAG_DOT[p.rag]} shrink-0`} />
-                            <span className={`text-xs font-semibold ${p.rag === 'red' ? 'text-red-600' : p.rag === 'amber' ? 'text-amber-600' : 'text-green-600'}`}>
-                              {p.rag.toUpperCase()}
-                            </span>
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <Link href={`/projects/${p.id}`} className="font-medium text-slate-800 hover:text-blue-600 flex items-center gap-1 group">
-                            {p.name}
-                            <ChevronRight className="h-3 w-3 text-slate-300 group-hover:text-blue-400 transition-colors" />
-                          </Link>
-                        </td>
-                        <td className="px-4 py-3 text-slate-500 text-xs">{p.program_name || p.client || '—'}</td>
-                        <td className="px-4 py-3">
-                          <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${PHASE_COLOR[p.current_phase] ?? 'bg-slate-100 text-slate-600 border-slate-200'}`}>
-                            {p.current_phase}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-2">
-                            <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden min-w-[60px]">
-                              <div className={`h-full rounded-full transition-all ${progressColor(p.completion_pct)}`} style={{ width: `${p.completion_pct}%` }} />
-                            </div>
-                            <span className="text-xs text-slate-600 font-medium w-8 text-right">{p.completion_pct}%</span>
-                          </div>
-                          {p.total_activities > 0 && (
-                            <div className="flex items-center gap-2 mt-0.5 text-[10px]">
-                              <span className="text-green-600 font-medium">✓{p.done_activities}</span>
-                              <span className="text-amber-500 font-medium">⟳{p.in_progress_activities}</span>
-                              <span className="text-slate-400">○{p.not_started_activities}</span>
-                              <span className="text-slate-300">/{p.total_activities}</span>
-                            </div>
-                          )}
-                        </td>
-                        <td className={`px-4 py-3 text-xs ${deadlineColor(p.days_until_deadline)}`}>
-                          {fmtDeadline(p.days_until_deadline, isVN)}
-                        </td>
-                        <td className="px-4 py-3 text-xs text-slate-500 flex items-center gap-1">
-                          <User className="h-3 w-3 text-slate-300" />
-                          {p.pm_name || '—'}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {/* ── 6. Risks/Issues + Milestones ── */}
-          {data && (
-            <div className="grid grid-cols-1 xl:grid-cols-5 gap-5">
-              {/* Left: Risks & Issues */}
-              <div className="xl:col-span-3 space-y-4">
-                {/* Risks */}
-                <div className="bg-white border rounded-xl overflow-hidden">
-                  <div className="flex items-center justify-between px-5 py-3.5 bg-slate-800">
-                    <h2 className="text-sm font-bold text-white flex items-center gap-2">
-                      <ShieldAlert className="h-4 w-4 text-slate-300" />
-                      IV. Critical Risks
-                    </h2>
-                    <Badge className="bg-slate-600 text-slate-200 border-0 text-xs">{data.topRisks.length} open</Badge>
-                  </div>
-                  <div className="divide-y divide-slate-50">
-                    {data.topRisks.length === 0 ? (
-                      <div className="flex items-center gap-2 px-5 py-4 text-sm text-green-600">
-                        <CheckCircle2 className="h-4 w-4" />
-                        No open risks at portfolio level
-                      </div>
-                    ) : data.topRisks.map(r => (
-                      <div key={r.id} className="px-5 py-3.5 hover:bg-slate-50/60 transition-colors">
-                        <div className="flex items-start gap-2.5">
-                          <span className={`mt-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded border shrink-0 ${priorityColor(r.priority)}`}>
-                            {r.priority}
-                          </span>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm text-slate-700 font-medium leading-snug">{r.description}</p>
-                            <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-1">
-                              <Building2 className="h-3 w-3" />
-                              {r.project_name}{r.program_name ? ` · ${r.program_name}` : ''}
-                            </p>
-                            {r.mitigation && (
-                              <p className="text-xs text-slate-400 italic mt-1">{r.mitigation}</p>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Issues */}
-                <div className="bg-white border rounded-xl overflow-hidden">
-                  <div className="flex items-center justify-between px-5 py-3.5 bg-slate-800">
-                    <h2 className="text-sm font-bold text-white flex items-center gap-2">
-                      <Bug className="h-4 w-4 text-slate-300" />
-                      Critical Issues
-                    </h2>
-                    <Badge className="bg-slate-600 text-slate-200 border-0 text-xs">{data.topIssues.length} open</Badge>
-                  </div>
-                  <div className="divide-y divide-slate-50">
-                    {data.topIssues.length === 0 ? (
-                      <div className="flex items-center gap-2 px-5 py-4 text-sm text-green-600">
-                        <CheckCircle2 className="h-4 w-4" />
-                        No open issues at portfolio level
-                      </div>
-                    ) : data.topIssues.map(i => (
-                      <div key={i.id} className="px-5 py-3.5 hover:bg-slate-50/60 transition-colors">
-                        <div className="flex items-start gap-2.5">
-                          <span className={`mt-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded border shrink-0 ${priorityColor(i.priority)}`}>
-                            {i.priority}
-                          </span>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm text-slate-700 font-medium leading-snug">{i.description}</p>
-                            <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-1">
-                              <Building2 className="h-3 w-3" />
-                              {i.project_name}{i.program_name ? ` · ${i.program_name}` : ''}
-                            </p>
-                            {i.mitigation && (
-                              <p className="text-xs text-slate-400 italic mt-1">{i.mitigation}</p>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Right: Milestones + Recently Completed */}
-              <div className="xl:col-span-2 space-y-4">
-                {/* Upcoming Milestones */}
-                <div className="bg-white border rounded-xl overflow-hidden">
-                  <div className="flex items-center justify-between px-5 py-3.5 bg-slate-800">
-                    <h2 className="text-sm font-bold text-white flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-slate-300" />
-                      V. Upcoming Milestones
-                    </h2>
-                    <Badge className="bg-slate-600 text-slate-200 border-0 text-xs">30 days</Badge>
-                  </div>
-                  <div className="divide-y divide-slate-50">
-                    {data.upcomingMilestones.length === 0 ? (
-                      <div className="flex items-center gap-2 px-5 py-4 text-sm text-slate-400">
-                        <Calendar className="h-4 w-4" />
-                        No milestones in next 30 days
-                      </div>
-                    ) : data.upcomingMilestones.map(m => (
-                      <div key={m.id} className="px-5 py-3 hover:bg-slate-50/60 transition-colors">
-                        <div className="flex items-start gap-2">
-                          <span className="mt-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-50 border border-blue-200 text-blue-700 shrink-0 whitespace-nowrap">
-                            {fmtDate(m.plan_end)}
-                          </span>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm text-slate-700 font-medium leading-snug truncate">{m.activity}</p>
-                            {m.deliverable && (
-                              <p className="text-xs text-slate-400 truncate">→ {m.deliverable}</p>
-                            )}
-                            <div className="flex items-center justify-between mt-1">
-                              <p className="text-xs text-slate-400 truncate">{m.project_name}</p>
-                              <span className="text-[10px] font-bold px-1 py-0.5 rounded bg-slate-100 text-slate-500 ml-2 shrink-0">
-                                {m.completion_pct ?? 0}%
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Recently Completed */}
-                {data.recentlyCompleted.length > 0 && (
-                  <div className="bg-white border rounded-xl overflow-hidden">
-                    <div className="flex items-center justify-between px-5 py-3.5 bg-slate-800">
-                      <h2 className="text-sm font-bold text-white flex items-center gap-2">
-                        <CheckCircle2 className="h-4 w-4 text-slate-300" />
-                        Recently Completed
-                      </h2>
-                      <Badge className="bg-slate-600 text-slate-200 border-0 text-xs">14 days</Badge>
-                    </div>
-                    <div className="divide-y divide-slate-50">
-                      {data.recentlyCompleted.map(r => (
-                        <div key={r.id} className="px-5 py-3 hover:bg-slate-50/60 transition-colors">
-                          <div className="flex items-start gap-2">
-                            <CheckCircle2 className="h-3.5 w-3.5 text-green-500 mt-0.5 shrink-0" />
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm text-slate-700 font-medium leading-snug truncate">{r.activity}</p>
-                              <div className="flex items-center justify-between mt-0.5">
-                                <p className="text-xs text-slate-400 truncate">{r.project_name}</p>
-                                <span className="text-[10px] text-green-600 ml-2 shrink-0">{fmtDate(r.actual_end)}</span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* ── 7. Program Scorecard ── */}
-          {data && (
-            <div className="bg-white border rounded-xl overflow-hidden">
-              <div className="flex items-center justify-between px-5 py-3.5 bg-slate-800">
-                <h2 className="text-sm font-bold text-white flex items-center gap-2">
-                  <Building2 className="h-4 w-4 text-slate-300" />
-                  VI. Program Portfolio Scorecard
-                </h2>
-                <Badge className="bg-slate-600 text-slate-200 border-0 text-xs">{data.programs.length} programs</Badge>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-slate-100 text-slate-500 text-xs uppercase tracking-wide">
-                      <th className="px-4 py-2.5 text-left">Program</th>
-                      <th className="px-4 py-2.5 text-left">Industry</th>
-                      <th className="px-4 py-2.5 text-center">Projects</th>
-                      <th className="px-4 py-2.5 text-center">Active</th>
-                      <th className="px-4 py-2.5 text-left w-36">Avg Progress</th>
-                      <th className="px-4 py-2.5 text-left">Health</th>
-                      <th className="px-4 py-2.5 text-center">Risks</th>
-                      <th className="px-4 py-2.5 text-center">Issues</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {data.programs.filter(c => c.projects.length > 0).map(c => {
-                      const avgPct = Math.round(c.projects.reduce((s, p) => s + p.completion_pct, 0) / c.projects.length);
-                      const activeCount = c.projects.filter(p => p.current_phase !== 'Closing').length;
-                      const worstRag: 'red' | 'amber' | 'green' = c.projects.some(p => p.rag === 'red') ? 'red' : c.projects.some(p => p.rag === 'amber') ? 'amber' : 'green';
-                      const risks = c.projects.reduce((s, p) => s + p.open_risks, 0);
-                      const issues = c.projects.reduce((s, p) => s + p.open_issues, 0);
-                      return (
-                        <tr key={c.id} className="hover:bg-slate-50 transition-colors">
-                          <td className="px-4 py-3 font-medium text-slate-800">{c.name}</td>
-                          <td className="px-4 py-3 text-xs text-slate-400">{c.industry || '—'}</td>
-                          <td className="px-4 py-3 text-center text-slate-600">{c.projects.length}</td>
-                          <td className="px-4 py-3 text-center text-slate-600">{activeCount}</td>
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-2">
-                              <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                <div className={`h-full rounded-full ${progressColor(avgPct)}`} style={{ width: `${avgPct}%` }} />
-                              </div>
-                              <span className="text-xs font-medium text-slate-600 w-8 text-right">{avgPct}%</span>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3">
-                            <span className={`flex items-center gap-1.5 text-xs font-semibold w-fit px-2 py-0.5 rounded-full border ${worstRag === 'red' ? 'text-red-600 bg-red-50 border-red-200' : worstRag === 'amber' ? 'text-amber-600 bg-amber-50 border-amber-200' : 'text-green-600 bg-green-50 border-green-200'}`}>
-                              <span className={`w-1.5 h-1.5 rounded-full ${RAG_DOT[worstRag]}`} />
-                              {worstRag.toUpperCase()}
-                            </span>
-                          </td>
-                          <td className={`px-4 py-3 text-center text-xs font-semibold ${risks > 0 ? 'text-red-500' : 'text-slate-400'}`}>{risks}</td>
-                          <td className={`px-4 py-3 text-center text-xs font-semibold ${issues > 0 ? 'text-amber-500' : 'text-slate-400'}`}>{issues}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-                {data.noProgramProjects.length > 0 && (
-                  <div className="px-5 py-3 border-t text-xs text-slate-400 italic">
-                    {data.noProgramProjects.length} project(s) not assigned to any program
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* ── 8. Report Generation Panel ── */}
+          {/* ── 5. Report Generation Panel ── */}
           <div className="bg-white border rounded-xl overflow-hidden">
             <div className="flex items-center justify-between px-5 py-3.5 bg-slate-800">
               <h2 className="text-sm font-bold text-white flex items-center gap-2">
