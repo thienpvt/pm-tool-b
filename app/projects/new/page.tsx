@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/layout/Sidebar';
@@ -13,8 +13,18 @@ import { ChevronRight, ChevronLeft, Check, Building2, Plus } from 'lucide-react'
 import Link from 'next/link';
 
 const STEPS = ['Project Info', 'Team & Timeline', 'Confirm'];
+const CURRENCIES = ['VND', 'USD', 'EUR', 'JPY', 'SGD', 'GBP', 'AUD'];
 
 type Program = { id: number; name: string; industry: string; };
+
+function formatBudget(amount: number, currency: string): string {
+  if (!amount) return '';
+  const formatted = new Intl.NumberFormat(currency === 'VND' ? 'vi-VN' : 'en-US', {
+    maximumFractionDigits: currency === 'VND' ? 0 : 2,
+    minimumFractionDigits: 0,
+  }).format(amount);
+  return `${formatted} ${currency}`;
+}
 
 export default function NewProjectPage() {
   const router = useRouter();
@@ -23,7 +33,7 @@ export default function NewProjectPage() {
   const [programs, setPrograms] = useState<Program[]>([]);
   const [form, setForm] = useState({
     name: '', client: '', customer_id: '', description: '',
-    objective: '', project_owner: '', budget: '',
+    objective: '', project_owner: '', budget: '', budget_currency: 'VND',
     pm_name: '', pm_email: '',
     start_date: '', end_date: '',
     current_phase: 'Initiation',
@@ -173,8 +183,28 @@ export default function NewProjectPage() {
                 <Input id="project_owner" className="mt-1.5" placeholder="Tên Project Owner / Sponsor..." value={form.project_owner} onChange={e => set('project_owner', e.target.value)} />
               </div>
               <div>
-                <Label htmlFor="budget">Budget (VND)</Label>
-                <Input id="budget" className="mt-1.5" type="number" min="0" placeholder="0" value={form.budget} onChange={e => set('budget', e.target.value)} />
+                <Label htmlFor="budget">Budget</Label>
+                <div className="flex gap-2 mt-1.5">
+                  <Input
+                    id="budget"
+                    type="number"
+                    min="0"
+                    placeholder="0"
+                    className="flex-1"
+                    value={form.budget}
+                    onChange={e => set('budget', e.target.value)}
+                  />
+                  <Select value={form.budget_currency} onValueChange={v => set('budget_currency', v ?? 'VND')}>
+                    <SelectTrigger className="w-24">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CURRENCIES.map(c => (
+                        <SelectItem key={c} value={c}>{c}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -200,7 +230,7 @@ export default function NewProjectPage() {
                 <div className="flex gap-2"><span className="text-slate-500 w-36 shrink-0">Phase:</span><span>{form.current_phase}</span></div>
                 <div className="flex gap-2"><span className="text-slate-500 w-36 shrink-0">PM:</span><span>{form.pm_name || '—'} {form.pm_email ? `(${form.pm_email})` : ''}</span></div>
                 {form.project_owner && <div className="flex gap-2"><span className="text-slate-500 w-36 shrink-0">Project Owner:</span><span>{form.project_owner}</span></div>}
-                {form.budget && <div className="flex gap-2"><span className="text-slate-500 w-36 shrink-0">Budget:</span><span>{Number(form.budget).toLocaleString('vi-VN')} VND</span></div>}
+                {form.budget && <div className="flex gap-2"><span className="text-slate-500 w-36 shrink-0">Budget:</span><span>{formatBudget(Number(form.budget), form.budget_currency)}</span></div>}
                 <div className="flex gap-2"><span className="text-slate-500 w-36 shrink-0">Timeline:</span><span>{form.start_date || '—'} → {form.end_date || '—'}</span></div>
                 {form.description && <div className="flex gap-2"><span className="text-slate-500 w-36 shrink-0">Description:</span><span>{form.description}</span></div>}
                 {form.objective && <div className="flex gap-2"><span className="text-slate-500 w-36 shrink-0">Objective:</span><span>{form.objective}</span></div>}

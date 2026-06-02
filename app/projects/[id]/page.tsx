@@ -18,15 +18,27 @@ import {
   Download, Pencil, Trash2, Building2, ClipboardList,
 } from 'lucide-react';
 
+const CURRENCIES = ['VND', 'USD', 'EUR', 'JPY', 'SGD', 'GBP', 'AUD'];
+
 type Program = { id: number; name: string; industry: string; };
 type Project = {
   id: number; name: string; client: string; customer_id: number | null;
   pm_name: string; pm_email: string;
   start_date: string; end_date: string; status: string;
   current_phase: string; description: string;
-  objective: string; project_owner: string; budget: number;
+  objective: string; project_owner: string;
+  budget: number; budget_currency: string;
   created_at: string;
 };
+
+function formatBudget(amount: number, currency: string): string {
+  if (!amount) return '';
+  const formatted = new Intl.NumberFormat(currency === 'VND' ? 'vi-VN' : 'en-US', {
+    maximumFractionDigits: currency === 'VND' ? 0 : 2,
+    minimumFractionDigits: 0,
+  }).format(amount);
+  return `${formatted} ${currency}`;
+}
 
 const QUICK_LINKS = [
   { href: '/timeline',      icon: Calendar,       label: 'Project Timeline',  desc: 'Quản lý activities & deliverables' },
@@ -72,10 +84,11 @@ export default function ProjectPage() {
 
   const saveEdit = async () => {
     const chosenProgram = programs.find(c => c.id === editForm.customer_id);
-    const payload = {
+    const payload: Partial<Project> = {
       ...editForm,
-      client: chosenProgram?.name ?? (editForm.customer_id ? editForm.client : ''),
+      client: chosenProgram?.name ?? (editForm.customer_id ? (editForm.client ?? '') : ''),
       budget: editForm.budget ? Number(editForm.budget) : 0,
+      budget_currency: editForm.budget_currency || 'VND',
     };
     const res = await fetch(`/api/projects/${id}`, {
       method: 'PATCH',
@@ -127,7 +140,7 @@ export default function ProjectPage() {
     }
   };
 
-  const set = (key: keyof Project, value: string | number | null) =>
+  const setField = <K extends keyof Project>(key: K, value: Project[K]) =>
     setEditForm(f => ({ ...f, [key]: value }));
 
   const selectedProgram = programs.find(c => c.id === (editForm.customer_id ?? project?.customer_id));
@@ -138,6 +151,10 @@ export default function ProjectPage() {
       <main className="flex-1 p-4 lg:p-8"><p className="text-slate-400">Loading...</p></main>
     </div>
   );
+
+  const budgetDisplay = project.budget > 0
+    ? formatBudget(Number(project.budget), project.budget_currency || 'VND')
+    : null;
 
   return (
     <div className="flex flex-col lg:flex-row min-h-screen">
@@ -161,7 +178,7 @@ export default function ProjectPage() {
               {project.project_owner && <span>Owner: <span className="font-medium text-slate-600">{project.project_owner}</span></span>}
               {project.pm_email && <span>{project.pm_email}</span>}
               {project.start_date && <span>{project.start_date} → {project.end_date || '?'}</span>}
-              {project.budget > 0 && <span>Budget: <span className="font-medium text-slate-600">{Number(project.budget).toLocaleString('vi-VN')} VND</span></span>}
+              {budgetDisplay && <span>Budget: <span className="font-medium text-slate-600">{budgetDisplay}</span></span>}
             </div>
             {project.objective && (
               <p className="text-xs text-slate-500 mt-1.5 italic">Objective: {project.objective}</p>
@@ -236,7 +253,7 @@ export default function ProjectPage() {
               <div className="flex gap-2">
                 <Select
                   value={editForm.customer_id ? String(editForm.customer_id) : 'none'}
-                  onValueChange={v => set('customer_id', v === 'none' ? null : Number(v))}
+                  onValueChange={v => setField('customer_id', v === 'none' ? null : Number(v))}
                 >
                   <SelectTrigger className="h-9 text-sm flex-1">
                     <SelectValue placeholder="Select program..." />
@@ -265,52 +282,117 @@ export default function ProjectPage() {
 
             {/* Project name */}
             <FieldRow label="Project Name *">
-              <Input className="h-9 text-sm" value={editForm.name ?? ''} onChange={e => set('name', e.target.value)} />
+              <Input
+                className="h-9 text-sm"
+                value={editForm.name ?? ''}
+                onChange={e => setField('name', e.target.value)}
+              />
             </FieldRow>
 
             {/* Description */}
             <FieldRow label="Description">
-              <Textarea className="text-sm min-h-[80px]" value={editForm.description ?? ''} onChange={e => set('description', e.target.value)} placeholder="Mô tả ngắn về project..." />
+              <Textarea
+                className="text-sm min-h-[80px]"
+                value={editForm.description ?? ''}
+                onChange={e => setField('description', e.target.value)}
+                placeholder="Mô tả ngắn về project..."
+              />
             </FieldRow>
 
             {/* Objective */}
             <FieldRow label="Objective">
-              <Textarea className="text-sm min-h-[80px]" value={editForm.objective ?? ''} onChange={e => set('objective', e.target.value)} placeholder="Mục tiêu, kết quả kỳ vọng của project..." />
+              <Textarea
+                className="text-sm min-h-[80px]"
+                value={editForm.objective ?? ''}
+                onChange={e => setField('objective', e.target.value)}
+                placeholder="Mục tiêu, kết quả kỳ vọng của project..."
+              />
             </FieldRow>
 
             {/* PM row */}
             <div className="grid grid-cols-2 gap-4">
               <FieldRow label="Project Manager">
-                <Input className="h-9 text-sm" value={editForm.pm_name ?? ''} onChange={e => set('pm_name', e.target.value)} placeholder="Nguyễn Văn A" />
+                <Input
+                  className="h-9 text-sm"
+                  value={editForm.pm_name ?? ''}
+                  onChange={e => setField('pm_name', e.target.value)}
+                  placeholder="Nguyễn Văn A"
+                />
               </FieldRow>
               <FieldRow label="PM Email">
-                <Input className="h-9 text-sm" type="email" value={editForm.pm_email ?? ''} onChange={e => set('pm_email', e.target.value)} placeholder="pm@example.com" />
+                <Input
+                  className="h-9 text-sm"
+                  type="email"
+                  value={editForm.pm_email ?? ''}
+                  onChange={e => setField('pm_email', e.target.value)}
+                  placeholder="pm@example.com"
+                />
               </FieldRow>
             </div>
 
-            {/* Project Owner + Budget */}
-            <div className="grid grid-cols-2 gap-4">
-              <FieldRow label="Project Owner">
-                <Input className="h-9 text-sm" value={editForm.project_owner ?? ''} onChange={e => set('project_owner', e.target.value)} placeholder="Tên Project Owner / Sponsor..." />
-              </FieldRow>
-              <FieldRow label="Budget (VND)">
-                <Input className="h-9 text-sm" type="number" min="0" value={editForm.budget ?? 0} onChange={e => set('budget', e.target.value ? Number(e.target.value) : 0)} placeholder="0" />
-              </FieldRow>
-            </div>
+            {/* Project Owner */}
+            <FieldRow label="Project Owner">
+              <Input
+                className="h-9 text-sm"
+                value={editForm.project_owner ?? ''}
+                onChange={e => setField('project_owner', e.target.value)}
+                placeholder="Tên Project Owner / Sponsor..."
+              />
+            </FieldRow>
+
+            {/* Budget + Currency */}
+            <FieldRow label="Budget">
+              <div className="flex gap-2">
+                <Input
+                  className="h-9 text-sm flex-1"
+                  type="number"
+                  min="0"
+                  value={editForm.budget ?? 0}
+                  onChange={e => setField('budget', e.target.value ? Number(e.target.value) : 0)}
+                  placeholder="0"
+                />
+                <Select
+                  value={editForm.budget_currency ?? 'VND'}
+                  onValueChange={v => setField('budget_currency', v ?? 'VND')}
+                >
+                  <SelectTrigger className="w-24 h-9 text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CURRENCIES.map(c => (
+                      <SelectItem key={c} value={c}>{c}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </FieldRow>
 
             {/* Dates */}
             <div className="grid grid-cols-2 gap-4">
               <FieldRow label="Start Date">
-                <Input className="h-9 text-sm" type="date" value={editForm.start_date ?? ''} onChange={e => set('start_date', e.target.value)} />
+                <Input
+                  className="h-9 text-sm"
+                  type="date"
+                  value={editForm.start_date ?? ''}
+                  onChange={e => setField('start_date', e.target.value)}
+                />
               </FieldRow>
               <FieldRow label="End Date">
-                <Input className="h-9 text-sm" type="date" value={editForm.end_date ?? ''} onChange={e => set('end_date', e.target.value)} />
+                <Input
+                  className="h-9 text-sm"
+                  type="date"
+                  value={editForm.end_date ?? ''}
+                  onChange={e => setField('end_date', e.target.value)}
+                />
               </FieldRow>
             </div>
 
             {/* Phase */}
             <FieldRow label="Current Phase">
-              <Select value={editForm.current_phase ?? 'Initiation'} onValueChange={v => set('current_phase', v ?? 'Initiation')}>
+              <Select
+                value={editForm.current_phase ?? 'Initiation'}
+                onValueChange={v => setField('current_phase', v ?? 'Initiation')}
+              >
                 <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Initiation">Initiation</SelectItem>
