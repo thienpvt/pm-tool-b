@@ -85,6 +85,7 @@ export default function LandingPage() {
   const [demoForm, setDemoForm] = useState(EMPTY_DEMO);
   const [demoLoading, setDemoLoading] = useState(false);
   const [demoSuccess, setDemoSuccess] = useState(false);
+  const [previewTab, setPreviewTab] = useState<'portfolio' | 'report'>('portfolio');
 
   const submitDemo = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -177,19 +178,18 @@ export default function LandingPage() {
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-28 text-center">
           <div className="inline-flex items-center gap-2 bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-semibold px-4 py-1.5 rounded-full mb-8">
             <Zap className="h-3.5 w-3.5" />
-            AI-Powered Project Management
+            Built exclusively for PMOs — not adapted from generic tools
           </div>
 
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white leading-tight tracking-tight max-w-4xl mx-auto">
-            Deliver projects with{' '}
+            The first platform{' '}
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-400">
-              full confidence
+              built for PMOs.
             </span>
           </h1>
 
           <p className="mt-6 text-lg sm:text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed">
-            Gambaru brings clarity to complex portfolios — track progress, manage risks,
-            and generate AI-powered executive reports. Built for modern PMOs.
+            PMOs spend up to 40% of their time writing status reports. Gambaru eliminates that — generating board-ready executive reports in seconds, while giving you real-time visibility across every project in your portfolio.
           </p>
 
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -228,8 +228,29 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-10">
             <p className="text-sm font-bold text-blue-600 uppercase tracking-widest mb-2">See it in action</p>
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">Your entire portfolio. One screen.</h2>
-            <p className="mt-3 text-slate-500 text-sm max-w-xl mx-auto">A real-time health check across all projects — no spreadsheets, no manual reports.</p>
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+              {previewTab === 'portfolio' ? 'Your entire portfolio. One screen.' : 'Executive reports. Written by AI.'}
+            </h2>
+            <p className="mt-3 text-slate-500 text-sm max-w-xl mx-auto">
+              {previewTab === 'portfolio'
+                ? 'Real-time RAG health across all projects — no spreadsheets, no manual aggregation.'
+                : 'One click. Board-ready analysis powered by Claude AI — with export to PDF, PowerPoint, or Word.'}
+            </p>
+            {/* Tab switcher */}
+            <div className="mt-6 inline-flex items-center gap-1 bg-slate-100 rounded-xl p-1">
+              <button
+                onClick={() => setPreviewTab('portfolio')}
+                className={`flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold transition-all ${previewTab === 'portfolio' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              >
+                <BarChart3 className="h-4 w-4" /> Portfolio Health
+              </button>
+              <button
+                onClick={() => setPreviewTab('report')}
+                className={`flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold transition-all ${previewTab === 'report' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              >
+                <Sparkles className="h-4 w-4" /> AI Report
+              </button>
+            </div>
           </div>
 
           {/* Browser frame mockup */}
@@ -254,77 +275,221 @@ export default function LandingPage() {
                   </div>
                   <span className="text-white text-xs font-bold">Gambaru</span>
                 </div>
-                {['Portfolio', 'Roadmap', 'Reports', 'Programs', 'Projects'].map((item, i) => (
-                  <div key={item} className={`px-3 py-1.5 rounded-lg text-xs font-medium ${i === 0 ? 'bg-blue-600 text-white' : 'text-slate-400'}`}>{item}</div>
+                {(['Portfolio', 'Roadmap', 'Reports', 'Programs', 'Projects'] as const).map((item, i) => (
+                  <div key={item} className={`px-3 py-1.5 rounded-lg text-xs font-medium ${
+                    (previewTab === 'portfolio' && i === 0) || (previewTab === 'report' && i === 2)
+                      ? 'bg-blue-600 text-white' : 'text-slate-400'
+                  }`}>{item}</div>
                 ))}
               </div>
 
-              {/* Main content */}
-              <div className="flex-1 p-4 overflow-hidden">
-                {/* Header */}
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <p className="text-[10px] text-slate-400">Friday, 23 May 2025</p>
-                    <p className="text-sm font-bold text-slate-800">Portfolio Health Check</p>
-                  </div>
-                  <div className="flex gap-2">
-                    <div className="px-2.5 py-1 bg-white border border-slate-200 rounded text-[10px] text-slate-500">Portfolio Report</div>
-                    <div className="px-2.5 py-1 bg-blue-600 rounded text-[10px] text-white font-semibold">+ New Project</div>
-                  </div>
-                </div>
-
-                {/* KPI cards */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 mb-4">
-                  {[
-                    { label: 'Health Score', value: '85', sub: 'Excellent', color: 'text-green-600', bar: null },
-                    { label: 'Projects at Risk', value: '3', sub: '2 RED · 1 AMBER', color: 'text-red-500', bar: null },
-                    { label: 'Open Risks', value: '7', sub: '4 risks · 3 issues', color: 'text-orange-500', bar: null },
-                    { label: 'Avg. Progress', value: '68%', sub: null, color: 'text-blue-600', bar: 68 },
-                  ].map(k => (
-                    <div key={k.label} className="bg-white rounded-xl border border-slate-200 p-3">
-                      <p className="text-[9px] text-slate-400 mb-1">{k.label}</p>
-                      <p className={`text-lg font-extrabold ${k.color}`}>{k.value}</p>
-                      {k.sub && <p className="text-[9px] text-slate-400 mt-0.5">{k.sub}</p>}
-                      {k.bar !== null && (
-                        <div className="mt-1.5 h-1 bg-slate-100 rounded-full"><div className="h-full bg-blue-500 rounded-full" style={{ width: `${k.bar}%` }} /></div>
-                      )}
+              {/* ── Portfolio tab ── */}
+              {previewTab === 'portfolio' && (
+                <div className="flex-1 p-4 overflow-hidden">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <p className="text-[10px] text-slate-400">Friday, 23 May 2025</p>
+                      <p className="text-sm font-bold text-slate-800">Portfolio Health Check</p>
                     </div>
-                  ))}
-                </div>
-
-                {/* Project list */}
-                <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-                  <div className="grid grid-cols-[56px_1fr_72px_90px] bg-slate-50 border-b px-3 py-2 text-[9px] font-bold text-slate-400 uppercase tracking-wide">
-                    <span>Status</span><span>Project</span><span>Phase</span><span>Progress</span>
+                    <div className="flex gap-2">
+                      <div className="px-2.5 py-1 bg-white border border-slate-200 rounded text-[10px] text-slate-500">Portfolio Report</div>
+                      <div className="px-2.5 py-1 bg-blue-600 rounded text-[10px] text-white font-semibold">+ New Project</div>
+                    </div>
                   </div>
-                  {([
-                    { rag: 'green', name: 'Digital Banking Portal', phase: 'Execution', pct: 82 },
-                    { rag: 'amber', name: 'Core Insurance Platform', phase: 'Planning',  pct: 45 },
-                    { rag: 'red',   name: 'Legacy System Migration', phase: 'Execution', pct: 28 },
-                    { rag: 'green', name: 'Mobile App Relaunch',     phase: 'Closing',   pct: 91 },
-                  ] as { rag: 'red'|'amber'|'green'; name: string; phase: string; pct: number }[]).map((p, i) => (
-                    <div key={i} className="grid grid-cols-[56px_1fr_72px_90px] px-3 py-2 border-b last:border-0 items-center">
-                      <span className={`flex items-center gap-1 text-[9px] font-bold ${p.rag === 'red' ? 'text-red-600' : p.rag === 'amber' ? 'text-amber-600' : 'text-green-600'}`}>
-                        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${p.rag === 'red' ? 'bg-red-500' : p.rag === 'amber' ? 'bg-amber-400' : 'bg-green-500'}`} />
-                        {p.rag.toUpperCase()}
-                      </span>
-                      <span className="text-[10px] font-semibold text-slate-700 truncate pr-2">{p.name}</span>
-                      <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded w-fit ${
-                        p.phase === 'Execution' ? 'bg-amber-100 text-amber-700' :
-                        p.phase === 'Planning'  ? 'bg-blue-100 text-blue-700' :
-                        p.phase === 'Closing'   ? 'bg-green-100 text-green-700' : 'bg-purple-100 text-purple-700'
-                      }`}>{p.phase}</span>
-                      <div className="flex items-center gap-1.5">
-                        <div className="flex-1 h-1.5 bg-slate-100 rounded-full">
-                          <div className={`h-full rounded-full ${p.pct >= 80 ? 'bg-green-500' : p.pct >= 40 ? 'bg-blue-500' : 'bg-red-400'}`} style={{ width: `${p.pct}%` }} />
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 mb-4">
+                    {[
+                      { label: 'Health Score', value: '85', sub: 'Excellent', color: 'text-green-600', bar: null },
+                      { label: 'Projects at Risk', value: '3', sub: '2 RED · 1 AMBER', color: 'text-red-500', bar: null },
+                      { label: 'Open Risks', value: '7', sub: '4 risks · 3 issues', color: 'text-orange-500', bar: null },
+                      { label: 'Avg. Progress', value: '68%', sub: null, color: 'text-blue-600', bar: 68 },
+                    ].map(k => (
+                      <div key={k.label} className="bg-white rounded-xl border border-slate-200 p-3">
+                        <p className="text-[9px] text-slate-400 mb-1">{k.label}</p>
+                        <p className={`text-lg font-extrabold ${k.color}`}>{k.value}</p>
+                        {k.sub && <p className="text-[9px] text-slate-400 mt-0.5">{k.sub}</p>}
+                        {k.bar !== null && (
+                          <div className="mt-1.5 h-1 bg-slate-100 rounded-full"><div className="h-full bg-blue-500 rounded-full" style={{ width: `${k.bar}%` }} /></div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                    <div className="grid grid-cols-[56px_1fr_72px_90px] bg-slate-50 border-b px-3 py-2 text-[9px] font-bold text-slate-400 uppercase tracking-wide">
+                      <span>Status</span><span>Project</span><span>Phase</span><span>Progress</span>
+                    </div>
+                    {([
+                      { rag: 'green', name: 'Digital Banking Portal', phase: 'Execution', pct: 82 },
+                      { rag: 'amber', name: 'Core Insurance Platform', phase: 'Planning',  pct: 45 },
+                      { rag: 'red',   name: 'Legacy System Migration', phase: 'Execution', pct: 28 },
+                      { rag: 'green', name: 'Mobile App Relaunch',     phase: 'Closing',   pct: 91 },
+                    ] as { rag: 'red'|'amber'|'green'; name: string; phase: string; pct: number }[]).map((p, i) => (
+                      <div key={i} className="grid grid-cols-[56px_1fr_72px_90px] px-3 py-2 border-b last:border-0 items-center">
+                        <span className={`flex items-center gap-1 text-[9px] font-bold ${p.rag === 'red' ? 'text-red-600' : p.rag === 'amber' ? 'text-amber-600' : 'text-green-600'}`}>
+                          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${p.rag === 'red' ? 'bg-red-500' : p.rag === 'amber' ? 'bg-amber-400' : 'bg-green-500'}`} />
+                          {p.rag.toUpperCase()}
+                        </span>
+                        <span className="text-[10px] font-semibold text-slate-700 truncate pr-2">{p.name}</span>
+                        <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded w-fit ${
+                          p.phase === 'Execution' ? 'bg-amber-100 text-amber-700' :
+                          p.phase === 'Planning'  ? 'bg-blue-100 text-blue-700' :
+                          p.phase === 'Closing'   ? 'bg-green-100 text-green-700' : 'bg-purple-100 text-purple-700'
+                        }`}>{p.phase}</span>
+                        <div className="flex items-center gap-1.5">
+                          <div className="flex-1 h-1.5 bg-slate-100 rounded-full">
+                            <div className={`h-full rounded-full ${p.pct >= 80 ? 'bg-green-500' : p.pct >= 40 ? 'bg-blue-500' : 'bg-red-400'}`} style={{ width: `${p.pct}%` }} />
+                          </div>
+                          <span className="text-[9px] text-slate-500 font-medium shrink-0">{p.pct}%</span>
                         </div>
-                        <span className="text-[9px] text-slate-500 font-medium shrink-0">{p.pct}%</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* ── Report tab ── */}
+              {previewTab === 'report' && (
+                <div className="flex-1 p-4 overflow-hidden">
+                  {/* Header */}
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <p className="text-[10px] text-slate-400">Friday, 23 May 2025</p>
+                      <p className="text-sm font-bold text-slate-800">Portfolio Report</p>
+                    </div>
+                    <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-violet-600 rounded-lg text-[10px] text-white font-semibold">
+                      <Sparkles className="h-2.5 w-2.5" />
+                      Generate with AI
+                    </div>
+                  </div>
+
+                  {/* AI output card */}
+                  <div className="bg-white rounded-xl border border-violet-200 p-4 mb-3 shadow-sm">
+                    <div className="flex items-center gap-2.5 mb-3 pb-3 border-b border-slate-100">
+                      <div className="w-7 h-7 bg-violet-100 rounded-lg flex items-center justify-center shrink-0">
+                        <Sparkles className="h-3.5 w-3.5 text-violet-600" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-[10px] font-bold text-slate-800">Q2 2025 — Executive Portfolio Summary</p>
+                        <p className="text-[9px] text-violet-500">Powered by Claude AI · Generated in 4s</p>
+                      </div>
+                      <div className="flex items-center gap-1 text-[9px] font-semibold text-green-600 bg-green-50 border border-green-100 px-2 py-0.5 rounded-full">
+                        <span className="w-1.5 h-1.5 rounded-full bg-green-500" />Ready
                       </div>
                     </div>
-                  ))}
+
+                    <p className="text-[9px] text-slate-600 leading-relaxed mb-3 italic">
+                      &ldquo;Overall portfolio health stands at <span className="text-green-600 font-semibold not-italic">85/100 — Excellent</span>. 4 of 6 projects are GREEN. Two projects require steering committee attention: <span className="text-red-500 font-semibold not-italic">Legacy System Migration</span> (resource gap, risk of 3-week delay) and <span className="text-amber-600 font-semibold not-italic">Core Insurance Platform</span> (scope change under review).&rdquo;
+                    </p>
+
+                    <div className="space-y-1.5 mb-3">
+                      {[
+                        { dot: 'bg-green-500', text: 'Digital Banking Portal — 82% complete, on track for June 30 delivery' },
+                        { dot: 'bg-amber-400', text: 'Core Insurance Platform — scope change review required before phase gate' },
+                        { dot: 'bg-red-500',   text: 'Legacy Migration — escalate resource constraint to steering committee' },
+                      ].map((f, i) => (
+                        <div key={i} className="flex items-start gap-2 bg-slate-50 rounded-lg px-2.5 py-2">
+                          <span className={`w-1.5 h-1.5 rounded-full ${f.dot} shrink-0 mt-0.5`} />
+                          <p className="text-[9px] text-slate-600 leading-relaxed">{f.text}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
+                      <p className="text-[9px] text-slate-400 shrink-0">Export as:</p>
+                      {(['PDF', 'PowerPoint', 'Word'] as const).map(fmt => (
+                        <div key={fmt} className="flex items-center gap-1 px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-[9px] font-semibold text-slate-600 cursor-default hover:border-blue-300 transition-colors">
+                          <Download className="h-2.5 w-2.5" />{fmt}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Previous reports list */}
+                  <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                    <div className="grid grid-cols-[1fr_80px_64px] bg-slate-50 border-b px-3 py-2 text-[9px] font-bold text-slate-400 uppercase tracking-wide">
+                      <span>Report</span><span>Generated</span><span>Export</span>
+                    </div>
+                    {[
+                      { name: 'Q1 2025 Portfolio Review',     date: '01 Apr 2025' },
+                      { name: 'March Steering Committee Deck', date: '28 Mar 2025' },
+                      { name: 'February Status Update',       date: '28 Feb 2025' },
+                    ].map((r, i) => (
+                      <div key={i} className="grid grid-cols-[1fr_80px_64px] px-3 py-2 border-b last:border-0 items-center">
+                        <span className="text-[10px] font-medium text-slate-700 truncate pr-2">{r.name}</span>
+                        <span className="text-[9px] text-slate-400">{r.date}</span>
+                        <span className="text-[9px] font-semibold text-blue-500 flex items-center gap-1"><Download className="h-2.5 w-2.5" />PDF</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── PMO Pain Point ───────────────────────────────────────────────────── */}
+      <section className="py-20 bg-[#0f172a] overflow-hidden relative">
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-0 left-1/4 w-96 h-64 bg-blue-600/10 rounded-full blur-[80px]" />
+          <div className="absolute bottom-0 right-1/4 w-96 h-64 bg-violet-600/10 rounded-full blur-[80px]" />
+        </div>
+        <div className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-14">
+            <p className="text-sm font-bold text-blue-400 uppercase tracking-widest mb-3">The PMO challenge</p>
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight max-w-3xl mx-auto">
+              Most of your week goes to reports.<br className="hidden sm:block" />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-400">Not anymore.</span>
+            </h2>
+            <p className="mt-4 text-slate-400 text-base max-w-2xl mx-auto">
+              PMOs are the backbone of delivery — yet generic project tools force them to spend hours every week compiling data, formatting slides, and chasing status updates. Gambaru was designed to eliminate exactly that.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+            {[
+              {
+                before: '4–8 hrs',
+                after:  '< 30 sec',
+                label:  'Weekly status report',
+                desc:   'AI drafts your executive summary from live project data the moment you need it.',
+              },
+              {
+                before: 'Multiple spreadsheets',
+                after:  'One dashboard',
+                label:  'Portfolio visibility',
+                desc:   'Every project, program, and risk in a single real-time view — no manual aggregation.',
+              },
+              {
+                before: 'Copy-paste slides',
+                after:  '1-click export',
+                label:  'Board deck preparation',
+                desc:   'Generate presentation-ready PowerPoint or PDF directly from Gambaru in seconds.',
+              },
+            ].map(item => (
+              <div key={item.label} className="bg-white/5 border border-white/10 rounded-2xl p-6 hover:bg-white/8 transition-colors">
+                <div className="flex items-start gap-3 mb-4">
+                  <div className="flex-1">
+                    <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-2">{item.label}</p>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-sm font-bold text-red-400 line-through opacity-70">{item.before}</span>
+                      <ArrowRight className="h-3.5 w-3.5 text-slate-600 shrink-0" />
+                      <span className="text-sm font-extrabold text-green-400">{item.after}</span>
+                    </div>
+                  </div>
+                </div>
+                <p className="text-xs text-slate-400 leading-relaxed">{item.desc}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-10 text-center">
+            <button
+              onClick={openDemo}
+              className="inline-flex items-center gap-2 px-7 py-3 text-sm font-bold text-white bg-blue-600 hover:bg-blue-500 rounded-xl transition-colors shadow-lg shadow-blue-900/40"
+            >
+              <ClipboardList className="h-4 w-4" />
+              Request a Demo
+            </button>
           </div>
         </div>
       </section>
