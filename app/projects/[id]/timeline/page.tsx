@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { Plus, Trash2, Save, Download, Upload, FileDown, AlertCircle, MessageSquare, GanttChart, LayoutList, CalendarX2, ChevronDown, ChevronRight, ChevronsUpDown } from 'lucide-react';
+import { Plus, Trash2, Save, Download, Upload, FileDown, AlertCircle, MessageSquare, GanttChart, LayoutList, CalendarX2, ChevronDown, ChevronRight, ChevronsUpDown, X, Tag } from 'lucide-react';
 import ImportMappingDialog from '@/components/timeline/ImportMappingDialog';
 
 type Activity = {
@@ -18,10 +18,11 @@ type Activity = {
   plan_start: string; plan_end: string; actual_start: string; actual_end: string;
   status: string; completion_pct: number; notes: string; order_idx: number;
   delay_owner: string; delay_reason: string;
-  jira_key: string; sprint: string;
+  jira_key: string; sprint: string; project_status: string;
 };
 
 type TeamMember = { id: number; name: string; role: string; domain: string; };
+type Project = { id: number; name: string; status: string; current_phase: string; client: string; pm_name: string; };
 type Holiday   = { id: number; project_id: number; date: string; name: string; };
 type DateMode  = 'plan' | 'actual' | 'both';
 
@@ -87,6 +88,16 @@ const PHASE_STYLE: Record<string, { bg: string; text: string; bar: string; hex: 
 function getPhaseStyle(phase: string) {
   return PHASE_STYLE[phase] ?? { bg: 'bg-gray-50', text: 'text-gray-800', bar: 'bg-gray-400', hex: '#9ca3af' };
 }
+
+const PROJECT_STATUS_COLOR: Record<string, string> = {
+  'Initiation': 'bg-blue-50 border-blue-200 text-blue-700',
+  'Planning':   'bg-violet-50 border-violet-200 text-violet-700',
+  'Execution':  'bg-green-50 border-green-200 text-green-700',
+  'Closing':    'bg-orange-50 border-orange-200 text-orange-700',
+  'On Hold':    'bg-yellow-50 border-yellow-200 text-yellow-700',
+  'Completed':  'bg-emerald-50 border-emerald-200 text-emerald-700',
+  'Cancelled':  'bg-red-50 border-red-200 text-red-700',
+};
 
 // ─── Lag calculation ──────────────────────────────────────────────────────────
 function calcLag(planEnd: string, actualEnd: string, status: string): number {
@@ -245,6 +256,179 @@ function DateCell({ value, onChange, onBlur, warn, extraClass = '' }: {
           <span className="text-white font-bold leading-none" style={{ fontSize: 9 }}>!</span>
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── ActivityDetail (Jira-like popup) ────────────────────────────────────────
+function ActivityDetail({
+  activity, teamMembers, projectId, onSave, onDelete, onClose,
+}: {
+  activity: Activity; teamMembers: TeamMember[]; projectId: string;
+  onSave: (updated: Activity) => void; onDelete: (id: number) => void; onClose: () => void;
+}) {
+  const [form, setForm] = useState<Activity>(activity);
+  const [saving, setSaving] = useState(false);
+
+  const upd = (field: keyof Activity, value: string | number) =>
+    setForm(f => ({ ...f, [field]: value }));
+
+  const lag = calcLag(form.plan_end, form.actual_end, form.status);
+
+  const handleSave = async () => {
+    setSaving(true);
+    await fetch(`/api/projects/${projectId}/activities`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(form),
+    });
+    setSaving(false);
+    onSave(form);
+  };
+
+  const fieldCls = 'w-full text-sm border border-slate-200 rounded-lg px-3 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400';
+
+  return (
+    <div className="flex flex-col" style={{ maxHeight: '88vh' }}>
+      {/* Header */}
+      <div className="flex items-start justify-between px-6 py-4 border-b bg-slate-50 shrink-0">
+        <div className="flex-1 min-w-0 pr-4">
+          <div className="flex flex-wrap items-center gap-2 mb-2">
+            {form.jira_key && (
+              <span className="text-xs font-mono bg-white border border-slate-200 px-2 py-0.5 rounded text-slate-600 shrink-0">{form.jira_key}</span>
+            )}
+            <span className={`text-xs px-2 py-0.5 rounded-full font-semibold shrink-0 ${STATUS_COLOR[form.status] ?? 'bg-slate-100 text-slate-500'}`}>{form.status}</span>
+            {form.project_status && (
+              <span className={`text-xs px-2 py-0.5 rounded-full border font-medium shrink-0 ${PROJECT_STATUS_COLOR[form.project_status] ?? 'bg-indigo-50 border-indigo-200 text-indigo-600'}`}>
+                <Tag className="inline h-2.5 w-2.5 mr-0.5 -mt-px" />{form.project_status}
+              </span>
+            )}
+            <span className="text-xs text-slate-400 shrink-0">{form.phase}</span>
+          </div>
+          <h2 className="text-lg font-bold text-slate-800 leading-snug">
+            {form.activity || <span className="italic text-slate-400 font-normal">Untitled Activity</span>}
+          </h2>
+        </div>
+        <button onClick={onClose} className="shrink-0 p-1 rounded hover:bg-slate-200 text-slate-400 hover:text-slate-600 transition-colors">
+          <X className="h-5 w-5" />
+        </button>
+      </div>
+
+      {/* Body */}
+      <div className="flex flex-1 overflow-hidden min-h-0">
+        {/* Left column */}
+        <div className="flex-1 p-6 overflow-y-auto space-y-5 border-r border-slate-100 min-w-0">
+          <div>
+            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Activity</label>
+            <textarea className={`${fieldCls} min-h-[70px] resize-y py-2 leading-relaxed`} value={form.activity} onChange={e => upd('activity', e.target.value)} placeholder="Activity description..." />
+          </div>
+          <div>
+            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Deliverable</label>
+            <input type="text" className={`${fieldCls} h-9`} value={form.deliverable} onChange={e => upd('deliverable', e.target.value)} placeholder="Expected deliverable..." />
+          </div>
+          <div>
+            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Sign-off Document</label>
+            <input type="text" className={`${fieldCls} h-9`} value={form.sign_off_doc} onChange={e => upd('sign_off_doc', e.target.value)} placeholder="Sign-off document..." />
+          </div>
+          <div>
+            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Notes</label>
+            <textarea className={`${fieldCls} min-h-[90px] resize-y py-2 leading-relaxed`} value={form.notes} onChange={e => upd('notes', e.target.value)} placeholder="Additional notes..." />
+          </div>
+
+          {/* Lag & Delay section */}
+          <div className="rounded-xl border border-orange-100 bg-orange-50/40 p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] font-bold text-orange-600 uppercase tracking-wider">Lag &amp; Delay</p>
+              <LagBadge lag={lag} />
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Delay Owner</label>
+              <Select value={form.delay_owner || 'N/A'} onValueChange={v => upd('delay_owner', v ?? 'N/A')}>
+                <SelectTrigger className={`h-9 text-sm ${form.delay_owner && form.delay_owner !== 'N/A' ? DELAY_OWNER_COLOR[form.delay_owner] : ''}`}><SelectValue /></SelectTrigger>
+                <SelectContent>{DELAY_OWNERS.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Delay Reason</label>
+              <textarea
+                className="w-full text-sm border border-orange-200/70 rounded-lg px-3 py-2 min-h-[75px] resize-y focus:outline-none focus:ring-2 focus:ring-orange-300 bg-white/80 leading-relaxed"
+                value={form.delay_reason} onChange={e => upd('delay_reason', e.target.value)} placeholder="Describe the reason for delay..." />
+            </div>
+          </div>
+        </div>
+
+        {/* Right sidebar */}
+        <div className="w-80 shrink-0 p-5 overflow-y-auto bg-slate-50/40 space-y-5">
+          <div>
+            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Status</label>
+            <Select value={form.status} onValueChange={v => upd('status', v ?? '')}>
+              <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
+              <SelectContent>{STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+          <div>
+            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Completion</label>
+            <div className="flex items-center gap-2">
+              <input type="number" min={0} max={100}
+                className="w-16 h-8 text-sm border border-slate-200 rounded px-2 text-center focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
+                value={form.completion_pct} onChange={e => upd('completion_pct', Math.max(0, Math.min(100, Number(e.target.value))))} />
+              <div className="flex-1 bg-slate-200 rounded-full h-2 overflow-hidden">
+                <div className="h-2 rounded-full transition-all" style={{ width: `${form.completion_pct}%`, background: STATUS_BAR_COLOR[form.status]?.fill ?? '#94a3b8' }} />
+              </div>
+              <span className="text-xs font-semibold text-slate-500 tabular-nums w-8 text-right">{form.completion_pct}%</span>
+            </div>
+          </div>
+          <div>
+            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Sprint</label>
+            <input type="text" className="w-full h-9 text-sm border border-slate-200 rounded-lg px-3 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
+              value={form.sprint ?? ''} onChange={e => upd('sprint', e.target.value)} placeholder="Sprint name..." />
+          </div>
+
+          {/* Schedule */}
+          <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
+            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Schedule</p>
+            <div className="grid grid-cols-2 gap-3">
+              {([['Plan Start','plan_start'],['Plan End','plan_end'],['Actual Start','actual_start'],['Actual End','actual_end']] as [string, keyof Activity][]).map(([lbl, field]) => (
+                <div key={field}>
+                  <span className="text-[10px] text-slate-400 font-medium block mb-1">{lbl}</span>
+                  <input type="date" value={(form[field] as string) ?? ''}
+                    onChange={e => upd(field, e.target.value)}
+                    className="h-7 w-full text-xs border border-slate-200 rounded px-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400" />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* People */}
+          <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
+            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">People</p>
+            {([['Accountable','accountable'],['Responsible','responsible'],['Support','support']] as [string, keyof Activity][]).map(([lbl, field]) => (
+              <div key={field}>
+                <span className="text-[10px] text-slate-400 font-medium block mb-1">{lbl}</span>
+                <input type="text" list={`team-${projectId}`}
+                  value={(form[field] as string) ?? ''}
+                  onChange={e => upd(field, e.target.value)}
+                  className="h-7 w-full text-xs border border-slate-200 rounded px-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400"
+                  placeholder="Select..." />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div className="border-t bg-white px-6 py-3 flex items-center justify-between shrink-0">
+        <button onClick={() => onDelete(form.id)}
+          className="flex items-center gap-1.5 text-sm text-red-500 hover:text-red-700 transition-colors">
+          <Trash2 className="h-4 w-4" /> Delete Activity
+        </button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={onClose} className="h-9">Close</Button>
+          <Button onClick={handleSave} disabled={saving} className="h-9 bg-blue-600 hover:bg-blue-700 text-white gap-2">
+            {saving && <Save className="h-4 w-4 animate-pulse" />}
+            Save Changes
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -587,6 +771,12 @@ function RoadmapView({
                                 </span>
                               )}
                             </div>
+                            {a.project_status && (
+                              <div className="flex items-center gap-0.5 mt-0.5">
+                                <Tag className="h-2 w-2 text-indigo-400 shrink-0" />
+                                <span className="text-[8px] text-indigo-500 font-medium truncate">{a.project_status}</span>
+                              </div>
+                            )}
                           </div>
                         </div>
 
@@ -686,10 +876,11 @@ export default function TimelinePage() {
   const { id } = useParams<{ id: string }>();
   const [activities, setActivities] = useState<Activity[]>([]);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [project, setProject] = useState<Project | null>(null);
   const [filterPhase, setFilterPhase] = useState('All');
   const [saving, setSaving] = useState<number | null>(null);
   const [importOpen, setImportOpen] = useState(false);
-  const [delayEdit, setDelayEdit] = useState<{ row: Activity; reason: string } | null>(null);
+  const [detailActivity, setDetailActivity] = useState<Activity | null>(null);
   const [viewMode, setViewMode] = useState<'table' | 'roadmap'>('table');
   const [dateMode, setDateMode] = useState<DateMode>('both');
   const roadmapRef = useRef<HTMLDivElement>(null);
@@ -755,6 +946,7 @@ export default function TimelinePage() {
     fetch(`/api/projects/${id}/activities`).then(r => r.json()).then(setActivities);
   }, [id]);
   useEffect(() => { load(); }, [load]);
+  useEffect(() => { fetch(`/api/projects/${id}`).then(r => r.json()).then(setProject); }, [id]);
   useEffect(() => { fetch(`/api/projects/${id}/team`).then(r => r.json()).then(setTeamMembers); }, [id]);
   useEffect(() => { fetch(`/api/projects/${id}/holidays`).then(r => r.json()).then(setHolidays); }, [id]);
 
@@ -763,7 +955,7 @@ export default function TimelinePage() {
     const phase = filterPhase === 'All' ? (uniquePhases[0] ?? DEFAULT_PHASES[0]) : filterPhase;
     const res = await fetch(`/api/projects/${id}/activities`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phase, activity: 'New Activity', jira_key: '', sprint: '' }),
+      body: JSON.stringify({ phase, activity: 'New Activity', jira_key: '', sprint: '', project_status: project?.status ?? '' }),
     });
     const row = await res.json();
     setActivities(a => [...a, row]);
@@ -882,8 +1074,20 @@ export default function TimelinePage() {
 
         {/* Header */}
         <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <h1 className="text-xl font-bold text-slate-800">Project Timeline</h1>
+            {project?.status && (
+              <span className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full border ${PROJECT_STATUS_COLOR[project.status] ?? 'bg-slate-50 border-slate-200 text-slate-600'}`}>
+                <span className="w-1.5 h-1.5 rounded-full bg-current opacity-70" />
+                {project.status}
+              </span>
+            )}
+            {project?.current_phase && (
+              <span className="flex items-center gap-1.5 text-xs text-slate-500 bg-slate-100 border border-slate-200 px-3 py-1 rounded-full">
+                <Tag className="h-3 w-3 text-slate-400" />
+                {project.current_phase}
+              </span>
+            )}
             {overdueCount > 0 && (
               <span className="flex items-center gap-1 text-xs font-medium text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded-full">
                 <AlertCircle className="h-3 w-3" /> {overdueCount} overdue
@@ -1031,7 +1235,7 @@ export default function TimelinePage() {
         {viewMode === 'table' && (
           <div className="rounded-xl border bg-white shadow-sm overflow-hidden flex flex-col" style={{ height: 'calc(100vh - 200px)', minHeight: '400px' }}>
             <div className="overflow-auto flex-1 min-h-0">
-              <table className="w-full text-xs" style={{ minWidth: '1380px' }}>
+              <table className="w-full text-xs" style={{ minWidth: '1100px' }}>
                 <thead className="sticky top-0 z-10">
                   <tr className="bg-[#1e293b] text-white">
                     <th className="px-2 py-3 text-left bg-teal-900/40" style={{ minWidth: '200px' }}>Key</th>
@@ -1044,16 +1248,13 @@ export default function TimelinePage() {
                     <th className="px-2 py-3 text-left w-24">Actual End</th>
                     <th className="px-2 py-3 text-left w-28">Status</th>
                     <th className="px-2 py-3 text-center w-10">%</th>
-                    <th className="px-2 py-3 text-center w-16 bg-red-900/30">Lag</th>
-                    <th className="px-2 py-3 text-left w-24 bg-red-900/30">Delay By</th>
-                    <th className="px-2 py-3 text-left w-36 bg-red-900/30">Delay Reason</th>
                     <th className="px-2 py-3 text-left bg-teal-900/40" style={{ minWidth: '180px' }}>Sprint</th>
                     <th className="px-2 py-3 w-8"></th>
                   </tr>
                 </thead>
                 <tbody>
                   {baseList.length === 0 && (
-                    <tr><td colSpan={15} className="text-center py-16 text-slate-400">
+                    <tr><td colSpan={12} className="text-center py-16 text-slate-400">
                       <div className="flex flex-col items-center gap-3">
                         <p>Chưa có activity nào.</p>
                         <div className="flex gap-2">
@@ -1085,7 +1286,17 @@ export default function TimelinePage() {
                               value={row.jira_key ?? ''} onChange={e => updateField(row.id, 'jira_key', e.target.value)} onBlur={() => saveRow(row)} placeholder="KEY-1" />
                           </td>
                           <td className="px-2 py-1.5" style={{ minWidth: '240px' }}>
-                            <textarea className="text-xs w-full min-h-[48px] px-2 py-1 border border-slate-200 rounded-md resize-y bg-white focus:outline-none focus:ring-1 focus:ring-blue-400 leading-snug" value={row.activity} onChange={e => updateField(row.id, 'activity', e.target.value)} onBlur={() => saveRow(row)} />
+                            <button onClick={() => setDetailActivity(row)}
+                              className="w-full text-left group">
+                              <div className="text-xs font-medium text-slate-700 group-hover:text-blue-600 leading-snug min-h-[28px] py-0.5 transition-colors">
+                                {row.activity || <span className="italic text-slate-400">New Activity</span>}
+                              </div>
+                              {row.project_status && (
+                                <span className="inline-flex items-center gap-0.5 text-[9px] px-1.5 py-px rounded-full bg-indigo-50 border border-indigo-100 text-indigo-600 font-medium mt-0.5">
+                                  <Tag className="h-2 w-2 shrink-0" />{row.project_status}
+                                </span>
+                              )}
+                            </button>
                           </td>
                           <td className="px-2 py-1.5">
                             <input list={`team-${id}`} className="h-7 text-xs w-full border border-slate-200 rounded-md px-2 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400" value={row.accountable} onChange={e => updateField(row.id, 'accountable', e.target.value)} onBlur={() => saveRow(row)} placeholder="Chọn..." />
@@ -1113,21 +1324,6 @@ export default function TimelinePage() {
                           </td>
                           <td className="px-2 py-1.5 text-center">
                             <Input className="h-7 text-xs w-12 px-1 text-center mx-auto" type="number" min={0} max={100} value={row.completion_pct} onChange={e => updateField(row.id, 'completion_pct', Number(e.target.value))} onBlur={() => saveRow(row)} />
-                          </td>
-                          <td className="px-2 py-1.5 text-center bg-slate-50/50"><LagBadge lag={lag} /></td>
-                          <td className="px-2 py-1.5 bg-slate-50/50">
-                            <Select value={row.delay_owner || 'N/A'} onValueChange={v => { const val = v ?? 'N/A'; updateField(row.id, 'delay_owner', val); saveRow({ ...row, delay_owner: val }); }}>
-                              <SelectTrigger className={`h-7 text-xs ${row.delay_owner && row.delay_owner !== 'N/A' ? DELAY_OWNER_COLOR[row.delay_owner] : ''}`}><SelectValue /></SelectTrigger>
-                              <SelectContent>{DELAY_OWNERS.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
-                            </Select>
-                          </td>
-                          <td className="px-2 py-1.5 bg-slate-50/50">
-                            <button onClick={() => setDelayEdit({ row, reason: row.delay_reason || '' })}
-                              className={`w-full h-7 text-left text-xs px-2 rounded border transition-colors truncate ${row.delay_reason ? 'border-slate-200 text-slate-700 hover:border-blue-400 hover:bg-blue-50' : 'border-dashed border-slate-200 text-slate-400 hover:border-blue-400 hover:text-blue-500'}`}>
-                              {row.delay_reason
-                                ? <span className="flex items-center gap-1"><MessageSquare className="h-3 w-3 shrink-0" /><span className="truncate">{row.delay_reason}</span></span>
-                                : 'Add reason...'}
-                            </button>
                           </td>
                           <td className="px-2 py-1.5 bg-teal-50/30" style={{ minWidth: '180px' }}>
                             <Input className="h-7 text-xs bg-white" value={row.sprint ?? ''} onChange={e => updateField(row.id, 'sprint', e.target.value)} onBlur={() => saveRow(row)} placeholder="Sprint name..." />
@@ -1211,30 +1407,6 @@ export default function TimelinePage() {
                               {epicRow ? (
                                 <Input className="h-7 text-xs w-12 px-1 text-center mx-auto bg-white/90" type="number" min={0} max={100}
                                   value={epicRow.completion_pct} onChange={e => updateField(epicRow.id, 'completion_pct', Number(e.target.value))} onBlur={() => saveRow(epicRow)} />
-                              ) : <div className="h-7" />}
-                            </td>
-                            {/* Lag */}
-                            <td className="px-2 py-2 text-center">
-                              {epicRow ? <LagBadge lag={epicLag} /> : null}
-                            </td>
-                            {/* Delay By */}
-                            <td className="px-2 py-2">
-                              {epicRow ? (
-                                <Select value={epicRow.delay_owner || 'N/A'} onValueChange={v => { const val = v ?? 'N/A'; updateField(epicRow.id, 'delay_owner', val); saveRow({ ...epicRow, delay_owner: val }); }}>
-                                  <SelectTrigger className={`h-7 text-xs bg-white/90 ${epicRow.delay_owner && epicRow.delay_owner !== 'N/A' ? DELAY_OWNER_COLOR[epicRow.delay_owner] : ''}`}><SelectValue /></SelectTrigger>
-                                  <SelectContent>{DELAY_OWNERS.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
-                                </Select>
-                              ) : <div className="h-7" />}
-                            </td>
-                            {/* Delay Reason */}
-                            <td className="px-2 py-2">
-                              {epicRow ? (
-                                <button onClick={() => setDelayEdit({ row: epicRow, reason: epicRow.delay_reason || '' })}
-                                  className={`w-full h-7 text-left text-xs px-2 rounded border transition-colors truncate ${epicRow.delay_reason ? 'border-slate-300/60 text-slate-700 hover:border-blue-400 hover:bg-blue-50/50' : 'border-dashed border-slate-300/60 text-slate-400 hover:border-blue-400 hover:text-blue-500'}`}>
-                                  {epicRow.delay_reason
-                                    ? <span className="flex items-center gap-1"><MessageSquare className="h-3 w-3 shrink-0" /><span className="truncate">{epicRow.delay_reason}</span></span>
-                                    : 'Add reason...'}
-                                </button>
                               ) : <div className="h-7" />}
                             </td>
                             {/* Sprint */}
@@ -1375,44 +1547,23 @@ export default function TimelinePage() {
         </DialogContent>
       </Dialog>
 
-      {/* Delay Reason Dialog */}
-      <Dialog open={!!delayEdit} onOpenChange={o => { if (!o) setDelayEdit(null); }}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <MessageSquare className="h-4 w-4 text-orange-500" /> Delay Reason
-            </DialogTitle>
-          </DialogHeader>
-          {delayEdit && (
-            <div className="space-y-3 py-1">
-              <div className="text-xs text-slate-500 bg-slate-50 rounded px-3 py-2 border border-slate-200">
-                <span className="font-medium text-slate-700">Activity:</span> {delayEdit.row.activity}
-              </div>
-              <div>
-                <Label className="text-xs text-slate-600 mb-1.5 block">Mô tả lý do delay</Label>
-                <textarea
-                  className="w-full text-sm border border-slate-200 rounded-md px-3 py-2 min-h-[120px] resize-y focus:outline-none focus:ring-2 focus:ring-blue-400"
-                  placeholder="Nhập lý do delay chi tiết..."
-                  autoFocus
-                  value={delayEdit.reason}
-                  onChange={e => setDelayEdit(prev => prev ? { ...prev, reason: e.target.value } : null)}
-                />
-              </div>
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDelayEdit(null)}>Hủy</Button>
-            <Button
-              className="bg-blue-600 hover:bg-blue-700"
-              onClick={() => {
-                if (!delayEdit) return;
-                const updated = { ...delayEdit.row, delay_reason: delayEdit.reason };
-                updateField(delayEdit.row.id, 'delay_reason', delayEdit.reason);
-                saveRow(updated);
-                setDelayEdit(null);
+      {/* Activity Detail Dialog (Jira-like) */}
+      <Dialog open={!!detailActivity} onOpenChange={o => { if (!o) setDetailActivity(null); }}>
+        <DialogContent showCloseButton={false} className="max-w-5xl p-0 gap-0 overflow-hidden" style={{ maxHeight: '90vh' }}>
+          {detailActivity && (
+            <ActivityDetail
+              key={detailActivity.id}
+              activity={detailActivity}
+              teamMembers={teamMembers}
+              projectId={id}
+              onSave={updated => {
+                setActivities(prev => prev.map(a => a.id === updated.id ? updated : a));
+                setDetailActivity(null);
               }}
-            >Lưu</Button>
-          </DialogFooter>
+              onDelete={rowId => { deleteRow(rowId); setDetailActivity(null); }}
+              onClose={() => setDetailActivity(null)}
+            />
+          )}
         </DialogContent>
       </Dialog>
 

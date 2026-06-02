@@ -377,6 +377,7 @@ async function migratePostgresSchema(pool: Pool) {
     `ALTER TABLE portfolio_members ADD COLUMN IF NOT EXISTS overhead_remaining FLOAT DEFAULT 0`,
     `ALTER TABLE portfolio_program_allocations ALTER COLUMN allocated_headcount TYPE NUMERIC(6,1)`,
     `ALTER TABLE program_project_allocations ALTER COLUMN allocated_headcount TYPE NUMERIC(6,1)`,
+    `ALTER TABLE activities ADD COLUMN IF NOT EXISTS project_status TEXT DEFAULT ''`,
   ];
   for (const sql of migrations) {
     try { await pool.query(sql); } catch { /* column already exists */ }
