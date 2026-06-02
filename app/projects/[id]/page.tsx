@@ -23,7 +23,9 @@ type Project = {
   id: number; name: string; client: string; customer_id: number | null;
   pm_name: string; pm_email: string;
   start_date: string; end_date: string; status: string;
-  current_phase: string; description: string; created_at: string;
+  current_phase: string; description: string;
+  objective: string; project_owner: string; budget: number;
+  created_at: string;
 };
 
 const QUICK_LINKS = [
@@ -69,10 +71,16 @@ export default function ProjectPage() {
   };
 
   const saveEdit = async () => {
+    const chosenProgram = programs.find(c => c.id === editForm.customer_id);
+    const payload = {
+      ...editForm,
+      client: chosenProgram?.name ?? (editForm.customer_id ? editForm.client : ''),
+      budget: editForm.budget ? Number(editForm.budget) : 0,
+    };
     const res = await fetch(`/api/projects/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(editForm),
+      body: JSON.stringify(payload),
     });
     const data = await res.json();
     if (!res.ok) { toast.error(data.error ?? 'Save failed'); return; }
@@ -150,9 +158,14 @@ export default function ProjectPage() {
             {project.description && <p className="text-slate-500 text-sm">{project.description}</p>}
             <div className="flex items-center gap-4 mt-2 text-xs text-slate-400 flex-wrap">
               {project.pm_name && <span>PM: <span className="font-medium text-slate-600">{project.pm_name}</span></span>}
+              {project.project_owner && <span>Owner: <span className="font-medium text-slate-600">{project.project_owner}</span></span>}
               {project.pm_email && <span>{project.pm_email}</span>}
               {project.start_date && <span>{project.start_date} → {project.end_date || '?'}</span>}
+              {project.budget > 0 && <span>Budget: <span className="font-medium text-slate-600">{Number(project.budget).toLocaleString('vi-VN')} VND</span></span>}
             </div>
+            {project.objective && (
+              <p className="text-xs text-slate-500 mt-1.5 italic">Objective: {project.objective}</p>
+            )}
           </div>
           <div className="flex items-center gap-2 flex-wrap shrink-0 ml-4">
             <Button variant="outline" size="sm" onClick={openEdit} className="gap-2">
@@ -260,6 +273,11 @@ export default function ProjectPage() {
               <Textarea className="text-sm min-h-[80px]" value={editForm.description ?? ''} onChange={e => set('description', e.target.value)} placeholder="Mô tả ngắn về project..." />
             </FieldRow>
 
+            {/* Objective */}
+            <FieldRow label="Objective">
+              <Textarea className="text-sm min-h-[80px]" value={editForm.objective ?? ''} onChange={e => set('objective', e.target.value)} placeholder="Mục tiêu, kết quả kỳ vọng của project..." />
+            </FieldRow>
+
             {/* PM row */}
             <div className="grid grid-cols-2 gap-4">
               <FieldRow label="Project Manager">
@@ -267,6 +285,16 @@ export default function ProjectPage() {
               </FieldRow>
               <FieldRow label="PM Email">
                 <Input className="h-9 text-sm" type="email" value={editForm.pm_email ?? ''} onChange={e => set('pm_email', e.target.value)} placeholder="pm@example.com" />
+              </FieldRow>
+            </div>
+
+            {/* Project Owner + Budget */}
+            <div className="grid grid-cols-2 gap-4">
+              <FieldRow label="Project Owner">
+                <Input className="h-9 text-sm" value={editForm.project_owner ?? ''} onChange={e => set('project_owner', e.target.value)} placeholder="Tên Project Owner / Sponsor..." />
+              </FieldRow>
+              <FieldRow label="Budget (VND)">
+                <Input className="h-9 text-sm" type="number" min="0" value={editForm.budget ?? 0} onChange={e => set('budget', e.target.value ? Number(e.target.value) : 0)} placeholder="0" />
               </FieldRow>
             </div>
 

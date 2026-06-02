@@ -104,6 +104,9 @@ async function initPostgresSchema(db: DbClient) {
       status TEXT DEFAULT 'active',
       current_phase TEXT DEFAULT 'Initiation',
       description TEXT,
+      objective TEXT DEFAULT '',
+      project_owner TEXT DEFAULT '',
+      budget NUMERIC(15,2) DEFAULT 0,
       customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL,
       company_id INTEGER REFERENCES companies(id) ON DELETE SET NULL,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -378,6 +381,9 @@ async function migratePostgresSchema(pool: Pool) {
     `ALTER TABLE portfolio_program_allocations ALTER COLUMN allocated_headcount TYPE NUMERIC(6,1)`,
     `ALTER TABLE program_project_allocations ALTER COLUMN allocated_headcount TYPE NUMERIC(6,1)`,
     `ALTER TABLE activities ADD COLUMN IF NOT EXISTS project_status TEXT DEFAULT ''`,
+    `ALTER TABLE projects ADD COLUMN IF NOT EXISTS objective TEXT DEFAULT ''`,
+    `ALTER TABLE projects ADD COLUMN IF NOT EXISTS project_owner TEXT DEFAULT ''`,
+    `ALTER TABLE projects ADD COLUMN IF NOT EXISTS budget NUMERIC(15,2) DEFAULT 0`,
   ];
   for (const sql of migrations) {
     try { await pool.query(sql); } catch { /* column already exists */ }
@@ -440,7 +446,9 @@ export type Program = {
 export type Project = {
   id: number; name: string; client: string; customer_id: number | null;
   pm_name: string; pm_email: string; start_date: string; end_date: string;
-  status: string; current_phase: string; description: string; created_at: string;
+  status: string; current_phase: string; description: string;
+  objective: string; project_owner: string; budget: number;
+  created_at: string;
 };
 export type Activity = {
   id: number; project_id: number; phase: string; no: string; activity: string;

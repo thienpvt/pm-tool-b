@@ -23,6 +23,7 @@ export default function NewProjectPage() {
   const [programs, setPrograms] = useState<Program[]>([]);
   const [form, setForm] = useState({
     name: '', client: '', customer_id: '', description: '',
+    objective: '', project_owner: '', budget: '',
     pm_name: '', pm_email: '',
     start_date: '', end_date: '',
     current_phase: 'Initiation',
@@ -44,6 +45,7 @@ export default function NewProjectPage() {
         ...form,
         customer_id: form.customer_id ? Number(form.customer_id) : null,
         client: selectedProgram?.name || form.client,
+        budget: form.budget ? Number(form.budget) : 0,
       };
       const res = await fetch('/api/projects', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       const data = await res.json();
@@ -134,6 +136,10 @@ export default function NewProjectPage() {
                 <Textarea id="description" className="mt-1.5" rows={3} placeholder="Mô tả ngắn về project..." value={form.description} onChange={e => set('description', e.target.value)} />
               </div>
               <div>
+                <Label htmlFor="objective">Objective</Label>
+                <Textarea id="objective" className="mt-1.5" rows={3} placeholder="Mục tiêu, kết quả kỳ vọng của project..." value={form.objective} onChange={e => set('objective', e.target.value)} />
+              </div>
+              <div>
                 <Label>Current Phase</Label>
                 <Select value={form.current_phase} onValueChange={v => set('current_phase', v ?? 'Initiation')}>
                   <SelectTrigger className="mt-1.5">
@@ -162,6 +168,14 @@ export default function NewProjectPage() {
                   <Input id="pm_email" className="mt-1.5" type="email" placeholder="pm@example.com" value={form.pm_email} onChange={e => set('pm_email', e.target.value)} />
                 </div>
               </div>
+              <div>
+                <Label htmlFor="project_owner">Project Owner</Label>
+                <Input id="project_owner" className="mt-1.5" placeholder="Tên Project Owner / Sponsor..." value={form.project_owner} onChange={e => set('project_owner', e.target.value)} />
+              </div>
+              <div>
+                <Label htmlFor="budget">Budget (VND)</Label>
+                <Input id="budget" className="mt-1.5" type="number" min="0" placeholder="0" value={form.budget} onChange={e => set('budget', e.target.value)} />
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="start_date">Start Date</Label>
@@ -185,8 +199,11 @@ export default function NewProjectPage() {
                 <div className="flex gap-2"><span className="text-slate-500 w-36 shrink-0">Project Name:</span><span className="font-medium">{form.name}</span></div>
                 <div className="flex gap-2"><span className="text-slate-500 w-36 shrink-0">Phase:</span><span>{form.current_phase}</span></div>
                 <div className="flex gap-2"><span className="text-slate-500 w-36 shrink-0">PM:</span><span>{form.pm_name || '—'} {form.pm_email ? `(${form.pm_email})` : ''}</span></div>
+                {form.project_owner && <div className="flex gap-2"><span className="text-slate-500 w-36 shrink-0">Project Owner:</span><span>{form.project_owner}</span></div>}
+                {form.budget && <div className="flex gap-2"><span className="text-slate-500 w-36 shrink-0">Budget:</span><span>{Number(form.budget).toLocaleString('vi-VN')} VND</span></div>}
                 <div className="flex gap-2"><span className="text-slate-500 w-36 shrink-0">Timeline:</span><span>{form.start_date || '—'} → {form.end_date || '—'}</span></div>
                 {form.description && <div className="flex gap-2"><span className="text-slate-500 w-36 shrink-0">Description:</span><span>{form.description}</span></div>}
+                {form.objective && <div className="flex gap-2"><span className="text-slate-500 w-36 shrink-0">Objective:</span><span>{form.objective}</span></div>}
               </div>
               <p className="text-xs text-slate-400">Sau khi tạo, bạn có thể thêm team members, activities, risks... từ dashboard project.</p>
             </div>

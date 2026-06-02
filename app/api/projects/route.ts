@@ -29,10 +29,11 @@ export async function POST(req: NextRequest) {
     const companyId = user.is_admin ? (body.company_id ?? null) : user.company_id;
 
     const result = await db.run(
-      `INSERT INTO projects (name, client, customer_id, pm_name, pm_email, start_date, end_date, description, current_phase, company_id)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO projects (name, client, customer_id, pm_name, pm_email, start_date, end_date, description, current_phase, objective, project_owner, budget, company_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       body.name, body.client ?? '', body.customer_id ?? null, body.pm_name ?? '', body.pm_email ?? '',
       body.start_date ?? '', body.end_date ?? '', body.description ?? '', body.current_phase ?? 'Initiation',
+      body.objective ?? '', body.project_owner ?? '', body.budget ? Number(body.budget) : 0,
       companyId
     );
 
