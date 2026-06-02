@@ -131,7 +131,7 @@ export default function LandingPage() {
               onClick={openDemo}
               className="px-5 py-2 text-sm font-semibold text-blue-600 border border-blue-200 hover:bg-blue-50 rounded-lg transition-colors"
             >
-              Đăng ký trải nghiệm
+              Request a Demo
             </button>
             <Link
               href="/login"
@@ -156,7 +156,7 @@ export default function LandingPage() {
             <a href="#features" onClick={() => setMobileOpen(false)} className="py-2 text-sm font-medium text-slate-700">Features</a>
             <a href="#how-it-works" onClick={() => setMobileOpen(false)} className="py-2 text-sm font-medium text-slate-700">How it works</a>
             <button onClick={() => { setMobileOpen(false); openDemo(); }} className="mt-1 text-center py-2.5 text-sm font-semibold text-blue-600 border border-blue-200 rounded-lg">
-              Đăng ký trải nghiệm
+              Request a Demo
             </button>
             <Link href="/login" className="text-center py-2.5 text-sm font-semibold text-white bg-blue-600 rounded-lg">
               Sign In
@@ -198,7 +198,7 @@ export default function LandingPage() {
               className="inline-flex items-center gap-2 px-8 py-3.5 text-sm font-bold text-white bg-blue-600 hover:bg-blue-500 rounded-xl transition-colors shadow-lg shadow-blue-900/40"
             >
               <ClipboardList className="h-4 w-4" />
-              Đăng ký trải nghiệm
+              Request a Demo
             </button>
             <Link
               href="/login"
@@ -630,7 +630,7 @@ export default function LandingPage() {
           </p>
           <div className="flex items-center gap-4">
             <button onClick={openDemo} className="text-xs font-semibold text-blue-400 hover:text-blue-300 transition-colors">
-              Đăng ký trải nghiệm →
+              Request a Demo →
             </button>
             <Link href="/login" className="text-xs font-semibold text-blue-500 hover:text-blue-400 transition-colors">
               Sign In →
@@ -656,15 +656,15 @@ export default function LandingPage() {
                 <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <CheckCircle2 className="h-7 w-7 text-green-500" />
                 </div>
-                <h3 className="text-lg font-bold text-slate-900 mb-2">Đã nhận yêu cầu!</h3>
+                <h3 className="text-lg font-bold text-slate-900 mb-2">Request received!</h3>
                 <p className="text-sm text-slate-500 mb-6">
-                  Cảm ơn bạn đã đăng ký. Chúng tôi sẽ liên hệ với bạn trong thời gian sớm nhất.
+                  Thanks for reaching out. We&apos;ll be in touch with you shortly.
                 </p>
                 <button
                   onClick={() => setDemoOpen(false)}
                   className="px-6 py-2.5 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition-colors"
                 >
-                  Đóng
+                  Close
                 </button>
               </div>
             ) : (
@@ -674,35 +674,35 @@ export default function LandingPage() {
                     <ClipboardList className="h-5 w-5 text-blue-600" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-bold text-slate-900">Đăng ký trải nghiệm</h3>
-                    <p className="text-xs text-slate-500">Để lại thông tin, chúng tôi sẽ liên hệ với bạn</p>
+                    <h3 className="text-lg font-bold text-slate-900">Request a Demo</h3>
+                    <p className="text-xs text-slate-500">Leave your details and we&apos;ll be in touch</p>
                   </div>
                 </div>
 
                 <form onSubmit={submitDemo} className="space-y-4">
                   <div>
                     <label className="block text-xs font-semibold text-slate-600 mb-1.5">
-                      Họ và tên <span className="text-red-500">*</span>
+                      Full name <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
                       required
                       value={demoForm.full_name}
                       onChange={e => setDemoForm(f => ({ ...f, full_name: e.target.value }))}
-                      placeholder="Nguyễn Văn A"
+                      placeholder="John Doe"
                       className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
                     />
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-slate-600 mb-1.5">
-                      Số điện thoại <span className="text-red-500">*</span>
+                      Phone number <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="tel"
                       required
                       value={demoForm.phone}
                       onChange={e => setDemoForm(f => ({ ...f, phone: e.target.value }))}
-                      placeholder="0912 345 678"
+                      placeholder="+84 912 345 678"
                       className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
                     />
                   </div>
@@ -715,20 +715,20 @@ export default function LandingPage() {
                       required
                       value={demoForm.email}
                       onChange={e => setDemoForm(f => ({ ...f, email: e.target.value }))}
-                      placeholder="email@congty.com"
+                      placeholder="you@company.com"
                       className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
                     />
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-slate-600 mb-1.5">
-                      Tên công ty <span className="text-red-500">*</span>
+                      Company name <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
                       required
                       value={demoForm.company_name}
                       onChange={e => setDemoForm(f => ({ ...f, company_name: e.target.value }))}
-                      placeholder="Công ty TNHH ABC"
+                      placeholder="ACME Corp"
                       className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
                     />
                   </div>
@@ -737,7 +737,7 @@ export default function LandingPage() {
                     disabled={demoLoading}
                     className="w-full py-3 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-60 rounded-xl transition-colors mt-2"
                   >
-                    {demoLoading ? 'Đang gửi...' : 'Gửi đăng ký'}
+                    {demoLoading ? 'Sending...' : 'Submit request'}
                   </button>
                 </form>
               </>

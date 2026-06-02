@@ -17,9 +17,9 @@ type DemoRequest = { id: number; full_name: string; phone: string; email: string
 const EMPTY_USER = { username: '', display_name: '', company_id: '', is_admin: false, password: '' };
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
-  pending:   { label: 'Chờ xử lý',  color: 'bg-amber-50 text-amber-700 border-amber-200',  icon: <Clock className="h-3 w-3" /> },
-  contacted: { label: 'Đã liên hệ', color: 'bg-blue-50 text-blue-700 border-blue-200',     icon: <CheckCircle2 className="h-3 w-3" /> },
-  rejected:  { label: 'Đã từ chối', color: 'bg-slate-100 text-slate-500 border-slate-200', icon: <XCircle className="h-3 w-3" /> },
+  pending:   { label: 'Pending',   color: 'bg-amber-50 text-amber-700 border-amber-200',  icon: <Clock className="h-3 w-3" /> },
+  contacted: { label: 'Contacted', color: 'bg-blue-50 text-blue-700 border-blue-200',     icon: <CheckCircle2 className="h-3 w-3" /> },
+  rejected:  { label: 'Rejected',  color: 'bg-slate-100 text-slate-500 border-slate-200', icon: <XCircle className="h-3 w-3" /> },
 };
 
 export default function AdminPage() {
@@ -152,7 +152,7 @@ export default function AdminPage() {
       body: JSON.stringify({ id: req.id, status }),
     });
     if (!res.ok) { toast.error('Failed to update status'); return; }
-    toast.success('Đã cập nhật trạng thái');
+    toast.success('Status updated');
     loadDemoRequests();
   };
 
@@ -166,15 +166,15 @@ export default function AdminPage() {
       body: JSON.stringify({ id: noteRequest.id, notes: noteText }),
     });
     if (!res.ok) { toast.error('Failed to save note'); return; }
-    toast.success('Đã lưu ghi chú');
+    toast.success('Note saved');
     setNoteOpen(false);
     loadDemoRequests();
   };
 
   const deleteRequest = async (req: DemoRequest) => {
-    if (!confirm(`Xóa yêu cầu của "${req.full_name}"?`)) return;
+    if (!confirm(`Delete request from "${req.full_name}"?`)) return;
     await fetch(`/api/admin/demo-requests?id=${req.id}`, { method: 'DELETE' });
-    toast.success('Đã xóa');
+    toast.success('Deleted');
     loadDemoRequests();
   };
 
@@ -216,7 +216,7 @@ export default function AdminPage() {
             className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${tab === 'requests' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}
           >
             <ClipboardList className="h-3.5 w-3.5" />
-            Yêu cầu trải nghiệm
+            Demo Requests
             {demoRequests.filter(r => r.status === 'pending').length > 0 && (
               <span className="ml-1 bg-amber-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
                 {demoRequests.filter(r => r.status === 'pending').length}
@@ -333,19 +333,19 @@ export default function AdminPage() {
         {tab === 'requests' && (
           <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
             <div className="flex items-center justify-between px-5 py-3 border-b">
-              <h2 className="font-semibold text-slate-700">Yêu cầu đăng ký trải nghiệm</h2>
-              <span className="text-xs text-slate-400">{demoRequests.length} yêu cầu</span>
+              <h2 className="font-semibold text-slate-700">Demo Requests</h2>
+              <span className="text-xs text-slate-400">{demoRequests.length} requests</span>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm min-w-[700px]">
                 <thead>
                   <tr className="bg-slate-50 text-left text-xs text-slate-500 uppercase tracking-wide">
-                    <th className="px-5 py-3">Họ tên</th>
-                    <th className="px-5 py-3">Công ty</th>
-                    <th className="px-5 py-3">Liên hệ</th>
-                    <th className="px-5 py-3">Trạng thái</th>
-                    <th className="px-5 py-3">Ngày gửi</th>
-                    <th className="px-5 py-3 w-36">Thao tác</th>
+                    <th className="px-5 py-3">Full Name</th>
+                    <th className="px-5 py-3">Company</th>
+                    <th className="px-5 py-3">Contact</th>
+                    <th className="px-5 py-3">Status</th>
+                    <th className="px-5 py-3">Submitted</th>
+                    <th className="px-5 py-3 w-36">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -367,9 +367,9 @@ export default function AdminPage() {
                             onChange={e => updateRequestStatus(r, e.target.value)}
                             className={`text-xs font-semibold border rounded-full px-2.5 py-1 focus:outline-none cursor-pointer ${cfg.color}`}
                           >
-                            <option value="pending">Chờ xử lý</option>
-                            <option value="contacted">Đã liên hệ</option>
-                            <option value="rejected">Đã từ chối</option>
+                            <option value="pending">Pending</option>
+                            <option value="contacted">Contacted</option>
+                            <option value="rejected">Rejected</option>
                           </select>
                         </td>
                         <td className="px-5 py-3 text-xs text-slate-400">
@@ -380,11 +380,11 @@ export default function AdminPage() {
                             <button
                               onClick={() => openNote(r)}
                               className="text-slate-400 hover:text-blue-600 transition-colors"
-                              title={r.notes ? `Ghi chú: ${r.notes}` : 'Thêm ghi chú'}
+                              title={r.notes ? `Note: ${r.notes}` : 'Add note'}
                             >
                               <MessageSquare className={`h-4 w-4 ${r.notes ? 'text-blue-400' : ''}`} />
                             </button>
-                            <button onClick={() => deleteRequest(r)} className="text-slate-400 hover:text-red-500 transition-colors" title="Xóa">
+                            <button onClick={() => deleteRequest(r)} className="text-slate-400 hover:text-red-500 transition-colors" title="Delete">
                               <Trash2 className="h-4 w-4" />
                             </button>
                           </div>
@@ -393,7 +393,7 @@ export default function AdminPage() {
                     );
                   })}
                   {demoRequests.length === 0 && (
-                    <tr><td colSpan={6} className="px-5 py-10 text-center text-slate-400">Chưa có yêu cầu nào</td></tr>
+                    <tr><td colSpan={6} className="px-5 py-10 text-center text-slate-400">No requests yet</td></tr>
                   )}
                 </tbody>
               </table>
@@ -408,22 +408,22 @@ export default function AdminPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <MessageSquare className="h-4 w-4 text-blue-500" />
-              Ghi chú — {noteRequest?.full_name}
+              Notes — {noteRequest?.full_name}
             </DialogTitle>
           </DialogHeader>
           <div className="py-2">
-            <Label>Nội dung ghi chú</Label>
+            <Label>Note</Label>
             <textarea
               className="mt-1.5 w-full text-sm border rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-400 min-h-[80px] resize-none"
               value={noteText}
               onChange={e => setNoteText(e.target.value)}
-              placeholder="Nhập ghi chú về yêu cầu này..."
+              placeholder="Add a note about this request..."
               autoFocus
             />
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setNoteOpen(false)}>Hủy</Button>
-            <Button onClick={saveNote} className="bg-blue-600 hover:bg-blue-700">Lưu ghi chú</Button>
+            <Button variant="outline" onClick={() => setNoteOpen(false)}>Cancel</Button>
+            <Button onClick={saveNote} className="bg-blue-600 hover:bg-blue-700">Save note</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
