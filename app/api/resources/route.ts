@@ -16,14 +16,25 @@ export async function GET(req: NextRequest) {
           JOIN projects p ON p.id = tm.project_id
           ORDER BY tm.domain, tm.name, p.name
         `)
-      : await db.all(`
-          SELECT tm.*, p.name as project_name, p.id as project_id,
-                 p.start_date, p.end_date, p.current_phase, p.client
-          FROM team_members tm
-          JOIN projects p ON p.id = tm.project_id
-          WHERE p.company_id = ?
-          ORDER BY tm.domain, tm.name, p.name
-        `, user.company_id);
+      : user.company_id !== null
+        ? await db.all(`
+            SELECT tm.*, p.name as project_name, p.id as project_id,
+                   p.start_date, p.end_date, p.current_phase, p.client
+            FROM team_members tm
+            JOIN projects p ON p.id = tm.project_id
+            LEFT JOIN customers c ON p.customer_id = c.id
+            WHERE (p.company_id = ? OR c.company_id = ?)
+            ORDER BY tm.domain, tm.name, p.name
+          `, user.company_id, user.company_id)
+        : await db.all(`
+            SELECT tm.*, p.name as project_name, p.id as project_id,
+                   p.start_date, p.end_date, p.current_phase, p.client
+            FROM team_members tm
+            JOIN projects p ON p.id = tm.project_id
+            LEFT JOIN customers c ON p.customer_id = c.id
+            WHERE (p.company_id IS NULL OR c.company_id IS NULL)
+            ORDER BY tm.domain, tm.name, p.name
+          `);
 
     return NextResponse.json(members);
   } catch (e) {

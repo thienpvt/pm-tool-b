@@ -402,8 +402,8 @@ async function migratePostgresSchema(pool: Pool) {
     `ALTER TABLE projects ADD COLUMN IF NOT EXISTS budget_currency TEXT DEFAULT 'VND'`,
     `CREATE TABLE IF NOT EXISTS milestones (id SERIAL PRIMARY KEY, project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE, name TEXT NOT NULL, start_date TEXT, end_date TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
     `CREATE TABLE IF NOT EXISTS milestone_epics (id SERIAL PRIMARY KEY, milestone_id INTEGER NOT NULL REFERENCES milestones(id) ON DELETE CASCADE, activity_id INTEGER NOT NULL REFERENCES activities(id) ON DELETE CASCADE, UNIQUE(milestone_id, activity_id))`,
-    // Fix projects that were created by admin without company_id: inherit from their customer's company
-    `UPDATE projects SET company_id = (SELECT c.company_id FROM customers c WHERE c.id = projects.customer_id) WHERE projects.company_id IS NULL AND projects.customer_id IS NOT NULL AND (SELECT c.company_id FROM customers c WHERE c.id = projects.customer_id) IS NOT NULL`,
+    // Sync ALL projects' company_id to match their customer's company_id (definitive data fix)
+    `UPDATE projects SET company_id = c.company_id FROM customers c WHERE projects.customer_id = c.id AND c.company_id IS NOT NULL`,
   ];
   for (const sql of migrations) {
     try { await pool.query(sql); } catch { /* column already exists */ }
