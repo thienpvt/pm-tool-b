@@ -13,11 +13,12 @@ export async function GET(req: NextRequest) {
       ? await db.all('SELECT * FROM customers WHERE company_id = ? ORDER BY name', user.company_id)
       : await db.all('SELECT * FROM customers WHERE company_id IS NULL ORDER BY name');
 
+  // Count uses same visibility rule as GET /api/projects: match by project.company_id OR customer.company_id
   const projectCounts = user.is_admin
-    ? await db.all('SELECT customer_id, COUNT(*) as count FROM projects WHERE customer_id IS NOT NULL GROUP BY customer_id') as { customer_id: number; count: number }[]
+    ? await db.all('SELECT p.customer_id, COUNT(*) as count FROM projects p WHERE p.customer_id IS NOT NULL GROUP BY p.customer_id') as { customer_id: number; count: number }[]
     : user.company_id !== null
-      ? await db.all('SELECT customer_id, COUNT(*) as count FROM projects WHERE customer_id IS NOT NULL AND company_id = ? GROUP BY customer_id', user.company_id) as { customer_id: number; count: number }[]
-      : await db.all('SELECT customer_id, COUNT(*) as count FROM projects WHERE customer_id IS NOT NULL AND company_id IS NULL GROUP BY customer_id') as { customer_id: number; count: number }[];
+      ? await db.all('SELECT p.customer_id, COUNT(*) as count FROM projects p LEFT JOIN customers c ON p.customer_id = c.id WHERE p.customer_id IS NOT NULL AND (p.company_id = ? OR c.company_id = ?) GROUP BY p.customer_id', user.company_id, user.company_id) as { customer_id: number; count: number }[]
+      : await db.all('SELECT p.customer_id, COUNT(*) as count FROM projects p LEFT JOIN customers c ON p.customer_id = c.id WHERE p.customer_id IS NOT NULL AND (p.company_id IS NULL OR c.company_id IS NULL) GROUP BY p.customer_id') as { customer_id: number; count: number }[];
   const countMap = Object.fromEntries(projectCounts.map(r => [r.customer_id, r.count]));
   return NextResponse.json(programs.map((c: any) => ({ ...c, project_count: countMap[c.id] ?? 0 })));
 }
