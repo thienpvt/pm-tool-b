@@ -881,6 +881,8 @@ export default function TimelinePage() {
   const [saving, setSaving] = useState<number | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [detailActivity, setDetailActivity] = useState<Activity | null>(null);
+  const [filterProjectStatus, setFilterProjectStatus] = useState<string>('All');
+  const [collapsedPSGroups, setCollapsedPSGroups] = useState<Set<string>>(new Set());
   const [viewMode, setViewMode] = useState<'table' | 'roadmap'>('table');
   const [dateMode, setDateMode] = useState<DateMode>('both');
   const roadmapRef = useRef<HTMLDivElement>(null);
@@ -1012,7 +1014,8 @@ export default function TimelinePage() {
     return [...years].sort();
   }, [activities]);
 
-  const baseList = filterPhase === 'All' ? activities : activities.filter(a => a.phase === filterPhase);
+  const baseListByPhase = filterPhase === 'All' ? activities : activities.filter(a => a.phase === filterPhase);
+  const baseList = filterProjectStatus === 'All' ? baseListByPhase : baseListByPhase.filter(a => (a.project_status || '') === filterProjectStatus);
   const phaseGroups: { phase: string; acts: Activity[] }[] = [];
   const seenPhases = new Set<string>();
   for (const a of baseList) {
@@ -1024,6 +1027,40 @@ export default function TimelinePage() {
   const showGroups = filterPhase === 'All';
 
   const overdueCount = activities.filter(a => !DONE_STATUSES.has(a.status) && calcLag(a.plan_end, a.actual_end, a.status) > 0).length;
+
+  const allProjectStatuses = useMemo(() => {
+    const seen = new Set<string>(); const result: string[] = [];
+    for (const a of activities) {
+      const ps = a.project_status || '';
+      if (ps && !seen.has(ps)) { seen.add(ps); result.push(ps); }
+    }
+    return result;
+  }, [activities]);
+
+  type PSGroup = { ps: string; subPhaseGroups: { phase: string; acts: Activity[] }[] };
+  const psGroupsData = useMemo((): PSGroup[] => {
+    const source = filterPhase === 'All' ? activities : activities.filter(a => a.phase === filterPhase);
+    const psMap = new Map<string, Map<string, Activity[]>>();
+    for (const a of source) {
+      const ps = a.project_status || '(Untagged)';
+      if (!psMap.has(ps)) psMap.set(ps, new Map());
+      const phMap = psMap.get(ps)!;
+      if (!phMap.has(a.phase)) phMap.set(a.phase, []);
+      phMap.get(a.phase)!.push(a);
+    }
+    return [...psMap.entries()].map(([ps, phMap]) => ({
+      ps,
+      subPhaseGroups: [...phMap.entries()].map(([phase, acts]) => ({ phase, acts })),
+    }));
+  }, [activities, filterPhase]);
+
+  const togglePSGroup = useCallback((ps: string) => {
+    setCollapsedPSGroups(prev => {
+      const next = new Set(prev);
+      if (next.has(ps)) next.delete(ps); else next.add(ps);
+      return next;
+    });
+  }, []);
 
   const togglePhase = useCallback((phase: string) => {
     setCollapsedPhases(prev => {
@@ -1051,11 +1088,19 @@ export default function TimelinePage() {
 
   useEffect(() => { setCurrentPage(1); }, [filterPhase, rowsPerPage]);
 
-  const visibleTableActivities = useMemo(() =>
-    phaseGroups.flatMap(({ phase, acts }) =>
-      collapsedTablePhases.has(phase) ? [] : acts.filter(a => a.no !== 'EPIC')
-    ),
-  [phaseGroups, collapsedTablePhases]);
+  const visibleTableActivities = useMemo(() => {
+    if (filterProjectStatus !== 'All' || allProjectStatuses.length === 0) {
+      return phaseGroups.flatMap(({ phase, acts }) =>
+        collapsedTablePhases.has(phase) ? [] : acts.filter(a => a.no !== 'EPIC')
+      );
+    }
+    return psGroupsData.flatMap(({ ps, subPhaseGroups }) => {
+      if (collapsedPSGroups.has(ps)) return [];
+      return subPhaseGroups.flatMap(({ phase, acts }) =>
+        collapsedTablePhases.has(`${ps}::${phase}`) ? [] : acts.filter(a => a.no !== 'EPIC')
+      );
+    });
+  }, [filterProjectStatus, allProjectStatuses, phaseGroups, collapsedTablePhases, psGroupsData, collapsedPSGroups]);
 
   const totalTableRows = visibleTableActivities.length;
   const totalTablePages = Math.max(1, Math.ceil(totalTableRows / rowsPerPage));
@@ -1108,7 +1153,7 @@ export default function TimelinePage() {
             </div>
 
             <Select value={filterPhase} onValueChange={v => setFilterPhase(v ?? 'All')}>
-              <SelectTrigger className="w-48 h-9"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-44 h-9"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="All">All Phases</SelectItem>
                 {allPhases.filter(p => activities.some(a => a.phase === p)).map(p => (
@@ -1117,8 +1162,29 @@ export default function TimelinePage() {
               </SelectContent>
             </Select>
 
+            {allProjectStatuses.length > 0 && (
+              <Select value={filterProjectStatus} onValueChange={v => { setFilterProjectStatus(v ?? 'All'); setCollapsedPSGroups(new Set()); }}>
+                <SelectTrigger className="w-48 h-9">
+                  <Tag className="h-3 w-3 mr-1 text-indigo-400 shrink-0" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="All">All Project Status</SelectItem>
+                  {allProjectStatuses.map(ps => <SelectItem key={ps} value={ps}>{ps}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            )}
+
             {viewMode === 'table' && <>
-              {phaseGroups.length > 1 && filterPhase === 'All' && (
+              {filterProjectStatus === 'All' && allProjectStatuses.length > 0 && (
+                <button
+                  onClick={() => setCollapsedPSGroups(collapsedPSGroups.size === psGroupsData.length && psGroupsData.length > 0 ? new Set() : new Set(psGroupsData.map(g => g.ps)))}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 h-9 text-xs font-medium rounded-lg border border-indigo-200 text-indigo-600 hover:bg-indigo-50 transition-colors">
+                  <ChevronsUpDown className="h-3.5 w-3.5" />
+                  {collapsedPSGroups.size === psGroupsData.length && psGroupsData.length > 0 ? 'Expand All PS' : 'Collapse All PS'}
+                </button>
+              )}
+              {(filterProjectStatus !== 'All' || allProjectStatuses.length === 0) && phaseGroups.length > 1 && filterPhase === 'All' && (
                 <button
                   onClick={() => setCollapsedTablePhases(allTableCollapsed ? new Set() : new Set(phaseGroups.map(g => g.phase)))}
                   className="flex items-center gap-1.5 px-2.5 py-1.5 h-9 text-xs font-medium rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">
@@ -1266,7 +1332,70 @@ export default function TimelinePage() {
                     </td></tr>
                   )}
 
-                  {phaseGroups.map(({ phase, acts }) => {
+                  {/* ── PS Grouped view (All Project Status selected + activities have PS tags) ── */}
+                  {filterProjectStatus === 'All' && allProjectStatuses.length > 0 && psGroupsData.map(({ ps, subPhaseGroups }) => {
+                    const isPSC = collapsedPSGroups.has(ps);
+                    const psCls = PROJECT_STATUS_COLOR[ps] ?? 'bg-indigo-50 border-indigo-200 text-indigo-700';
+                    const total = subPhaseGroups.reduce((s, g) => s + g.acts.filter(a => a.no !== 'EPIC').length, 0);
+                    return (
+                      <React.Fragment key={`ps::${ps}`}>
+                        <tr><td colSpan={12} className={`px-3 py-2.5 border-t-2 border-slate-200 ${psCls}`}>
+                          <button onClick={() => togglePSGroup(ps)} className="flex items-center gap-2 w-full text-left">
+                            {isPSC ? <ChevronRight className="w-4 h-4 opacity-50 shrink-0" /> : <ChevronDown className="w-4 h-4 opacity-50 shrink-0" />}
+                            <Tag className="w-3.5 h-3.5 shrink-0" />
+                            <span className="font-bold text-sm">{ps}</span>
+                            <span className="text-xs opacity-60 font-normal ml-1">({total} activities)</span>
+                          </button>
+                        </td></tr>
+                        {!isPSC && subPhaseGroups.map(({ phase, acts }) => {
+                          const pSt = getPhaseStyle(phase);
+                          const ck = `${ps}::${phase}`;
+                          const isPhC = collapsedTablePhases.has(ck);
+                          const chActs = acts.filter(a => a.no !== 'EPIC');
+                          const pgActs = isPhC ? [] : chActs.filter(a => pagedActivityIds.has(a.id));
+                          if (!isPhC && chActs.length > 0 && pgActs.length === 0) return null;
+                          return (
+                            <React.Fragment key={ck}>
+                              <tr className={`border-t border-slate-200/80 ${pSt.bg}`}>
+                                <td colSpan={12} className={`pl-8 pr-3 py-1.5 ${pSt.text}`} style={{ borderLeft: `3px solid ${pSt.hex}50` }}>
+                                  <button onClick={() => setCollapsedTablePhases(prev => { const n = new Set(prev); n.has(ck) ? n.delete(ck) : n.add(ck); return n; })}
+                                    className="flex items-center gap-1.5 text-left">
+                                    {isPhC ? <ChevronRight className="w-3 h-3 opacity-50" /> : <ChevronDown className="w-3 h-3 opacity-50" />}
+                                    <div className={`w-1.5 h-1.5 rounded-full ${pSt.bar}`} />
+                                    <span className="text-[11px] font-semibold uppercase tracking-wider">{phase}</span>
+                                    <span className="text-[10px] opacity-50 ml-1">({chActs.length})</span>
+                                  </button>
+                                </td>
+                              </tr>
+                              {!isPhC && pgActs.map(row => {
+                                const lg = calcLag(row.plan_end, row.actual_end, row.status);
+                                const ov = lg > 0 && row.status !== 'Done';
+                                return (
+                                  <tr key={row.id} className={`border-t hover:bg-slate-50/60 transition-colors ${ov ? 'bg-red-50/20' : ''}`}>
+                                    <td className="px-2 py-1.5 bg-teal-50/30" style={{ minWidth: '200px' }}><input className="h-7 text-xs w-full border border-slate-200 rounded-md px-2 bg-white focus:outline-none focus:ring-1 focus:ring-teal-400 font-mono" value={row.jira_key ?? ''} onChange={e => updateField(row.id, 'jira_key', e.target.value)} onBlur={() => saveRow(row)} placeholder="KEY-1" /></td>
+                                    <td className="px-2 py-1.5" style={{ minWidth: '240px' }}><button onClick={() => setDetailActivity(row)} className="w-full text-left group"><div className="text-xs font-medium text-slate-700 group-hover:text-blue-600 leading-snug min-h-[28px] py-0.5 transition-colors">{row.activity || <span className="italic text-slate-400">New Activity</span>}</div></button></td>
+                                    <td className="px-2 py-1.5"><input list={`team-${id}`} className="h-7 text-xs w-full border border-slate-200 rounded-md px-2 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400" value={row.accountable} onChange={e => updateField(row.id, 'accountable', e.target.value)} onBlur={() => saveRow(row)} placeholder="Chọn..." /></td>
+                                    <td className="px-2 py-1.5"><input list={`team-${id}`} className="h-7 text-xs w-full border border-slate-200 rounded-md px-2 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400" value={row.responsible} onChange={e => updateField(row.id, 'responsible', e.target.value)} onBlur={() => saveRow(row)} placeholder="Chọn..." /></td>
+                                    <td className="px-2 py-1.5"><DateCell value={row.plan_start} warn={getDateWarn(row.plan_start)} onChange={v => updateField(row.id, 'plan_start', v)} onBlur={() => saveRow(row)} /></td>
+                                    <td className="px-2 py-1.5"><DateCell value={row.plan_end} warn={getDateWarn(row.plan_end)} onChange={v => updateField(row.id, 'plan_end', v)} onBlur={() => saveRow(row)} extraClass={ov ? 'border-red-300' : ''} /></td>
+                                    <td className="px-2 py-1.5"><DateCell value={row.actual_start} warn={getDateWarn(row.actual_start)} onChange={v => updateField(row.id, 'actual_start', v)} onBlur={() => saveRow(row)} /></td>
+                                    <td className="px-2 py-1.5"><DateCell value={row.actual_end} warn={getDateWarn(row.actual_end)} onChange={v => updateField(row.id, 'actual_end', v)} onBlur={() => saveRow(row)} /></td>
+                                    <td className="px-2 py-1.5"><Select value={row.status} onValueChange={v => { const val = v ?? ''; updateField(row.id, 'status', val); saveRow({ ...row, status: val }); }}><SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger><SelectContent>{STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select></td>
+                                    <td className="px-2 py-1.5 text-center"><Input className="h-7 text-xs w-12 px-1 text-center mx-auto" type="number" min={0} max={100} value={row.completion_pct} onChange={e => updateField(row.id, 'completion_pct', Number(e.target.value))} onBlur={() => saveRow(row)} /></td>
+                                    <td className="px-2 py-1.5 bg-teal-50/30" style={{ minWidth: '180px' }}><Input className="h-7 text-xs bg-white" value={row.sprint ?? ''} onChange={e => updateField(row.id, 'sprint', e.target.value)} onBlur={() => saveRow(row)} placeholder="Sprint name..." /></td>
+                                    <td className="px-2 py-1.5"><div className="flex items-center gap-1">{saving === row.id && <Save className="h-3 w-3 text-blue-400 animate-pulse" />}<button onClick={() => deleteRow(row.id)} className="text-slate-300 hover:text-red-500"><Trash2 className="h-3.5 w-3.5" /></button></div></td>
+                                  </tr>
+                                );
+                              })}
+                            </React.Fragment>
+                          );
+                        })}
+                      </React.Fragment>
+                    );
+                  })}
+
+                  {/* ── Normal Phase grouped view ── */}
+                  {(filterProjectStatus !== 'All' || allProjectStatuses.length === 0) && phaseGroups.map(({ phase, acts }) => {
                     const style = getPhaseStyle(phase);
                     const isCollapsed = collapsedTablePhases.has(phase);
                     const epicRow = acts.find(a => a.no === 'EPIC');
@@ -1549,7 +1678,7 @@ export default function TimelinePage() {
 
       {/* Activity Detail Dialog (Jira-like) */}
       <Dialog open={!!detailActivity} onOpenChange={o => { if (!o) setDetailActivity(null); }}>
-        <DialogContent showCloseButton={false} className="max-w-5xl p-0 gap-0 overflow-hidden" style={{ maxHeight: '90vh' }}>
+        <DialogContent showCloseButton={false} className="sm:max-w-5xl p-0 gap-0 overflow-hidden" style={{ maxWidth: 'min(95vw, 1100px)', maxHeight: '90vh' }}>
           {detailActivity && (
             <ActivityDetail
               key={detailActivity.id}
