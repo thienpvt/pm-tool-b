@@ -10,9 +10,15 @@ async function checkAccess(req: NextRequest, projectId: string) {
   if (user.is_admin) return { error: null, user };
 
   const db = await getDb();
-  const project = await db.get('SELECT company_id FROM projects WHERE id = ?', Number(projectId)) as { company_id: number } | undefined;
+  const project = await db.get<{ company_id: number | null; customer_company_id: number | null }>(
+    `SELECT p.company_id, c.company_id AS customer_company_id
+     FROM projects p LEFT JOIN customers c ON p.customer_id = c.id
+     WHERE p.id = ?`,
+    Number(projectId)
+  );
   if (!project) return { error: NextResponse.json({ error: 'Not found' }, { status: 404 }), user: null };
-  if (project.company_id !== user.company_id) return { error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }), user: null };
+  const allowed = project.company_id === user.company_id || project.customer_company_id === user.company_id;
+  if (!allowed) return { error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }), user: null };
   return { error: null, user };
 }
 
