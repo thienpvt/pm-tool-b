@@ -862,6 +862,9 @@ export default function TimelinePage() {
   // Context menu
   const [contextMenu, setContextMenu] = useState<ContextMenuState>(null);
 
+  // Inline activity name editing
+  const [editingActivityId, setEditingActivityId] = useState<number | null>(null);
+
   // Holidays
   const [holidays, setHolidays] = useState<Holiday[]>([]);
   const [holidayOpen, setHolidayOpen] = useState(false);
@@ -939,7 +942,7 @@ export default function TimelinePage() {
     const phase = project?.current_phase ?? activities[0]?.phase ?? DEFAULT_PHASES[0];
     const res = await fetch(`/api/projects/${id}/activities`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phase, activity: 'New Activity', jira_key: '', sprint: '', project_status: project?.status ?? '', parent_id: null }),
+      body: JSON.stringify({ phase, activity: 'New Activity', jira_key: generateKey(), sprint: '', project_status: project?.status ?? '', parent_id: null }),
     });
     const row = await res.json();
     setActivities(a => [...a, row]);
@@ -951,7 +954,7 @@ export default function TimelinePage() {
     if (!parent) return;
     const res = await fetch(`/api/projects/${id}/activities`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phase: parent.phase, activity: 'New Task', parent_id: parentId, status: 'To-do', project_status: project?.status ?? '' }),
+      body: JSON.stringify({ phase: parent.phase, activity: 'New Task', parent_id: parentId, status: 'To-do', jira_key: generateKey(), project_status: project?.status ?? '' }),
     });
     const row = await res.json();
     setActivities(a => [...a, row]);
@@ -964,7 +967,7 @@ export default function TimelinePage() {
     const { id: _id, order_idx: _order, ...fields } = activity;
     const res = await fetch(`/api/projects/${id}/activities`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...fields, activity: `${activity.activity} (copy)` }),
+      body: JSON.stringify({ ...fields, activity: `${activity.activity} (copy)`, jira_key: generateKey() }),
     });
     const row = await res.json();
     setActivities(a => [...a, row]);
@@ -1022,6 +1025,18 @@ export default function TimelinePage() {
   }, [activities]);
 
   const overdueCount = activities.filter(a => !DONE_STATUSES.has(a.status) && calcLag(a.plan_end, a.actual_end, a.status) > 0).length;
+
+  // Auto-generate jira key: first 3 letters of project name + max-existing-num + 1
+  const generateKey = useCallback(() => {
+    if (!project) return '';
+    const prefix = (project.name.replace(/[^a-zA-Z]/g, '').slice(0, 3) || project.name.slice(0, 3)).toUpperCase();
+    const maxNum = activities.reduce((max, a) => {
+      if (!a.jira_key) return max;
+      const m = a.jira_key.match(/-(\d+)$/);
+      return m ? Math.max(max, parseInt(m[1], 10)) : max;
+    }, 0);
+    return `${prefix}-${String(maxNum + 1).padStart(2, '0')}`;
+  }, [project, activities]);
 
   // ─── Phase groups (used by both table and roadmap) ────────────────────────
   const filteredActivities = filterPhase === 'All' ? activities : activities.filter(a => a.phase === filterPhase);
@@ -1120,31 +1135,69 @@ export default function TimelinePage() {
             <input className="h-7 text-xs w-full border border-slate-200 rounded-md px-2 bg-white focus:outline-none focus:ring-1 focus:ring-teal-400 font-mono"
               value={row.jira_key ?? ''} onChange={e => updateField(row.id, 'jira_key', e.target.value)} onBlur={() => saveRow(row)} placeholder="KEY-1" />
           </td>
-          {/* Activity */}
-          <td className="px-2 py-1.5" style={{ minWidth: '240px' }}>
+          {/* Activity — click text → detail; click empty space → inline edit */}
+          <td
+            className="px-2 py-1.5 cursor-text"
+            style={{ minWidth: '240px' }}
+            onClick={() => { if (editingActivityId !== row.id) setEditingActivityId(row.id); }}
+          >
             <div className="flex items-center gap-1.5">
               {!isChild && hasChildren && (
                 <button
-                  onClick={() => toggleParent(row.id)}
+                  onClick={e => { e.stopPropagation(); toggleParent(row.id); }}
                   className="shrink-0 w-4 h-4 flex items-center justify-center rounded hover:bg-slate-200 transition-colors"
                 >
                   {isParentCollapsed ? <ChevronRight className="w-3 h-3 text-slate-400" /> : <ChevronDown className="w-3 h-3 text-slate-400" />}
                 </button>
               )}
               {!isChild && !hasChildren && <span className="w-4 shrink-0" />}
-              <button onClick={() => setDetailActivity(row)} className="flex-1 text-left group min-w-0">
-                <div className={`text-xs font-medium leading-snug min-h-[28px] py-0.5 transition-colors truncate
-                  ${isChild ? 'text-slate-600 group-hover:text-blue-500' : 'text-slate-700 group-hover:text-blue-600'}`}>
-                  {row.activity || <span className="italic text-slate-400">New Activity</span>}
-                </div>
-                {row.project_status && (
-                  <span className="inline-flex items-center gap-0.5 text-[9px] px-1.5 py-px rounded-full bg-indigo-50 border border-indigo-100 text-indigo-600 font-medium mt-0.5">
-                    <Tag className="h-2 w-2 shrink-0" />{row.project_status}
-                  </span>
+
+              <div className="flex-1 min-w-0">
+                {editingActivityId === row.id ? (
+                  <input
+                    autoFocus
+                    className="w-full h-7 text-xs border border-blue-300 rounded px-1.5 bg-white outline-none focus:ring-1 focus:ring-blue-400"
+                    value={row.activity}
+                    onChange={e => updateField(row.id, 'activity', e.target.value)}
+                    onBlur={() => {
+                      const cur = activities.find(a => a.id === row.id);
+                      if (cur) saveRow(cur);
+                      setEditingActivityId(null);
+                    }}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' || e.key === 'Escape') {
+                        const cur = activities.find(a => a.id === row.id);
+                        if (cur) saveRow(cur);
+                        setEditingActivityId(null);
+                      }
+                    }}
+                    onClick={e => e.stopPropagation()}
+                  />
+                ) : (
+                  <div className="min-h-[28px] py-0.5">
+                    <button
+                      onClick={e => { e.stopPropagation(); setDetailActivity(row); }}
+                      className="text-left inline group/detail"
+                    >
+                      <span className={`text-xs font-medium leading-snug transition-colors
+                        group-hover/detail:text-blue-600 group-hover/detail:underline
+                        ${isChild ? 'text-slate-600' : 'text-slate-700'}`}>
+                        {row.activity || <span className="italic text-slate-400 no-underline">New Activity</span>}
+                      </span>
+                    </button>
+                    {row.project_status && (
+                      <span className="flex items-center gap-0.5 text-[9px] px-1.5 py-px rounded-full bg-indigo-50 border border-indigo-100 text-indigo-600 font-medium mt-0.5 w-fit">
+                        <Tag className="h-2 w-2 shrink-0" />{row.project_status}
+                      </span>
+                    )}
+                  </div>
                 )}
-              </button>
+              </div>
+
               {!isChild && hasChildren && (
-                <span className="text-[9px] text-slate-400 shrink-0 tabular-nums">{children.length}</span>
+                <span className="text-[9px] text-slate-400 shrink-0 tabular-nums" onClick={e => e.stopPropagation()}>
+                  {children.length}
+                </span>
               )}
             </div>
           </td>
