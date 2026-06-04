@@ -7,9 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { Plus, Trash2, Save, Download, Upload, FileDown, AlertCircle, MessageSquare, GanttChart, LayoutList, CalendarX2, ChevronDown, ChevronRight, ChevronsUpDown, X, Tag } from 'lucide-react';
+import { Plus, Trash2, Save, Download, Upload, FileDown, AlertCircle, GanttChart, LayoutList, CalendarX2, ChevronDown, ChevronRight, ChevronsUpDown, X, Tag, Copy, Eye, FolderPlus } from 'lucide-react';
 import ImportMappingDialog from '@/components/timeline/ImportMappingDialog';
 
 type Activity = {
@@ -19,12 +18,17 @@ type Activity = {
   status: string; completion_pct: number; notes: string; order_idx: number;
   delay_owner: string; delay_reason: string;
   jira_key: string; sprint: string; project_status: string;
+  parent_id: number | null;
 };
 
 type TeamMember = { id: number; name: string; role: string; domain: string; };
 type Project = { id: number; name: string; status: string; current_phase: string; client: string; pm_name: string; };
 type Holiday   = { id: number; project_id: number; date: string; name: string; };
 type DateMode  = 'plan' | 'actual' | 'both';
+
+type ContextMenuState = {
+  x: number; y: number; activity: Activity;
+} | null;
 
 const DEFAULT_PHASES = ['Initializing', 'Architecture & Design', 'Setup & Infra', 'Development', 'Testing', 'UAT', 'Deployment', 'Closing'];
 const DELAY_OWNERS = ['N/A', 'Client', 'Vendor', 'Both', 'External'];
@@ -170,24 +174,6 @@ const TEMPLATE_ROWS = [
   ['2', 'Development',  'PROJ-2', 'Backend API',     'API Module',           'Test Report',    'Tech Lead', 'BE Team', 'SA', '2025-02-01', '2025-03-31', '2025-02-05', '', 'In Progress', '60', 'Sprint 1', 'Client', 'Waiting for client API spec', ''],
   ['3', 'Testing',      'PROJ-3', 'SIT',             'SIT Report',           'SIT Sign-off',   'QA Lead', 'QA Team', 'Dev', '2025-04-01', '2025-04-15', '', '', 'To-do', '0', '', 'N/A', '', ''],
 ];
-
-function parseCSV(text: string): string[][] {
-  const rows: string[][] = [];
-  const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
-  for (const line of lines) {
-    if (!line.trim()) continue;
-    const cells: string[] = []; let cur = ''; let inQuote = false;
-    for (let i = 0; i < line.length; i++) {
-      const ch = line[i];
-      if (ch === '"') { if (inQuote && line[i+1] === '"') { cur += '"'; i++; } else inQuote = !inQuote; }
-      else if (ch === ',' && !inQuote) { cells.push(cur.trim()); cur = ''; }
-      else cur += ch;
-    }
-    cells.push(cur.trim());
-    rows.push(cells);
-  }
-  return rows;
-}
 
 // ─── Roadmap helpers ──────────────────────────────────────────────────────────
 const MO_FULL  = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -506,7 +492,6 @@ function RoadmapView({
   const weekW   = 7 * ppd;
   const showWeekLabel = weekW >= 18;
 
-  // Month + week structure
   interface WeekCell { label: string; sx: number; w: number; }
   interface MonthCell { label: string; fullLabel: string; year: number; sx: number; totalW: number; weeks: WeekCell[]; }
   const months: MonthCell[] = [];
@@ -559,7 +544,6 @@ function RoadmapView({
     .map(h => ({ x: Math.round((h.d!.getTime() - rangeStart.getTime()) / 86_400_000) * ppd, name: h.name }))
     .filter(h => h.x >= 0 && h.x < totalW);
 
-  // Clipped bar helpers
   function pBar(a: Activity) {
     const s = rd(a.plan_start), e = rd(a.plan_end);
     if (!s || !e) return null;
@@ -584,7 +568,7 @@ function RoadmapView({
   const LEFT  = 268;
   const HDR   = (multiYear ? 22 : 0) + 26 + 22;
   const totalBodyH = phaseGroups.reduce((h, { phase, acts }) =>
-    h + 30 + (collapsedPhases.has(phase) ? 0 : acts.filter(a => a.no !== 'EPIC').length * ROW), 0);
+    h + 30 + (collapsedPhases.has(phase) ? 0 : acts.length * ROW), 0);
 
   return (
     <div className="rounded-xl border bg-white overflow-hidden shadow-sm">
@@ -653,6 +637,11 @@ function RoadmapView({
               const phaseLag   = Math.max(0, ...acts.map(a => calcLag(a.plan_end, a.actual_end, a.status)));
               const phaseEven  = phaseIdx % 2 === 0;
 
+              // Compute phase span from all activities
+              const phaseStart = acts.reduce((min, a) => a.plan_start && (!min || a.plan_start < min) ? a.plan_start : min, '');
+              const phaseEnd   = acts.reduce((max, a) => a.plan_end && (!max || a.plan_end > max) ? a.plan_end : max, '');
+              const phaseSpanBar = phaseStart && phaseEnd ? pBar({ plan_start: phaseStart, plan_end: phaseEnd } as Activity) : null;
+
               return (
                 <React.Fragment key={phase}>
                   {/* Phase header */}
@@ -669,18 +658,13 @@ function RoadmapView({
                           : <ChevronDown  className="w-3.5 h-3.5 shrink-0 opacity-50" />}
                         <div className={`w-2 h-2 rounded-full shrink-0 ${pSt.bar}`} />
                         <span className="text-[11px] font-bold uppercase tracking-widest truncate">{phase}</span>
-                        <span className="text-[10px] font-normal opacity-50 shrink-0 ml-1">({acts.filter(a => a.no !== 'EPIC').length})</span>
+                        <span className="text-[10px] font-normal opacity-50 shrink-0 ml-1">({acts.length})</span>
                         {phaseLag > 0 && <span className="ml-1 text-[9px] font-bold text-red-600 shrink-0 bg-red-100 px-1 rounded">+{phaseLag}d</span>}
-                        {isCollapsed && (() => {
-                          const epic = acts.find(a => a.no === 'EPIC');
-                          if (!epic) return null;
-                          if (!epic.plan_start && !epic.plan_end) return null;
-                          return (
-                            <span className="text-[9px] text-blue-500 tabular-nums shrink-0 ml-1.5 opacity-80 font-medium">
-                              {fmtD(epic.plan_start)}→{fmtD(epic.plan_end)}
-                            </span>
-                          );
-                        })()}
+                        {isCollapsed && phaseStart && phaseEnd && (
+                          <span className="text-[9px] text-blue-500 tabular-nums shrink-0 ml-1.5 opacity-80 font-medium">
+                            {fmtD(phaseStart)}→{fmtD(phaseEnd)}
+                          </span>
+                        )}
                       </button>
                     </div>
                     <div className="relative flex-1">
@@ -689,34 +673,19 @@ function RoadmapView({
                           style={{ left: wk.sx, borderRight: wi === m.weeks.length - 1 ? '1.5px solid rgba(100,116,139,0.25)' : '1px solid rgba(100,116,139,0.10)' }} />
                       )))}
                       {showToday && <div className="absolute inset-y-0 w-px" style={{ left: todayX, background: '#f87171', opacity: 0.4 }} />}
-                      {(() => {
-                        const epic = acts.find(a => a.no === 'EPIC');
-                        if (!epic) return null;
-                        const eb = pBar(epic);
-                        if (!eb) return null;
-                        return (
-                          <div style={{
-                            position: 'absolute', left: eb.lx, width: eb.w, height: 16,
-                            top: '50%', transform: 'translateY(-50%)',
-                            background: pSt.hex + '28', border: `1.5px solid ${pSt.hex}`,
-                            borderRadius: 9999, zIndex: 1, overflow: 'hidden',
-                            display: 'flex', alignItems: 'center',
-                          }}>
-                            {epic.jira_key && eb.w > 40 && (
-                              <span style={{
-                                fontSize: 8, fontWeight: 700, color: pSt.hex,
-                                padding: '0 5px', overflow: 'hidden',
-                                textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                              }}>{epic.jira_key}</span>
-                            )}
-                          </div>
-                        );
-                      })()}
+                      {phaseSpanBar && (
+                        <div style={{
+                          position: 'absolute', left: phaseSpanBar.lx, width: phaseSpanBar.w, height: 16,
+                          top: '50%', transform: 'translateY(-50%)',
+                          background: pSt.hex + '28', border: `1.5px solid ${pSt.hex}`,
+                          borderRadius: 9999, zIndex: 1,
+                        }} />
+                      )}
                     </div>
                   </div>
 
                   {/* Activity rows */}
-                  {!isCollapsed && acts.filter(a => a.no !== 'EPIC').map((a, ri) => {
+                  {!isCollapsed && acts.map((a, ri) => {
                     const pb = pBar(a), ab = aBar(a);
                     const lag     = calcLag(a.plan_end, a.actual_end, a.status);
                     const overdue = lag > 0 && !DONE_STATUSES.has(a.status);
@@ -728,8 +697,8 @@ function RoadmapView({
                     const dualBar    = showPlan && showActual && !!ab;
                     const planShift  = dualBar ? 'translateY(calc(-50% - 4px))' : 'translateY(-50%)';
                     const actualEndLabel = a.actual_end ? fmtD(a.actual_end) : (a.actual_start ? 'now' : '—');
+                    const isChild = !!a.parent_id;
 
-                    // Alternating background per phase group
                     const rowBg = overdue
                       ? '!bg-red-50/50'
                       : phaseEven
@@ -742,12 +711,13 @@ function RoadmapView({
                         style={{ height: ROW, position: 'relative', zIndex: 1 }}>
 
                         {/* Left panel */}
-                        <div className="flex items-center px-3 border-r border-slate-100 shrink-0"
-                          style={{ width: LEFT, height: ROW, borderLeft: `3px solid ${pSt.hex}50` }}>
+                        <div className="flex items-center border-r border-slate-100 shrink-0"
+                          style={{ width: LEFT, height: ROW, borderLeft: `3px solid ${pSt.hex}${isChild ? '30' : '50'}`, paddingLeft: isChild ? 24 : 12, paddingRight: 12 }}>
                           <div className="min-w-0 flex-1">
-                            {/* Activity name */}
-                            <p className="text-[11px] font-semibold text-slate-700 truncate leading-tight">{a.activity || '—'}</p>
-                            {/* Status + overdue + completion */}
+                            <div className="flex items-center gap-1">
+                              {isChild && <span className="text-[9px] text-slate-400 shrink-0">↳</span>}
+                              <p className={`text-[11px] font-semibold text-slate-700 truncate leading-tight ${isChild ? 'text-slate-600' : ''}`}>{a.activity || '—'}</p>
+                            </div>
                             <div className="flex items-center gap-1 mt-0.5">
                               <span className={`text-[9px] px-1 py-px rounded font-bold shrink-0 ${STATUS_COLOR[a.status] ?? 'bg-slate-100 text-slate-500'}`}>{a.status}</span>
                               {overdue && <span className="text-[9px] font-bold text-red-500 shrink-0">+{lag}d</span>}
@@ -756,7 +726,6 @@ function RoadmapView({
                                 <span className="ml-auto text-[9px] font-bold text-slate-400 shrink-0 tabular-nums">{a.completion_pct}%</span>
                               )}
                             </div>
-                            {/* Dates — compact single line */}
                             <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                               {showPlan && (a.plan_start || a.plan_end) && (
                                 <span className="text-[9px] text-blue-600 tabular-nums whitespace-nowrap leading-tight">
@@ -771,12 +740,6 @@ function RoadmapView({
                                 </span>
                               )}
                             </div>
-                            {a.project_status && (
-                              <div className="flex items-center gap-0.5 mt-0.5">
-                                <Tag className="h-2 w-2 text-indigo-400 shrink-0" />
-                                <span className="text-[8px] text-indigo-500 font-medium truncate">{a.project_status}</span>
-                              </div>
-                            )}
                           </div>
                         </div>
 
@@ -881,8 +844,6 @@ export default function TimelinePage() {
   const [saving, setSaving] = useState<number | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [detailActivity, setDetailActivity] = useState<Activity | null>(null);
-  const [filterProjectStatus, setFilterProjectStatus] = useState<string>('All');
-  const [collapsedPSGroups, setCollapsedPSGroups] = useState<Set<string>>(new Set());
   const [viewMode, setViewMode] = useState<'table' | 'roadmap'>('table');
   const [dateMode, setDateMode] = useState<DateMode>('both');
   const roadmapRef = useRef<HTMLDivElement>(null);
@@ -892,12 +853,33 @@ export default function TimelinePage() {
   const [roadmapYear,   setRoadmapYear]   = useState<number | null>(null);
   const [roadmapPeriod, setRoadmapPeriod] = useState<string>('all');
 
+  // Table state
+  const [collapsedTablePhases, setCollapsedTablePhases] = useState<Set<string>>(new Set());
+  const [collapsedParents, setCollapsedParents] = useState<Set<number>>(new Set());
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(30);
+
+  // Context menu
+  const [contextMenu, setContextMenu] = useState<ContextMenuState>(null);
+
   // Holidays
   const [holidays, setHolidays] = useState<Holiday[]>([]);
   const [holidayOpen, setHolidayOpen] = useState(false);
   const [newHDate, setNewHDate] = useState('');
   const [newHName, setNewHName] = useState('');
   const holidaySet = useMemo(() => new Set(holidays.map(h => h.date)), [holidays]);
+
+  // Close context menu on outside click
+  useEffect(() => {
+    if (!contextMenu) return;
+    const handler = () => setContextMenu(null);
+    document.addEventListener('click', handler);
+    document.addEventListener('contextmenu', handler);
+    return () => {
+      document.removeEventListener('click', handler);
+      document.removeEventListener('contextmenu', handler);
+    };
+  }, [contextMenu]);
 
   const getDateWarn = useCallback((dateStr: string | null | undefined): string | null => {
     if (!dateStr) return null;
@@ -952,15 +934,41 @@ export default function TimelinePage() {
   useEffect(() => { fetch(`/api/projects/${id}/team`).then(r => r.json()).then(setTeamMembers); }, [id]);
   useEffect(() => { fetch(`/api/projects/${id}/holidays`).then(r => r.json()).then(setHolidays); }, [id]);
 
+  // Add parent-level activity in project's current phase
   const addActivity = async () => {
-    const uniquePhases = [...new Set(activities.map(a => a.phase).filter(Boolean))];
-    const phase = filterPhase === 'All' ? (uniquePhases[0] ?? DEFAULT_PHASES[0]) : filterPhase;
+    const phase = project?.current_phase ?? activities[0]?.phase ?? DEFAULT_PHASES[0];
     const res = await fetch(`/api/projects/${id}/activities`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phase, activity: 'New Activity', jira_key: '', sprint: '', project_status: project?.status ?? '' }),
+      body: JSON.stringify({ phase, activity: 'New Activity', jira_key: '', sprint: '', project_status: project?.status ?? '', parent_id: null }),
     });
     const row = await res.json();
     setActivities(a => [...a, row]);
+  };
+
+  // Create child activity under a parent
+  const createChild = async (parentId: number) => {
+    const parent = activities.find(a => a.id === parentId);
+    if (!parent) return;
+    const res = await fetch(`/api/projects/${id}/activities`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phase: parent.phase, activity: 'New Task', parent_id: parentId, status: 'To-do', project_status: project?.status ?? '' }),
+    });
+    const row = await res.json();
+    setActivities(a => [...a, row]);
+    setCollapsedParents(prev => { const n = new Set(prev); n.delete(parentId); return n; });
+    toast.success('Child task created');
+  };
+
+  // Duplicate an activity (no children duplication)
+  const duplicateActivity = async (activity: Activity) => {
+    const { id: _id, order_idx: _order, ...fields } = activity;
+    const res = await fetch(`/api/projects/${id}/activities`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...fields, activity: `${activity.activity} (copy)` }),
+    });
+    const row = await res.json();
+    setActivities(a => [...a, row]);
+    toast.success('Duplicated');
   };
 
   const updateField = (rowId: number, field: string, value: string | number) =>
@@ -1002,7 +1010,6 @@ export default function TimelinePage() {
     return result;
   }, [activities]);
 
-  // Years present in activity dates (for roadmap year selector)
   const dataYears = useMemo(() => {
     const years = new Set<number>();
     for (const a of activities) {
@@ -1014,53 +1021,22 @@ export default function TimelinePage() {
     return [...years].sort();
   }, [activities]);
 
-  const baseListByPhase = filterPhase === 'All' ? activities : activities.filter(a => a.phase === filterPhase);
-  const baseList = filterProjectStatus === 'All' ? baseListByPhase : baseListByPhase.filter(a => (a.project_status || '') === filterProjectStatus);
-  const phaseGroups: { phase: string; acts: Activity[] }[] = [];
-  const seenPhases = new Set<string>();
-  for (const a of baseList) {
-    if (!seenPhases.has(a.phase)) {
-      seenPhases.add(a.phase);
-      phaseGroups.push({ phase: a.phase, acts: baseList.filter(x => x.phase === a.phase) });
-    }
-  }
-  const showGroups = filterPhase === 'All';
-
   const overdueCount = activities.filter(a => !DONE_STATUSES.has(a.status) && calcLag(a.plan_end, a.actual_end, a.status) > 0).length;
 
-  const allProjectStatuses = useMemo(() => {
-    const seen = new Set<string>(); const result: string[] = [];
-    for (const a of activities) {
-      const ps = a.project_status || '';
-      if (ps && !seen.has(ps)) { seen.add(ps); result.push(ps); }
-    }
-    return result;
-  }, [activities]);
+  // ─── Phase groups (used by both table and roadmap) ────────────────────────
+  const filteredActivities = filterPhase === 'All' ? activities : activities.filter(a => a.phase === filterPhase);
 
-  type PSGroup = { ps: string; subPhaseGroups: { phase: string; acts: Activity[] }[] };
-  const psGroupsData = useMemo((): PSGroup[] => {
-    const source = filterPhase === 'All' ? activities : activities.filter(a => a.phase === filterPhase);
-    const psMap = new Map<string, Map<string, Activity[]>>();
-    for (const a of source) {
-      const ps = a.project_status || '(Untagged)';
-      if (!psMap.has(ps)) psMap.set(ps, new Map());
-      const phMap = psMap.get(ps)!;
-      if (!phMap.has(a.phase)) phMap.set(a.phase, []);
-      phMap.get(a.phase)!.push(a);
+  const phaseGroups = useMemo((): { phase: string; acts: Activity[] }[] => {
+    const seenPhases = new Set<string>();
+    const groups: { phase: string; acts: Activity[] }[] = [];
+    for (const a of filteredActivities) {
+      if (!seenPhases.has(a.phase)) {
+        seenPhases.add(a.phase);
+        groups.push({ phase: a.phase, acts: filteredActivities.filter(x => x.phase === a.phase) });
+      }
     }
-    return [...psMap.entries()].map(([ps, phMap]) => ({
-      ps,
-      subPhaseGroups: [...phMap.entries()].map(([phase, acts]) => ({ phase, acts })),
-    }));
-  }, [activities, filterPhase]);
-
-  const togglePSGroup = useCallback((ps: string) => {
-    setCollapsedPSGroups(prev => {
-      const next = new Set(prev);
-      if (next.has(ps)) next.delete(ps); else next.add(ps);
-      return next;
-    });
-  }, []);
+    return groups;
+  }, [filteredActivities]);
 
   const togglePhase = useCallback((phase: string) => {
     setCollapsedPhases(prev => {
@@ -1069,13 +1045,6 @@ export default function TimelinePage() {
       return next;
     });
   }, []);
-
-  const allCollapsed = collapsedPhases.size === phaseGroups.length && phaseGroups.length > 0;
-
-  // ─── Table view: collapse + pagination ────────────────────────────────────
-  const [collapsedTablePhases, setCollapsedTablePhases] = useState<Set<string>>(new Set());
-  const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(30);
 
   const toggleTablePhase = useCallback((phase: string) => {
     setCollapsedTablePhases(prev => {
@@ -1086,31 +1055,141 @@ export default function TimelinePage() {
     setCurrentPage(1);
   }, []);
 
+  const toggleParent = useCallback((parentId: number) => {
+    setCollapsedParents(prev => {
+      const next = new Set(prev);
+      if (next.has(parentId)) next.delete(parentId); else next.add(parentId);
+      return next;
+    });
+  }, []);
+
+  const allCollapsed = collapsedPhases.size === phaseGroups.length && phaseGroups.length > 0;
+  const allTableCollapsed = collapsedTablePhases.size === phaseGroups.length && phaseGroups.length > 0;
+
   useEffect(() => { setCurrentPage(1); }, [filterPhase, rowsPerPage]);
 
-  const visibleTableActivities = useMemo(() => {
-    if (filterProjectStatus !== 'All' || allProjectStatuses.length === 0) {
-      return phaseGroups.flatMap(({ phase, acts }) =>
-        collapsedTablePhases.has(phase) ? [] : acts.filter(a => a.no !== 'EPIC')
-      );
+  // ─── Children lookup map ──────────────────────────────────────────────────
+  const childrenByParent = useMemo(() => {
+    const map = new Map<number, Activity[]>();
+    for (const a of activities) {
+      if (a.parent_id) {
+        if (!map.has(a.parent_id)) map.set(a.parent_id, []);
+        map.get(a.parent_id)!.push(a);
+      }
     }
-    return psGroupsData.flatMap(({ ps, subPhaseGroups }) => {
-      if (collapsedPSGroups.has(ps)) return [];
-      return subPhaseGroups.flatMap(({ phase, acts }) =>
-        collapsedTablePhases.has(`${ps}::${phase}`) ? [] : acts.filter(a => a.no !== 'EPIC')
-      );
-    });
-  }, [filterProjectStatus, allProjectStatuses, phaseGroups, collapsedTablePhases, psGroupsData, collapsedPSGroups]);
+    return map;
+  }, [activities]);
 
-  const totalTableRows = visibleTableActivities.length;
+  // ─── Pagination: paginate over parent-level rows ──────────────────────────
+  const visibleParents = useMemo(() => {
+    return phaseGroups.flatMap(({ phase, acts }) => {
+      if (collapsedTablePhases.has(phase)) return [];
+      return acts.filter(a => !a.parent_id);
+    });
+  }, [phaseGroups, collapsedTablePhases]);
+
+  const totalTableRows = visibleParents.length;
   const totalTablePages = Math.max(1, Math.ceil(totalTableRows / rowsPerPage));
 
-  const pagedActivityIds = useMemo(() => {
-    const slice = visibleTableActivities.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
+  const pagedParentIds = useMemo(() => {
+    const slice = visibleParents.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
     return new Set(slice.map(a => a.id));
-  }, [visibleTableActivities, currentPage, rowsPerPage]);
+  }, [visibleParents, currentPage, rowsPerPage]);
 
-  const allTableCollapsed = collapsedTablePhases.size === phaseGroups.length && phaseGroups.length > 0;
+  // ─── Table row renderer ───────────────────────────────────────────────────
+  const renderActivityRow = (row: Activity, isChild = false) => {
+    const lag = calcLag(row.plan_end, row.actual_end, row.status);
+    const isOverdue = lag > 0 && row.status !== 'Done';
+    const children = childrenByParent.get(row.id) ?? [];
+    const hasChildren = children.length > 0;
+    const isParentCollapsed = collapsedParents.has(row.id);
+
+    return (
+      <React.Fragment key={row.id}>
+        <tr
+          className={`border-t hover:bg-slate-50/60 transition-colors ${isOverdue ? 'bg-red-50/20' : ''}`}
+          onContextMenu={e => {
+            e.preventDefault();
+            e.stopPropagation();
+            setContextMenu({ x: e.clientX, y: e.clientY, activity: row });
+          }}
+        >
+          {/* Key */}
+          <td className="px-2 py-1.5 bg-teal-50/30" style={{ minWidth: '180px', paddingLeft: isChild ? 28 : undefined }}>
+            {isChild && <span className="text-[9px] text-slate-300 mr-1">↳</span>}
+            <input className="h-7 text-xs w-full border border-slate-200 rounded-md px-2 bg-white focus:outline-none focus:ring-1 focus:ring-teal-400 font-mono"
+              value={row.jira_key ?? ''} onChange={e => updateField(row.id, 'jira_key', e.target.value)} onBlur={() => saveRow(row)} placeholder="KEY-1" />
+          </td>
+          {/* Activity */}
+          <td className="px-2 py-1.5" style={{ minWidth: '240px' }}>
+            <div className="flex items-center gap-1.5">
+              {!isChild && hasChildren && (
+                <button
+                  onClick={() => toggleParent(row.id)}
+                  className="shrink-0 w-4 h-4 flex items-center justify-center rounded hover:bg-slate-200 transition-colors"
+                >
+                  {isParentCollapsed ? <ChevronRight className="w-3 h-3 text-slate-400" /> : <ChevronDown className="w-3 h-3 text-slate-400" />}
+                </button>
+              )}
+              {!isChild && !hasChildren && <span className="w-4 shrink-0" />}
+              <button onClick={() => setDetailActivity(row)} className="flex-1 text-left group min-w-0">
+                <div className={`text-xs font-medium leading-snug min-h-[28px] py-0.5 transition-colors truncate
+                  ${isChild ? 'text-slate-600 group-hover:text-blue-500' : 'text-slate-700 group-hover:text-blue-600'}`}>
+                  {row.activity || <span className="italic text-slate-400">New Activity</span>}
+                </div>
+                {row.project_status && (
+                  <span className="inline-flex items-center gap-0.5 text-[9px] px-1.5 py-px rounded-full bg-indigo-50 border border-indigo-100 text-indigo-600 font-medium mt-0.5">
+                    <Tag className="h-2 w-2 shrink-0" />{row.project_status}
+                  </span>
+                )}
+              </button>
+              {!isChild && hasChildren && (
+                <span className="text-[9px] text-slate-400 shrink-0 tabular-nums">{children.length}</span>
+              )}
+            </div>
+          </td>
+          <td className="px-2 py-1.5">
+            <input list={`team-${id}`} className="h-7 text-xs w-full border border-slate-200 rounded-md px-2 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400" value={row.accountable} onChange={e => updateField(row.id, 'accountable', e.target.value)} onBlur={() => saveRow(row)} placeholder="Chọn..." />
+          </td>
+          <td className="px-2 py-1.5">
+            <input list={`team-${id}`} className="h-7 text-xs w-full border border-slate-200 rounded-md px-2 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400" value={row.responsible} onChange={e => updateField(row.id, 'responsible', e.target.value)} onBlur={() => saveRow(row)} placeholder="Chọn..." />
+          </td>
+          <td className="px-2 py-1.5">
+            <DateCell value={row.plan_start} warn={getDateWarn(row.plan_start)} onChange={v => updateField(row.id, 'plan_start', v)} onBlur={() => saveRow(row)} />
+          </td>
+          <td className="px-2 py-1.5">
+            <DateCell value={row.plan_end} warn={getDateWarn(row.plan_end)} onChange={v => updateField(row.id, 'plan_end', v)} onBlur={() => saveRow(row)} extraClass={isOverdue ? 'border-red-300' : ''} />
+          </td>
+          <td className="px-2 py-1.5">
+            <DateCell value={row.actual_start} warn={getDateWarn(row.actual_start)} onChange={v => updateField(row.id, 'actual_start', v)} onBlur={() => saveRow(row)} />
+          </td>
+          <td className="px-2 py-1.5">
+            <DateCell value={row.actual_end} warn={getDateWarn(row.actual_end)} onChange={v => updateField(row.id, 'actual_end', v)} onBlur={() => saveRow(row)} />
+          </td>
+          <td className="px-2 py-1.5">
+            <Select value={row.status} onValueChange={v => { const val = v ?? ''; updateField(row.id, 'status', val); saveRow({ ...row, status: val }); }}>
+              <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+              <SelectContent>{STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+            </Select>
+          </td>
+          <td className="px-2 py-1.5 text-center">
+            <Input className="h-7 text-xs w-12 px-1 text-center mx-auto" type="number" min={0} max={100} value={row.completion_pct} onChange={e => updateField(row.id, 'completion_pct', Number(e.target.value))} onBlur={() => saveRow(row)} />
+          </td>
+          <td className="px-2 py-1.5 bg-teal-50/30" style={{ minWidth: '160px' }}>
+            <Input className="h-7 text-xs bg-white" value={row.sprint ?? ''} onChange={e => updateField(row.id, 'sprint', e.target.value)} onBlur={() => saveRow(row)} placeholder="Sprint..." />
+          </td>
+          <td className="px-2 py-1.5">
+            <div className="flex items-center gap-1">
+              {saving === row.id && <Save className="h-3 w-3 text-blue-400 animate-pulse" />}
+              <LagBadge lag={lag} />
+            </div>
+          </td>
+        </tr>
+        {/* Render children if parent not collapsed */}
+        {!isChild && !isParentCollapsed && children.map(child => renderActivityRow(child, true))}
+      </React.Fragment>
+    );
+  };
 
   return (
     <div className="flex flex-col lg:flex-row min-h-screen">
@@ -1130,7 +1209,7 @@ export default function TimelinePage() {
             {project?.current_phase && (
               <span className="flex items-center gap-1.5 text-xs text-slate-500 bg-slate-100 border border-slate-200 px-3 py-1 rounded-full">
                 <Tag className="h-3 w-3 text-slate-400" />
-                {project.current_phase}
+                Current: {project.current_phase}
               </span>
             )}
             {overdueCount > 0 && (
@@ -1162,29 +1241,8 @@ export default function TimelinePage() {
               </SelectContent>
             </Select>
 
-            {allProjectStatuses.length > 0 && (
-              <Select value={filterProjectStatus} onValueChange={v => { setFilterProjectStatus(v ?? 'All'); setCollapsedPSGroups(new Set()); }}>
-                <SelectTrigger className="w-48 h-9">
-                  <Tag className="h-3 w-3 mr-1 text-indigo-400 shrink-0" />
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="All">All Project Status</SelectItem>
-                  {allProjectStatuses.map(ps => <SelectItem key={ps} value={ps}>{ps}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            )}
-
             {viewMode === 'table' && <>
-              {filterProjectStatus === 'All' && allProjectStatuses.length > 0 && (
-                <button
-                  onClick={() => setCollapsedPSGroups(collapsedPSGroups.size === psGroupsData.length && psGroupsData.length > 0 ? new Set() : new Set(psGroupsData.map(g => g.ps)))}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 h-9 text-xs font-medium rounded-lg border border-indigo-200 text-indigo-600 hover:bg-indigo-50 transition-colors">
-                  <ChevronsUpDown className="h-3.5 w-3.5" />
-                  {collapsedPSGroups.size === psGroupsData.length && psGroupsData.length > 0 ? 'Expand All PS' : 'Collapse All PS'}
-                </button>
-              )}
-              {(filterProjectStatus !== 'All' || allProjectStatuses.length === 0) && phaseGroups.length > 1 && filterPhase === 'All' && (
+              {phaseGroups.length > 1 && filterPhase === 'All' && (
                 <button
                   onClick={() => setCollapsedTablePhases(allTableCollapsed ? new Set() : new Set(phaseGroups.map(g => g.phase)))}
                   className="flex items-center gap-1.5 px-2.5 py-1.5 h-9 text-xs font-medium rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">
@@ -1218,7 +1276,6 @@ export default function TimelinePage() {
                 ))}
               </div>
 
-              {/* Collapse All toggle */}
               <button
                 onClick={() => setCollapsedPhases(allCollapsed ? new Set() : new Set(phaseGroups.map(g => g.phase)))}
                 className="flex items-center gap-1.5 px-2.5 py-1.5 h-9 text-xs font-medium rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">
@@ -1226,21 +1283,17 @@ export default function TimelinePage() {
                 {allCollapsed ? 'Expand All' : 'Collapse All'}
               </button>
 
-              {/* Year selector */}
               <Select
                 value={roadmapYear === null ? 'auto' : String(roadmapYear)}
                 onValueChange={v => { setRoadmapYear(v === 'auto' ? null : Number(v)); if (v === 'auto') setRoadmapPeriod('all'); }}
               >
-                <SelectTrigger className="w-32 h-9">
-                  <SelectValue />
-                </SelectTrigger>
+                <SelectTrigger className="w-32 h-9"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="auto">Auto Range</SelectItem>
                   {dataYears.map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
                 </SelectContent>
               </Select>
 
-              {/* Period selector — shown when year is selected */}
               {roadmapYear !== null && (
                 <div className="flex items-center bg-slate-100 border border-slate-200 rounded-lg p-0.5 gap-0.5">
                   {(['all', 'q1', 'q2', 'q3', 'q4'] as const).map(key => (
@@ -1249,7 +1302,6 @@ export default function TimelinePage() {
                       {key === 'all' ? 'Year' : key.toUpperCase()}
                     </button>
                   ))}
-                  {/* Month picker */}
                   <Select
                     value={roadmapPeriod.startsWith('m') ? roadmapPeriod : ''}
                     onValueChange={v => v && setRoadmapPeriod(v)}
@@ -1304,8 +1356,8 @@ export default function TimelinePage() {
               <table className="w-full text-xs" style={{ minWidth: '1100px' }}>
                 <thead className="sticky top-0 z-10">
                   <tr className="bg-[#1e293b] text-white">
-                    <th className="px-2 py-3 text-left bg-teal-900/40" style={{ minWidth: '200px' }}>Key</th>
-                    <th className="px-2 py-3 text-left" style={{ minWidth: '240px' }}>Activity</th>
+                    <th className="px-2 py-3 text-left bg-teal-900/40" style={{ minWidth: '180px' }}>Key</th>
+                    <th className="px-2 py-3 text-left" style={{ minWidth: '260px' }}>Activity</th>
                     <th className="px-2 py-3 text-left w-28">Accountable</th>
                     <th className="px-2 py-3 text-left w-28">Responsible</th>
                     <th className="px-2 py-3 text-left w-24">Plan Start</th>
@@ -1314,12 +1366,12 @@ export default function TimelinePage() {
                     <th className="px-2 py-3 text-left w-24">Actual End</th>
                     <th className="px-2 py-3 text-left w-28">Status</th>
                     <th className="px-2 py-3 text-center w-10">%</th>
-                    <th className="px-2 py-3 text-left bg-teal-900/40" style={{ minWidth: '180px' }}>Sprint</th>
-                    <th className="px-2 py-3 w-8"></th>
+                    <th className="px-2 py-3 text-left bg-teal-900/40" style={{ minWidth: '160px' }}>Sprint</th>
+                    <th className="px-2 py-3 w-20">Lag</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {baseList.length === 0 && (
+                  {filteredActivities.length === 0 && (
                     <tr><td colSpan={12} className="text-center py-16 text-slate-400">
                       <div className="flex flex-col items-center gap-3">
                         <p>Chưa có activity nào.</p>
@@ -1332,225 +1384,35 @@ export default function TimelinePage() {
                     </td></tr>
                   )}
 
-                  {/* ── PS Grouped view (All Project Status selected + activities have PS tags) ── */}
-                  {filterProjectStatus === 'All' && allProjectStatuses.length > 0 && psGroupsData.map(({ ps, subPhaseGroups }) => {
-                    const isPSC = collapsedPSGroups.has(ps);
-                    const psCls = PROJECT_STATUS_COLOR[ps] ?? 'bg-indigo-50 border-indigo-200 text-indigo-700';
-                    const total = subPhaseGroups.reduce((s, g) => s + g.acts.filter(a => a.no !== 'EPIC').length, 0);
-                    return (
-                      <React.Fragment key={`ps::${ps}`}>
-                        <tr><td colSpan={12} className={`px-3 py-2.5 border-t-2 border-slate-200 ${psCls}`}>
-                          <button onClick={() => togglePSGroup(ps)} className="flex items-center gap-2 w-full text-left">
-                            {isPSC ? <ChevronRight className="w-4 h-4 opacity-50 shrink-0" /> : <ChevronDown className="w-4 h-4 opacity-50 shrink-0" />}
-                            <Tag className="w-3.5 h-3.5 shrink-0" />
-                            <span className="font-bold text-sm">{ps}</span>
-                            <span className="text-xs opacity-60 font-normal ml-1">({total} activities)</span>
-                          </button>
-                        </td></tr>
-                        {!isPSC && subPhaseGroups.map(({ phase, acts }) => {
-                          const pSt = getPhaseStyle(phase);
-                          const ck = `${ps}::${phase}`;
-                          const isPhC = collapsedTablePhases.has(ck);
-                          const chActs = acts.filter(a => a.no !== 'EPIC');
-                          const pgActs = isPhC ? [] : chActs.filter(a => pagedActivityIds.has(a.id));
-                          if (!isPhC && chActs.length > 0 && pgActs.length === 0) return null;
-                          return (
-                            <React.Fragment key={ck}>
-                              <tr className={`border-t border-slate-200/80 ${pSt.bg}`}>
-                                <td colSpan={12} className={`pl-8 pr-3 py-1.5 ${pSt.text}`} style={{ borderLeft: `3px solid ${pSt.hex}50` }}>
-                                  <button onClick={() => setCollapsedTablePhases(prev => { const n = new Set(prev); n.has(ck) ? n.delete(ck) : n.add(ck); return n; })}
-                                    className="flex items-center gap-1.5 text-left">
-                                    {isPhC ? <ChevronRight className="w-3 h-3 opacity-50" /> : <ChevronDown className="w-3 h-3 opacity-50" />}
-                                    <div className={`w-1.5 h-1.5 rounded-full ${pSt.bar}`} />
-                                    <span className="text-[11px] font-semibold uppercase tracking-wider">{phase}</span>
-                                    <span className="text-[10px] opacity-50 ml-1">({chActs.length})</span>
-                                  </button>
-                                </td>
-                              </tr>
-                              {!isPhC && pgActs.map(row => {
-                                const lg = calcLag(row.plan_end, row.actual_end, row.status);
-                                const ov = lg > 0 && row.status !== 'Done';
-                                return (
-                                  <tr key={row.id} className={`border-t hover:bg-slate-50/60 transition-colors ${ov ? 'bg-red-50/20' : ''}`}>
-                                    <td className="px-2 py-1.5 bg-teal-50/30" style={{ minWidth: '200px' }}><input className="h-7 text-xs w-full border border-slate-200 rounded-md px-2 bg-white focus:outline-none focus:ring-1 focus:ring-teal-400 font-mono" value={row.jira_key ?? ''} onChange={e => updateField(row.id, 'jira_key', e.target.value)} onBlur={() => saveRow(row)} placeholder="KEY-1" /></td>
-                                    <td className="px-2 py-1.5" style={{ minWidth: '240px' }}><button onClick={() => setDetailActivity(row)} className="w-full text-left group"><div className="text-xs font-medium text-slate-700 group-hover:text-blue-600 leading-snug min-h-[28px] py-0.5 transition-colors">{row.activity || <span className="italic text-slate-400">New Activity</span>}</div></button></td>
-                                    <td className="px-2 py-1.5"><input list={`team-${id}`} className="h-7 text-xs w-full border border-slate-200 rounded-md px-2 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400" value={row.accountable} onChange={e => updateField(row.id, 'accountable', e.target.value)} onBlur={() => saveRow(row)} placeholder="Chọn..." /></td>
-                                    <td className="px-2 py-1.5"><input list={`team-${id}`} className="h-7 text-xs w-full border border-slate-200 rounded-md px-2 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400" value={row.responsible} onChange={e => updateField(row.id, 'responsible', e.target.value)} onBlur={() => saveRow(row)} placeholder="Chọn..." /></td>
-                                    <td className="px-2 py-1.5"><DateCell value={row.plan_start} warn={getDateWarn(row.plan_start)} onChange={v => updateField(row.id, 'plan_start', v)} onBlur={() => saveRow(row)} /></td>
-                                    <td className="px-2 py-1.5"><DateCell value={row.plan_end} warn={getDateWarn(row.plan_end)} onChange={v => updateField(row.id, 'plan_end', v)} onBlur={() => saveRow(row)} extraClass={ov ? 'border-red-300' : ''} /></td>
-                                    <td className="px-2 py-1.5"><DateCell value={row.actual_start} warn={getDateWarn(row.actual_start)} onChange={v => updateField(row.id, 'actual_start', v)} onBlur={() => saveRow(row)} /></td>
-                                    <td className="px-2 py-1.5"><DateCell value={row.actual_end} warn={getDateWarn(row.actual_end)} onChange={v => updateField(row.id, 'actual_end', v)} onBlur={() => saveRow(row)} /></td>
-                                    <td className="px-2 py-1.5"><Select value={row.status} onValueChange={v => { const val = v ?? ''; updateField(row.id, 'status', val); saveRow({ ...row, status: val }); }}><SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger><SelectContent>{STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select></td>
-                                    <td className="px-2 py-1.5 text-center"><Input className="h-7 text-xs w-12 px-1 text-center mx-auto" type="number" min={0} max={100} value={row.completion_pct} onChange={e => updateField(row.id, 'completion_pct', Number(e.target.value))} onBlur={() => saveRow(row)} /></td>
-                                    <td className="px-2 py-1.5 bg-teal-50/30" style={{ minWidth: '180px' }}><Input className="h-7 text-xs bg-white" value={row.sprint ?? ''} onChange={e => updateField(row.id, 'sprint', e.target.value)} onBlur={() => saveRow(row)} placeholder="Sprint name..." /></td>
-                                    <td className="px-2 py-1.5"><div className="flex items-center gap-1">{saving === row.id && <Save className="h-3 w-3 text-blue-400 animate-pulse" />}<button onClick={() => deleteRow(row.id)} className="text-slate-300 hover:text-red-500"><Trash2 className="h-3.5 w-3.5" /></button></div></td>
-                                  </tr>
-                                );
-                              })}
-                            </React.Fragment>
-                          );
-                        })}
-                      </React.Fragment>
-                    );
-                  })}
-
-                  {/* ── Normal Phase grouped view ── */}
-                  {(filterProjectStatus !== 'All' || allProjectStatuses.length === 0) && phaseGroups.map(({ phase, acts }) => {
+                  {/* Phase grouped view */}
+                  {phaseGroups.map(({ phase, acts }) => {
                     const style = getPhaseStyle(phase);
                     const isCollapsed = collapsedTablePhases.has(phase);
-                    const epicRow = acts.find(a => a.no === 'EPIC');
-                    const childActs = acts.filter(a => a.no !== 'EPIC');
-                    const epicLag = epicRow ? calcLag(epicRow.plan_end, epicRow.actual_end, epicRow.status) : 0;
-                    const phaseLag = Math.max(0, epicLag, ...childActs.map(a => calcLag(a.plan_end, a.actual_end, a.status)));
-                    const pageChildActs = isCollapsed ? [] : childActs.filter(a => pagedActivityIds.has(a.id));
-                    if (!isCollapsed && childActs.length > 0 && pageChildActs.length === 0) return null;
-
-                    const renderActivityRow = (row: Activity) => {
-                      const lag = calcLag(row.plan_end, row.actual_end, row.status);
-                      const isOverdue = lag > 0 && row.status !== 'Done';
-                      return (
-                        <tr key={row.id} className={`border-t hover:bg-slate-50/60 transition-colors ${isOverdue ? 'bg-red-50/20' : ''}`}>
-                          <td className="px-2 py-1.5 bg-teal-50/30" style={{ minWidth: '200px' }}>
-                            <input className="h-7 text-xs w-full border border-slate-200 rounded-md px-2 bg-white focus:outline-none focus:ring-1 focus:ring-teal-400 font-mono"
-                              value={row.jira_key ?? ''} onChange={e => updateField(row.id, 'jira_key', e.target.value)} onBlur={() => saveRow(row)} placeholder="KEY-1" />
-                          </td>
-                          <td className="px-2 py-1.5" style={{ minWidth: '240px' }}>
-                            <button onClick={() => setDetailActivity(row)}
-                              className="w-full text-left group">
-                              <div className="text-xs font-medium text-slate-700 group-hover:text-blue-600 leading-snug min-h-[28px] py-0.5 transition-colors">
-                                {row.activity || <span className="italic text-slate-400">New Activity</span>}
-                              </div>
-                              {row.project_status && (
-                                <span className="inline-flex items-center gap-0.5 text-[9px] px-1.5 py-px rounded-full bg-indigo-50 border border-indigo-100 text-indigo-600 font-medium mt-0.5">
-                                  <Tag className="h-2 w-2 shrink-0" />{row.project_status}
-                                </span>
-                              )}
-                            </button>
-                          </td>
-                          <td className="px-2 py-1.5">
-                            <input list={`team-${id}`} className="h-7 text-xs w-full border border-slate-200 rounded-md px-2 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400" value={row.accountable} onChange={e => updateField(row.id, 'accountable', e.target.value)} onBlur={() => saveRow(row)} placeholder="Chọn..." />
-                          </td>
-                          <td className="px-2 py-1.5">
-                            <input list={`team-${id}`} className="h-7 text-xs w-full border border-slate-200 rounded-md px-2 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400" value={row.responsible} onChange={e => updateField(row.id, 'responsible', e.target.value)} onBlur={() => saveRow(row)} placeholder="Chọn..." />
-                          </td>
-                          <td className="px-2 py-1.5">
-                            <DateCell value={row.plan_start} warn={getDateWarn(row.plan_start)} onChange={v => updateField(row.id, 'plan_start', v)} onBlur={() => saveRow(row)} />
-                          </td>
-                          <td className="px-2 py-1.5">
-                            <DateCell value={row.plan_end} warn={getDateWarn(row.plan_end)} onChange={v => updateField(row.id, 'plan_end', v)} onBlur={() => saveRow(row)} extraClass={isOverdue ? 'border-red-300' : ''} />
-                          </td>
-                          <td className="px-2 py-1.5">
-                            <DateCell value={row.actual_start} warn={getDateWarn(row.actual_start)} onChange={v => updateField(row.id, 'actual_start', v)} onBlur={() => saveRow(row)} />
-                          </td>
-                          <td className="px-2 py-1.5">
-                            <DateCell value={row.actual_end} warn={getDateWarn(row.actual_end)} onChange={v => updateField(row.id, 'actual_end', v)} onBlur={() => saveRow(row)} />
-                          </td>
-                          <td className="px-2 py-1.5">
-                            <Select value={row.status} onValueChange={v => { const val = v ?? ''; updateField(row.id, 'status', val); saveRow({ ...row, status: val }); }}>
-                              <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
-                              <SelectContent>{STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
-                            </Select>
-                          </td>
-                          <td className="px-2 py-1.5 text-center">
-                            <Input className="h-7 text-xs w-12 px-1 text-center mx-auto" type="number" min={0} max={100} value={row.completion_pct} onChange={e => updateField(row.id, 'completion_pct', Number(e.target.value))} onBlur={() => saveRow(row)} />
-                          </td>
-                          <td className="px-2 py-1.5 bg-teal-50/30" style={{ minWidth: '180px' }}>
-                            <Input className="h-7 text-xs bg-white" value={row.sprint ?? ''} onChange={e => updateField(row.id, 'sprint', e.target.value)} onBlur={() => saveRow(row)} placeholder="Sprint name..." />
-                          </td>
-                          <td className="px-2 py-1.5">
-                            <div className="flex items-center gap-1">
-                              {saving === row.id && <Save className="h-3 w-3 text-blue-400 animate-pulse" />}
-                              <button onClick={() => deleteRow(row.id)} className="text-slate-300 hover:text-red-500"><Trash2 className="h-3.5 w-3.5" /></button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    };
+                    const parents = acts.filter(a => !a.parent_id);
+                    const phaseLag = Math.max(0, ...acts.map(a => calcLag(a.plan_end, a.actual_end, a.status)));
+                    const pageParents = isCollapsed ? [] : parents.filter(a => pagedParentIds.has(a.id));
+                    if (!isCollapsed && parents.length > 0 && pageParents.length === 0) return null;
 
                     return (
                       <React.Fragment key={phase}>
-                        {/* Epic / Phase header row — full data row */}
-                        {showGroups && (
+                        {/* Phase header */}
+                        {filterPhase === 'All' && (
                           <tr className={`border-t-2 border-slate-200 ${style.bg}`}>
-                            {/* Key — Epic jira_key */}
-                            <td className="px-2 py-2" style={{ minWidth: '200px', borderLeft: `3px solid ${style.hex}80` }}>
-                              {epicRow ? (
-                                <input className="h-7 text-xs w-full border border-slate-300/60 rounded-md px-2 bg-white/90 focus:outline-none focus:ring-1 focus:ring-teal-400 font-mono font-semibold"
-                                  value={epicRow.jira_key ?? ''} onChange={e => updateField(epicRow.id, 'jira_key', e.target.value)} onBlur={() => saveRow(epicRow)} placeholder="EPIC-KEY" />
-                              ) : <div className="h-7" />}
-                            </td>
-                            {/* Activity — Phase name + collapse */}
-                            <td className={`px-2 py-2 ${style.text}`} style={{ minWidth: '240px' }}>
-                              <div className="flex items-center gap-2 min-w-0">
+                            <td colSpan={12} className={`px-3 py-2 ${style.text}`} style={{ borderLeft: `3px solid ${style.hex}80` }}>
+                              <div className="flex items-center gap-2">
                                 <button onClick={() => toggleTablePhase(phase)}
                                   className="flex items-center justify-center w-5 h-5 rounded hover:bg-black/10 transition-colors shrink-0">
                                   {isCollapsed ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                                 </button>
                                 <div className={`w-2 h-2 rounded-full ${style.bar} shrink-0`} />
-                                <span className="text-xs font-bold uppercase tracking-wide truncate">{phase}</span>
-                                <span className="font-normal text-slate-400 text-[11px] shrink-0">({childActs.length})</span>
+                                <span className="text-xs font-bold uppercase tracking-wide">{phase}</span>
+                                <span className="font-normal text-slate-400 text-[11px] shrink-0">({parents.length} activities)</span>
                                 {phaseLag > 0 && <LagBadge lag={phaseLag} />}
                               </div>
                             </td>
-                            {/* Accountable */}
-                            <td className="px-2 py-2">
-                              {epicRow ? (
-                                <input list={`team-${id}`} className="h-7 text-xs w-full border border-slate-300/60 rounded-md px-2 bg-white/90 focus:outline-none focus:ring-1 focus:ring-blue-400"
-                                  value={epicRow.accountable} onChange={e => updateField(epicRow.id, 'accountable', e.target.value)} onBlur={() => saveRow(epicRow)} placeholder="Chọn..." />
-                              ) : <div className="h-7" />}
-                            </td>
-                            {/* Responsible */}
-                            <td className="px-2 py-2">
-                              {epicRow ? (
-                                <input list={`team-${id}`} className="h-7 text-xs w-full border border-slate-300/60 rounded-md px-2 bg-white/90 focus:outline-none focus:ring-1 focus:ring-blue-400"
-                                  value={epicRow.responsible} onChange={e => updateField(epicRow.id, 'responsible', e.target.value)} onBlur={() => saveRow(epicRow)} placeholder="Chọn..." />
-                              ) : <div className="h-7" />}
-                            </td>
-                            {/* Plan Start */}
-                            <td className="px-2 py-2">
-                              {epicRow ? <DateCell value={epicRow.plan_start} warn={getDateWarn(epicRow.plan_start)} onChange={v => updateField(epicRow.id, 'plan_start', v)} onBlur={() => saveRow(epicRow)} /> : <div className="h-7" />}
-                            </td>
-                            {/* Plan End */}
-                            <td className="px-2 py-2">
-                              {epicRow ? <DateCell value={epicRow.plan_end} warn={getDateWarn(epicRow.plan_end)} onChange={v => updateField(epicRow.id, 'plan_end', v)} onBlur={() => saveRow(epicRow)} /> : <div className="h-7" />}
-                            </td>
-                            {/* Actual Start */}
-                            <td className="px-2 py-2">
-                              {epicRow ? <DateCell value={epicRow.actual_start} warn={getDateWarn(epicRow.actual_start)} onChange={v => updateField(epicRow.id, 'actual_start', v)} onBlur={() => saveRow(epicRow)} /> : <div className="h-7" />}
-                            </td>
-                            {/* Actual End */}
-                            <td className="px-2 py-2">
-                              {epicRow ? <DateCell value={epicRow.actual_end} warn={getDateWarn(epicRow.actual_end)} onChange={v => updateField(epicRow.id, 'actual_end', v)} onBlur={() => saveRow(epicRow)} /> : <div className="h-7" />}
-                            </td>
-                            {/* Status */}
-                            <td className="px-2 py-2">
-                              {epicRow ? (
-                                <Select value={epicRow.status} onValueChange={v => { const val = v ?? ''; updateField(epicRow.id, 'status', val); saveRow({ ...epicRow, status: val }); }}>
-                                  <SelectTrigger className="h-7 text-xs bg-white/90"><SelectValue /></SelectTrigger>
-                                  <SelectContent>{STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
-                                </Select>
-                              ) : <div className="h-7" />}
-                            </td>
-                            {/* % */}
-                            <td className="px-2 py-2 text-center">
-                              {epicRow ? (
-                                <Input className="h-7 text-xs w-12 px-1 text-center mx-auto bg-white/90" type="number" min={0} max={100}
-                                  value={epicRow.completion_pct} onChange={e => updateField(epicRow.id, 'completion_pct', Number(e.target.value))} onBlur={() => saveRow(epicRow)} />
-                              ) : <div className="h-7" />}
-                            </td>
-                            {/* Sprint */}
-                            <td className="px-2 py-2" style={{ minWidth: '180px' }}>
-                              {epicRow ? (
-                                <Input className="h-7 text-xs bg-white/90" value={epicRow.sprint ?? ''} onChange={e => updateField(epicRow.id, 'sprint', e.target.value)} onBlur={() => saveRow(epicRow)} placeholder="Sprint name..." />
-                              ) : <div className="h-7" />}
-                            </td>
-                            {/* Actions */}
-                            <td className="px-2 py-2">
-                              {epicRow && saving === epicRow.id && <Save className="h-3 w-3 text-blue-400 animate-pulse" />}
-                            </td>
                           </tr>
                         )}
-                        {pageChildActs.map(row => renderActivityRow(row))}
+                        {pageParents.map(row => renderActivityRow(row, false))}
                       </React.Fragment>
                     );
                   })}
@@ -1614,10 +1476,10 @@ export default function TimelinePage() {
         )}
 
         {/* Status summary */}
-        {viewMode === 'table' && baseList.length > 0 && (
+        {viewMode === 'table' && filteredActivities.length > 0 && (
           <div className="flex gap-3 mt-3 flex-wrap">
             {STATUSES.map(s => {
-              const count = baseList.filter(a => a.status === s).length;
+              const count = filteredActivities.filter(a => a.status === s).length;
               if (!count) return null;
               return <Badge key={s} className={STATUS_COLOR[s]}>{s}: {count}</Badge>;
             })}
@@ -1628,9 +1490,44 @@ export default function TimelinePage() {
       <datalist id={`team-${id}`}>
         {teamMembers.map(m => <option key={m.id} value={m.name}>{m.role} — {m.domain}</option>)}
       </datalist>
-      <datalist id={`phases-${id}`}>
-        {allPhases.map(p => <option key={p} value={p} />)}
-      </datalist>
+
+      {/* Context Menu */}
+      {contextMenu && (
+        <div
+          className="fixed z-50 bg-white border border-slate-200 rounded-lg shadow-xl py-1 min-w-[168px]"
+          style={{ left: Math.min(contextMenu.x, window.innerWidth - 180), top: Math.min(contextMenu.y, window.innerHeight - 180) }}
+          onClick={e => e.stopPropagation()}
+          onContextMenu={e => e.stopPropagation()}
+        >
+          <button
+            onClick={() => { setDetailActivity(contextMenu.activity); setContextMenu(null); }}
+            className="flex items-center gap-2.5 w-full px-3 py-2 text-xs text-slate-700 hover:bg-slate-50 transition-colors"
+          >
+            <Eye className="h-3.5 w-3.5 text-slate-400" /> View detail
+          </button>
+          <button
+            onClick={() => { duplicateActivity(contextMenu.activity); setContextMenu(null); }}
+            className="flex items-center gap-2.5 w-full px-3 py-2 text-xs text-slate-700 hover:bg-slate-50 transition-colors"
+          >
+            <Copy className="h-3.5 w-3.5 text-slate-400" /> Duplicate
+          </button>
+          {!contextMenu.activity.parent_id && (
+            <button
+              onClick={() => { createChild(contextMenu.activity.id); setContextMenu(null); }}
+              className="flex items-center gap-2.5 w-full px-3 py-2 text-xs text-slate-700 hover:bg-slate-50 transition-colors"
+            >
+              <FolderPlus className="h-3.5 w-3.5 text-slate-400" /> Create child
+            </button>
+          )}
+          <div className="border-t border-slate-100 my-1" />
+          <button
+            onClick={() => { deleteRow(contextMenu.activity.id); setContextMenu(null); }}
+            className="flex items-center gap-2.5 w-full px-3 py-2 text-xs text-red-600 hover:bg-red-50 transition-colors"
+          >
+            <Trash2 className="h-3.5 w-3.5" /> Delete
+          </button>
+        </div>
+      )}
 
       {/* Holiday Dialog */}
       <Dialog open={holidayOpen} onOpenChange={setHolidayOpen}>
