@@ -1272,7 +1272,7 @@ export default function PortfolioReportPage() {
   const [htmlReport, setHtmlReport] = useState('');
   const [exporting, setExporting] = useState<'png' | 'pdf' | null>(null);
   const previewRef = useRef<HTMLDivElement>(null);
-  const [selectedProgramId, setSelectedProgramId] = useState<number | null>(null);
+  const [selectedProgramIds, setSelectedProgramIds] = useState<Set<number>>(new Set());
   const [selectedProjectIds, setSelectedProjectIds] = useState<Set<number>>(new Set());
   const [showProjectSelector, setShowProjectSelector] = useState(false);
   // Email modal state
@@ -1326,7 +1326,7 @@ export default function PortfolioReportPage() {
   // Reset filters whenever data reloads
   useEffect(() => {
     if (data) {
-      setSelectedProgramId(null);
+      setSelectedProgramIds(new Set());
       setSelectedProjectIds(new Set());
     }
   }, [data]);
@@ -1632,13 +1632,16 @@ export default function PortfolioReportPage() {
   const amber = allProjects.filter(p => p.rag === 'amber');
   const green = allProjects.filter(p => p.rag === 'green');
 
-  // -1 = "no program" group; null = nothing selected
-  const selectedProgram = data && selectedProgramId !== null && selectedProgramId !== -1
-    ? (data.programs.find(p => p.id === selectedProgramId) ?? null)
-    : null;
-  const projectsInFilter: ProjectRow[] = selectedProgramId === -1
-    ? (data?.noProgramProjects ?? [])
-    : (selectedProgram ? selectedProgram.projects : []);
+  // Collect projects from all selected programs (-1 = "no program" group)
+  const projectsInFilter: ProjectRow[] = (() => {
+    if (!data || selectedProgramIds.size === 0) return [];
+    const result: ProjectRow[] = [];
+    for (const prog of data.programs) {
+      if (selectedProgramIds.has(prog.id)) result.push(...prog.projects);
+    }
+    if (selectedProgramIds.has(-1)) result.push(...data.noProgramProjects);
+    return result;
+  })();
 
   return (
     <div className="flex flex-col lg:flex-row min-h-screen bg-slate-50">
@@ -1844,19 +1847,28 @@ export default function PortfolioReportPage() {
                   <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide shrink-0">Program:</span>
                   <div className="flex flex-wrap gap-1.5">
                     {data.programs.map(prog => {
-                      const isSel = selectedProgramId === prog.id;
+                      const isSel = selectedProgramIds.has(prog.id);
                       return (
                         <button
                           key={prog.id}
                           onClick={() => {
+                            const nextProgIds = new Set(selectedProgramIds);
                             if (isSel) {
-                              setSelectedProgramId(null);
-                              setSelectedProjectIds(new Set());
+                              nextProgIds.delete(prog.id);
+                              setSelectedProjectIds(prev => {
+                                const next = new Set(prev);
+                                prog.projects.forEach(p => next.delete(p.id));
+                                return next;
+                              });
                             } else {
-                              setSelectedProgramId(prog.id);
-                              setSelectedProjectIds(new Set(prog.projects.map(p => p.id)));
+                              nextProgIds.add(prog.id);
+                              setSelectedProjectIds(prev => {
+                                const next = new Set(prev);
+                                prog.projects.forEach(p => next.add(p.id));
+                                return next;
+                              });
                             }
-                            setShowProjectSelector(false);
+                            setSelectedProgramIds(nextProgIds);
                           }}
                           className={`text-xs px-2.5 py-1 rounded-full border font-medium transition-colors ${isSel ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
                         >
@@ -1868,26 +1880,35 @@ export default function PortfolioReportPage() {
                     {data.noProgramProjects.length > 0 && (
                       <button
                         onClick={() => {
-                          if (selectedProgramId === -1) {
-                            setSelectedProgramId(null);
-                            setSelectedProjectIds(new Set());
+                          const nextProgIds = new Set(selectedProgramIds);
+                          if (nextProgIds.has(-1)) {
+                            nextProgIds.delete(-1);
+                            setSelectedProjectIds(prev => {
+                              const next = new Set(prev);
+                              data.noProgramProjects.forEach(p => next.delete(p.id));
+                              return next;
+                            });
                           } else {
-                            setSelectedProgramId(-1);
-                            setSelectedProjectIds(new Set(data.noProgramProjects.map(p => p.id)));
+                            nextProgIds.add(-1);
+                            setSelectedProjectIds(prev => {
+                              const next = new Set(prev);
+                              data.noProgramProjects.forEach(p => next.add(p.id));
+                              return next;
+                            });
                           }
-                          setShowProjectSelector(false);
+                          setSelectedProgramIds(nextProgIds);
                         }}
-                        className={`text-xs px-2.5 py-1 rounded-full border font-medium transition-colors ${selectedProgramId === -1 ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                        className={`text-xs px-2.5 py-1 rounded-full border font-medium transition-colors ${selectedProgramIds.has(-1) ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
                       >
                         Khác
-                        <span className={`ml-1 text-[10px] ${selectedProgramId === -1 ? 'text-blue-100' : 'text-slate-400'}`}>({data.noProgramProjects.length})</span>
+                        <span className={`ml-1 text-[10px] ${selectedProgramIds.has(-1) ? 'text-blue-100' : 'text-slate-400'}`}>({data.noProgramProjects.length})</span>
                       </button>
                     )}
                   </div>
                 </div>
 
-                {/* Step 2: Project checkboxes within selected program */}
-                {selectedProgramId !== null && projectsInFilter.length > 0 && (
+                {/* Step 2: Project checkboxes within selected programs */}
+                {selectedProgramIds.size > 0 && projectsInFilter.length > 0 && (
                   <div className="pl-5">
                     <button
                       onClick={() => setShowProjectSelector(v => !v)}
