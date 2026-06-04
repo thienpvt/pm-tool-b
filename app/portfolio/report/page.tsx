@@ -1272,6 +1272,7 @@ export default function PortfolioReportPage() {
   const [htmlReport, setHtmlReport] = useState('');
   const [exporting, setExporting] = useState<'png' | 'pdf' | null>(null);
   const previewRef = useRef<HTMLDivElement>(null);
+  const [selectedProgramId, setSelectedProgramId] = useState<number | null>(null);
   const [selectedProjectIds, setSelectedProjectIds] = useState<Set<number>>(new Set());
   const [showProjectSelector, setShowProjectSelector] = useState(false);
   // Email modal state
@@ -1322,11 +1323,11 @@ export default function PortfolioReportPage() {
     }
   }, [showEmailModal]);
 
-  // Initialize (or reset) selected projects whenever data reloads
+  // Reset filters whenever data reloads
   useEffect(() => {
     if (data) {
-      const all = [...data.programs.flatMap(c => c.projects), ...data.noProgramProjects];
-      setSelectedProjectIds(new Set(all.map(p => p.id)));
+      setSelectedProgramId(null);
+      setSelectedProjectIds(new Set());
     }
   }, [data]);
 
@@ -1631,6 +1632,14 @@ export default function PortfolioReportPage() {
   const amber = allProjects.filter(p => p.rag === 'amber');
   const green = allProjects.filter(p => p.rag === 'green');
 
+  // -1 = "no program" group; null = nothing selected
+  const selectedProgram = data && selectedProgramId !== null && selectedProgramId !== -1
+    ? (data.programs.find(p => p.id === selectedProgramId) ?? null)
+    : null;
+  const projectsInFilter: ProjectRow[] = selectedProgramId === -1
+    ? (data?.noProgramProjects ?? [])
+    : (selectedProgram ? selectedProgram.projects : []);
+
   return (
     <div className="flex flex-col lg:flex-row min-h-screen bg-slate-50">
       <Sidebar />
@@ -1826,62 +1835,111 @@ export default function PortfolioReportPage() {
               </div>
             </div>
 
-            {/* Project selector */}
-            {data && allProjects.length > 0 && (
-              <div className="border-t border-slate-100 pt-3">
-                <button
-                  onClick={() => setShowProjectSelector(v => !v)}
-                  className="flex items-center gap-2 w-full text-left group"
-                >
+            {/* Project selector — Step 1: Program, Step 2: Projects */}
+            {data && data.programs.length > 0 && (
+              <div className="border-t border-slate-100 pt-3 space-y-2">
+                {/* Step 1: Program selection */}
+                <div className="flex items-center gap-2 flex-wrap">
                   <Filter className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                  <span className="text-sm font-medium text-slate-600 group-hover:text-slate-800">Squad/Dự án đưa vào báo cáo</span>
-                  <span className={`ml-1 text-xs px-2 py-0.5 rounded-full font-semibold border ${selectedProjectIds.size < allProjects.length ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-slate-100 border-slate-200 text-slate-500'}`}>
-                    {selectedProjectIds.size} / {allProjects.length}
-                  </span>
-                  <ChevronDown className={`h-4 w-4 text-slate-400 ml-auto transition-transform duration-200 ${showProjectSelector ? 'rotate-180' : ''}`} />
-                </button>
-                {showProjectSelector && (
-                  <div className="mt-3 space-y-2">
-                    <div className="flex items-center gap-3">
+                  <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide shrink-0">Program:</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {data.programs.map(prog => {
+                      const isSel = selectedProgramId === prog.id;
+                      return (
+                        <button
+                          key={prog.id}
+                          onClick={() => {
+                            if (isSel) {
+                              setSelectedProgramId(null);
+                              setSelectedProjectIds(new Set());
+                            } else {
+                              setSelectedProgramId(prog.id);
+                              setSelectedProjectIds(new Set(prog.projects.map(p => p.id)));
+                            }
+                            setShowProjectSelector(false);
+                          }}
+                          className={`text-xs px-2.5 py-1 rounded-full border font-medium transition-colors ${isSel ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                        >
+                          {prog.name}
+                          <span className={`ml-1 text-[10px] ${isSel ? 'text-blue-100' : 'text-slate-400'}`}>({prog.projects.length})</span>
+                        </button>
+                      );
+                    })}
+                    {data.noProgramProjects.length > 0 && (
                       <button
-                        onClick={() => setSelectedProjectIds(new Set(allProjects.map(p => p.id)))}
-                        className="text-xs text-blue-600 hover:text-blue-800 hover:underline font-medium"
-                      >Chọn tất cả</button>
-                      <span className="text-slate-200">|</span>
-                      <button
-                        onClick={() => setSelectedProjectIds(new Set())}
-                        className="text-xs text-slate-400 hover:text-slate-600 hover:underline"
-                      >Bỏ chọn tất cả</button>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1.5 max-h-60 overflow-y-auto pr-1">
-                      {allProjects.map(p => {
-                        const checked = selectedProjectIds.has(p.id);
-                        return (
-                          <label
-                            key={p.id}
-                            className={`flex items-center gap-2.5 px-3 py-2 rounded-lg border cursor-pointer transition-colors text-xs ${checked ? 'bg-blue-50 border-blue-200' : 'bg-white border-slate-200 hover:bg-slate-50'}`}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={checked}
-                              onChange={e => {
-                                setSelectedProjectIds(prev => {
-                                  const next = new Set(prev);
-                                  e.target.checked ? next.add(p.id) : next.delete(p.id);
-                                  return next;
-                                });
-                              }}
-                              className="w-3.5 h-3.5 rounded accent-blue-600 shrink-0"
-                            />
-                            <span className={`w-2 h-2 rounded-full shrink-0 ${RAG_DOT[p.rag]}`} />
-                            <span className={`truncate font-medium ${checked ? 'text-slate-800' : 'text-slate-500'}`}>{p.name}</span>
-                            {p.program_name && (
-                              <span className="text-slate-400 ml-auto shrink-0 text-[10px]">{p.program_name.slice(0, 12)}</span>
-                            )}
-                          </label>
-                        );
-                      })}
-                    </div>
+                        onClick={() => {
+                          if (selectedProgramId === -1) {
+                            setSelectedProgramId(null);
+                            setSelectedProjectIds(new Set());
+                          } else {
+                            setSelectedProgramId(-1);
+                            setSelectedProjectIds(new Set(data.noProgramProjects.map(p => p.id)));
+                          }
+                          setShowProjectSelector(false);
+                        }}
+                        className={`text-xs px-2.5 py-1 rounded-full border font-medium transition-colors ${selectedProgramId === -1 ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                      >
+                        Khác
+                        <span className={`ml-1 text-[10px] ${selectedProgramId === -1 ? 'text-blue-100' : 'text-slate-400'}`}>({data.noProgramProjects.length})</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Step 2: Project checkboxes within selected program */}
+                {selectedProgramId !== null && projectsInFilter.length > 0 && (
+                  <div className="pl-5">
+                    <button
+                      onClick={() => setShowProjectSelector(v => !v)}
+                      className="flex items-center gap-2 w-full text-left group"
+                    >
+                      <span className="text-sm font-medium text-slate-600 group-hover:text-slate-800">Squad/Dự án đưa vào báo cáo</span>
+                      <span className={`ml-1 text-xs px-2 py-0.5 rounded-full font-semibold border ${selectedProjectIds.size < projectsInFilter.length ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-slate-100 border-slate-200 text-slate-500'}`}>
+                        {selectedProjectIds.size} / {projectsInFilter.length}
+                      </span>
+                      <ChevronDown className={`h-4 w-4 text-slate-400 ml-auto transition-transform duration-200 ${showProjectSelector ? 'rotate-180' : ''}`} />
+                    </button>
+                    {showProjectSelector && (
+                      <div className="mt-3 space-y-2">
+                        <div className="flex items-center gap-3">
+                          <button
+                            onClick={() => setSelectedProjectIds(new Set(projectsInFilter.map(p => p.id)))}
+                            className="text-xs text-blue-600 hover:text-blue-800 hover:underline font-medium"
+                          >Chọn tất cả</button>
+                          <span className="text-slate-200">|</span>
+                          <button
+                            onClick={() => setSelectedProjectIds(new Set())}
+                            className="text-xs text-slate-400 hover:text-slate-600 hover:underline"
+                          >Bỏ chọn tất cả</button>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1.5 max-h-60 overflow-y-auto pr-1">
+                          {projectsInFilter.map(p => {
+                            const checked = selectedProjectIds.has(p.id);
+                            return (
+                              <label
+                                key={p.id}
+                                className={`flex items-center gap-2.5 px-3 py-2 rounded-lg border cursor-pointer transition-colors text-xs ${checked ? 'bg-blue-50 border-blue-200' : 'bg-white border-slate-200 hover:bg-slate-50'}`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={e => {
+                                    setSelectedProjectIds(prev => {
+                                      const next = new Set(prev);
+                                      e.target.checked ? next.add(p.id) : next.delete(p.id);
+                                      return next;
+                                    });
+                                  }}
+                                  className="w-3.5 h-3.5 rounded accent-blue-600 shrink-0"
+                                />
+                                <span className={`w-2 h-2 rounded-full shrink-0 ${RAG_DOT[p.rag]}`} />
+                                <span className={`truncate font-medium ${checked ? 'text-slate-800' : 'text-slate-500'}`}>{p.name}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
