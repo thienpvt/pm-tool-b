@@ -199,7 +199,7 @@ export default function MilestonesPage() {
 
   return (
     <div className="flex h-screen bg-slate-50">
-      <Sidebar />
+      <Sidebar projectId={id} />
       <main className="flex-1 overflow-auto">
         {/* Header */}
         <div className="border-b border-slate-200 bg-white px-8 py-5">
