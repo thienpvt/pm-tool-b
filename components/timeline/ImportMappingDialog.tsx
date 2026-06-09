@@ -540,11 +540,13 @@ export default function ImportMappingDialog({
     const isEpicRow = (row: string[]) =>
       issueTypeColIdx2 >= 0 && row[issueTypeColIdx2]?.trim().toLowerCase() === 'epic';
 
+    // Parent column index — needed for both status correction and parent_id assignment
+    const parColIdx = jiraMode && mapping['_parent'] && mapping['_parent'] !== SKIP
+      ? fileData.columns.indexOf(mapping['_parent']) : -1;
+
     // Build epicKey → childJiraKeys map for status correction
     const epicKeyToChildKeys = new Map<string, string[]>();
     if (jiraMode) {
-      const parColIdx = mapping['_parent'] && mapping['_parent'] !== SKIP
-        ? fileData.columns.indexOf(mapping['_parent']) : -1;
       for (const row of rows) {
         if (!row[activityIdx]?.trim() || isEpicRow(row)) continue;
         const parentKey = parColIdx >= 0 ? (row[parColIdx]?.trim() ?? '') : '';
@@ -558,27 +560,34 @@ export default function ImportMappingDialog({
 
     const activities = rows
       .filter(row => row[activityIdx]?.trim())
-      .map(row => ({
-        phase:         jiraMode ? getRowPhase(row) : (get(row, 'phase') || 'General'),
-        no:            (jiraMode && isEpicRow(row)) ? 'EPIC' : get(row, 'no'),
-        activity:      get(row, 'activity'),
-        deliverable:   get(row, 'deliverable'),
-        sign_off_doc:  get(row, 'sign_off_doc'),
-        accountable:   get(row, 'accountable'),
-        responsible:   get(row, 'responsible'),
-        support:       get(row, 'support'),
-        plan_start:    normalizeDate(get(row, 'plan_start')),
-        plan_end:      normalizeDate(get(row, 'plan_end')),
-        actual_start:  normalizeDate(get(row, 'actual_start')),
-        actual_end:    normalizeDate(get(row, 'actual_end')),
-        status:        resolveField('status', get(row, 'status'), statusOverrides),
-        completion_pct: Number(get(row, 'completion_pct').replace('%', '')) || 0,
-        delay_owner:   fuzzyDelayOwner(get(row, 'delay_owner')),
-        delay_reason:  get(row, 'delay_reason'),
-        notes:         get(row, 'notes'),
-        jira_key:      get(row, 'jira_key'),
-        sprint:        get(row, 'sprint'),
-      }));
+      .map(row => {
+        const isEpic = jiraMode && isEpicRow(row);
+        // For Jira mode: children carry their parent Epic's jira_key so the API can set parent_id
+        const parentJiraKey = (jiraMode && !isEpic && parColIdx >= 0)
+          ? (row[parColIdx]?.trim() ?? '') : '';
+        return {
+          phase:         jiraMode ? getRowPhase(row) : (get(row, 'phase') || 'General'),
+          no:            isEpic ? 'EPIC' : get(row, 'no'),
+          activity:      get(row, 'activity'),
+          deliverable:   get(row, 'deliverable'),
+          sign_off_doc:  get(row, 'sign_off_doc'),
+          accountable:   get(row, 'accountable'),
+          responsible:   get(row, 'responsible'),
+          support:       get(row, 'support'),
+          plan_start:    normalizeDate(get(row, 'plan_start')),
+          plan_end:      normalizeDate(get(row, 'plan_end')),
+          actual_start:  normalizeDate(get(row, 'actual_start')),
+          actual_end:    normalizeDate(get(row, 'actual_end')),
+          status:        resolveField('status', get(row, 'status'), statusOverrides),
+          completion_pct: Number(get(row, 'completion_pct').replace('%', '')) || 0,
+          delay_owner:   fuzzyDelayOwner(get(row, 'delay_owner')),
+          delay_reason:  get(row, 'delay_reason'),
+          notes:         get(row, 'notes'),
+          jira_key:      get(row, 'jira_key'),
+          sprint:        get(row, 'sprint'),
+          parent_jira_key: parentJiraKey,
+        };
+      });
 
     // Correct epic statuses based on children (Jira mode only)
     if (jiraMode && epicKeyToChildKeys.size > 0) {

@@ -441,6 +441,24 @@ async function migratePostgresSchema(pool: Pool) {
     `CREATE TABLE IF NOT EXISTS bugs (id SERIAL PRIMARY KEY, project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE, issue_type TEXT DEFAULT '', issue_key TEXT DEFAULT '', issue_id TEXT DEFAULT '', summary TEXT NOT NULL DEFAULT '', assignee TEXT DEFAULT '', reporter TEXT DEFAULT '', priority TEXT DEFAULT 'Medium', status TEXT DEFAULT 'To Do', resolution TEXT DEFAULT '', created TEXT DEFAULT '', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
     `CREATE TABLE IF NOT EXISTS bug_import_mappings (id SERIAL PRIMARY KEY, name TEXT NOT NULL, mappings_json TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
     `ALTER TABLE bugs ADD COLUMN IF NOT EXISTS snapshot_date TEXT DEFAULT ''`,
+    // Fix existing Jira-imported activities: set parent_id for children whose phase matches an Epic's phase.
+    // Only runs when there is exactly one Epic in the phase (safe, idempotent — parent_id IS NULL guard).
+    `UPDATE activities a
+     SET parent_id = e.id
+     FROM activities e
+     WHERE a.project_id = e.project_id
+       AND a.phase = e.phase
+       AND a.id != e.id
+       AND a.parent_id IS NULL
+       AND e.no = 'EPIC'
+       AND a.no != 'EPIC'
+       AND NOT EXISTS (
+         SELECT 1 FROM activities e2
+         WHERE e2.project_id = e.project_id
+           AND e2.phase = e.phase
+           AND e2.no = 'EPIC'
+           AND e2.id != e.id
+       )`,
   ];
   for (const sql of migrations) {
     try { await pool.query(sql); } catch { /* column already exists */ }
