@@ -239,12 +239,13 @@ function parseCSVText(text: string): FileData {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function ImportMappingDialog({
-  open, onOpenChange, projectId, onImported,
+  open, onOpenChange, projectId, onImported, projectPhase = '',
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   projectId: string;
   onImported: () => void;
+  projectPhase?: string;
 }) {
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [importSource, setImportSource] = useState<'file' | 'text'>('file');
@@ -363,27 +364,34 @@ export default function ImportMappingDialog({
   // ── Jira hierarchy processing ──────────────────────────────────────────────
   const jiraMode = !!(mapping['_issue_type'] && mapping['_issue_type'] !== SKIP);
 
-  const { epicMap, importRows } = useMemo(() => {
-    if (!fileData || !jiraMode) return { epicMap: {} as Record<string, string>, importRows: fileData?.allRows ?? [] };
+  const { epicMap, epicPhaseMap, importRows } = useMemo(() => {
+    if (!fileData || !jiraMode) return { epicMap: {} as Record<string, string>, epicPhaseMap: {} as Record<string, string>, importRows: fileData?.allRows ?? [] };
     const issueTypeIdx = fileData.columns.indexOf(mapping['_issue_type']);
     const jiraKeyIdx = mapping['jira_key'] && mapping['jira_key'] !== SKIP
       ? fileData.columns.indexOf(mapping['jira_key']) : -1;
     const activityIdx = mapping['activity'] && mapping['activity'] !== SKIP
       ? fileData.columns.indexOf(mapping['activity']) : -1;
+    const phaseIdx = mapping['phase'] && mapping['phase'] !== SKIP
+      ? fileData.columns.indexOf(mapping['phase']) : -1;
 
-    const epics: Record<string, string> = {};
+    const epics: Record<string, string> = {};       // epicKey → epicName
+    const epicPhases: Record<string, string> = {};  // epicKey → epicPhase
     for (const row of fileData.allRows) {
       const issueType = issueTypeIdx >= 0 ? (row[issueTypeIdx]?.trim().toLowerCase() ?? '') : '';
       if (issueType === 'epic') {
         const key = jiraKeyIdx >= 0 ? (row[jiraKeyIdx]?.trim() ?? '') : '';
         const summary = activityIdx >= 0 ? (row[activityIdx]?.trim() ?? '') : '';
-        if (key && summary) epics[key] = summary;
+        const phase = phaseIdx >= 0 ? (row[phaseIdx]?.trim() ?? '') : '';
+        if (key && summary) {
+          epics[key] = summary;
+          // Phase priority: mapped column → project current_phase → 'General'
+          epicPhases[key] = phase || projectPhase || 'General';
+        }
       }
     }
 
-    // Include ALL rows (Epics + Stories/Tasks) — Epics get their own phase = their summary
-    return { epicMap: epics, importRows: fileData.allRows };
-  }, [fileData, jiraMode, mapping]);
+    return { epicMap: epics, epicPhaseMap: epicPhases, importRows: fileData.allRows };
+  }, [fileData, jiraMode, mapping, projectPhase]);
 
   const getRowPhase = useCallback((row: string[]): string => {
     if (!fileData) return 'General';
@@ -391,22 +399,27 @@ export default function ImportMappingDialog({
       const issueTypeIdx2 = fileData.columns.indexOf(mapping['_issue_type']);
       const issueType = issueTypeIdx2 >= 0 ? (row[issueTypeIdx2]?.trim().toLowerCase() ?? '') : '';
       if (issueType === 'epic') {
-        // Epic's phase = its own summary so it groups with its children
-        const actCol = mapping['activity'];
-        const actIdx = actCol && actCol !== SKIP ? fileData.columns.indexOf(actCol) : -1;
-        return actIdx >= 0 ? (row[actIdx]?.trim() || 'General') : 'General';
+        // Epic phase: mapped phase column → project current_phase → 'General'
+        const phaseCol = mapping['phase'];
+        if (phaseCol && phaseCol !== SKIP) {
+          const phaseIdx = fileData.columns.indexOf(phaseCol);
+          const raw = phaseIdx >= 0 ? (row[phaseIdx]?.trim() ?? '') : '';
+          if (raw) return raw;
+        }
+        return projectPhase || 'General';
       }
+      // Story/Task: inherit phase from parent Epic
       const parentIdx = mapping['_parent'] && mapping['_parent'] !== SKIP
         ? fileData.columns.indexOf(mapping['_parent']) : -1;
       const parentKey = parentIdx >= 0 ? (row[parentIdx]?.trim() ?? '') : '';
-      return epicMap[parentKey] || parentKey || 'General';
+      return epicPhaseMap[parentKey] || projectPhase || 'General';
     }
     const phaseCol = mapping['phase'];
     if (!phaseCol || phaseCol === SKIP) return 'General';
     const idx = fileData.columns.indexOf(phaseCol);
     const raw = idx >= 0 ? (row[idx]?.trim() ?? '') : '';
     return raw || 'General';
-  }, [fileData, jiraMode, mapping, epicMap]);
+  }, [fileData, jiraMode, mapping, epicPhaseMap, projectPhase]);
 
   // ── Unique statuses for status mapping UI ──────────────────────────────────
   const uniqueStatusValues = useMemo(() => {

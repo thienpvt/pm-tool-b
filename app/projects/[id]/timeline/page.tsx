@@ -1650,6 +1650,7 @@ export default function TimelinePage() {
         open={importOpen}
         onOpenChange={setImportOpen}
         projectId={id}
+        projectPhase={project?.current_phase ?? ''}
         onImported={load}
       />
     </div>
