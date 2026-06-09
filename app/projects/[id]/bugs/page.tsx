@@ -345,10 +345,10 @@ export default function BugsPage() {
                   </div>
                 </div>
 
-                {/* Pie chart: Severity */}
+                {/* Pie chart: Priority */}
                 <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
                   <div className="px-4 py-3 border-b border-slate-100">
-                    <h3 className="font-semibold text-slate-700 text-sm">Severity (Priority)</h3>
+                    <h3 className="font-semibold text-slate-700 text-sm">Priority</h3>
                     <p className="text-xs text-slate-400">Phân loại theo mức độ ưu tiên</p>
                   </div>
                   <div className="p-2" style={{ height: 220 }}>
@@ -430,6 +430,50 @@ export default function BugsPage() {
                   {newTodayCount > 0 && (
                     <div className="ml-auto"><Badge className="bg-amber-500 text-white border-0">Mới</Badge></div>
                   )}
+                </div>
+              </div>
+
+              {/* Priority breakdown */}
+              <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+                <p className="text-xs text-slate-400 uppercase tracking-wide font-medium mb-4">Số Bug theo Priority</p>
+                <div className="space-y-3">
+                  {(['Critical', 'Major', 'Medium', 'Minor'] as const).map(priority => {
+                    const count = bugs.filter(b => b.priority === priority).length;
+                    const pct = bugs.length > 0 ? Math.round(count / bugs.length * 100) : 0;
+                    const barColors: Record<string, string> = {
+                      Critical: 'bg-red-500',
+                      Major:    'bg-orange-400',
+                      Medium:   'bg-yellow-400',
+                      Minor:    'bg-green-400',
+                    };
+                    return (
+                      <div key={priority} className="flex items-center gap-3">
+                        <div className="w-20 shrink-0">
+                          <span className={`text-xs px-2 py-0.5 rounded border font-semibold ${PRIORITY_BADGE[priority]}`}>
+                            {priority}
+                          </span>
+                        </div>
+                        <div className="flex-1 bg-slate-100 rounded-full h-2.5 overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all ${barColors[priority]}`}
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0 min-w-[4rem] justify-end">
+                          <span className="text-sm font-bold text-slate-700">{count}</span>
+                          <span className="text-xs text-slate-400">({pct}%)</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  <div className="flex items-center gap-3 pt-2 border-t border-slate-100 mt-1">
+                    <div className="w-20 shrink-0 text-xs font-semibold text-slate-500">Tổng</div>
+                    <div className="flex-1" />
+                    <div className="flex items-center gap-1.5 shrink-0 min-w-[4rem] justify-end">
+                      <span className="text-sm font-bold text-slate-800">{bugs.length}</span>
+                      <span className="text-xs text-slate-400">(100%)</span>
+                    </div>
+                  </div>
                 </div>
               </div>
 
