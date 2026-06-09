@@ -178,12 +178,14 @@ export default function BugImportDialog({
   const [saveName, setSaveName] = useState('');
   const [saving, setSaving] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [snapshotDate, setSnapshotDate] = useState(() => new Date().toISOString().split('T')[0]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const reset = useCallback(() => {
     setStep(1); setFileData(null); setFileName(''); setMapping({});
     setSaveName(''); setUploading(false); setImporting(false);
     setPastedText(''); setImportSource('file');
+    setSnapshotDate(new Date().toISOString().split('T')[0]);
   }, []);
 
   useEffect(() => { if (!open) reset(); }, [open, reset]);
@@ -321,10 +323,10 @@ export default function BugImportDialog({
       const res = await fetch(`/api/projects/${projectId}/bugs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bugs, replace: true }),
+        body: JSON.stringify({ bugs, snapshot_date: snapshotDate }),
       });
       const result = await res.json();
-      toast.success(`Import thành công: ${result.inserted} bug`);
+      toast.success(`Import thành công: ${result.inserted} bug (ngày ${result.snapshot_date})`);
       onImported();
       onOpenChange(false);
     } catch { toast.error('Import thất bại'); }
@@ -394,9 +396,23 @@ export default function BugImportDialog({
                   <input ref={fileInputRef} type="file" accept=".xlsx,.xls,.csv,.txt" className="hidden"
                     onChange={e => { const f = e.target.files?.[0]; if (f) handleFileSelect(f); e.target.value = ''; }} />
                   {uploading && <div className="text-center text-sm text-red-500 animate-pulse">Đang đọc file...</div>}
+                  {/* Snapshot date picker */}
+                  <div className="flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-lg px-4 py-3">
+                    <Calendar className="h-4 w-4 text-blue-500 shrink-0" />
+                    <div className="flex-1">
+                      <p className="text-xs font-semibold text-blue-700">Lưu dữ liệu theo ngày</p>
+                      <p className="text-[11px] text-blue-500 mt-0.5">Mỗi ngày là một snapshot độc lập — có thể xem lại lịch sử</p>
+                    </div>
+                    <input
+                      type="date"
+                      value={snapshotDate}
+                      onChange={e => setSnapshotDate(e.target.value)}
+                      className="text-xs border border-blue-300 rounded-md px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400 font-medium text-slate-700"
+                    />
+                  </div>
                   <div className="bg-slate-50 rounded-lg p-3 text-xs text-slate-500 space-y-1">
                     <p className="font-medium text-slate-600">Lưu ý:</p>
-                    <p>• Import sẽ <strong>xóa toàn bộ bug cũ</strong> và thay thế bằng dữ liệu mới</p>
+                    <p>• Import sẽ thay thế dữ liệu của <strong>ngày {snapshotDate}</strong> (các ngày khác giữ nguyên)</p>
                     <p>• Hỗ trợ export từ Jira: Issue Type, Key, ID, Summary, Assignee, Reporter, Priority, Status, Resolution, Created</p>
                   </div>
                 </div>
@@ -442,6 +458,20 @@ export default function BugImportDialog({
                       </table>
                     </div>
                   )}
+                  {/* Snapshot date picker for text mode */}
+                  <div className="flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 mt-1">
+                    <Calendar className="h-4 w-4 text-blue-500 shrink-0" />
+                    <div className="flex-1">
+                      <p className="text-xs font-semibold text-blue-700">Ngày snapshot</p>
+                      <p className="text-[11px] text-blue-500 mt-0.5">Dữ liệu ngày này sẽ được thay thế nếu đã tồn tại</p>
+                    </div>
+                    <input
+                      type="date"
+                      value={snapshotDate}
+                      onChange={e => setSnapshotDate(e.target.value)}
+                      className="text-xs border border-blue-300 rounded-md px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400 font-medium text-slate-700"
+                    />
+                  </div>
                 </div>
               )}
             </div>
@@ -616,8 +646,9 @@ export default function BugImportDialog({
                 <div className="text-xs text-slate-500 bg-slate-50 rounded px-3 py-2">
                   Xem trước {Math.min(previewRows.length, 8)} dòng đầu · tổng <strong>{fileData.allRows.length}</strong> bug sẽ được import
                 </div>
-                <div className="flex items-center gap-1.5 text-xs text-red-700 bg-red-50 border border-red-200 rounded px-2 py-1.5">
-                  <span>⚠</span> Import sẽ xóa toàn bộ bug cũ và thay thế bằng dữ liệu mới
+                <div className="flex items-center gap-1.5 text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded px-2 py-1.5">
+                  <Calendar className="h-3.5 w-3.5 shrink-0" />
+                  Snapshot ngày <strong className="mx-1">{snapshotDate}</strong> — dữ liệu ngày khác giữ nguyên
                 </div>
               </div>
 

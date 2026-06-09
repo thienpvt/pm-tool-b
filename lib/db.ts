@@ -372,6 +372,7 @@ async function initPostgresSchema(db: DbClient) {
       status TEXT DEFAULT 'To Do',
       resolution TEXT DEFAULT '',
       created TEXT DEFAULT '',
+      snapshot_date TEXT DEFAULT '',
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
     CREATE TABLE IF NOT EXISTS bug_import_mappings (
@@ -439,6 +440,7 @@ async function migratePostgresSchema(pool: Pool) {
     `ALTER TABLE activities ADD COLUMN IF NOT EXISTS parent_id INTEGER REFERENCES activities(id) ON DELETE SET NULL`,
     `CREATE TABLE IF NOT EXISTS bugs (id SERIAL PRIMARY KEY, project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE, issue_type TEXT DEFAULT '', issue_key TEXT DEFAULT '', issue_id TEXT DEFAULT '', summary TEXT NOT NULL DEFAULT '', assignee TEXT DEFAULT '', reporter TEXT DEFAULT '', priority TEXT DEFAULT 'Medium', status TEXT DEFAULT 'To Do', resolution TEXT DEFAULT '', created TEXT DEFAULT '', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
     `CREATE TABLE IF NOT EXISTS bug_import_mappings (id SERIAL PRIMARY KEY, name TEXT NOT NULL, mappings_json TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
+    `ALTER TABLE bugs ADD COLUMN IF NOT EXISTS snapshot_date TEXT DEFAULT ''`,
   ];
   for (const sql of migrations) {
     try { await pool.query(sql); } catch { /* column already exists */ }
