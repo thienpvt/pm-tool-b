@@ -92,7 +92,7 @@ const PRIORITIES = ['Critical', 'Major', 'Medium', 'Minor'];
 const BUG_STATUS_MAP: Record<string, string> = {
   todo: 'To Do', 'to do': 'To Do', open: 'To Do', new: 'To Do', backlog: 'To Do',
   inprogress: 'In Progress', 'in progress': 'In Progress', doing: 'In Progress', ongoing: 'In Progress', processing: 'In Progress',
-  reopen: 'Reopen', 'reopen': 'Reopen', reopened: 'Reopen', 're-open': 'Reopen',
+  reopen: 'Reopen', reopened: 'Reopen', 're-open': 'Reopen',
   readyfortest: 'Ready for Test', 'ready for test': 'Ready for Test', readytest: 'Ready for Test', r4t: 'Ready for Test',
   done: 'Done', closed: 'Done', fixed: 'Done', complete: 'Done', completed: 'Done',
   resolved: 'Resolved', resolve: 'Resolved',
