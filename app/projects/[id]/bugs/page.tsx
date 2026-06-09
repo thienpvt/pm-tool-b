@@ -68,17 +68,22 @@ const STATUS_BADGE: Record<string, string> = {
 const PAGE_SIZE = 50;
 
 // ─── Custom Pie label ─────────────────────────────────────────────────────────
-function renderCustomLabel({ cx, cy, midAngle, innerRadius, outerRadius, percent, name }: {
-  cx: number; cy: number; midAngle: number; innerRadius: number; outerRadius: number; percent: number; name: string;
+function renderCustomLabel({ cx, cy, midAngle, innerRadius, outerRadius, percent }: {
+  cx?: number; cy?: number; midAngle?: number; innerRadius?: number; outerRadius?: number; percent?: number; name?: string;
 }) {
-  if (percent < 0.04) return null;
+  if ((percent ?? 0) < 0.04) return null;
   const RADIAN = Math.PI / 180;
-  const radius = innerRadius + (outerRadius - innerRadius) * 0.55;
-  const x = cx + radius * Math.cos(-midAngle * RADIAN);
-  const y = cy + radius * Math.sin(-midAngle * RADIAN);
+  const _cx = cx ?? 0;
+  const _cy = cy ?? 0;
+  const _mid = midAngle ?? 0;
+  const _ir = innerRadius ?? 0;
+  const _or = outerRadius ?? 0;
+  const radius = _ir + (_or - _ir) * 0.55;
+  const x = _cx + radius * Math.cos(-_mid * RADIAN);
+  const y = _cy + radius * Math.sin(-_mid * RADIAN);
   return (
     <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" fontSize={11} fontWeight="600">
-      {name.length > 8 ? `${Math.round(percent * 100)}%` : `${Math.round(percent * 100)}%`}
+      {`${Math.round((percent ?? 0) * 100)}%`}
     </text>
   );
 }
