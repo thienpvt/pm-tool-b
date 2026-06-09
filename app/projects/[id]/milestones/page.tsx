@@ -8,9 +8,9 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { Plus, Pencil, Trash2, Flag, ChevronRight, X, Search } from 'lucide-react';
+import { Plus, Pencil, Trash2, Flag, ChevronRight, X, Search, Layers } from 'lucide-react';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// ─── Types ─────────────────────────────────────────────────────────────────
 type Milestone = {
   id: number;
   project_id: number;
@@ -20,7 +20,7 @@ type Milestone = {
   created_at: string;
 };
 
-type Epic = {
+type ActivityItem = {
   id: number;
   phase: string;
   no: string;
@@ -30,23 +30,21 @@ type Epic = {
   plan_start: string | null;
   plan_end: string | null;
   jira_key: string;
+  parent_id: number | null;
 };
 
-type AllActivity = {
-  id: number;
-  phase: string;
-  no: string;
-  activity: string;
-  status: string;
-  completion_pct: number;
-  plan_start: string | null;
-  plan_end: string | null;
-  jira_key: string;
+type PickerPhase = {
+  epics: { epic: ActivityItem; children: ActivityItem[] }[];
+  standalone: ActivityItem[];
+  orphanChildren: ActivityItem[];
 };
 
-type Project = { id: number; name: string; status: string; current_phase: string; client: string; pm_name: string; };
+type Project = {
+  id: number; name: string; status: string;
+  current_phase: string; client: string; pm_name: string;
+};
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Helpers ────────────────────────────────────────────────────────────────
 const STATUS_COLOR: Record<string, string> = {
   'Done':        'bg-green-100 text-green-700',
   'In Progress': 'bg-blue-100 text-blue-700',
@@ -68,33 +66,34 @@ function blank(): Omit<Milestone, 'id' | 'project_id' | 'created_at'> {
   return { name: '', start_date: '', end_date: '' };
 }
 
-// ─── Main page ────────────────────────────────────────────────────────────────
+// ─── Main page ──────────────────────────────────────────────────────────────
 export default function MilestonesPage() {
   const { id } = useParams<{ id: string }>();
   const [project, setProject] = useState<Project | null>(null);
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [selected, setSelected] = useState<Milestone | null>(null);
-  const [epics, setEpics] = useState<Epic[]>([]);
-  const [allActivities, setAllActivities] = useState<AllActivity[]>([]);
+  const [milestoneItems, setMilestoneItems] = useState<ActivityItem[]>([]);
+  const [allActivities, setAllActivities] = useState<ActivityItem[]>([]);
 
-  // dialog state
   const [editOpen, setEditOpen] = useState(false);
   const [editForm, setEditForm] = useState(blank());
   const [editingId, setEditingId] = useState<number | null>(null);
 
-  // epic picker
   const [pickerOpen, setPickerOpen] = useState(false);
   const [search, setSearch] = useState('');
 
-  // ── loaders ──────────────────────────────────────────────────────────────
+  const [epicConfirmOpen, setEpicConfirmOpen] = useState(false);
+  const [pendingEpic, setPendingEpic] = useState<ActivityItem | null>(null);
+
+  // ── loaders ─────────────────────────────────────────────────────────────
   const loadMilestones = useCallback(async () => {
     const data = await fetch(`/api/projects/${id}/milestones`).then(r => r.json());
     setMilestones(data);
   }, [id]);
 
-  const loadEpics = useCallback(async (milestoneId: number) => {
+  const loadMilestoneItems = useCallback(async (milestoneId: number) => {
     const data = await fetch(`/api/projects/${id}/milestones/${milestoneId}/epics`).then(r => r.json());
-    setEpics(data);
+    setMilestoneItems(data);
   }, [id]);
 
   const loadAllActivities = useCallback(async () => {
@@ -109,14 +108,12 @@ export default function MilestonesPage() {
   }, [id, loadMilestones, loadAllActivities]);
 
   useEffect(() => {
-    if (selected) loadEpics(selected.id);
-  }, [selected, loadEpics]);
+    if (selected) loadMilestoneItems(selected.id);
+  }, [selected, loadMilestoneItems]);
 
-  // ── milestone CRUD ────────────────────────────────────────────────────────
+  // ── milestone CRUD ───────────────────────────────────────────────────────
   function openCreate() {
-    setEditingId(null);
-    setEditForm(blank());
-    setEditOpen(true);
+    setEditingId(null); setEditForm(blank()); setEditOpen(true);
   }
 
   function openEdit(m: Milestone) {
@@ -136,67 +133,133 @@ export default function MilestonesPage() {
     const saved: Milestone = await res.json();
     setEditOpen(false);
     await loadMilestones();
-    if (!editingId) {
-      setSelected(saved);
-    } else if (selected?.id === editingId) {
-      setSelected(saved);
-    }
+    if (!editingId) setSelected(saved);
+    else if (selected?.id === editingId) setSelected(saved);
     toast.success(editingId ? 'Đã cập nhật milestone' : 'Đã tạo milestone');
   }
 
   async function deleteMilestone(m: Milestone) {
     if (!confirm(`Xóa milestone "${m.name}"?`)) return;
     await fetch(`/api/projects/${id}/milestones/${m.id}`, { method: 'DELETE' });
-    if (selected?.id === m.id) { setSelected(null); setEpics([]); }
+    if (selected?.id === m.id) { setSelected(null); setMilestoneItems([]); }
     await loadMilestones();
     toast.success('Đã xóa milestone');
   }
 
-  // ── epic management ───────────────────────────────────────────────────────
-  async function addEpic(activityId: number) {
+  // ── item management ──────────────────────────────────────────────────────
+  async function postToMilestone(activityId: number) {
     if (!selected) return;
-    const res = await fetch(`/api/projects/${id}/milestones/${selected.id}/epics`, {
+    await fetch(`/api/projects/${id}/milestones/${selected.id}/epics`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ activity_id: activityId }),
     });
-    if (!res.ok) { toast.error('Lỗi khi thêm epic'); return; }
-    await loadEpics(selected.id);
-    toast.success('Đã thêm epic vào milestone');
   }
 
-  async function removeEpic(activityId: number) {
+  async function handlePickerClick(activity: ActivityItem) {
+    if (activity.no === 'EPIC') {
+      setPendingEpic(activity);
+      setEpicConfirmOpen(true);
+    } else {
+      if (!selected) return;
+      await postToMilestone(activity.id);
+      await loadMilestoneItems(selected.id);
+      toast.success('Đã thêm vào milestone');
+    }
+  }
+
+  async function confirmBulkAdd() {
+    if (!selected || !pendingEpic) return;
+    const alreadyIn = new Set(milestoneItems.map(e => e.id));
+    const children = allActivities.filter(a => a.parent_id === pendingEpic.id);
+    const toAdd = [pendingEpic.id, ...children.map(c => c.id)].filter(xid => !alreadyIn.has(xid));
+    await Promise.all(toAdd.map(actId => postToMilestone(actId)));
+    await loadMilestoneItems(selected.id);
+    setEpicConfirmOpen(false);
+    setPendingEpic(null);
+    toast.success(`Đã thêm ${toAdd.length} item vào milestone`);
+  }
+
+  async function removeItem(activityId: number) {
     if (!selected) return;
     await fetch(`/api/projects/${id}/milestones/${selected.id}/epics?activity_id=${activityId}`, { method: 'DELETE' });
-    await loadEpics(selected.id);
-    toast.success('Đã xóa epic khỏi milestone');
+    await loadMilestoneItems(selected.id);
+    toast.success('Đã xóa khỏi milestone');
   }
 
-  // ── computed ──────────────────────────────────────────────────────────────
-  const epicIds = new Set(epics.map(e => e.id));
-  const filteredActivities = allActivities.filter(a => {
-    if (epicIds.has(a.id)) return false;
-    if (!search.trim()) return true;
-    const q = search.toLowerCase();
+  // ── computed ─────────────────────────────────────────────────────────────
+  const inMilestoneIds = new Set(milestoneItems.map(e => e.id));
+
+  // ── picker structure ─────────────────────────────────────────────────────
+  const q = search.toLowerCase().trim();
+
+  const available = allActivities.filter(a => !inMilestoneIds.has(a.id));
+
+  const pickerPhases: Record<string, PickerPhase> = {};
+
+  // First pass: create epic groups per phase
+  for (const a of available) {
+    if (!pickerPhases[a.phase]) pickerPhases[a.phase] = { epics: [], standalone: [], orphanChildren: [] };
+    if (a.no === 'EPIC') pickerPhases[a.phase].epics.push({ epic: a, children: [] });
+  }
+
+  // Second pass: assign children and standalone
+  for (const a of available) {
+    if (a.no === 'EPIC') continue;
+    if (!pickerPhases[a.phase]) pickerPhases[a.phase] = { epics: [], standalone: [], orphanChildren: [] };
+    if (a.parent_id) {
+      const epicGroup = pickerPhases[a.phase].epics.find(eg => eg.epic.id === a.parent_id);
+      if (epicGroup) {
+        epicGroup.children.push(a);
+      } else {
+        pickerPhases[a.phase].orphanChildren.push(a);
+      }
+    } else {
+      pickerPhases[a.phase].standalone.push(a);
+    }
+  }
+
+  function matchesQ(a: ActivityItem): boolean {
+    if (!q) return true;
     return (
       a.activity.toLowerCase().includes(q) ||
       a.phase.toLowerCase().includes(q) ||
       (a.jira_key ?? '').toLowerCase().includes(q) ||
       (a.no ?? '').toLowerCase().includes(q)
     );
-  });
+  }
 
-  // ── group activities by phase ─────────────────────────────────────────────
-  const groupedFiltered = filteredActivities.reduce<Record<string, AllActivity[]>>((acc, a) => {
-    (acc[a.phase] = acc[a.phase] ?? []).push(a);
-    return acc;
-  }, {});
+  const filteredPickerEntries = Object.entries(pickerPhases).filter(([, g]) =>
+    g.epics.some(eg => matchesQ(eg.epic) || eg.children.some(matchesQ)) ||
+    g.standalone.some(matchesQ) ||
+    g.orphanChildren.some(matchesQ)
+  );
 
-  const groupedEpics = epics.reduce<Record<string, Epic[]>>((acc, e) => {
-    (acc[e.phase] = acc[e.phase] ?? []).push(e);
-    return acc;
-  }, {});
+  // ── display tree ─────────────────────────────────────────────────────────
+  // Items whose parent IS in the milestone → shown as children
+  const childrenByParent: Record<number, ActivityItem[]> = {};
+  for (const item of milestoneItems) {
+    if (item.parent_id && inMilestoneIds.has(item.parent_id)) {
+      (childrenByParent[item.parent_id] = childrenByParent[item.parent_id] ?? []).push(item);
+    }
+  }
 
+  // Top-level: no parent, or parent not in milestone
+  const topLevelItems = milestoneItems.filter(
+    item => !item.parent_id || !inMilestoneIds.has(item.parent_id)
+  );
+
+  const displayByPhase: Record<string, ActivityItem[]> = {};
+  for (const item of topLevelItems) {
+    (displayByPhase[item.phase] = displayByPhase[item.phase] ?? []).push(item);
+  }
+
+  // ── pending epic children count ───────────────────────────────────────────
+  const pendingEpicNewChildren = pendingEpic
+    ? allActivities.filter(a => a.parent_id === pendingEpic.id && !inMilestoneIds.has(a.id))
+    : [];
+
+  // ─────────────────────────────────────────────────────────────────────────
   return (
     <div className="flex h-screen bg-slate-50">
       <Sidebar projectId={id} />
@@ -243,16 +306,10 @@ export default function MilestonesPage() {
                         </p>
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
-                        <button
-                          onClick={e => { e.stopPropagation(); openEdit(m); }}
-                          className="p-1 rounded hover:bg-slate-200 text-slate-500"
-                        >
+                        <button onClick={e => { e.stopPropagation(); openEdit(m); }} className="p-1 rounded hover:bg-slate-200 text-slate-500">
                           <Pencil className="h-3.5 w-3.5" />
                         </button>
-                        <button
-                          onClick={e => { e.stopPropagation(); deleteMilestone(m); }}
-                          className="p-1 rounded hover:bg-red-100 text-red-500"
-                        >
+                        <button onClick={e => { e.stopPropagation(); deleteMilestone(m); }} className="p-1 rounded hover:bg-red-100 text-red-500">
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
                         <ChevronRight className="h-4 w-4 text-slate-300" />
@@ -264,22 +321,21 @@ export default function MilestonesPage() {
             )}
           </div>
 
-          {/* Right panel — epic list */}
+          {/* Right panel — milestone items tree */}
           <div className="flex-1 overflow-y-auto p-6">
             {!selected ? (
               <div className="flex flex-col items-center justify-center h-full text-slate-400">
                 <Flag className="h-12 w-12 mb-3 text-slate-200" />
-                <p className="text-sm">Chọn một milestone để xem và quản lý epics</p>
+                <p className="text-sm">Chọn một milestone để xem và quản lý</p>
               </div>
             ) : (
               <>
-                {/* Selected milestone header */}
                 <div className="flex items-center justify-between mb-5">
                   <div>
                     <h2 className="text-lg font-bold text-slate-800">{selected.name}</h2>
                     <p className="text-sm text-slate-500 mt-0.5">
                       {fmt(selected.start_date)} → {fmt(selected.end_date)}
-                      <span className="ml-3 text-orange-600 font-medium">{epics.length} epic</span>
+                      <span className="ml-3 text-orange-600 font-medium">{milestoneItems.length} item</span>
                     </p>
                   </div>
                   <Button
@@ -288,58 +344,106 @@ export default function MilestonesPage() {
                     className="gap-1.5 border-orange-300 text-orange-600 hover:bg-orange-50"
                   >
                     <Plus className="h-4 w-4" />
-                    Thêm Epic
+                    Thêm
                   </Button>
                 </div>
 
-                {/* Epic list grouped by phase */}
-                {epics.length === 0 ? (
+                {milestoneItems.length === 0 ? (
                   <div className="border border-dashed border-slate-300 rounded-lg p-10 text-center text-slate-400">
-                    <p className="text-sm">Milestone này chưa có epic nào.</p>
-                    <p className="text-xs mt-1">Nhấn "Thêm Epic" để gán activity vào milestone.</p>
+                    <p className="text-sm">Milestone này chưa có item nào.</p>
+                    <p className="text-xs mt-1">Nhấn "Thêm" để gán activity vào milestone.</p>
                   </div>
                 ) : (
-                  <div className="space-y-4">
-                    {Object.entries(groupedEpics).map(([phase, items]) => (
+                  <div className="space-y-6">
+                    {Object.entries(displayByPhase).map(([phase, parents]) => (
                       <div key={phase}>
-                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 px-1">{phase}</p>
+                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3 px-1">{phase}</p>
                         <div className="space-y-2">
-                          {items.map(epic => (
-                            <div key={epic.id} className="bg-white rounded-lg border border-slate-200 px-4 py-3 flex items-center gap-3 hover:border-slate-300 transition-colors">
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  {epic.jira_key && (
-                                    <span className="text-xs font-mono bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded">{epic.jira_key}</span>
-                                  )}
-                                  {epic.no && (
-                                    <span className="text-xs text-slate-400">#{epic.no}</span>
-                                  )}
-                                  <span className="text-sm font-medium text-slate-800 truncate">{epic.activity}</span>
+                          {parents.map(parent => (
+                            <div key={parent.id}>
+                              {/* Parent / standalone row */}
+                              <div className={`rounded-lg border px-4 py-3 flex items-center gap-3 transition-colors ${
+                                parent.no === 'EPIC'
+                                  ? 'bg-orange-50/50 border-orange-200 hover:border-orange-300'
+                                  : 'bg-white border-slate-200 hover:border-slate-300'
+                              }`}>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    {parent.no === 'EPIC' && (
+                                      <span className="text-xs font-semibold text-orange-600 bg-orange-100 px-1.5 py-0.5 rounded">EPIC</span>
+                                    )}
+                                    {parent.jira_key && (
+                                      <span className="text-xs font-mono bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded">{parent.jira_key}</span>
+                                    )}
+                                    {parent.no && parent.no !== 'EPIC' && (
+                                      <span className="text-xs text-slate-400">#{parent.no}</span>
+                                    )}
+                                    <span className="text-sm font-medium text-slate-800 truncate">{parent.activity}</span>
+                                  </div>
+                                  <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+                                    <Badge className={`text-xs px-1.5 py-0 ${statusColor(parent.status)}`}>{parent.status}</Badge>
+                                    <span className="text-xs text-slate-400">{parent.completion_pct ?? 0}%</span>
+                                    {(parent.plan_start || parent.plan_end) && (
+                                      <span className="text-xs text-slate-400">{fmt(parent.plan_start)} → {fmt(parent.plan_end)}</span>
+                                    )}
+                                    {(childrenByParent[parent.id]?.length ?? 0) > 0 && (
+                                      <span className="text-xs text-orange-500">{childrenByParent[parent.id].length} sub-item</span>
+                                    )}
+                                  </div>
                                 </div>
-                                <div className="flex items-center gap-3 mt-1.5">
-                                  <Badge className={`text-xs px-1.5 py-0 ${statusColor(epic.status)}`}>{epic.status}</Badge>
-                                  <span className="text-xs text-slate-400">{epic.completion_pct ?? 0}%</span>
-                                  {(epic.plan_start || epic.plan_end) && (
-                                    <span className="text-xs text-slate-400">{fmt(epic.plan_start)} → {fmt(epic.plan_end)}</span>
-                                  )}
+                                <div className="w-20 shrink-0">
+                                  <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                    <div className="h-full bg-orange-400 rounded-full" style={{ width: `${parent.completion_pct ?? 0}%` }} />
+                                  </div>
                                 </div>
+                                <button
+                                  onClick={() => removeItem(parent.id)}
+                                  className="p-1.5 rounded hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors shrink-0"
+                                  title="Xóa khỏi milestone"
+                                >
+                                  <X className="h-4 w-4" />
+                                </button>
                               </div>
-                              {/* progress bar */}
-                              <div className="w-20 shrink-0">
-                                <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                  <div
-                                    className="h-full bg-orange-400 rounded-full"
-                                    style={{ width: `${epic.completion_pct ?? 0}%` }}
-                                  />
+
+                              {/* Children rows — indented */}
+                              {(childrenByParent[parent.id] ?? []).length > 0 && (
+                                <div className="ml-5 mt-1.5 space-y-1.5 pl-4 border-l-2 border-orange-100">
+                                  {(childrenByParent[parent.id] ?? []).map(child => (
+                                    <div key={child.id} className="bg-white rounded-lg border border-slate-200 px-4 py-2.5 flex items-center gap-3 hover:border-slate-300 transition-colors">
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                          {child.jira_key && (
+                                            <span className="text-xs font-mono bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded">{child.jira_key}</span>
+                                          )}
+                                          {child.no && child.no !== 'EPIC' && (
+                                            <span className="text-xs text-slate-400">{child.no}</span>
+                                          )}
+                                          <span className="text-sm text-slate-700 truncate">{child.activity}</span>
+                                        </div>
+                                        <div className="flex items-center gap-3 mt-1 flex-wrap">
+                                          <Badge className={`text-xs px-1.5 py-0 ${statusColor(child.status)}`}>{child.status}</Badge>
+                                          <span className="text-xs text-slate-400">{child.completion_pct ?? 0}%</span>
+                                          {(child.plan_start || child.plan_end) && (
+                                            <span className="text-xs text-slate-400">{fmt(child.plan_start)} → {fmt(child.plan_end)}</span>
+                                          )}
+                                        </div>
+                                      </div>
+                                      <div className="w-16 shrink-0">
+                                        <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                          <div className="h-full bg-orange-300 rounded-full" style={{ width: `${child.completion_pct ?? 0}%` }} />
+                                        </div>
+                                      </div>
+                                      <button
+                                        onClick={() => removeItem(child.id)}
+                                        className="p-1.5 rounded hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors shrink-0"
+                                        title="Xóa khỏi milestone"
+                                      >
+                                        <X className="h-4 w-4" />
+                                      </button>
+                                    </div>
+                                  ))}
                                 </div>
-                              </div>
-                              <button
-                                onClick={() => removeEpic(epic.id)}
-                                className="p-1.5 rounded hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors shrink-0"
-                                title="Xóa khỏi milestone"
-                              >
-                                <X className="h-4 w-4" />
-                              </button>
+                              )}
                             </div>
                           ))}
                         </div>
@@ -353,7 +457,7 @@ export default function MilestonesPage() {
         </div>
       </main>
 
-      {/* ── Milestone create/edit dialog ─────────────────────────────────────── */}
+      {/* ── Milestone create/edit dialog ──────────────────────────────────────── */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -372,19 +476,11 @@ export default function MilestonesPage() {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>Ngày bắt đầu</Label>
-                <Input
-                  type="date"
-                  value={editForm.start_date ?? ''}
-                  onChange={e => setEditForm(f => ({ ...f, start_date: e.target.value }))}
-                />
+                <Input type="date" value={editForm.start_date ?? ''} onChange={e => setEditForm(f => ({ ...f, start_date: e.target.value }))} />
               </div>
               <div className="space-y-1.5">
                 <Label>Ngày kết thúc</Label>
-                <Input
-                  type="date"
-                  value={editForm.end_date ?? ''}
-                  onChange={e => setEditForm(f => ({ ...f, end_date: e.target.value }))}
-                />
+                <Input type="date" value={editForm.end_date ?? ''} onChange={e => setEditForm(f => ({ ...f, end_date: e.target.value }))} />
               </div>
             </div>
           </div>
@@ -397,13 +493,12 @@ export default function MilestonesPage() {
         </DialogContent>
       </Dialog>
 
-      {/* ── Epic picker dialog ───────────────────────────────────────────────── */}
+      {/* ── Activity picker dialog ────────────────────────────────────────────── */}
       <Dialog open={pickerOpen} onOpenChange={setPickerOpen}>
         <DialogContent className="sm:max-w-2xl max-h-[80vh] flex flex-col">
           <DialogHeader>
-            <DialogTitle>Thêm Epic vào &quot;{selected?.name}&quot;</DialogTitle>
+            <DialogTitle>Thêm vào &quot;{selected?.name}&quot;</DialogTitle>
           </DialogHeader>
-          {/* search */}
           <div className="relative mt-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <Input
@@ -414,34 +509,126 @@ export default function MilestonesPage() {
               autoFocus
             />
           </div>
-          {/* list */}
           <div className="overflow-y-auto flex-1 mt-2 -mx-1 px-1">
-            {Object.keys(groupedFiltered).length === 0 ? (
+            {filteredPickerEntries.length === 0 ? (
               <p className="text-sm text-slate-400 text-center py-8">
                 {search ? 'Không tìm thấy activity phù hợp.' : 'Tất cả activities đã được gán vào milestone này.'}
               </p>
             ) : (
-              <div className="space-y-4">
-                {Object.entries(groupedFiltered).map(([phase, items]) => (
+              <div className="space-y-5">
+                {filteredPickerEntries.map(([phase, group]) => (
                   <div key={phase}>
                     <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 sticky top-0 bg-white py-1">{phase}</p>
-                    <div className="space-y-1.5">
-                      {items.map(a => (
+                    <div className="space-y-2">
+
+                      {/* Epics with their children */}
+                      {group.epics
+                        .filter(eg => !q || matchesQ(eg.epic) || eg.children.some(matchesQ))
+                        .map(eg => (
+                          <div key={eg.epic.id}>
+                            {/* Epic row — clicking triggers bulk-add confirm */}
+                            <button
+                              onClick={() => handlePickerClick(eg.epic)}
+                              className="w-full text-left bg-orange-50 hover:bg-orange-100 border border-orange-200 hover:border-orange-400 rounded-lg px-4 py-2.5 transition-colors flex items-center gap-3"
+                            >
+                              <Layers className="h-4 w-4 text-orange-500 shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="text-xs font-semibold text-orange-600 bg-orange-100 px-1.5 py-0.5 rounded">EPIC</span>
+                                  {eg.epic.jira_key && (
+                                    <span className="text-xs font-mono bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded">{eg.epic.jira_key}</span>
+                                  )}
+                                  <span className="text-sm text-slate-800 font-medium truncate">{eg.epic.activity}</span>
+                                </div>
+                                <div className="flex items-center gap-3 mt-1 flex-wrap">
+                                  <Badge className={`text-xs px-1.5 py-0 ${statusColor(eg.epic.status)}`}>{eg.epic.status}</Badge>
+                                  <span className="text-xs text-slate-400">{eg.epic.completion_pct ?? 0}%</span>
+                                  {(eg.epic.plan_start || eg.epic.plan_end) && (
+                                    <span className="text-xs text-slate-400">{fmt(eg.epic.plan_start)} → {fmt(eg.epic.plan_end)}</span>
+                                  )}
+                                  {eg.children.length > 0 && (
+                                    <span className="text-xs text-orange-500">{eg.children.length} children</span>
+                                  )}
+                                </div>
+                              </div>
+                            </button>
+
+                            {/* Children under this epic */}
+                            {eg.children.filter(c => !q || matchesQ(c)).length > 0 && (
+                              <div className="ml-5 mt-1 space-y-1 pl-4 border-l-2 border-orange-100">
+                                {eg.children.filter(c => !q || matchesQ(c)).map(child => (
+                                  <button
+                                    key={child.id}
+                                    onClick={() => handlePickerClick(child)}
+                                    className="w-full text-left bg-slate-50 hover:bg-orange-50 border border-slate-200 hover:border-orange-300 rounded-lg px-4 py-2 transition-colors flex items-center gap-3"
+                                  >
+                                    <Plus className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center gap-2 flex-wrap">
+                                        {child.jira_key && (
+                                          <span className="text-xs font-mono bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded">{child.jira_key}</span>
+                                        )}
+                                        {child.no && child.no !== 'EPIC' && (
+                                          <span className="text-xs text-slate-500">{child.no}</span>
+                                        )}
+                                        <span className="text-sm text-slate-700 truncate">{child.activity}</span>
+                                      </div>
+                                      <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                                        <span className="text-xs text-orange-400">Epic: {eg.epic.activity}</span>
+                                        <Badge className={`text-xs px-1.5 py-0 ${statusColor(child.status)}`}>{child.status}</Badge>
+                                        <span className="text-xs text-slate-400">{child.completion_pct ?? 0}%</span>
+                                      </div>
+                                    </div>
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+
+                      {/* Orphan children (epic is already in milestone or different phase) */}
+                      {group.orphanChildren.filter(c => !q || matchesQ(c)).map(c => {
+                        const epicName = c.parent_id
+                          ? allActivities.find(a => a.id === c.parent_id)?.activity ?? null
+                          : null;
+                        return (
+                          <button
+                            key={c.id}
+                            onClick={() => handlePickerClick(c)}
+                            className="w-full text-left bg-slate-50 hover:bg-orange-50 border border-slate-200 hover:border-orange-300 rounded-lg px-4 py-2.5 transition-colors flex items-center gap-3"
+                          >
+                            <Plus className="h-4 w-4 text-slate-400 shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                {c.jira_key && <span className="text-xs font-mono bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded">{c.jira_key}</span>}
+                                {c.no && c.no !== 'EPIC' && <span className="text-xs text-slate-500">{c.no}</span>}
+                                <span className="text-sm text-slate-800 font-medium truncate">{c.activity}</span>
+                              </div>
+                              <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                {epicName && <span className="text-xs text-orange-400">Epic: {epicName}</span>}
+                                <Badge className={`text-xs px-1.5 py-0 ${statusColor(c.status)}`}>{c.status}</Badge>
+                                <span className="text-xs text-slate-400">{c.completion_pct ?? 0}%</span>
+                              </div>
+                            </div>
+                          </button>
+                        );
+                      })}
+
+                      {/* Standalone activities (no parent) */}
+                      {group.standalone.filter(a => !q || matchesQ(a)).map(a => (
                         <button
                           key={a.id}
-                          onClick={() => addEpic(a.id)}
+                          onClick={() => handlePickerClick(a)}
                           className="w-full text-left bg-slate-50 hover:bg-orange-50 border border-slate-200 hover:border-orange-300 rounded-lg px-4 py-2.5 transition-colors flex items-center gap-3"
                         >
                           <Plus className="h-4 w-4 text-slate-400 shrink-0" />
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
-                              {a.jira_key && (
-                                <span className="text-xs font-mono bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded">{a.jira_key}</span>
-                              )}
+                              {a.jira_key && <span className="text-xs font-mono bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded">{a.jira_key}</span>}
                               {a.no && <span className="text-xs text-slate-400">#{a.no}</span>}
                               <span className="text-sm text-slate-800 font-medium truncate">{a.activity}</span>
                             </div>
-                            <div className="flex items-center gap-3 mt-1">
+                            <div className="flex items-center gap-3 mt-1 flex-wrap">
                               <Badge className={`text-xs px-1.5 py-0 ${statusColor(a.status)}`}>{a.status}</Badge>
                               <span className="text-xs text-slate-400">{a.completion_pct ?? 0}%</span>
                               {(a.plan_start || a.plan_end) && (
@@ -451,6 +638,7 @@ export default function MilestonesPage() {
                           </div>
                         </button>
                       ))}
+
                     </div>
                   </div>
                 ))}
@@ -459,6 +647,44 @@ export default function MilestonesPage() {
           </div>
           <DialogFooter className="mt-3">
             <Button variant="outline" onClick={() => setPickerOpen(false)}>Đóng</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Epic bulk-add confirm dialog ──────────────────────────────────────── */}
+      <Dialog
+        open={epicConfirmOpen}
+        onOpenChange={open => { if (!open) { setEpicConfirmOpen(false); setPendingEpic(null); } }}
+      >
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Thêm Epic vào Milestone</DialogTitle>
+          </DialogHeader>
+          <div className="py-3 space-y-3">
+            <p className="text-sm text-slate-700">
+              Tất cả các child sẽ đưa vào milestone, bạn có đồng ý?
+            </p>
+            {pendingEpic && (
+              <div className="p-3 bg-orange-50 rounded-lg border border-orange-200 space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold text-orange-600 bg-orange-100 px-1.5 py-0.5 rounded">EPIC</span>
+                  <span className="text-sm font-medium text-slate-800">{pendingEpic.activity}</span>
+                </div>
+                <p className="text-xs text-slate-500">
+                  {pendingEpicNewChildren.length > 0
+                    ? `${pendingEpicNewChildren.length} child sẽ được thêm vào`
+                    : 'Không có child nào'}
+                </p>
+              </div>
+            )}
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => { setEpicConfirmOpen(false); setPendingEpic(null); }}>
+              NO
+            </Button>
+            <Button onClick={confirmBulkAdd} className="bg-orange-500 hover:bg-orange-600 text-white">
+              YES
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -7,7 +7,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
   const { milestoneId } = await params;
   const db = await getDb();
   const epics = await db.all(
-    `SELECT a.id, a.phase, a.no, a.activity, a.status, a.completion_pct, a.plan_start, a.plan_end, a.jira_key
+    `SELECT a.id, a.phase, a.no, a.activity, a.status, a.completion_pct, a.plan_start, a.plan_end, a.jira_key, a.parent_id
      FROM milestone_epics me
      JOIN activities a ON a.id = me.activity_id
      WHERE me.milestone_id = ?
