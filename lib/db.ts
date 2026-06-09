@@ -358,6 +358,27 @@ async function initPostgresSchema(db: DbClient) {
       status TEXT NOT NULL DEFAULT 'pending',
       notes TEXT DEFAULT '',
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE TABLE IF NOT EXISTS bugs (
+      id SERIAL PRIMARY KEY,
+      project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      issue_type TEXT DEFAULT '',
+      issue_key TEXT DEFAULT '',
+      issue_id TEXT DEFAULT '',
+      summary TEXT NOT NULL DEFAULT '',
+      assignee TEXT DEFAULT '',
+      reporter TEXT DEFAULT '',
+      priority TEXT DEFAULT 'Medium',
+      status TEXT DEFAULT 'To Do',
+      resolution TEXT DEFAULT '',
+      created TEXT DEFAULT '',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE TABLE IF NOT EXISTS bug_import_mappings (
+      id SERIAL PRIMARY KEY,
+      name TEXT NOT NULL,
+      mappings_json TEXT NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `);
 }
@@ -416,6 +437,8 @@ async function migratePostgresSchema(pool: Pool) {
     `UPDATE projects SET company_id = c.company_id FROM customers c WHERE projects.customer_id = c.id AND c.company_id IS NOT NULL`,
     `CREATE TABLE IF NOT EXISTS demo_requests (id SERIAL PRIMARY KEY, full_name TEXT NOT NULL, phone TEXT NOT NULL, email TEXT NOT NULL, company_name TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending', notes TEXT DEFAULT '', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
     `ALTER TABLE activities ADD COLUMN IF NOT EXISTS parent_id INTEGER REFERENCES activities(id) ON DELETE SET NULL`,
+    `CREATE TABLE IF NOT EXISTS bugs (id SERIAL PRIMARY KEY, project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE, issue_type TEXT DEFAULT '', issue_key TEXT DEFAULT '', issue_id TEXT DEFAULT '', summary TEXT NOT NULL DEFAULT '', assignee TEXT DEFAULT '', reporter TEXT DEFAULT '', priority TEXT DEFAULT 'Medium', status TEXT DEFAULT 'To Do', resolution TEXT DEFAULT '', created TEXT DEFAULT '', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
+    `CREATE TABLE IF NOT EXISTS bug_import_mappings (id SERIAL PRIMARY KEY, name TEXT NOT NULL, mappings_json TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
   ];
   for (const sql of migrations) {
     try { await pool.query(sql); } catch { /* column already exists */ }
