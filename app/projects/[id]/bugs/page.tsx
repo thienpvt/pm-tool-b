@@ -393,7 +393,7 @@ export default function BugsPage() {
                 <span className="text-sm font-medium text-slate-600">Lọc:</span>
                 <div className="flex items-center gap-1.5">
                   <span className="text-xs text-slate-400">Status:</span>
-                  <Select value={filterStatus} onValueChange={v => setFilterStatus(v)}>
+                  <Select value={filterStatus} onValueChange={v => setFilterStatus(v ?? '__all__')}>
                     <SelectTrigger className="h-7 text-xs w-36">
                       <SelectValue />
                     </SelectTrigger>
@@ -407,7 +407,7 @@ export default function BugsPage() {
                 </div>
                 <div className="flex items-center gap-1.5">
                   <span className="text-xs text-slate-400">Priority:</span>
-                  <Select value={filterPriority} onValueChange={v => setFilterPriority(v)}>
+                  <Select value={filterPriority} onValueChange={v => setFilterPriority(v ?? '__all__')}>
                     <SelectTrigger className="h-7 text-xs w-36">
                       <SelectValue />
                     </SelectTrigger>
