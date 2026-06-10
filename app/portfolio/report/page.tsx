@@ -75,7 +75,7 @@ type PortfolioReportData = {
   fteStats?: FteStats | null;
   bugStats?: BugStats | null;
   portfolioMilestones?: PortfolioMilestone[];
-  milestoneInfo?: MilestoneInfo | null;
+  milestoneInfo?: MilestoneInfo[] | null;
   periodStart: string;
   periodEnd: string;
   reportDate: string;
@@ -85,6 +85,7 @@ type BugProjectSummary = { projectId: number; projectName: string; total: number
 type BugStats = { total: number; byStatus: Record<string, number>; byPriority: Record<string, number>; byProject: BugProjectSummary[] };
 type PortfolioMilestone = { id: number; project_id: number; name: string; start_date: string; end_date: string; project_name: string; program_name: string };
 type MilestoneInfo = { id: number; name: string; project_name: string; program_name: string; start_date: string; end_date: string };
+// milestoneInfo is an array when milestones are selected
 type SavedPrompt = { id: string; name: string; text: string };
 const SAVED_PROMPTS_KEY = 'portfolio_email_saved_prompts';
 const MAX_SAVED_PROMPTS = 5;
@@ -1546,7 +1547,8 @@ export default function PortfolioReportPage() {
   const [savingEmail, setSavingEmail] = useState(false);
   // Report mode: date range or milestone
   const [reportMode, setReportMode] = useState<'daterange' | 'milestone'>('daterange');
-  const [selectedMilestoneId, setSelectedMilestoneId] = useState<string>('');
+  const [selectedMilestoneIds, setSelectedMilestoneIds] = useState<Set<number>>(new Set());
+  const [showMilestoneSelector, setShowMilestoneSelector] = useState(false);
   // Date range for "completed in period"
   const [periodStart, setPeriodStart] = useState(getThisMonday);
   const [periodEnd, setPeriodEnd] = useState(getThisSunday);
@@ -1583,8 +1585,8 @@ export default function PortfolioReportPage() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const url = reportMode === 'milestone' && selectedMilestoneId
-        ? `/api/portfolio/report?milestone_id=${selectedMilestoneId}`
+      const url = reportMode === 'milestone' && selectedMilestoneIds.size > 0
+        ? `/api/portfolio/report?milestone_ids=${[...selectedMilestoneIds].join(',')}`
         : `/api/portfolio/report?start=${periodStart}&end=${periodEnd}`;
       const res = await fetch(url);
       const d = await res.json();
@@ -1593,7 +1595,7 @@ export default function PortfolioReportPage() {
     } finally {
       setLoading(false);
     }
-  }, [reportMode, selectedMilestoneId, periodStart, periodEnd]);
+  }, [reportMode, selectedMilestoneIds, periodStart, periodEnd]);
 
   useEffect(() => { loadConfig(); }, [loadConfig]);
   useEffect(() => { loadData(); }, [loadData]);
@@ -2048,24 +2050,88 @@ export default function PortfolioReportPage() {
                   />
                 </div>
               ) : (
-                <div className="flex items-center gap-2">
-                  <select
-                    className="text-sm border rounded-lg px-3 py-1.5 bg-slate-50 outline-none focus:ring-1 focus:ring-blue-400 max-w-xs"
-                    value={selectedMilestoneId}
-                    onChange={e => setSelectedMilestoneId(e.target.value)}
+                <div className="relative">
+                  <button
+                    onClick={() => setShowMilestoneSelector(v => !v)}
+                    className="flex items-center gap-2 px-3 py-1.5 text-sm border rounded-lg bg-slate-50 hover:bg-slate-100 transition-colors min-w-[180px]"
                   >
-                    <option value="">— Chọn Milestone —</option>
-                    {(data?.portfolioMilestones ?? []).map(ms => (
-                      <option key={ms.id} value={String(ms.id)}>
-                        {ms.project_name}{ms.program_name ? ` [${ms.program_name}]` : ''} · {ms.name}
-                        {ms.start_date ? ` (${ms.start_date}` : ''}{ms.end_date ? ` → ${ms.end_date})` : ')'}
-                      </option>
-                    ))}
-                  </select>
-                  {data?.milestoneInfo && (
-                    <span className="text-xs text-slate-400">
-                      {data.milestoneInfo.start_date} → {data.milestoneInfo.end_date}
+                    <span className="text-slate-600">
+                      {selectedMilestoneIds.size === 0
+                        ? 'Chọn Milestone'
+                        : `${selectedMilestoneIds.size} milestone đã chọn`}
                     </span>
+                    {selectedMilestoneIds.size > 0 && (
+                      <span className="ml-1 text-xs px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 font-semibold border border-blue-200">
+                        {selectedMilestoneIds.size}
+                      </span>
+                    )}
+                    <ChevronDown className={`h-3.5 w-3.5 text-slate-400 ml-auto transition-transform ${showMilestoneSelector ? 'rotate-180' : ''}`} />
+                  </button>
+                  {showMilestoneSelector && (
+                    <div className="absolute z-50 top-full mt-1 left-0 w-80 bg-white border rounded-xl shadow-lg p-3 space-y-2">
+                      <div className="flex items-center gap-3 pb-2 border-b">
+                        <button
+                          onClick={() => setSelectedMilestoneIds(new Set((data?.portfolioMilestones ?? []).map(m => m.id)))}
+                          className="text-xs text-blue-600 hover:underline font-medium"
+                        >Chọn tất cả</button>
+                        <span className="text-slate-200">|</span>
+                        <button
+                          onClick={() => setSelectedMilestoneIds(new Set())}
+                          className="text-xs text-slate-400 hover:text-slate-600 hover:underline"
+                        >Bỏ chọn tất cả</button>
+                        <button
+                          onClick={() => setShowMilestoneSelector(false)}
+                          className="ml-auto text-xs text-slate-400 hover:text-slate-600"
+                        >✕</button>
+                      </div>
+                      <div className="max-h-64 overflow-y-auto space-y-1 pr-1">
+                        {(data?.portfolioMilestones ?? []).length === 0 && (
+                          <p className="text-xs text-slate-400 text-center py-4">Không có milestone nào</p>
+                        )}
+                        {/* Group by project */}
+                        {Object.entries(
+                          (data?.portfolioMilestones ?? []).reduce<Record<string, PortfolioMilestone[]>>((acc, ms) => {
+                            const key = ms.project_name + (ms.program_name ? ` [${ms.program_name}]` : '');
+                            (acc[key] ??= []).push(ms);
+                            return acc;
+                          }, {})
+                        ).map(([projectLabel, milestones]) => (
+                          <div key={projectLabel}>
+                            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wide px-1 pt-1">{projectLabel}</div>
+                            {milestones.map(ms => {
+                              const checked = selectedMilestoneIds.has(ms.id);
+                              return (
+                                <label
+                                  key={ms.id}
+                                  className={`flex items-start gap-2 px-2 py-1.5 rounded-lg cursor-pointer transition-colors text-xs ${checked ? 'bg-violet-50 border border-violet-200' : 'hover:bg-slate-50 border border-transparent'}`}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={checked}
+                                    onChange={e => {
+                                      setSelectedMilestoneIds(prev => {
+                                        const next = new Set(prev);
+                                        e.target.checked ? next.add(ms.id) : next.delete(ms.id);
+                                        return next;
+                                      });
+                                    }}
+                                    className="mt-0.5 w-3.5 h-3.5 rounded accent-violet-600 shrink-0"
+                                  />
+                                  <span className="flex-1">
+                                    <span className={`font-medium ${checked ? 'text-violet-800' : 'text-slate-700'}`}>{ms.name}</span>
+                                    {(ms.start_date || ms.end_date) && (
+                                      <span className="block text-[10px] text-slate-400 mt-0.5">
+                                        {ms.start_date} → {ms.end_date}
+                                      </span>
+                                    )}
+                                  </span>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   )}
                 </div>
               )}
@@ -2079,14 +2145,22 @@ export default function PortfolioReportPage() {
             </div>
 
             {/* Milestone info banner */}
-            {data?.milestoneInfo && (
-              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-violet-50 border border-violet-200 text-xs">
-                <Calendar className="h-3.5 w-3.5 text-violet-600 shrink-0" />
-                <span className="font-semibold text-violet-700">{data.milestoneInfo.name}</span>
-                <span className="text-violet-500">·</span>
-                <span className="text-violet-600">{data.milestoneInfo.project_name}</span>
-                {data.milestoneInfo.program_name && <span className="text-violet-400">[{data.milestoneInfo.program_name}]</span>}
-                <span className="ml-auto text-violet-500">{data.milestoneInfo.start_date} → {data.milestoneInfo.end_date}</span>
+            {data?.milestoneInfo && data.milestoneInfo.length > 0 && (
+              <div className="px-3 py-2 rounded-lg bg-violet-50 border border-violet-200 text-xs space-y-1">
+                <div className="flex items-center gap-1.5 font-semibold text-violet-700">
+                  <Calendar className="h-3.5 w-3.5 shrink-0" />
+                  <span>{data.milestoneInfo.length} milestone đã chọn</span>
+                  <span className="ml-auto text-violet-500">{data.periodStart} → {data.periodEnd}</span>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {data.milestoneInfo.map(ms => (
+                    <span key={ms.id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-violet-100 border border-violet-200 text-violet-700">
+                      <span className="font-medium">{ms.name}</span>
+                      <span className="text-violet-400">·</span>
+                      <span>{ms.project_name}</span>
+                    </span>
+                  ))}
+                </div>
               </div>
             )}
 

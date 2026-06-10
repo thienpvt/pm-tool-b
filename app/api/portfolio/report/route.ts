@@ -42,19 +42,26 @@ export async function GET(req: NextRequest) {
   const cc = user.is_admin ? '' : 'AND p.company_id = ?';
   const cp = user.is_admin ? [] : [user.company_id];
 
-  // ─── Milestone mode ───────────────────────────────────────────────────────
-  const milestoneIdParam = searchParams.get('milestone_id');
-  let milestoneProjectId: number | null = null;
+  // ─── Milestone mode (multi-select) ────────────────────────────────────────
+  const milestoneIdsParam = searchParams.get('milestone_ids'); // "1,2,3"
+  const milestoneProjectIds = new Set<number>();
   let milestoneEpicIds: Set<number> = new Set();
-  let milestoneInfo: { id: number; name: string; project_name: string; program_name: string; start_date: string; end_date: string } | null = null;
+  type MilestoneInfoItem = { id: number; name: string; project_name: string; program_name: string; start_date: string; end_date: string };
+  const selectedMilestones: MilestoneInfoItem[] = [];
   let milestoneMonth: string | null = null;
 
-  if (milestoneIdParam) {
-    const ms = await db.get<{ id: number; project_id: number; name: string; start_date: string; end_date: string }>(
-      'SELECT id, project_id, name, start_date, end_date FROM milestones WHERE id = ?', milestoneIdParam
-    );
-    if (ms) {
-      milestoneProjectId = ms.project_id;
+  if (milestoneIdsParam) {
+    const ids = milestoneIdsParam.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
+    let periodMin: string | null = null;
+    let periodMax: string | null = null;
+
+    for (const msId of ids) {
+      const ms = await db.get<{ id: number; project_id: number; name: string; start_date: string; end_date: string }>(
+        'SELECT id, project_id, name, start_date, end_date FROM milestones WHERE id = ?', msId
+      );
+      if (!ms) continue;
+
+      milestoneProjectIds.add(ms.project_id);
       const proj = await db.get<{ name: string; customer_id: number | null }>(
         'SELECT name, customer_id FROM projects WHERE id = ?', ms.project_id
       );
@@ -63,23 +70,32 @@ export async function GET(req: NextRequest) {
         const cust = await db.get<{ name: string }>('SELECT name FROM customers WHERE id = ?', proj.customer_id);
         programName = cust?.name ?? '';
       }
-      milestoneInfo = { id: ms.id, name: ms.name, project_name: proj?.name ?? '', program_name: programName, start_date: ms.start_date, end_date: ms.end_date };
+      selectedMilestones.push({ id: ms.id, name: ms.name, project_name: proj?.name ?? '', program_name: programName, start_date: ms.start_date, end_date: ms.end_date });
+
       const epicRows = await db.all<{ activity_id: number }>(
         'SELECT activity_id FROM milestone_epics WHERE milestone_id = ?', ms.id
       );
-      milestoneEpicIds = new Set(epicRows.map(r => r.activity_id));
-      if (ms.start_date) startParam = ms.start_date;
-      if (ms.end_date)   endParam   = ms.end_date;
-      const dateForMonth = ms.end_date || ms.start_date;
-      if (dateForMonth) milestoneMonth = dateForMonth.slice(0, 7);
+      for (const r of epicRows) milestoneEpicIds.add(r.activity_id);
+
+      if (ms.start_date && (periodMin === null || ms.start_date < periodMin)) periodMin = ms.start_date;
+      if (ms.end_date   && (periodMax === null || ms.end_date   > periodMax)) periodMax = ms.end_date;
+    }
+
+    if (periodMin) startParam = periodMin;
+    if (periodMax) {
+      endParam = periodMax;
+      milestoneMonth = periodMax.slice(0, 7);
     }
   }
 
+  const milestoneInfo = selectedMilestones.length > 0 ? selectedMilestones : null;
+
   // Milestone-project filter for SQL queries
-  const mpWhere = milestoneProjectId !== null ? `AND p.id = ${milestoneProjectId}` : '';
-  const mpWhereR = milestoneProjectId !== null ? `AND r.project_id = ${milestoneProjectId}` : '';
-  const mpWhereI = milestoneProjectId !== null ? `AND i.project_id = ${milestoneProjectId}` : '';
-  const mpWhereA = milestoneProjectId !== null ? `AND a.project_id = ${milestoneProjectId}` : '';
+  const _projIdList = [...milestoneProjectIds];
+  const mpWhere  = _projIdList.length === 1 ? `AND p.id = ${_projIdList[0]}`          : _projIdList.length > 1 ? `AND p.id IN (${_projIdList.join(',')})` : '';
+  const mpWhereR = _projIdList.length === 1 ? `AND r.project_id = ${_projIdList[0]}`  : _projIdList.length > 1 ? `AND r.project_id IN (${_projIdList.join(',')})` : '';
+  const mpWhereI = _projIdList.length === 1 ? `AND i.project_id = ${_projIdList[0]}`  : _projIdList.length > 1 ? `AND i.project_id IN (${_projIdList.join(',')})` : '';
+  const mpWhereA = _projIdList.length === 1 ? `AND a.project_id = ${_projIdList[0]}`  : _projIdList.length > 1 ? `AND a.project_id IN (${_projIdList.join(',')})` : '';
 
   const projects = await db.all(`
     SELECT p.*, c.name as program_name, c.industry as program_industry
@@ -101,10 +117,10 @@ export async function GET(req: NextRequest) {
     'SELECT id, project_id, no, parent_id, activity as epic_name, status, phase, plan_start, plan_end, actual_start, actual_end FROM activities'
   ) as { id: number; project_id: number; no: string; parent_id: number | null; epic_name: string; status: string; phase: string; plan_start?: string; plan_end?: string; actual_start?: string; actual_end?: string }[];
 
-  // In milestone mode: restrict to only the milestone's epics + their direct children
-  const activityRows = milestoneProjectId !== null && milestoneEpicIds.size > 0
+  // In milestone mode: restrict to only the milestone epics + their direct children
+  const activityRows = milestoneProjectIds.size > 0 && milestoneEpicIds.size > 0
     ? allActivityRows.filter(row =>
-        row.project_id === milestoneProjectId &&
+        milestoneProjectIds.has(row.project_id) &&
         (row.no === 'EPIC'
           ? milestoneEpicIds.has(row.id)
           : (row.parent_id !== null && milestoneEpicIds.has(row.parent_id)))
@@ -203,8 +219,8 @@ export async function GET(req: NextRequest) {
   const nowMs = Date.now();
   const donePlaceholders = DONE_STATUSES.map(() => '?').join(',');
 
-  const projectsForReport = milestoneProjectId !== null
-    ? projects.filter((p: any) => p.id === milestoneProjectId)
+  const projectsForReport = milestoneProjectIds.size > 0
+    ? projects.filter((p: any) => milestoneProjectIds.has(p.id))
     : projects;
 
   const enrichedProjects = projectsForReport.map((p: any) => {
