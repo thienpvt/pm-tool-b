@@ -59,8 +59,8 @@ export async function GET(req: NextRequest) {
 
   // Fetch all activity statuses for weighted completion calculation
   const allActivityRows = await db.all(
-    'SELECT project_id, status, phase, plan_start, plan_end, actual_start, actual_end FROM activities'
-  ) as { project_id: number; status: string; phase: string; plan_start?: string; plan_end?: string; actual_start?: string; actual_end?: string }[];
+    'SELECT id, project_id, no, parent_id, activity as epic_name, status, phase, plan_start, plan_end, actual_start, actual_end FROM activities'
+  ) as { id: number; project_id: number; no: string; parent_id: number | null; epic_name: string; status: string; phase: string; plan_start?: string; plan_end?: string; actual_start?: string; actual_end?: string }[];
 
   // Build weighted stats per project (matching project weekly report logic)
   type PhaseEntry = { total: number; done: number; weightedSum: number; planStartMin: string | null; planEndMax: string | null; actualStartMin: string | null; actualEndMax: string | null; };
@@ -78,6 +78,26 @@ export async function GET(req: NextRequest) {
     if (!b) return a;
     return a > b ? a : b;
   };
+
+  // First pass: collect EPIC activities to enable Epic-based grouping
+  type EpicInfo = { project_id: number; epic_name: string; plan_start?: string; plan_end?: string; actual_start?: string; actual_end?: string };
+  const epicById: Record<number, EpicInfo> = {};
+  const projectHasEpics = new Set<number>();
+  for (const row of allActivityRows) {
+    if (row.no === 'EPIC') {
+      epicById[row.id] = {
+        project_id: row.project_id,
+        epic_name: row.epic_name || row.phase || `Epic ${row.id}`,
+        plan_start: row.plan_start,
+        plan_end: row.plan_end,
+        actual_start: row.actual_start,
+        actual_end: row.actual_end,
+      };
+      projectHasEpics.add(row.project_id);
+    }
+  }
+
+  // Second pass: build stats
   const actWeightMap: Record<number, ProjectStats> = {};
   for (const row of allActivityRows) {
     if (!actWeightMap[row.project_id]) {
@@ -91,9 +111,19 @@ export async function GET(req: NextRequest) {
     else if (w > 0) s.inProgress++;
     else s.notStarted++;
 
-    const phase = row.phase || 'General';
-    if (!s.phases[phase]) s.phases[phase] = { total: 0, done: 0, weightedSum: 0, planStartMin: null, planEndMax: null, actualStartMin: null, actualEndMax: null };
-    const ph = s.phases[phase];
+    // EPIC rows are containers — skip from phase/epic grouping (stats come from children)
+    if (row.no === 'EPIC') continue;
+
+    // Determine grouping key: Epic name (if parent is an EPIC) or phase
+    let groupKey: string;
+    if (projectHasEpics.has(row.project_id) && row.parent_id !== null && epicById[row.parent_id]) {
+      groupKey = epicById[row.parent_id].epic_name;
+    } else {
+      groupKey = row.phase || 'General';
+    }
+
+    if (!s.phases[groupKey]) s.phases[groupKey] = { total: 0, done: 0, weightedSum: 0, planStartMin: null, planEndMax: null, actualStartMin: null, actualEndMax: null };
+    const ph = s.phases[groupKey];
     ph.total++;
     ph.weightedSum += w;
     if (w >= 1) ph.done++;
@@ -101,6 +131,21 @@ export async function GET(req: NextRequest) {
     ph.planEndMax = maxDate(ph.planEndMax, row.plan_end);
     ph.actualStartMin = minDate(ph.actualStartMin, row.actual_start);
     ph.actualEndMax = maxDate(ph.actualEndMax, row.actual_end);
+  }
+
+  // Ensure all EPICs appear in epicStats even if they have no child activities
+  for (const epic of Object.values(epicById)) {
+    const s = actWeightMap[epic.project_id];
+    if (!s) continue;
+    if (!s.phases[epic.epic_name]) {
+      s.phases[epic.epic_name] = {
+        total: 0, done: 0, weightedSum: 0,
+        planStartMin: epic.plan_start ?? null,
+        planEndMax: epic.plan_end ?? null,
+        actualStartMin: epic.actual_start ?? null,
+        actualEndMax: epic.actual_end ?? null,
+      };
+    }
   }
 
   const riskMap = Object.fromEntries(riskCounts.map((r: any) => [r.project_id, r]));
@@ -253,6 +298,48 @@ export async function GET(req: NextRequest) {
     }
     completedByProject[act.project_id].activities.push(act);
   }
+
+  // ─── Bug Report stats ─────────────────────────────────────────────────────
+  const bugRows = await db.all(`
+    SELECT b.project_id, p.name as project_name, b.status, b.priority, COUNT(*) as cnt
+    FROM bugs b
+    JOIN projects p ON b.project_id = p.id
+    WHERE b.snapshot_date = (
+      SELECT MAX(b2.snapshot_date) FROM bugs b2
+      WHERE b2.project_id = b.project_id AND b2.snapshot_date != ''
+    )
+    AND (b.snapshot_date IS NOT NULL AND b.snapshot_date != '')
+    ${cc}
+    GROUP BY b.project_id, p.name, b.status, b.priority
+  `, ...cp) as { project_id: number; project_name: string; status: string; priority: string; cnt: number }[];
+
+  // Build bug stats
+  type BugProjectSummary = { projectId: number; projectName: string; total: number; byStatus: Record<string, number>; byPriority: Record<string, number> };
+  const bugProjectMap: Record<number, BugProjectSummary> = {};
+  const bugTotalByStatus: Record<string, number> = {};
+  const bugTotalByPriority: Record<string, number> = {};
+  let bugGrandTotal = 0;
+
+  for (const row of bugRows) {
+    const cnt = Number(row.cnt);
+    if (!bugProjectMap[row.project_id]) {
+      bugProjectMap[row.project_id] = { projectId: row.project_id, projectName: row.project_name, total: 0, byStatus: {}, byPriority: {} };
+    }
+    const bp = bugProjectMap[row.project_id];
+    bp.total += cnt;
+    bp.byStatus[row.status] = (bp.byStatus[row.status] ?? 0) + cnt;
+    bp.byPriority[row.priority] = (bp.byPriority[row.priority] ?? 0) + cnt;
+    bugTotalByStatus[row.status] = (bugTotalByStatus[row.status] ?? 0) + cnt;
+    bugTotalByPriority[row.priority] = (bugTotalByPriority[row.priority] ?? 0) + cnt;
+    bugGrandTotal += cnt;
+  }
+
+  const bugStats = {
+    total: bugGrandTotal,
+    byStatus: bugTotalByStatus,
+    byPriority: bugTotalByPriority,
+    byProject: Object.values(bugProjectMap).sort((a, b) => b.total - a.total),
+  };
 
   // ─── Personnel stats ──────────────────────────────────────────────────────
   const pmWhere = user.is_admin ? '' : ' AND company_id = ?';
@@ -419,6 +506,7 @@ export async function GET(req: NextRequest) {
     completedByProject,
     personnelStats,
     fteStats,
+    bugStats,
     periodStart: startParam,
     periodEnd: endParam,
     reportDate: todayStr,
