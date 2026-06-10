@@ -74,6 +74,8 @@ type PortfolioReportData = {
   personnelStats: PersonnelStats;
   fteStats?: FteStats | null;
   bugStats?: BugStats | null;
+  portfolioMilestones?: PortfolioMilestone[];
+  milestoneInfo?: MilestoneInfo | null;
   periodStart: string;
   periodEnd: string;
   reportDate: string;
@@ -81,6 +83,8 @@ type PortfolioReportData = {
 
 type BugProjectSummary = { projectId: number; projectName: string; total: number; byStatus: Record<string, number>; byPriority: Record<string, number> };
 type BugStats = { total: number; byStatus: Record<string, number>; byPriority: Record<string, number>; byProject: BugProjectSummary[] };
+type PortfolioMilestone = { id: number; project_id: number; name: string; start_date: string; end_date: string; project_name: string; program_name: string };
+type MilestoneInfo = { id: number; name: string; project_name: string; program_name: string; start_date: string; end_date: string };
 type SavedPrompt = { id: string; name: string; text: string };
 const SAVED_PROMPTS_KEY = 'portfolio_email_saved_prompts';
 const MAX_SAVED_PROMPTS = 5;
@@ -1540,6 +1544,9 @@ export default function PortfolioReportPage() {
   const [savingKey, setSavingKey] = useState(false);
   const [ceoEmail, setCeoEmail] = useState('');
   const [savingEmail, setSavingEmail] = useState(false);
+  // Report mode: date range or milestone
+  const [reportMode, setReportMode] = useState<'daterange' | 'milestone'>('daterange');
+  const [selectedMilestoneId, setSelectedMilestoneId] = useState<string>('');
   // Date range for "completed in period"
   const [periodStart, setPeriodStart] = useState(getThisMonday);
   const [periodEnd, setPeriodEnd] = useState(getThisSunday);
@@ -1576,14 +1583,17 @@ export default function PortfolioReportPage() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/portfolio/report?start=${periodStart}&end=${periodEnd}`);
+      const url = reportMode === 'milestone' && selectedMilestoneId
+        ? `/api/portfolio/report?milestone_id=${selectedMilestoneId}`
+        : `/api/portfolio/report?start=${periodStart}&end=${periodEnd}`;
+      const res = await fetch(url);
       const d = await res.json();
       setData(d);
       setReport(''); setHtmlReport('');
     } finally {
       setLoading(false);
     }
-  }, [periodStart, periodEnd]);
+  }, [reportMode, selectedMilestoneId, periodStart, periodEnd]);
 
   useEffect(() => { loadConfig(); }, [loadConfig]);
   useEffect(() => { loadData(); }, [loadData]);
@@ -1626,8 +1636,10 @@ export default function PortfolioReportPage() {
   const generateManual = () => {
     if (!data) return;
     const fd = selectedProjectIds.size > 0 ? filterDataByProjects(data, selectedProjectIds) : data;
-    setReport(buildTemplateReport(fd, language, periodStart, periodEnd, companyName));
-    setHtmlReport(buildHtmlReport(fd, language, periodStart, periodEnd, companyName));
+    const ps = data.periodStart || periodStart;
+    const pe = data.periodEnd   || periodEnd;
+    setReport(buildTemplateReport(fd, language, ps, pe, companyName));
+    setHtmlReport(buildHtmlReport(fd, language, ps, pe, companyName));
     setViewMode('preview');
     toast.success(`Portfolio report generated (${fd.kpi.totalProjects} projects)!`);
   };
@@ -1640,8 +1652,8 @@ export default function PortfolioReportPage() {
       const fd = selectedProjectIds.size > 0 ? filterDataByProjects(data, selectedProjectIds) : data;
       const portfolioPayload = {
         reportDate: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }),
-        periodStart,
-        periodEnd,
+        periodStart: data.periodStart || periodStart,
+        periodEnd: data.periodEnd   || periodEnd,
         kpi: fd.kpi,
         programs: fd.programs.map(c => ({
           name: c.name, industry: c.industry,
@@ -1809,8 +1821,8 @@ export default function PortfolioReportPage() {
 
       const portfolioPayload = {
         reportDate: new Date().toLocaleDateString('vi-VN', { day: 'numeric', month: 'long', year: 'numeric' }),
-        periodStart,
-        periodEnd,
+        periodStart: data.periodStart || periodStart,
+        periodEnd: data.periodEnd   || periodEnd,
         kpi: fd.kpi,
         programs: fd.programs.map(c => ({
           name: c.name, industry: c.industry,
@@ -1997,27 +2009,67 @@ export default function PortfolioReportPage() {
 
           {/* ── 4. Date Range + Completed in Period ── */}
           <div className="bg-white border rounded-xl p-4 space-y-4">
-            {/* Date range picker */}
+            {/* Mode toggle + pickers */}
             <div className="flex items-center gap-3 flex-wrap">
               <CalendarRange className="h-4 w-4 text-blue-500 shrink-0" />
               <span className="text-sm font-semibold text-slate-600">Reporting Period:</span>
-              <div className="flex items-center gap-2 bg-slate-50 border rounded-lg px-3 py-1.5">
-                <label className="text-xs text-slate-400">From</label>
-                <input
-                  type="date"
-                  value={periodStart}
-                  onChange={e => setPeriodStart(e.target.value)}
-                  className="text-sm border-none outline-none bg-transparent"
-                />
-                <span className="text-xs text-slate-300">→</span>
-                <label className="text-xs text-slate-400">To</label>
-                <input
-                  type="date"
-                  value={periodEnd}
-                  onChange={e => setPeriodEnd(e.target.value)}
-                  className="text-sm border-none outline-none bg-transparent"
-                />
+              {/* Mode toggle */}
+              <div className="flex items-center rounded-lg border overflow-hidden text-xs">
+                <button
+                  className={`px-3 py-1.5 transition-colors ${reportMode === 'daterange' ? 'bg-blue-600 text-white font-semibold' : 'bg-white text-slate-600 hover:bg-slate-50'}`}
+                  onClick={() => setReportMode('daterange')}
+                >
+                  Khoảng thời gian
+                </button>
+                <button
+                  className={`px-3 py-1.5 transition-colors ${reportMode === 'milestone' ? 'bg-blue-600 text-white font-semibold' : 'bg-white text-slate-600 hover:bg-slate-50'}`}
+                  onClick={() => setReportMode('milestone')}
+                >
+                  Milestone
+                </button>
               </div>
+
+              {reportMode === 'daterange' ? (
+                <div className="flex items-center gap-2 bg-slate-50 border rounded-lg px-3 py-1.5">
+                  <label className="text-xs text-slate-400">From</label>
+                  <input
+                    type="date"
+                    value={periodStart}
+                    onChange={e => setPeriodStart(e.target.value)}
+                    className="text-sm border-none outline-none bg-transparent"
+                  />
+                  <span className="text-xs text-slate-300">→</span>
+                  <label className="text-xs text-slate-400">To</label>
+                  <input
+                    type="date"
+                    value={periodEnd}
+                    onChange={e => setPeriodEnd(e.target.value)}
+                    className="text-sm border-none outline-none bg-transparent"
+                  />
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <select
+                    className="text-sm border rounded-lg px-3 py-1.5 bg-slate-50 outline-none focus:ring-1 focus:ring-blue-400 max-w-xs"
+                    value={selectedMilestoneId}
+                    onChange={e => setSelectedMilestoneId(e.target.value)}
+                  >
+                    <option value="">— Chọn Milestone —</option>
+                    {(data?.portfolioMilestones ?? []).map(ms => (
+                      <option key={ms.id} value={String(ms.id)}>
+                        {ms.project_name}{ms.program_name ? ` [${ms.program_name}]` : ''} · {ms.name}
+                        {ms.start_date ? ` (${ms.start_date}` : ''}{ms.end_date ? ` → ${ms.end_date})` : ')'}
+                      </option>
+                    ))}
+                  </select>
+                  {data?.milestoneInfo && (
+                    <span className="text-xs text-slate-400">
+                      {data.milestoneInfo.start_date} → {data.milestoneInfo.end_date}
+                    </span>
+                  )}
+                </div>
+              )}
+
               <Button onClick={loadData} variant="outline" className="h-8 gap-1.5 text-xs" disabled={loading}>
                 <RefreshCw className={`h-3 w-3 ${loading ? 'animate-spin' : ''}`} /> Reload
               </Button>
@@ -2026,13 +2078,25 @@ export default function PortfolioReportPage() {
               </span>
             </div>
 
+            {/* Milestone info banner */}
+            {data?.milestoneInfo && (
+              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-violet-50 border border-violet-200 text-xs">
+                <Calendar className="h-3.5 w-3.5 text-violet-600 shrink-0" />
+                <span className="font-semibold text-violet-700">{data.milestoneInfo.name}</span>
+                <span className="text-violet-500">·</span>
+                <span className="text-violet-600">{data.milestoneInfo.project_name}</span>
+                {data.milestoneInfo.program_name && <span className="text-violet-400">[{data.milestoneInfo.program_name}]</span>}
+                <span className="ml-auto text-violet-500">{data.milestoneInfo.start_date} → {data.milestoneInfo.end_date}</span>
+              </div>
+            )}
+
             {/* Completed by project */}
             {data && Object.keys(data.completedByProject).length > 0 && (
               <div className="border rounded-lg overflow-hidden">
                 <div className="px-4 py-2.5 bg-slate-800 flex items-center gap-2">
                   <CheckCircle2 className="h-3.5 w-3.5 text-green-400" />
                   <span className="text-xs font-bold text-white">
-                    II. Completed in Period — {fmtDateShort(periodStart)} → {fmtDateShort(periodEnd)}
+                    II. Completed in Period — {fmtDateShort(data.periodStart || periodStart)} → {fmtDateShort(data.periodEnd || periodEnd)}
                   </span>
                   <Badge className="ml-auto bg-green-600 text-white border-0 text-[10px]">
                     {Object.values(data.completedByProject).reduce((s, g) => s + g.activities.length, 0)} items
@@ -2068,7 +2132,7 @@ export default function PortfolioReportPage() {
             {data && Object.keys(data.completedByProject).length === 0 && (
               <div className="flex items-center gap-2 px-4 py-3 bg-slate-50 rounded-lg text-xs text-slate-400">
                 <Calendar className="h-3.5 w-3.5" />
-                No completed activities in {fmtDateShort(periodStart)} → {fmtDateShort(periodEnd)}
+                No completed activities in {fmtDateShort(data.periodStart || periodStart)} → {fmtDateShort(data.periodEnd || periodEnd)}
               </div>
             )}
           </div>

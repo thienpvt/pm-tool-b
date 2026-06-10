@@ -35,12 +35,51 @@ export async function GET(req: NextRequest) {
   sunday.setDate(monday.getDate() + 6);
   sunday.setHours(23, 59, 59, 999);
 
-  const startParam = searchParams.get('start') ?? monday.toISOString().slice(0, 10);
-  const endParam   = searchParams.get('end')   ?? sunday.toISOString().slice(0, 10);
+  let startParam = searchParams.get('start') ?? monday.toISOString().slice(0, 10);
+  let endParam   = searchParams.get('end')   ?? sunday.toISOString().slice(0, 10);
 
   // Company scoping: admin sees all, regular user sees only their company
   const cc = user.is_admin ? '' : 'AND p.company_id = ?';
   const cp = user.is_admin ? [] : [user.company_id];
+
+  // ─── Milestone mode ───────────────────────────────────────────────────────
+  const milestoneIdParam = searchParams.get('milestone_id');
+  let milestoneProjectId: number | null = null;
+  let milestoneEpicIds: Set<number> = new Set();
+  let milestoneInfo: { id: number; name: string; project_name: string; program_name: string; start_date: string; end_date: string } | null = null;
+  let milestoneMonth: string | null = null;
+
+  if (milestoneIdParam) {
+    const ms = await db.get<{ id: number; project_id: number; name: string; start_date: string; end_date: string }>(
+      'SELECT id, project_id, name, start_date, end_date FROM milestones WHERE id = ?', milestoneIdParam
+    );
+    if (ms) {
+      milestoneProjectId = ms.project_id;
+      const proj = await db.get<{ name: string; customer_id: number | null }>(
+        'SELECT name, customer_id FROM projects WHERE id = ?', ms.project_id
+      );
+      let programName = '';
+      if (proj?.customer_id) {
+        const cust = await db.get<{ name: string }>('SELECT name FROM customers WHERE id = ?', proj.customer_id);
+        programName = cust?.name ?? '';
+      }
+      milestoneInfo = { id: ms.id, name: ms.name, project_name: proj?.name ?? '', program_name: programName, start_date: ms.start_date, end_date: ms.end_date };
+      const epicRows = await db.all<{ activity_id: number }>(
+        'SELECT activity_id FROM milestone_epics WHERE milestone_id = ?', ms.id
+      );
+      milestoneEpicIds = new Set(epicRows.map(r => r.activity_id));
+      if (ms.start_date) startParam = ms.start_date;
+      if (ms.end_date)   endParam   = ms.end_date;
+      const dateForMonth = ms.end_date || ms.start_date;
+      if (dateForMonth) milestoneMonth = dateForMonth.slice(0, 7);
+    }
+  }
+
+  // Milestone-project filter for SQL queries
+  const mpWhere = milestoneProjectId !== null ? `AND p.id = ${milestoneProjectId}` : '';
+  const mpWhereR = milestoneProjectId !== null ? `AND r.project_id = ${milestoneProjectId}` : '';
+  const mpWhereI = milestoneProjectId !== null ? `AND i.project_id = ${milestoneProjectId}` : '';
+  const mpWhereA = milestoneProjectId !== null ? `AND a.project_id = ${milestoneProjectId}` : '';
 
   const projects = await db.all(`
     SELECT p.*, c.name as program_name, c.industry as program_industry
@@ -61,6 +100,16 @@ export async function GET(req: NextRequest) {
   const allActivityRows = await db.all(
     'SELECT id, project_id, no, parent_id, activity as epic_name, status, phase, plan_start, plan_end, actual_start, actual_end FROM activities'
   ) as { id: number; project_id: number; no: string; parent_id: number | null; epic_name: string; status: string; phase: string; plan_start?: string; plan_end?: string; actual_start?: string; actual_end?: string }[];
+
+  // In milestone mode: restrict to only the milestone's epics + their direct children
+  const activityRows = milestoneProjectId !== null && milestoneEpicIds.size > 0
+    ? allActivityRows.filter(row =>
+        row.project_id === milestoneProjectId &&
+        (row.no === 'EPIC'
+          ? milestoneEpicIds.has(row.id)
+          : (row.parent_id !== null && milestoneEpicIds.has(row.parent_id)))
+      )
+    : allActivityRows;
 
   // Build weighted stats per project (matching project weekly report logic)
   type PhaseEntry = { total: number; done: number; weightedSum: number; planStartMin: string | null; planEndMax: string | null; actualStartMin: string | null; actualEndMax: string | null; };
@@ -83,7 +132,7 @@ export async function GET(req: NextRequest) {
   type EpicInfo = { project_id: number; epic_name: string; plan_start?: string; plan_end?: string; actual_start?: string; actual_end?: string };
   const epicById: Record<number, EpicInfo> = {};
   const projectHasEpics = new Set<number>();
-  for (const row of allActivityRows) {
+  for (const row of activityRows) {
     if (row.no === 'EPIC') {
       epicById[row.id] = {
         project_id: row.project_id,
@@ -99,7 +148,7 @@ export async function GET(req: NextRequest) {
 
   // Second pass: build stats
   const actWeightMap: Record<number, ProjectStats> = {};
-  for (const row of allActivityRows) {
+  for (const row of activityRows) {
     if (!actWeightMap[row.project_id]) {
       actWeightMap[row.project_id] = { total: 0, weightedSum: 0, done: 0, inProgress: 0, notStarted: 0, phases: {} };
     }
@@ -154,7 +203,11 @@ export async function GET(req: NextRequest) {
   const nowMs = Date.now();
   const donePlaceholders = DONE_STATUSES.map(() => '?').join(',');
 
-  const enrichedProjects = projects.map((p: any) => {
+  const projectsForReport = milestoneProjectId !== null
+    ? projects.filter((p: any) => p.id === milestoneProjectId)
+    : projects;
+
+  const enrichedProjects = projectsForReport.map((p: any) => {
     const open_risks: number = riskMap[p.id]?.open ?? 0;
     const open_issues: number = issueMap[p.id]?.open ?? 0;
 
@@ -208,7 +261,7 @@ export async function GET(req: NextRequest) {
   const phases = ['Initiation', 'Planning', 'Execution', 'Closing'];
   const phaseDist = phases.map(phase => ({
     phase,
-    count: projects.filter((p: any) => p.current_phase === phase).length,
+    count: projectsForReport.filter((p: any) => p.current_phase === phase).length,
   }));
 
   const programBar = byProgram.map((c: any) => ({
@@ -229,7 +282,7 @@ export async function GET(req: NextRequest) {
     FROM risks r
     JOIN projects p ON r.project_id = p.id
     LEFT JOIN customers c ON p.customer_id = c.id
-    WHERE (r.status='Open' OR r.status='In Progress') ${cc}
+    WHERE (r.status='Open' OR r.status='In Progress') ${cc} ${mpWhereR}
     ORDER BY CASE r.priority WHEN 'Critical' THEN 1 WHEN 'High' THEN 2 WHEN 'Medium' THEN 3 ELSE 4 END, r.id DESC
     LIMIT 12
   `, ...cp) as any[];
@@ -239,7 +292,7 @@ export async function GET(req: NextRequest) {
     FROM issues i
     JOIN projects p ON i.project_id = p.id
     LEFT JOIN customers c ON p.customer_id = c.id
-    WHERE (i.status='Open' OR i.status='In Progress') ${cc}
+    WHERE (i.status='Open' OR i.status='In Progress') ${cc} ${mpWhereI}
     ORDER BY CASE i.priority WHEN 'Critical' THEN 1 WHEN 'High' THEN 2 WHEN 'Medium' THEN 3 ELSE 4 END, i.id DESC
     LIMIT 12
   `, ...cp) as any[];
@@ -256,7 +309,7 @@ export async function GET(req: NextRequest) {
     JOIN projects p ON a.project_id = p.id
     LEFT JOIN customers c ON p.customer_id = c.id
     WHERE a.plan_end BETWEEN ? AND ?
-      AND a.status NOT IN (${donePlaceholders}) ${cc}
+      AND a.status NOT IN (${donePlaceholders}) ${cc} ${mpWhereA}
     ORDER BY a.plan_end ASC
     LIMIT 15
   `, todayStr, plus30, ...DONE_STATUSES, ...cp) as any[];
@@ -268,7 +321,7 @@ export async function GET(req: NextRequest) {
     JOIN projects p ON a.project_id = p.id
     LEFT JOIN customers c ON p.customer_id = c.id
     WHERE a.status IN (${donePlaceholders})
-      AND a.actual_end >= ? ${cc}
+      AND a.actual_end >= ? ${cc} ${mpWhereA}
     ORDER BY a.actual_end DESC
     LIMIT 10
   `, ...DONE_STATUSES, minus14, ...cp) as any[];
@@ -281,7 +334,7 @@ export async function GET(req: NextRequest) {
     LEFT JOIN customers c ON p.customer_id = c.id
     WHERE a.status IN (${donePlaceholders})
       AND a.actual_end >= ?
-      AND a.actual_end <= ? ${cc}
+      AND a.actual_end <= ? ${cc} ${mpWhereA}
     ORDER BY a.project_id, a.actual_end
   `, ...DONE_STATUSES, startParam, endParam, ...cp) as any[];
 
@@ -300,18 +353,35 @@ export async function GET(req: NextRequest) {
   }
 
   // ─── Bug Report stats ─────────────────────────────────────────────────────
-  const bugRows = await db.all(`
-    SELECT b.project_id, p.name as project_name, b.status, b.priority, COUNT(*) as cnt
-    FROM bugs b
-    JOIN projects p ON b.project_id = p.id
-    WHERE b.snapshot_date = (
-      SELECT MAX(b2.snapshot_date) FROM bugs b2
-      WHERE b2.project_id = b.project_id AND b2.snapshot_date != ''
-    )
-    AND (b.snapshot_date IS NOT NULL AND b.snapshot_date != '')
-    ${cc}
-    GROUP BY b.project_id, p.name, b.status, b.priority
-  `, ...cp) as { project_id: number; project_name: string; status: string; priority: string; cnt: number }[];
+  // In milestone mode: pick the latest snapshot within the milestone's end-date month
+  const bugRows = milestoneMonth
+    ? await db.all(`
+        SELECT b.project_id, p.name as project_name, b.status, b.priority, COUNT(*) as cnt
+        FROM bugs b
+        JOIN projects p ON b.project_id = p.id
+        WHERE b.snapshot_date = (
+          SELECT MAX(b2.snapshot_date) FROM bugs b2
+          WHERE b2.project_id = b.project_id
+          AND b2.snapshot_date LIKE '${milestoneMonth}%'
+          AND b2.snapshot_date != ''
+        )
+        AND b.snapshot_date LIKE '${milestoneMonth}%'
+        AND b.snapshot_date != ''
+        ${cc} ${mpWhere}
+        GROUP BY b.project_id, p.name, b.status, b.priority
+      `, ...cp) as { project_id: number; project_name: string; status: string; priority: string; cnt: number }[]
+    : await db.all(`
+        SELECT b.project_id, p.name as project_name, b.status, b.priority, COUNT(*) as cnt
+        FROM bugs b
+        JOIN projects p ON b.project_id = p.id
+        WHERE b.snapshot_date = (
+          SELECT MAX(b2.snapshot_date) FROM bugs b2
+          WHERE b2.project_id = b.project_id AND b2.snapshot_date != ''
+        )
+        AND (b.snapshot_date IS NOT NULL AND b.snapshot_date != '')
+        ${cc}
+        GROUP BY b.project_id, p.name, b.status, b.priority
+      `, ...cp) as { project_id: number; project_name: string; status: string; priority: string; cnt: number }[];
 
   // Build bug stats
   type BugProjectSummary = { projectId: number; projectName: string; total: number; byStatus: Record<string, number>; byPriority: Record<string, number> };
@@ -485,6 +555,17 @@ export async function GET(req: NextRequest) {
     };
   }
 
+  // Portfolio milestones list for mode selector dropdown
+  const portfolioMilestones = await db.all(`
+    SELECT m.id, m.project_id, m.name, m.start_date, m.end_date,
+           p.name as project_name, COALESCE(c.name, '') as program_name
+    FROM milestones m
+    JOIN projects p ON m.project_id = p.id
+    LEFT JOIN customers c ON p.customer_id = c.id
+    WHERE 1=1 ${cc}
+    ORDER BY m.start_date DESC, m.name
+  `, ...cp) as { id: number; project_id: number; name: string; start_date: string; end_date: string; project_name: string; program_name: string }[];
+
   return NextResponse.json({
     projects: enrichedProjects,
     programs: byProgram,
@@ -492,12 +573,12 @@ export async function GET(req: NextRequest) {
     phaseDist,
     programBar,
     kpi: {
-      totalProjects: projects.length,
+      totalProjects: projectsForReport.length,
       totalPrograms: programs.length,
       totalOpenRisks,
       totalOpenIssues,
       avgCompletion,
-      activeProjects: projects.filter((p: any) => p.current_phase !== 'Closing').length,
+      activeProjects: projectsForReport.filter((p: any) => p.current_phase !== 'Closing').length,
     },
     topRisks,
     topIssues,
@@ -507,6 +588,8 @@ export async function GET(req: NextRequest) {
     personnelStats,
     fteStats,
     bugStats,
+    portfolioMilestones,
+    milestoneInfo,
     periodStart: startParam,
     periodEnd: endParam,
     reportDate: todayStr,
