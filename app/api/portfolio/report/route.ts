@@ -92,10 +92,13 @@ export async function GET(req: NextRequest) {
 
   // Milestone-project filter for SQL queries
   const _projIdList = [...milestoneProjectIds];
+  const _epicIdList = [...milestoneEpicIds];
   const mpWhere  = _projIdList.length === 1 ? `AND p.id = ${_projIdList[0]}`          : _projIdList.length > 1 ? `AND p.id IN (${_projIdList.join(',')})` : '';
   const mpWhereR = _projIdList.length === 1 ? `AND r.project_id = ${_projIdList[0]}`  : _projIdList.length > 1 ? `AND r.project_id IN (${_projIdList.join(',')})` : '';
   const mpWhereI = _projIdList.length === 1 ? `AND i.project_id = ${_projIdList[0]}`  : _projIdList.length > 1 ? `AND i.project_id IN (${_projIdList.join(',')})` : '';
   const mpWhereA = _projIdList.length === 1 ? `AND a.project_id = ${_projIdList[0]}`  : _projIdList.length > 1 ? `AND a.project_id IN (${_projIdList.join(',')})` : '';
+  // In milestone mode: also filter activities by parent epic ID (sub-items only within selected milestone epics)
+  const mpWhereAEpics = _epicIdList.length > 0 ? `AND a.parent_id IN (${_epicIdList.join(',')})` : '';
 
   const projects = await db.all(`
     SELECT p.*, c.name as program_name, c.industry as program_industry
@@ -165,6 +168,9 @@ export async function GET(req: NextRequest) {
   // Second pass: build stats
   const actWeightMap: Record<number, ProjectStats> = {};
   for (const row of activityRows) {
+    // EPIC rows are containers — sub-items are the actual activities
+    if (row.no === 'EPIC') continue;
+
     if (!actWeightMap[row.project_id]) {
       actWeightMap[row.project_id] = { total: 0, weightedSum: 0, done: 0, inProgress: 0, notStarted: 0, phases: {} };
     }
@@ -175,9 +181,6 @@ export async function GET(req: NextRequest) {
     if (w >= 1) s.done++;
     else if (w > 0) s.inProgress++;
     else s.notStarted++;
-
-    // EPIC rows are containers — skip from phase/epic grouping (stats come from children)
-    if (row.no === 'EPIC') continue;
 
     // Determine grouping key: Epic name (if parent is an EPIC) or phase
     let groupKey: string;
@@ -325,7 +328,8 @@ export async function GET(req: NextRequest) {
     JOIN projects p ON a.project_id = p.id
     LEFT JOIN customers c ON p.customer_id = c.id
     WHERE a.plan_end BETWEEN ? AND ?
-      AND a.status NOT IN (${donePlaceholders}) ${cc} ${mpWhereA}
+      AND a.status NOT IN (${donePlaceholders})
+      AND (a.no IS NULL OR a.no != 'EPIC') ${cc} ${mpWhereA} ${mpWhereAEpics}
     ORDER BY a.plan_end ASC
     LIMIT 15
   `, todayStr, plus30, ...DONE_STATUSES, ...cp) as any[];
@@ -337,7 +341,8 @@ export async function GET(req: NextRequest) {
     JOIN projects p ON a.project_id = p.id
     LEFT JOIN customers c ON p.customer_id = c.id
     WHERE a.status IN (${donePlaceholders})
-      AND a.actual_end >= ? ${cc} ${mpWhereA}
+      AND a.actual_end >= ?
+      AND (a.no IS NULL OR a.no != 'EPIC') ${cc} ${mpWhereA} ${mpWhereAEpics}
     ORDER BY a.actual_end DESC
     LIMIT 10
   `, ...DONE_STATUSES, minus14, ...cp) as any[];
@@ -350,7 +355,8 @@ export async function GET(req: NextRequest) {
     LEFT JOIN customers c ON p.customer_id = c.id
     WHERE a.status IN (${donePlaceholders})
       AND a.actual_end >= ?
-      AND a.actual_end <= ? ${cc} ${mpWhereA}
+      AND a.actual_end <= ?
+      AND (a.no IS NULL OR a.no != 'EPIC') ${cc} ${mpWhereA} ${mpWhereAEpics}
     ORDER BY a.project_id, a.actual_end
   `, ...DONE_STATUSES, startParam, endParam, ...cp) as any[];
 
