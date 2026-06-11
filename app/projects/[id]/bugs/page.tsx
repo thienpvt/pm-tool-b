@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import Sidebar from '@/components/layout/Sidebar';
 import { Button } from '@/components/ui/button';
@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import {
   Upload, Bug, Clock, RefreshCw, ChevronLeft, ChevronRight,
-  FlaskConical, Sparkles, Calendar, Trash2, History,
+  FlaskConical, Sparkles, Calendar, Trash2, History, Download,
 } from 'lucide-react';
 import BugImportDialog from '@/components/bugs/BugImportDialog';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
@@ -92,6 +92,9 @@ export default function BugsPage() {
   const [filterStatus, setFilterStatus] = useState('__all__');
   const [filterPriority, setFilterPriority] = useState('__all__');
   const [page, setPage] = useState(1);
+  const [exportingPdf, setExportingPdf] = useState(false);
+  const summaryRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
   const today = new Date().toISOString().split('T')[0];
 
@@ -211,6 +214,50 @@ export default function BugsPage() {
   const allPriorities = useMemo(() => Array.from(new Set(bugs.map(b => b.priority).filter(Boolean))).sort(), [bugs]);
   useEffect(() => { setPage(1); }, [filterStatus, filterPriority]);
 
+  const exportPdf = useCallback(async () => {
+    const target = activeTab === 'summary' ? summaryRef.current : listRef.current;
+    if (!target) return;
+    setExportingPdf(true);
+    try {
+      const { toPng } = await import('html-to-image');
+      const { default: jsPDF } = await import('jspdf');
+      const dataUrl = await toPng(target, { cacheBust: true, backgroundColor: '#ffffff' });
+      const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+      const imgProps = pdf.getImageProperties(dataUrl);
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+      const maxH = pdf.internal.pageSize.getHeight();
+      if (pdfHeight <= maxH) {
+        pdf.addImage(dataUrl, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      } else {
+        // Multi-page: slice image into pages
+        const canvas = document.createElement('canvas');
+        const img = new Image();
+        await new Promise<void>(res => { img.onload = () => res(); img.src = dataUrl; });
+        canvas.width = img.width;
+        const scale = pdfWidth / img.width;
+        const pageHeightPx = Math.floor(maxH / scale);
+        let offsetY = 0;
+        let pageNum = 0;
+        while (offsetY < img.height) {
+          canvas.height = Math.min(pageHeightPx, img.height - offsetY);
+          const ctx = canvas.getContext('2d')!;
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, -offsetY);
+          if (pageNum > 0) pdf.addPage();
+          pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, pdfWidth, canvas.height * scale);
+          offsetY += pageHeightPx;
+          pageNum++;
+        }
+      }
+      pdf.save(`bugs-${id}-${selectedDate || 'all'}-${activeTab}.pdf`);
+    } catch (e) {
+      toast.error('Xuất PDF thất bại');
+      console.error(e);
+    }
+    setExportingPdf(false);
+  }, [activeTab, id, selectedDate]);
+
   return (
     <div className="flex h-screen bg-slate-50">
       <Sidebar projectId={id} />
@@ -232,10 +279,23 @@ export default function BugsPage() {
                 </p>
               </div>
             </div>
-            <Button onClick={() => setImportOpen(true)} className="gap-2 bg-red-500 hover:bg-red-600">
-              <Upload className="h-4 w-4" />
-              Import Bugs
-            </Button>
+            <div className="flex items-center gap-2">
+              {bugs.length > 0 && (
+                <Button
+                  variant="outline"
+                  onClick={exportPdf}
+                  disabled={exportingPdf}
+                  className="gap-2 h-9 text-sm"
+                >
+                  <Download className="h-4 w-4" />
+                  {exportingPdf ? 'Đang xuất...' : 'Export PDF'}
+                </Button>
+              )}
+              <Button onClick={() => setImportOpen(true)} className="gap-2 bg-red-500 hover:bg-red-600">
+                <Upload className="h-4 w-4" />
+                Import Bugs
+              </Button>
+            </div>
           </div>
 
           {/* Snapshot date bar */}
@@ -299,7 +359,7 @@ export default function BugsPage() {
 
           {/* ── Summary Tab ────────────────────────────────────────────────────── */}
           {!loading && bugs.length > 0 && activeTab === 'summary' && (
-            <div className="space-y-6">
+            <div ref={summaryRef} className="space-y-6 bg-white rounded-xl p-4">
               <div className="grid grid-cols-3 gap-4">
 
                 {/* Active bugs table */}
@@ -496,7 +556,7 @@ export default function BugsPage() {
 
           {/* ── List Tab ────────────────────────────────────────────────────────── */}
           {!loading && bugs.length > 0 && activeTab === 'list' && (
-            <div className="space-y-4">
+            <div ref={listRef} className="space-y-4 bg-white rounded-xl p-4">
               <div className="flex items-center gap-3 bg-white rounded-xl border border-slate-200 px-4 py-3 shadow-sm">
                 <span className="text-sm font-medium text-slate-600">Lọc:</span>
                 <div className="flex items-center gap-1.5">
