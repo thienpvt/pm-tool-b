@@ -97,8 +97,8 @@ export async function GET(req: NextRequest) {
   const mpWhereR = _projIdList.length === 1 ? `AND r.project_id = ${_projIdList[0]}`  : _projIdList.length > 1 ? `AND r.project_id IN (${_projIdList.join(',')})` : '';
   const mpWhereI = _projIdList.length === 1 ? `AND i.project_id = ${_projIdList[0]}`  : _projIdList.length > 1 ? `AND i.project_id IN (${_projIdList.join(',')})` : '';
   const mpWhereA = _projIdList.length === 1 ? `AND a.project_id = ${_projIdList[0]}`  : _projIdList.length > 1 ? `AND a.project_id IN (${_projIdList.join(',')})` : '';
-  // In milestone mode: also filter activities by parent epic ID (sub-items only within selected milestone epics)
-  const mpWhereAEpics = _epicIdList.length > 0 ? `AND a.parent_id IN (${_epicIdList.join(',')})` : '';
+  // In milestone mode: filter SQL queries to only activities directly stored in milestone_epics
+  const mpWhereAEpics = _epicIdList.length > 0 ? `AND a.id IN (${_epicIdList.join(',')})` : '';
 
   const projects = await db.all(`
     SELECT p.*, c.name as program_name, c.industry as program_industry
@@ -120,14 +120,10 @@ export async function GET(req: NextRequest) {
     'SELECT id, project_id, no, parent_id, activity as epic_name, status, phase, plan_start, plan_end, actual_start, actual_end FROM activities'
   ) as { id: number; project_id: number; no: string; parent_id: number | null; epic_name: string; status: string; phase: string; plan_start?: string; plan_end?: string; actual_start?: string; actual_end?: string }[];
 
-  // In milestone mode: restrict to only the milestone epics + their direct children
+  // In milestone mode: only include activities explicitly stored in milestone_epics (direct match).
+  // Do NOT expand EPICs to all their children — milestone_epics already stores exactly what was added.
   const activityRows = milestoneProjectIds.size > 0 && milestoneEpicIds.size > 0
-    ? allActivityRows.filter(row =>
-        milestoneProjectIds.has(row.project_id) &&
-        (row.no === 'EPIC'
-          ? milestoneEpicIds.has(row.id)
-          : (row.parent_id !== null && milestoneEpicIds.has(row.parent_id)))
-      )
+    ? allActivityRows.filter(row => milestoneEpicIds.has(row.id))
     : allActivityRows;
 
   // Build weighted stats per project (matching project weekly report logic)
