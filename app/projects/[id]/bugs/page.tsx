@@ -82,11 +82,15 @@ export default function BugsPage() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'summary' | 'list'>('summary');
   const [importOpen, setImportOpen] = useState(false);
+  const [projectName, setProjectName] = useState('');
 
   // Snapshot dates
   const [snapshotDates, setSnapshotDates] = useState<SnapshotDate[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [deletingDate, setDeletingDate] = useState(false);
+
+  // Bug Leaders
+  const [bugThreshold, setBugThreshold] = useState(5);
 
   // List filters
   const [filterStatus, setFilterStatus] = useState('__all__');
@@ -121,8 +125,11 @@ export default function BugsPage() {
     setLoading(false);
   }, [id]);
 
-  // On mount: fetch dates, then fetch bugs for the latest date
+  // On mount: fetch project name + dates + bugs
   useEffect(() => {
+    fetch(`/api/projects/${id}`).then(r => r.ok ? r.json() : null).then(p => {
+      if (p?.name) setProjectName(p.name);
+    });
     (async () => {
       const dates = await fetchDates();
       if (dates && dates.length > 0) {
@@ -201,6 +208,21 @@ export default function BugsPage() {
     [bugs, today],
   );
 
+  // ── Assignee stats (Bug Leaders) ───────────────────────────────────────────
+  const assigneeStats = useMemo(() => {
+    const map: Record<string, { total: number; active: number; critical: number }> = {};
+    for (const b of bugs) {
+      const name = b.assignee?.trim() || 'Unassigned';
+      if (!map[name]) map[name] = { total: 0, active: 0, critical: 0 };
+      map[name].total++;
+      if (ACTIVE_STATUSES.includes(b.status)) map[name].active++;
+      if (b.priority === 'Critical') map[name].critical++;
+    }
+    return Object.entries(map)
+      .map(([assignee, s]) => ({ assignee, ...s }))
+      .sort((a, b) => b.total - a.total);
+  }, [bugs]);
+
   // ── List computations ──────────────────────────────────────────────────────
   const filteredBugs = useMemo(() => bugs.filter(b => {
     if (filterStatus !== '__all__' && b.status !== filterStatus) return false;
@@ -223,40 +245,68 @@ export default function BugsPage() {
       const { default: jsPDF } = await import('jspdf');
       const dataUrl = await toPng(target, { cacheBust: true, backgroundColor: '#ffffff' });
       const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-      const imgProps = pdf.getImageProperties(dataUrl);
       const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-      const maxH = pdf.internal.pageSize.getHeight();
-      if (pdfHeight <= maxH) {
-        pdf.addImage(dataUrl, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      const pdfHeight_mm = pdf.internal.pageSize.getHeight();
+      const headerH = 14; // mm reserved for header text
+      const contentTopY = headerH + 2;
+
+      // Header: project name + date
+      pdf.setFontSize(11);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(30, 41, 59);
+      pdf.text(projectName || `Project #${id}`, 10, 9);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(9);
+      pdf.setTextColor(100, 116, 139);
+      const tabLabel = activeTab === 'summary' ? 'Bug Summary' : 'Bug List';
+      const dateLabel = selectedDate ? `Snapshot: ${selectedDate}` : '';
+      pdf.text(`${tabLabel}  ·  ${dateLabel}  ·  Xuất ngày: ${new Date().toLocaleDateString('vi-VN')}`, 10, 14);
+      pdf.setDrawColor(226, 232, 240);
+      pdf.line(10, 15.5, pdfWidth - 10, 15.5);
+
+      const availH = pdfHeight_mm - contentTopY;
+      const imgProps = pdf.getImageProperties(dataUrl);
+      const imgH = (imgProps.height * pdfWidth) / imgProps.width;
+
+      if (imgH <= availH) {
+        pdf.addImage(dataUrl, 'PNG', 0, contentTopY, pdfWidth, imgH);
       } else {
-        // Multi-page: slice image into pages
         const canvas = document.createElement('canvas');
         const img = new Image();
         await new Promise<void>(res => { img.onload = () => res(); img.src = dataUrl; });
         canvas.width = img.width;
         const scale = pdfWidth / img.width;
-        const pageHeightPx = Math.floor(maxH / scale);
+        const pageHeightPx = Math.floor(availH / scale);
         let offsetY = 0;
         let pageNum = 0;
         while (offsetY < img.height) {
-          canvas.height = Math.min(pageHeightPx, img.height - offsetY);
+          if (pageNum > 0) {
+            pdf.addPage();
+            // Repeat mini-header on subsequent pages
+            pdf.setFontSize(8); pdf.setFont('helvetica', 'normal'); pdf.setTextColor(148, 163, 184);
+            pdf.text(`${projectName || `Project #${id}`}  ·  ${tabLabel}  ·  ${dateLabel}`, 10, 6);
+            pdf.line(10, 7.5, pdfWidth - 10, 7.5);
+          }
+          const sliceH = Math.min(pageHeightPx, img.height - offsetY);
+          canvas.height = sliceH;
           const ctx = canvas.getContext('2d')!;
           ctx.clearRect(0, 0, canvas.width, canvas.height);
           ctx.drawImage(img, 0, -offsetY);
-          if (pageNum > 0) pdf.addPage();
-          pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, pdfWidth, canvas.height * scale);
+          const topY = pageNum === 0 ? contentTopY : 10;
+          pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, topY, pdfWidth, sliceH * scale);
           offsetY += pageHeightPx;
           pageNum++;
         }
       }
-      pdf.save(`bugs-${id}-${selectedDate || 'all'}-${activeTab}.pdf`);
+
+      const safeName = (projectName || `project-${id}`).replace(/[^a-z0-9\-_\s]/gi, '').trim().replace(/\s+/g, '-');
+      pdf.save(`bugs-${safeName}-${selectedDate || 'all'}-${activeTab}.pdf`);
     } catch (e) {
       toast.error('Xuất PDF thất bại');
       console.error(e);
     }
     setExportingPdf(false);
-  }, [activeTab, id, selectedDate]);
+  }, [activeTab, id, selectedDate, projectName]);
 
   return (
     <div className="flex h-screen bg-slate-50">
@@ -550,6 +600,84 @@ export default function BugsPage() {
                     </div>
                   ))}
                 </div>
+              </div>
+
+              {/* Bug Leaders */}
+              <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                <div className="flex items-center justify-between px-4 py-3 bg-red-50 border-b border-red-100">
+                  <div className="flex items-center gap-2">
+                    <Bug className="h-4 w-4 text-red-500" />
+                    <span className="font-semibold text-red-700 text-sm">Bug Leaders</span>
+                    <span className="text-xs text-red-500">— Assignee có nhiều hơn</span>
+                    <input
+                      type="number"
+                      min={0}
+                      value={bugThreshold}
+                      onChange={e => setBugThreshold(Math.max(0, Number(e.target.value)))}
+                      className="w-12 text-center rounded-md border border-red-200 bg-white text-red-700 font-bold text-sm px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-red-300"
+                    />
+                    <span className="text-xs text-red-500">bug</span>
+                  </div>
+                  <span className="text-[11px] px-2 py-0.5 rounded-full bg-red-100 text-red-600 font-medium">
+                    {assigneeStats.filter(a => a.total > bugThreshold).length} người
+                  </span>
+                </div>
+                {assigneeStats.filter(a => a.total > bugThreshold).length === 0 ? (
+                  <div className="px-4 py-6 text-center text-sm text-slate-400">
+                    Không có assignee nào có hơn {bugThreshold} bug
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-slate-50 border-b border-slate-100 text-[10px] uppercase tracking-wide text-slate-500">
+                          <th className="px-4 py-2.5 text-left w-8">#</th>
+                          <th className="px-4 py-2.5 text-left">Assignee</th>
+                          <th className="px-4 py-2.5 text-center">Tổng Bug</th>
+                          <th className="px-4 py-2.5 text-center">Đang xử lý</th>
+                          <th className="px-4 py-2.5 text-center">Critical</th>
+                          <th className="px-4 py-2.5 text-left w-48">% Tổng</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-50">
+                        {assigneeStats.filter(a => a.total > bugThreshold).map((a, i) => {
+                          const pct = bugs.length > 0 ? Math.round(a.total / bugs.length * 100) : 0;
+                          return (
+                            <tr key={a.assignee} className={`hover:bg-slate-50 transition-colors ${a.critical > 0 ? 'bg-red-50/20' : ''}`}>
+                              <td className="px-4 py-2.5 text-xs text-slate-400">{i + 1}</td>
+                              <td className="px-4 py-2.5">
+                                <span className="font-medium text-slate-800">{a.assignee}</span>
+                              </td>
+                              <td className="px-4 py-2.5 text-center">
+                                <span className="inline-block min-w-[2rem] px-2 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-700">
+                                  {a.total}
+                                </span>
+                              </td>
+                              <td className="px-4 py-2.5 text-center">
+                                <span className={`inline-block min-w-[2rem] px-2 py-0.5 rounded-full text-xs font-bold ${a.active > 0 ? 'bg-orange-100 text-orange-700' : 'bg-slate-100 text-slate-400'}`}>
+                                  {a.active}
+                                </span>
+                              </td>
+                              <td className="px-4 py-2.5 text-center">
+                                {a.critical > 0
+                                  ? <span className="inline-block min-w-[2rem] px-2 py-0.5 rounded-full text-xs font-bold bg-red-500 text-white">{a.critical}</span>
+                                  : <span className="text-slate-300 text-xs">—</span>}
+                              </td>
+                              <td className="px-4 py-2.5">
+                                <div className="flex items-center gap-2">
+                                  <div className="flex-1 bg-slate-100 rounded-full h-1.5 overflow-hidden min-w-[60px]">
+                                    <div className="h-full bg-red-400 rounded-full" style={{ width: `${pct}%` }} />
+                                  </div>
+                                  <span className="text-xs text-slate-500 shrink-0">{pct}%</span>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             </div>
           )}

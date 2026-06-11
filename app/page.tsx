@@ -1,5 +1,5 @@
 ﻿'use client';
-import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import Sidebar from '@/components/layout/Sidebar';
 import OnboardingModal from '@/components/onboarding/OnboardingModal';
@@ -12,19 +12,10 @@ import {
   Plus, Calendar, User, Building2, ShieldAlert, Bug, TrendingUp,
   FolderOpen, ChevronDown, ChevronUp, Activity, AlertCircle,
   LayoutGrid, List, FileBarChart2, ArrowRight, CheckCircle2,
-  Clock, Zap, Target, ChevronRight, Download, Users,
+  Clock, Zap, Target, ChevronRight,
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type BugAssignee = {
-  assignee: string;
-  total_bugs: number;
-  active_bugs: number;
-  critical_bugs: number;
-  projects: string;
-  project_count: number;
-};
-
 type ProjectRow = {
   id: number; name: string; client: string; customer_id: number | null;
   program_name: string; program_industry: string;
@@ -305,10 +296,6 @@ export default function PortfolioDashboard() {
   const [viewMode, setViewMode] = useState<'cards' | 'list'>('cards');
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [meUser, setMeUser] = useState<{ display_name: string; username: string; onboarding_completed: number } | null>(null);
-  const [bugAssignees, setBugAssignees] = useState<BugAssignee[]>([]);
-  const [bugThreshold, setBugThreshold] = useState(5);
-  const [exportingPdf, setExportingPdf] = useState(false);
-  const bugLeadersRef = useRef<HTMLDivElement>(null);
 
   const loadPortfolio = useCallback(() => {
     setLoading(true);
@@ -321,7 +308,6 @@ export default function PortfolioDashboard() {
       if (u?.company_name) setCompanyName(u.company_name);
       if (u) setMeUser(u);
     });
-    fetch('/api/portfolio/bug-assignees').then(r => r.ok ? r.json() : []).then(setBugAssignees);
   }, [loadPortfolio]);
 
   useEffect(() => {
@@ -343,26 +329,6 @@ export default function PortfolioDashboard() {
     if (selectedProgramId === 0) return data.noProgramProjects;
     return activeProgram?.projects ?? [];
   }, [data, selectedProgramId, activeProgram]);
-
-  // ── PDF export for Bug Leaders ─────────────────────────────────────────────
-  const exportBugLeadersPdf = useCallback(async () => {
-    if (!bugLeadersRef.current) return;
-    setExportingPdf(true);
-    try {
-      const { toPng } = await import('html-to-image');
-      const { default: jsPDF } = await import('jspdf');
-      const dataUrl = await toPng(bugLeadersRef.current, { cacheBust: true, backgroundColor: '#ffffff' });
-      const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-      const imgProps = pdf.getImageProperties(dataUrl);
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-      pdf.addImage(dataUrl, 'PNG', 0, 0, pdfWidth, Math.min(pdfHeight, pdf.internal.pageSize.getHeight()));
-      pdf.save(`bug-leaders-x${bugThreshold}.pdf`);
-    } catch (e) {
-      console.error('PDF export failed', e);
-    }
-    setExportingPdf(false);
-  }, [bugThreshold]);
 
   // ── Derived analytics ──────────────────────────────────────────────────────
   const analytics = useMemo(() => {
@@ -1090,111 +1056,6 @@ export default function PortfolioDashboard() {
               <ProgramSection program={{ id: 0, name: 'Unassigned Projects', industry: '', projects: data.noProgramProjects }} defaultOpen={false} />
             )}
           </div>
-
-          {/* ── Bug Leaders ── */}
-          {bugAssignees.length > 0 && (() => {
-            const filtered = bugAssignees.filter(a => Number(a.total_bugs) > bugThreshold);
-            return (
-              <div className="bg-white rounded-2xl border shadow-sm overflow-hidden">
-                <div className="flex items-center justify-between px-5 py-3.5 bg-red-600">
-                  <h2 className="text-sm font-bold text-white flex items-center gap-2">
-                    <Bug className="h-4 w-4 text-red-200" />
-                    Bug Leaders — Assignee có nhiều hơn
-                    <input
-                      type="number"
-                      min={0}
-                      value={bugThreshold}
-                      onChange={e => setBugThreshold(Math.max(0, Number(e.target.value)))}
-                      className="w-14 text-center rounded-md bg-red-500 border border-red-400 text-white font-bold text-sm px-1.5 py-0.5 mx-0.5 focus:outline-none focus:ring-1 focus:ring-red-200"
-                    />
-                    bug
-                  </h2>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[11px] px-2 py-0.5 rounded-full bg-red-500 text-red-100 font-medium">
-                      {filtered.length} người
-                    </span>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={exportBugLeadersPdf}
-                      disabled={exportingPdf || filtered.length === 0}
-                      className="h-7 text-xs gap-1.5 bg-white/10 border-red-400 text-white hover:bg-white/20 hover:text-white"
-                    >
-                      <Download className="h-3.5 w-3.5" />
-                      {exportingPdf ? 'Đang xuất...' : 'Export PDF'}
-                    </Button>
-                  </div>
-                </div>
-
-                <div ref={bugLeadersRef} className="bg-white">
-                  <div className="px-5 pt-4 pb-2 border-b border-slate-100">
-                    <p className="text-xs text-slate-500">
-                      Danh sách assignee có &gt; {bugThreshold} bug · {new Date().toLocaleDateString('vi-VN')}
-                    </p>
-                  </div>
-
-                  {filtered.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-10 gap-2">
-                      <Users className="h-8 w-8 text-slate-200" />
-                      <p className="text-sm text-slate-400">Không có assignee nào có hơn {bugThreshold} bug</p>
-                    </div>
-                  ) : (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="bg-slate-50 text-slate-500 text-[10px] uppercase tracking-wider border-b border-slate-100">
-                            <th className="px-4 py-2.5 text-left w-8">#</th>
-                            <th className="px-4 py-2.5 text-left">Assignee</th>
-                            <th className="px-4 py-2.5 text-center">Tổng Bug</th>
-                            <th className="px-4 py-2.5 text-center">Bug đang xử lý</th>
-                            <th className="px-4 py-2.5 text-center">Critical</th>
-                            <th className="px-4 py-2.5 text-left">Projects</th>
-                            <th className="px-4 py-2.5 text-center">Số project</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-50">
-                          {filtered.map((a, i) => (
-                            <tr key={a.assignee} className={`hover:bg-slate-50 transition-colors ${Number(a.critical_bugs) > 0 ? 'bg-red-50/20' : ''}`}>
-                              <td className="px-4 py-2.5 text-xs text-slate-400">{i + 1}</td>
-                              <td className="px-4 py-2.5">
-                                <div className="flex items-center gap-2">
-                                  <div className={`w-7 h-7 rounded-lg ${avatarBg(a.assignee)} flex items-center justify-center text-white text-[9px] font-bold shrink-0`}>
-                                    {initials(a.assignee)}
-                                  </div>
-                                  <span className="font-medium text-slate-800 text-sm">{a.assignee}</span>
-                                </div>
-                              </td>
-                              <td className="px-4 py-2.5 text-center">
-                                <span className="inline-block min-w-[2rem] text-center px-2 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-700">
-                                  {a.total_bugs}
-                                </span>
-                              </td>
-                              <td className="px-4 py-2.5 text-center">
-                                <span className={`inline-block min-w-[2rem] text-center px-2 py-0.5 rounded-full text-xs font-bold ${Number(a.active_bugs) > 0 ? 'bg-orange-100 text-orange-700' : 'bg-slate-100 text-slate-400'}`}>
-                                  {a.active_bugs}
-                                </span>
-                              </td>
-                              <td className="px-4 py-2.5 text-center">
-                                {Number(a.critical_bugs) > 0 ? (
-                                  <span className="inline-block min-w-[2rem] text-center px-2 py-0.5 rounded-full text-xs font-bold bg-red-500 text-white">
-                                    {a.critical_bugs}
-                                  </span>
-                                ) : <span className="text-slate-300 text-xs">—</span>}
-                              </td>
-                              <td className="px-4 py-2.5 text-xs text-slate-500 max-w-xs truncate" title={a.projects}>
-                                {a.projects || '—'}
-                              </td>
-                              <td className="px-4 py-2.5 text-center text-xs text-slate-600 font-medium">{a.project_count}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })()}
 
         </div>
       </main>
