@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import Sidebar from '@/components/layout/Sidebar';
@@ -243,66 +243,105 @@ export default function BugsPage() {
     try {
       const { toPng } = await import('html-to-image');
       const { default: jsPDF } = await import('jspdf');
-      const dataUrl = await toPng(target, { cacheBust: true, backgroundColor: '#ffffff' });
+
+      // Expand all overflow-hidden/auto elements so html-to-image captures full content
+      type Saved = { el: HTMLElement; ov: string; ovX: string; w: string; mw: string };
+      const saved: Saved[] = [];
+      target.querySelectorAll<HTMLElement>('*').forEach(el => {
+        const cs = window.getComputedStyle(el);
+        if (cs.overflowX === 'auto' || cs.overflowX === 'hidden' || cs.overflow === 'hidden') {
+          saved.push({ el, ov: el.style.overflow, ovX: el.style.overflowX, w: el.style.width, mw: el.style.maxWidth });
+          el.style.overflow = 'visible';
+          el.style.overflowX = 'visible';
+          el.style.width = el.scrollWidth + 'px';
+          el.style.maxWidth = 'none';
+        }
+      });
+      const origOv = target.style.overflow;
+      const origW  = target.style.width;
+      target.style.overflow = 'visible';
+      target.style.width = target.scrollWidth + 'px';
+      const fullW = target.scrollWidth;
+      const fullH = target.scrollHeight;
+
+      const dataUrl = await toPng(target, { cacheBust: true, backgroundColor: '#ffffff', width: fullW, height: fullH });
+
+      // Restore
+      target.style.overflow = origOv;
+      target.style.width = origW;
+      saved.forEach(s => {
+        s.el.style.overflow = s.ov;
+        s.el.style.overflowX = s.ovX;
+        s.el.style.width = s.w;
+        s.el.style.maxWidth = s.mw;
+      });
+
+      // Build PDF
       const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight_mm = pdf.internal.pageSize.getHeight();
-      const headerH = 14; // mm reserved for header text
-      const contentTopY = headerH + 2;
+      const pdfW = pdf.internal.pageSize.getWidth();
+      const pdfH = pdf.internal.pageSize.getHeight();
+      const HEADER_H = 18;
+      const CONTENT_Y = HEADER_H + 1;
 
-      // Header: project name + date
-      pdf.setFontSize(11);
+      const tabLabel   = activeTab === 'summary' ? 'Bug Summary' : 'Bug List';
+      const snapLabel  = selectedDate ? 'Snapshot: ' + selectedDate : 'All snapshots';
+      const exportDate = new Date().toISOString().split('T')[0];
+      const pName      = projectName || ('Project #' + id);
+
+      // Page-1 header bar (red)
+      pdf.setFillColor(239, 68, 68);
+      pdf.rect(0, 0, pdfW, HEADER_H, 'F');
+      pdf.setFontSize(12);
       pdf.setFont('helvetica', 'bold');
-      pdf.setTextColor(30, 41, 59);
-      pdf.text(projectName || `Project #${id}`, 10, 9);
+      pdf.setTextColor(255, 255, 255);
+      pdf.text(pName, 10, 8);
       pdf.setFont('helvetica', 'normal');
-      pdf.setFontSize(9);
-      pdf.setTextColor(100, 116, 139);
-      const tabLabel = activeTab === 'summary' ? 'Bug Summary' : 'Bug List';
-      const dateLabel = selectedDate ? `Snapshot: ${selectedDate}` : '';
-      pdf.text(`${tabLabel}  ·  ${dateLabel}  ·  Xuất ngày: ${new Date().toLocaleDateString('vi-VN')}`, 10, 14);
-      pdf.setDrawColor(226, 232, 240);
-      pdf.line(10, 15.5, pdfWidth - 10, 15.5);
+      pdf.setFontSize(8);
+      pdf.setTextColor(254, 202, 202);
+      pdf.text(tabLabel + '   ' + snapLabel + '   Export: ' + exportDate, 10, 14);
 
-      const availH = pdfHeight_mm - contentTopY;
+      // Scale image to page width then paginate vertically
       const imgProps = pdf.getImageProperties(dataUrl);
-      const imgH = (imgProps.height * pdfWidth) / imgProps.width;
+      const scale    = pdfW / imgProps.width;
+      const imgH_mm  = imgProps.height * scale;
+      const availH   = pdfH - CONTENT_Y;
 
-      if (imgH <= availH) {
-        pdf.addImage(dataUrl, 'PNG', 0, contentTopY, pdfWidth, imgH);
+      if (imgH_mm <= availH) {
+        pdf.addImage(dataUrl, 'PNG', 0, CONTENT_Y, pdfW, imgH_mm);
       } else {
         const canvas = document.createElement('canvas');
-        const img = new Image();
+        const img    = new Image();
         await new Promise<void>(res => { img.onload = () => res(); img.src = dataUrl; });
         canvas.width = img.width;
-        const scale = pdfWidth / img.width;
-        const pageHeightPx = Math.floor(availH / scale);
+        const pageHpx = Math.floor(availH / scale);
         let offsetY = 0;
         let pageNum = 0;
         while (offsetY < img.height) {
           if (pageNum > 0) {
             pdf.addPage();
-            // Repeat mini-header on subsequent pages
-            pdf.setFontSize(8); pdf.setFont('helvetica', 'normal'); pdf.setTextColor(148, 163, 184);
-            pdf.text(`${projectName || `Project #${id}`}  ·  ${tabLabel}  ·  ${dateLabel}`, 10, 6);
-            pdf.line(10, 7.5, pdfWidth - 10, 7.5);
+            pdf.setFillColor(239, 68, 68);
+            pdf.rect(0, 0, pdfW, 10, 'F');
+            pdf.setFontSize(8);
+            pdf.setFont('helvetica', 'normal');
+            pdf.setTextColor(254, 202, 202);
+            pdf.text(pName + '  |  ' + tabLabel + '  |  ' + snapLabel + '  |  Export: ' + exportDate, 10, 6.5);
           }
-          const sliceH = Math.min(pageHeightPx, img.height - offsetY);
+          const sliceH = Math.min(pageHpx, img.height - offsetY);
           canvas.height = sliceH;
           const ctx = canvas.getContext('2d')!;
           ctx.clearRect(0, 0, canvas.width, canvas.height);
           ctx.drawImage(img, 0, -offsetY);
-          const topY = pageNum === 0 ? contentTopY : 10;
-          pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, topY, pdfWidth, sliceH * scale);
-          offsetY += pageHeightPx;
+          const topY = pageNum === 0 ? CONTENT_Y : 11;
+          pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, topY, pdfW, sliceH * scale);
+          offsetY += pageHpx;
           pageNum++;
         }
       }
 
-      const safeName = (projectName || `project-${id}`).replace(/[^a-z0-9\-_\s]/gi, '').trim().replace(/\s+/g, '-');
-      pdf.save(`bugs-${safeName}-${selectedDate || 'all'}-${activeTab}.pdf`);
+      const safeName = pName.replace(/[^a-z0-9\-_ ]/gi, '').trim().replace(/\s+/g, '-').toLowerCase();
+      pdf.save('bugs-' + safeName + '-' + (selectedDate || 'all') + '-' + activeTab + '.pdf');
     } catch (e) {
-      toast.error('Xuất PDF thất bại');
+      toast.error('Export PDF failed');
       console.error(e);
     }
     setExportingPdf(false);
