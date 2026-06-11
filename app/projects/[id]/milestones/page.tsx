@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { Plus, Pencil, Trash2, Flag, ChevronRight, X, Search, Layers } from 'lucide-react';
+import { Plus, Pencil, Trash2, Flag, ChevronRight, ChevronDown, X, Search, Layers, ChevronsDownUp, ChevronsUpDown } from 'lucide-react';
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 type Milestone = {
@@ -84,6 +84,7 @@ export default function MilestonesPage() {
 
   const [epicConfirmOpen, setEpicConfirmOpen] = useState(false);
   const [pendingEpic, setPendingEpic] = useState<ActivityItem | null>(null);
+  const [collapsedEpics, setCollapsedEpics] = useState<Set<number>>(new Set());
 
   // ── loaders ─────────────────────────────────────────────────────────────
   const loadMilestones = useCallback(async () => {
@@ -108,7 +109,7 @@ export default function MilestonesPage() {
   }, [id, loadMilestones, loadAllActivities]);
 
   useEffect(() => {
-    if (selected) loadMilestoneItems(selected.id);
+    if (selected) { loadMilestoneItems(selected.id); setCollapsedEpics(new Set()); }
   }, [selected, loadMilestoneItems]);
 
   // ── milestone CRUD ───────────────────────────────────────────────────────
@@ -185,6 +186,22 @@ export default function MilestonesPage() {
     await fetch(`/api/projects/${id}/milestones/${selected.id}/epics?activity_id=${activityId}`, { method: 'DELETE' });
     await loadMilestoneItems(selected.id);
     toast.success('Đã xóa khỏi milestone');
+  }
+
+  function toggleEpic(epicId: number) {
+    setCollapsedEpics(prev => {
+      const next = new Set(prev);
+      if (next.has(epicId)) next.delete(epicId); else next.add(epicId);
+      return next;
+    });
+  }
+
+  function collapseAll(epicIds: number[]) {
+    setCollapsedEpics(new Set(epicIds));
+  }
+
+  function expandAll() {
+    setCollapsedEpics(new Set());
   }
 
   // ── computed ─────────────────────────────────────────────────────────────
@@ -338,14 +355,32 @@ export default function MilestonesPage() {
                       <span className="ml-3 text-orange-600 font-medium">{milestoneItems.length} item</span>
                     </p>
                   </div>
-                  <Button
-                    onClick={() => { setSearch(''); setPickerOpen(true); }}
-                    variant="outline"
-                    className="gap-1.5 border-orange-300 text-orange-600 hover:bg-orange-50"
-                  >
-                    <Plus className="h-4 w-4" />
-                    Thêm
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    {(() => {
+                      const epicIds = topLevelItems.filter(i => i.no === 'EPIC' && (childrenByParent[i.id]?.length ?? 0) > 0).map(i => i.id);
+                      const allCollapsed = epicIds.length > 0 && epicIds.every(eid => collapsedEpics.has(eid));
+                      if (epicIds.length === 0) return null;
+                      return allCollapsed ? (
+                        <Button variant="ghost" size="sm" onClick={expandAll} className="gap-1.5 text-slate-500 hover:text-slate-700 text-xs px-2">
+                          <ChevronsUpDown className="h-3.5 w-3.5" />
+                          Expand All
+                        </Button>
+                      ) : (
+                        <Button variant="ghost" size="sm" onClick={() => collapseAll(epicIds)} className="gap-1.5 text-slate-500 hover:text-slate-700 text-xs px-2">
+                          <ChevronsDownUp className="h-3.5 w-3.5" />
+                          Collapse All
+                        </Button>
+                      );
+                    })()}
+                    <Button
+                      onClick={() => { setSearch(''); setPickerOpen(true); }}
+                      variant="outline"
+                      className="gap-1.5 border-orange-300 text-orange-600 hover:bg-orange-50"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Thêm
+                    </Button>
+                  </div>
                 </div>
 
                 {milestoneItems.length === 0 ? (
@@ -367,6 +402,17 @@ export default function MilestonesPage() {
                                   ? 'bg-orange-50/50 border-orange-200 hover:border-orange-300'
                                   : 'bg-white border-slate-200 hover:border-slate-300'
                               }`}>
+                                {parent.no === 'EPIC' && (childrenByParent[parent.id]?.length ?? 0) > 0 && (
+                                  <button
+                                    onClick={() => toggleEpic(parent.id)}
+                                    className="p-0.5 rounded text-slate-400 hover:text-orange-500 transition-colors shrink-0"
+                                    title={collapsedEpics.has(parent.id) ? 'Expand' : 'Collapse'}
+                                  >
+                                    {collapsedEpics.has(parent.id)
+                                      ? <ChevronRight className="h-4 w-4" />
+                                      : <ChevronDown className="h-4 w-4" />}
+                                  </button>
+                                )}
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-2 flex-wrap">
                                     {parent.no === 'EPIC' && (
@@ -406,7 +452,7 @@ export default function MilestonesPage() {
                               </div>
 
                               {/* Children rows — indented */}
-                              {(childrenByParent[parent.id] ?? []).length > 0 && (
+                              {(childrenByParent[parent.id] ?? []).length > 0 && !collapsedEpics.has(parent.id) && (
                                 <div className="ml-5 mt-1.5 space-y-1.5 pl-4 border-l-2 border-orange-100">
                                   {(childrenByParent[parent.id] ?? []).map(child => (
                                     <div key={child.id} className="bg-white rounded-lg border border-slate-200 px-4 py-2.5 flex items-center gap-3 hover:border-slate-300 transition-colors">
