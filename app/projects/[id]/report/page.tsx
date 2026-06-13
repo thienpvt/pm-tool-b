@@ -36,6 +36,11 @@ type ProjectReportData = {
   openRisks: RiskIssue[];
   openIssues: RiskIssue[];
   bugStats?: { total: number; byStatus: Record<string, number>; byPriority: Record<string, number> } | null;
+  teamStats?: {
+    total: number; currentMonth: string; fullTime: number; partTime: number;
+    overloaded: { name: string; domain: string; role: string; capacity: number }[];
+    byDomain: { domain: string; members: { name: string; role: string; capacity: number }[] }[];
+  } | null;
 };
 type SavedPrompt = { id: string; name: string; text: string };
 const SAVED_PROMPTS_KEY = 'project_report_saved_prompts';
@@ -168,45 +173,10 @@ function svgDonut(segs: {val:number,color:string}[], size=140, r=58, inner=36, c
   return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">${paths}${hole}${lbl}</svg>`;
 }
 
-function svgBarChart(items: {label:string,done:number,inProg:number,notStarted:number,total:number}[], w=780, h=160): string {
-  const C_DONE = '#16A34A', C_PROG = '#3B82F6', C_TODO = '#E5E7EB';
-  const rawMax = Math.max(...items.map(i => i.total), 1);
-  const step = rawMax <= 5 ? 1 : rawMax <= 20 ? 5 : rawMax <= 50 ? 10 : 20;
-  const max = Math.ceil(rawMax / step) * step;
-  const topPad = 22; const leftPad = 28;
-  const n = items.length || 1;
-  const slotW = Math.floor((w - leftPad) / n);
-  const barW = Math.min(52, Math.max(18, slotW - 12));
-  const vbH = h + topPad + 46;
-  let s = `<svg width="100%" viewBox="0 0 ${w} ${vbH}" preserveAspectRatio="xMidYMid meet" style="display:block;">`;
-  for (let i = 0; i <= max; i += step) {
-    const y = topPad + h - Math.round((i / max) * h);
-    s += `<line x1="${leftPad}" y1="${y}" x2="${w}" y2="${y}" stroke="rgba(0,0,0,0.06)" stroke-width="1"/>`;
-    s += `<text x="${leftPad - 5}" y="${y + 4}" text-anchor="end" font-size="10" fill="#9CA3AF">${i}</text>`;
-  }
-  s += `<line x1="${leftPad}" y1="${topPad + h}" x2="${w}" y2="${topPad + h}" stroke="rgba(0,0,0,0.12)" stroke-width="1"/>`;
-  items.forEach((item, i) => {
-    const x = leftPad + i * slotW + (slotW - barW) / 2;
-    const totalH = max > 0 ? Math.round((item.total / max) * h) : 0;
-    const doneH = max > 0 ? Math.round((item.done / max) * h) : 0;
-    const inProgH = max > 0 ? Math.round((item.inProg / max) * h) : 0;
-    const barTop = topPad + h - totalH;
-    if (totalH > 0) s += `<rect x="${x.toFixed(1)}" y="${barTop.toFixed(1)}" width="${barW}" height="${totalH}" fill="${C_TODO}" rx="3"/>`;
-    const progH = doneH + inProgH;
-    if (progH > 0) s += `<rect x="${x.toFixed(1)}" y="${(topPad + h - progH).toFixed(1)}" width="${barW}" height="${progH}" fill="${C_PROG}"/>`;
-    if (doneH > 0) s += `<rect x="${x.toFixed(1)}" y="${(topPad + h - doneH).toFixed(1)}" width="${barW}" height="${doneH}" fill="${C_DONE}"/>`;
-    s += `<text x="${(x + barW / 2).toFixed(1)}" y="${(barTop - 5).toFixed(1)}" text-anchor="middle" font-size="10" font-weight="700" fill="#374151">${item.total}</text>`;
-    const shortLbl = item.label.length > 12 ? item.label.slice(0, 12) + '…' : item.label;
-    s += `<text x="${(x + barW / 2).toFixed(1)}" y="${topPad + h + 17}" text-anchor="middle" font-size="10" fill="#6B7280">${shortLbl}</text>`;
-  });
-  s += `</svg>`;
-  return s;
-}
-
 // ─── HTML Report Builder ──────────────────────────────────────────────────────
 function buildProjectHtmlReport(data: ProjectReportData, language: string, companyName = ''): string {
   const isVN = language === 'Vietnamese';
-  const { project, stats, epicStats, completedInPeriod, upcomingActivities, openRisks, openIssues, bugStats, periodStart, periodEnd } = data;
+  const { project, stats, epicStats, completedInPeriod, upcomingActivities, openRisks, openIssues, bugStats, periodStart, periodEnd, teamStats } = data;
   const today = new Date().toLocaleDateString(isVN ? 'vi-VN' : 'en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
   const rag = project.rag;
   const ragColor = rag === 'red' ? '#DC2626' : rag === 'amber' ? '#D97706' : '#16A34A';
@@ -232,15 +202,6 @@ function buildProjectHtmlReport(data: ProjectReportData, language: string, compa
         ],
     140, 58, 36
   );
-
-  // Stacked bar: epic progress
-  const barItems = epicStats.map(e => ({
-    label: e.phase,
-    done: e.done,
-    inProg: e.total - e.done - Math.max(0, e.total - Math.ceil(e.total * (100 - e.pct) / 100) - e.done),
-    notStarted: Math.max(0, e.total - Math.ceil(e.total * e.pct / 100)),
-    total: e.total,
-  }));
 
   // Bug donuts
   let bugDonut1 = '', bugDonut2 = '', bugSection = '';
@@ -445,14 +406,71 @@ function buildProjectHtmlReport(data: ProjectReportData, language: string, compa
       </div>
     </div>
 
-    <!-- Epic/Phase Bar Chart -->
-    ${epicStats.length > 0 ? `
+    <!-- Bug Report (after donut charts) -->
+    ${bugSection}
+
+    <!-- Resource / Team section -->
+    ${teamStats ? `
     <div class="card" style="margin-bottom:28px;">
-      <div class="sec-h">${isVN ? 'Tiến độ theo Epic / Phase' : 'Epic / Phase Progress'}</div>
-      ${svgBarChart(barItems)}
-      <div style="display:flex;gap:16px;justify-content:center;margin-top:8px;font-size:11px;">
-        ${legendItems.map(l=>`<div style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;background:${l.color};display:inline-block;border-radius:2px;"></span>${l.label}</div>`).join('')}
+      <div class="sec-h">${isVN ? 'Nguồn lực dự án' : 'Project Resources'}</div>
+      <div style="font-size:11px;color:#94A3B8;margin-bottom:12px;">${isVN ? `Tháng hiện tại: ${teamStats.currentMonth}` : `Current month: ${teamStats.currentMonth}`}</div>
+
+      <!-- KPI row -->
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:18px;">
+        <div style="background:#EFF6FF;border-radius:8px;padding:10px;text-align:center;">
+          <div style="font-size:22px;font-weight:700;color:#2563EB;line-height:1;">${teamStats.total}</div>
+          <div style="font-size:10px;color:#6B7280;margin-top:3px;">${isVN ? 'Tổng thành viên' : 'Total Members'}</div>
+        </div>
+        <div style="background:#F0FDF4;border-radius:8px;padding:10px;text-align:center;">
+          <div style="font-size:22px;font-weight:700;color:#16A34A;line-height:1;">${teamStats.fullTime}</div>
+          <div style="font-size:10px;color:#6B7280;margin-top:3px;">Full-time ≥80%</div>
+        </div>
+        <div style="background:${teamStats.overloaded.length > 0 ? '#FEF2F2' : '#F0FDF4'};border-radius:8px;padding:10px;text-align:center;">
+          <div style="font-size:22px;font-weight:700;color:${teamStats.overloaded.length > 0 ? '#DC2626' : '#16A34A'};line-height:1;">${teamStats.overloaded.length}</div>
+          <div style="font-size:10px;color:#6B7280;margin-top:3px;">${isVN ? 'Quá tải >100%' : 'Overloaded >100%'}</div>
+        </div>
       </div>
+
+      <!-- Domain groups -->
+      ${teamStats.byDomain.map(d => `
+      <div style="margin-bottom:14px;">
+        <div style="font-size:10px;font-weight:700;color:#64748B;text-transform:uppercase;letter-spacing:.8px;padding:4px 10px;background:#F8FAFC;border-radius:4px;margin-bottom:6px;">${d.domain}</div>
+        <table style="width:100%;border-collapse:collapse;font-size:12px;">
+          <thead>
+            <tr>
+              <th style="text-align:left;padding:4px 8px;color:#9CA3AF;font-size:10px;border-bottom:1px solid #E5E7EB;">${isVN?'Tên':'Name'}</th>
+              <th style="text-align:left;padding:4px 8px;color:#9CA3AF;font-size:10px;border-bottom:1px solid #E5E7EB;">${isVN?'Vai trò':'Role'}</th>
+              <th style="text-align:center;padding:4px 8px;color:#9CA3AF;font-size:10px;border-bottom:1px solid #E5E7EB;width:70px;">${isVN?'Phân bổ':'Alloc.'}</th>
+              <th style="text-align:left;padding:4px 8px;color:#9CA3AF;font-size:10px;border-bottom:1px solid #E5E7EB;width:140px;">${isVN?'Tháng này':'This month'}</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${d.members.map((m, i) => {
+              const capPct = Math.round(m.capacity * 100);
+              const capColor = m.capacity > 1.0 ? '#DC2626' : m.capacity >= 0.8 ? '#16A34A' : m.capacity > 0 ? '#D97706' : '#9CA3AF';
+              const barW = Math.min(100, Math.round(m.capacity * 100));
+              const rowBg = i % 2 === 1 ? 'background:#FAFAFA;' : '';
+              return `<tr style="${rowBg}border-bottom:1px solid #F3F4F6;">
+                <td style="padding:5px 8px;font-weight:500;color:#111827;">${m.name}</td>
+                <td style="padding:5px 8px;color:#6B7280;">${m.role}</td>
+                <td style="padding:5px 8px;text-align:center;"><span style="background:${capColor}22;color:${capColor};border-radius:4px;padding:2px 8px;font-size:11px;font-weight:600;">${m.capacity > 0 ? capPct + '%' : '—'}</span></td>
+                <td style="padding:5px 8px;">${m.capacity > 0
+                  ? `<div style="background:#E5E7EB;border-radius:3px;height:5px;overflow:hidden;"><div style="width:${barW}%;height:100%;background:${capColor};border-radius:3px;"></div></div>`
+                  : `<span style="font-size:10px;color:#9CA3AF;">${isVN?'Không có dữ liệu':'No data'}</span>`
+                }</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+      `).join('')}
+
+      ${teamStats.overloaded.length > 0 ? `
+      <div style="margin-top:8px;padding:8px 12px;background:#FEF2F2;border-radius:6px;font-size:11px;color:#DC2626;">
+        [!] ${isVN
+          ? `${teamStats.overloaded.length} thành viên đang bị quá tải — cần rà soát phân bổ để đảm bảo chất lượng và tiến độ.`
+          : `${teamStats.overloaded.length} team member(s) overloaded — review allocations to protect delivery quality.`}
+      </div>` : ''}
     </div>
     ` : ''}
 
@@ -524,8 +542,6 @@ function buildProjectHtmlReport(data: ProjectReportData, language: string, compa
         </tbody>
       </table>
     </div>` : ''}
-
-    ${bugSection}
 
     <!-- Footer -->
     <div style="margin-top:28px;padding-top:14px;border-top:1px solid #E5E7EB;display:flex;justify-content:space-between;align-items:center;font-size:10px;color:#94A3B8;">

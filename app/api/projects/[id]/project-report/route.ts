@@ -169,6 +169,35 @@ export async function GET(req: NextRequest, { params }: Params) {
     }
   }
 
+  // Team members with current-month capacity
+  const teamRows = await db.all(
+    'SELECT id, domain, role, name, capacity_json FROM team_members WHERE project_id = ? ORDER BY domain, name',
+    id
+  ) as { id: number; domain: string; role: string; name: string; capacity_json: string }[];
+
+  const currentMonth = todayStr.slice(0, 7);
+  type TM = { name: string; domain: string; role: string; capacity: number };
+  const teamData: TM[] = teamRows.map(m => {
+    let cap = 0;
+    try { const c = JSON.parse(m.capacity_json || '{}'); cap = parseFloat(c[currentMonth] ?? 0) || 0; } catch {}
+    return { name: m.name || '—', domain: m.domain || 'General', role: m.role || '—', capacity: cap };
+  });
+
+  const domainMap: Record<string, TM[]> = {};
+  for (const m of teamData) {
+    if (!domainMap[m.domain]) domainMap[m.domain] = [];
+    domainMap[m.domain].push(m);
+  }
+
+  const teamStats = teamData.length > 0 ? {
+    total: teamData.length,
+    currentMonth,
+    fullTime: teamData.filter(m => m.capacity >= 0.8).length,
+    partTime: teamData.filter(m => m.capacity > 0 && m.capacity < 0.8).length,
+    overloaded: teamData.filter(m => m.capacity > 1.0),
+    byDomain: Object.entries(domainMap).map(([domain, members]) => ({ domain, members })),
+  } : null;
+
   return NextResponse.json({
     project: { ...project, rag, days_until_deadline },
     milestones,
@@ -182,6 +211,7 @@ export async function GET(req: NextRequest, { params }: Params) {
     openRisks,
     openIssues,
     bugStats: bugTotal > 0 ? { total: bugTotal, byStatus: bugByStatus, byPriority: bugByPriority } : null,
+    teamStats,
   });
 }
 
