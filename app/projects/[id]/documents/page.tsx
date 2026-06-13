@@ -1064,7 +1064,7 @@ export default function DocumentsPage() {
               </div>
 
               {/* Language */}
-              <Select value={projReportLang} onValueChange={setProjReportLang}>
+              <Select value={projReportLang} onValueChange={(v) => v && setProjReportLang(v)}>
                 <SelectTrigger className="w-36 h-8 text-xs">
                   <SelectValue />
                 </SelectTrigger>
