@@ -39,12 +39,20 @@ export async function GET(req: NextRequest, { params }: Params) {
   let selectedMilestone: any = null;
 
   const milestoneIdParam = searchParams.get('milestone_id');
+  let milestoneActivityIds: Set<number> | null = null;
+
   if (milestoneIdParam) {
     const ms = milestones.find((m: any) => String(m.id) === milestoneIdParam);
     if (ms) {
       selectedMilestone = ms;
       if (ms.start_date) startParam = ms.start_date;
       if (ms.end_date) endParam = ms.end_date;
+
+      // Fetch activity IDs that belong to this milestone
+      const meRows = await db.all<{ activity_id: number }>(
+        'SELECT activity_id FROM milestone_epics WHERE milestone_id = ?', milestoneIdParam
+      );
+      milestoneActivityIds = new Set(meRows.map(r => r.activity_id));
     }
   }
 
@@ -61,13 +69,19 @@ export async function GET(req: NextRequest, { params }: Params) {
     id
   ) as any[];
 
-  // EPIC map
+  // In milestone mode: scope to only activities in milestone_epics (direct match, no expansion needed
+  // because the milestone page already stores both EPIC rows and their children)
+  const scopedActivities = milestoneActivityIds !== null
+    ? allActivities.filter(a => milestoneActivityIds!.has(a.id))
+    : allActivities;
+
+  // EPIC map (from scoped set)
   const epicById: Record<number, { name: string }> = {};
-  for (const a of allActivities) {
+  for (const a of scopedActivities) {
     if (a.no === 'EPIC') epicById[a.id] = { name: a.activity || a.phase || `Epic ${a.id}` };
   }
 
-  const nonEpic = allActivities.filter(a => a.no !== 'EPIC');
+  const nonEpic = scopedActivities.filter(a => a.no !== 'EPIC');
 
   // Overall stats
   let total = 0, weightedSum = 0, doneCount = 0, inProgressCount = 0, notStartedCount = 0;
@@ -133,23 +147,35 @@ export async function GET(req: NextRequest, { params }: Params) {
     id
   ) as any[];
 
-  // Bug snapshot
-  const bugRows = await db.all(`
-    SELECT status, priority, COUNT(*) as cnt FROM bugs
-    WHERE project_id = ? AND snapshot_date = (
-      SELECT MAX(snapshot_date) FROM bugs WHERE project_id = ? AND snapshot_date != ''
-    ) AND snapshot_date != ''
-    GROUP BY status, priority
-  `, id, id) as { status: string; priority: string; cnt: number }[];
+  // Bug snapshot — in milestone mode use closest snapshot <= milestone end date; else use latest
+  const bugSnapshotRow = milestoneIdParam
+    ? await db.get<{ snapshot_date: string }>(
+        `SELECT snapshot_date FROM bugs WHERE project_id = ? AND snapshot_date != '' AND snapshot_date <= ? ORDER BY snapshot_date DESC LIMIT 1`,
+        id, endParam
+      )
+    : await db.get<{ snapshot_date: string }>(
+        `SELECT MAX(snapshot_date) as snapshot_date FROM bugs WHERE project_id = ? AND snapshot_date != ''`,
+        id
+      );
+  const bugSnapshotDate = bugSnapshotRow?.snapshot_date ?? null;
 
   let bugTotal = 0;
   const bugByStatus: Record<string, number> = {};
   const bugByPriority: Record<string, number> = {};
-  for (const r of bugRows) {
-    const cnt = Number(r.cnt);
-    bugByStatus[r.status] = (bugByStatus[r.status] ?? 0) + cnt;
-    bugByPriority[r.priority] = (bugByPriority[r.priority] ?? 0) + cnt;
-    bugTotal += cnt;
+
+  if (bugSnapshotDate) {
+    const bugRows = await db.all<{ status: string; priority: string; cnt: number }>(
+      `SELECT status, priority, COUNT(*) as cnt FROM bugs
+       WHERE project_id = ? AND snapshot_date = ?
+       GROUP BY status, priority`,
+      id, bugSnapshotDate
+    );
+    for (const r of bugRows) {
+      const cnt = Number(r.cnt);
+      bugByStatus[r.status] = (bugByStatus[r.status] ?? 0) + cnt;
+      bugByPriority[r.priority] = (bugByPriority[r.priority] ?? 0) + cnt;
+      bugTotal += cnt;
+    }
   }
 
   // RAG
@@ -175,7 +201,8 @@ export async function GET(req: NextRequest, { params }: Params) {
     id
   ) as { id: number; domain: string; role: string; name: string; capacity_json: string }[];
 
-  const currentMonth = todayStr.slice(0, 7);
+  // Use milestone end month for capacity if in milestone mode, otherwise current month
+  const currentMonth = (milestoneIdParam ? endParam : todayStr).slice(0, 7);
   type TM = { name: string; domain: string; role: string; capacity: number };
   const teamData: TM[] = teamRows.map(m => {
     let cap = 0;
@@ -210,7 +237,7 @@ export async function GET(req: NextRequest, { params }: Params) {
     upcomingActivities,
     openRisks,
     openIssues,
-    bugStats: bugTotal > 0 ? { total: bugTotal, byStatus: bugByStatus, byPriority: bugByPriority } : null,
+    bugStats: bugTotal > 0 ? { total: bugTotal, byStatus: bugByStatus, byPriority: bugByPriority, snapshotDate: bugSnapshotDate } : null,
     teamStats,
   });
 }

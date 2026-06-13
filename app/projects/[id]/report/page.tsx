@@ -35,7 +35,7 @@ type ProjectReportData = {
   upcomingActivities: ActivityRow[];
   openRisks: RiskIssue[];
   openIssues: RiskIssue[];
-  bugStats?: { total: number; byStatus: Record<string, number>; byPriority: Record<string, number> } | null;
+  bugStats?: { total: number; byStatus: Record<string, number>; byPriority: Record<string, number>; snapshotDate?: string | null } | null;
   teamStats?: {
     total: number; currentMonth: string; fullTime: number; partTime: number;
     overloaded: { name: string; domain: string; role: string; capacity: number }[];
@@ -226,9 +226,10 @@ function buildProjectHtmlReport(data: ProjectReportData, language: string, compa
     const openBugs = (bugStats.byStatus['Open']??0)+(bugStats.byStatus['New']??0)+(bugStats.byStatus['To Do']??0)+(bugStats.byStatus['To-do']??0);
     bugSection = `
     <div style="margin:32px 0 0;padding-top:24px;border-top:1px solid #E5E7EB;">
-      <h2 style="font-size:13px;font-weight:700;color:#64748B;text-transform:uppercase;letter-spacing:.8px;margin:0 0 16px;">
-        ${isVN ? 'Bug Report' : 'Bug Report'}
-      </h2>
+      <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:16px;">
+        <h2 style="font-size:13px;font-weight:700;color:#64748B;text-transform:uppercase;letter-spacing:.8px;margin:0;">Bug Report</h2>
+        ${bugStats.snapshotDate ? `<span style="font-size:10px;color:#94A3B8;">snapshot: ${bugStats.snapshotDate}</span>` : ''}
+      </div>
       <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
         <div style="background:#FEF2F2;border-radius:8px;padding:12px 18px;min-width:100px;text-align:center;">
           <div style="font-size:22px;font-weight:700;color:#DC2626;">${bugStats.total}</div>
