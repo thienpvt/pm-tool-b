@@ -9,8 +9,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { FileText, Download, Pencil, Presentation, Plus, Trash2, CalendarRange, ExternalLink } from 'lucide-react';
+import {
+  FileText, Download, Pencil, Presentation, Plus, Trash2, CalendarRange,
+  ExternalLink, BarChart2, Sparkles, Copy, RefreshCw, Calendar, Flag,
+} from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -28,6 +32,31 @@ type DocDef = {
   label: string;
   desc: string;
   fields: { key: string; label: string; multiline?: boolean }[];
+};
+
+type Milestone = { id: number; name: string; start_date: string; end_date: string };
+
+type EpicStat = { phase: string; total: number; done: number; pct: number; plan_start?: string | null; plan_end?: string | null };
+type RiskIssue = { id: number; description: string; priority: string; status: string; mitigation?: string; owner?: string };
+type ActivityRow = { id: number; activity: string; deliverable?: string; plan_end?: string; actual_end?: string; status: string };
+
+type ProjectReportData = {
+  project: {
+    id: number; name: string; customer_name?: string; program_name?: string;
+    pm_name?: string; current_phase: string; end_date?: string;
+    start_date?: string; rag: 'red' | 'amber' | 'green'; days_until_deadline: number | null;
+  };
+  milestones: Milestone[];
+  selectedMilestone?: Milestone | null;
+  periodStart: string;
+  periodEnd: string;
+  stats: { total: number; done: number; inProgress: number; notStarted: number; completion_pct: number };
+  epicStats: EpicStat[];
+  completedInPeriod: ActivityRow[];
+  upcomingActivities: ActivityRow[];
+  openRisks: RiskIssue[];
+  openIssues: RiskIssue[];
+  bugStats?: { total: number; byStatus: Record<string, number>; byPriority: Record<string, number> } | null;
 };
 
 // ─── Static doc definitions (non-weekly) ─────────────────────────────────────
@@ -136,7 +165,6 @@ function formatDisplayDate(dateStr: string): string {
 }
 
 function parseWeeklyTitle(title: string): { from: string; to: string } | null {
-  // Format: ProjectName_Weekly Report_YYMMDD_YYMMDD
   const parts = title.split('_Weekly Report_');
   if (parts.length < 2) return null;
   const dates = parts[1].split('_');
@@ -156,6 +184,386 @@ function statusRagColor(rag: string) {
   return 'bg-slate-100 text-slate-600 border-slate-200';
 }
 
+function getDefaultStart(): string {
+  const d = new Date();
+  d.setDate(1);
+  return d.toISOString().slice(0, 10);
+}
+function getDefaultEnd(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+// ─── Project Report Template Builder ─────────────────────────────────────────
+
+function buildProjectReport(data: ProjectReportData, language: string): string {
+  const isVN = language === 'Vietnamese';
+  const { project, periodStart, periodEnd, stats, epicStats, completedInPeriod, upcomingActivities, openRisks, openIssues, bugStats, selectedMilestone } = data;
+
+  const today = new Date().toLocaleDateString(isVN ? 'vi-VN' : 'en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+  const yyyymm = new Date().toISOString().slice(0, 7).replace('-', '');
+
+  const fmtD = (s: string | null | undefined) => {
+    if (!s) return '—';
+    try { return new Date(s + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }); }
+    catch { return s; }
+  };
+
+  const rag = project.rag;
+  const ragLabel = isVN
+    ? (rag === 'red' ? 'ĐỎ' : rag === 'amber' ? 'VÀNG' : 'XANH')
+    : (rag === 'red' ? 'RED' : rag === 'amber' ? 'AMBER' : 'GREEN');
+
+  const lines: string[] = [];
+  const D = '  ' + '━'.repeat(90);
+  const box1 = '  ╔' + '═'.repeat(88) + '╗';
+  const box2 = '  ╚' + '═'.repeat(88) + '╝';
+  const boxL = (s: string) => { const p = 88 - s.length; return `  ║${' '.repeat(Math.floor(p / 2))}${s}${' '.repeat(p - Math.floor(p / 2))}║`; };
+  const sbox1 = `  ┌${'─'.repeat(88)}┐`;
+  const sbox2 = `  └${'─'.repeat(88)}┘`;
+  const sboxL = (s: string) => `  │ ${s}${' '.repeat(Math.max(0, 86 - s.length))} │`;
+
+  const rp = (s: string, n: number) => (s.length > n ? s.slice(0, n - 1) + '…' : s).padEnd(n);
+  const lp = (s: string | number, n: number) => String(s).padStart(n);
+
+  if (isVN) {
+    lines.push(box1);
+    lines.push(boxL('BÁO CÁO TÌNH TRẠNG DỰ ÁN'));
+    lines.push(boxL(project.name.toUpperCase()));
+    lines.push(box2);
+    lines.push('');
+    lines.push(`  Ngày báo cáo  : ${today}              Mã tham chiếu : PRJ-${yyyymm}-001`);
+    lines.push(`  Kỳ báo cáo   : ${fmtD(periodStart)} → ${fmtD(periodEnd)}`);
+    if (selectedMilestone) {
+      lines.push(`  Milestone     : ${selectedMilestone.name}`);
+    }
+    lines.push(`  Giai đoạn     : ${project.current_phase}`);
+    lines.push(`  Khách hàng    : ${project.customer_name || project.program_name || 'N/A'}`);
+    lines.push(`  PM            : ${project.pm_name || 'N/A'}`);
+    lines.push(`  Ngày kết thúc : ${project.end_date ? fmtD(project.end_date) : 'N/A'}${
+      project.days_until_deadline !== null
+        ? ` (${project.days_until_deadline < 0 ? `Quá hạn ${Math.abs(project.days_until_deadline)} ngày` : `Còn ${project.days_until_deadline} ngày`})`
+        : ''}`);
+    lines.push('');
+
+    // Summary box
+    const summaryText = rag === 'red'
+      ? 'Dự án đang ở trạng thái ĐỎ — có các vấn đề nghiêm trọng cần được xử lý khẩn cấp. Cần hành động ngay từ các bên liên quan.'
+      : rag === 'amber'
+      ? 'Dự án đang ở trạng thái VÀNG — có một số rủi ro/vấn đề cần theo dõi sát sao. Cần chú ý để tránh leo thang.'
+      : 'Dự án đang vận hành tốt — tất cả các chỉ số đều trong ngưỡng kiểm soát. Không có leo thang nào cần thiết trong kỳ này.';
+    const words = summaryText.split(' ');
+    const wrappedLines: string[] = [];
+    let cur = '';
+    for (const w of words) {
+      if ((cur ? cur + ' ' + w : w).length > 84) { wrappedLines.push(cur); cur = w; }
+      else cur = cur ? cur + ' ' + w : w;
+    }
+    if (cur) wrappedLines.push(cur);
+    lines.push(sbox1);
+    lines.push(sboxL('TÓM TẮT'));
+    lines.push(sboxL(''));
+    wrappedLines.forEach(l => lines.push(sboxL(l)));
+    lines.push(sbox2);
+    lines.push('');
+
+    // I. Executive Summary
+    lines.push(D);
+    lines.push('  I.  TÓM TẮT ĐIỀU HÀNH');
+    lines.push(D);
+    lines.push('');
+    lines.push(`  Tình trạng tổng thể: ● ${ragLabel}`);
+    lines.push('');
+    lines.push(`  CHỈ SỐ CHÍNH:`);
+    lines.push(`  ${'─'.repeat(55)}`);
+    lines.push(`  Tổng hoạt động       : ${lp(stats.total, 5)}    Hoàn thành     : ${lp(stats.done, 5)}`);
+    lines.push(`  Tiến độ (trọng số)   : ${lp(stats.completion_pct + '%', 5)}    Đang thực hiện : ${lp(stats.inProgress, 5)}`);
+    lines.push(`  Chưa bắt đầu         : ${lp(stats.notStarted, 5)}    Rủi ro mở      : ${lp(openRisks.length, 5)}`);
+    lines.push(`  Vấn đề mở            : ${lp(openIssues.length, 5)}`);
+    lines.push(`  ${'─'.repeat(55)}`);
+    lines.push('');
+
+    // Progress bar
+    const barLen = 40;
+    const filled = Math.round((stats.completion_pct / 100) * barLen);
+    const bar = '█'.repeat(filled) + '░'.repeat(barLen - filled);
+    lines.push(`  Tiến độ tổng thể: [${bar}] ${stats.completion_pct}%`);
+    lines.push('');
+
+    // II. Completed in period
+    lines.push(D);
+    lines.push('  II. TIẾN ĐỘ TRONG KỲ — HOÀN THÀNH');
+    lines.push(D);
+    lines.push(`  Kỳ báo cáo: ${fmtD(periodStart)} → ${fmtD(periodEnd)}`);
+    lines.push('');
+    if (completedInPeriod.length === 0) {
+      lines.push('  Không có hoạt động nào hoàn thành trong giai đoạn này.');
+    } else {
+      completedInPeriod.forEach((a, i) => {
+        lines.push(`  ${String(i + 1).padStart(2)}. [+] ${a.activity}${a.deliverable ? `\n       → ${a.deliverable}` : ''}${a.actual_end ? `  [${a.actual_end}]` : ''}`);
+      });
+    }
+    lines.push('');
+
+    // III. Upcoming
+    lines.push(D);
+    lines.push('  III. HOẠT ĐỘNG SẮP TỚI (30 NGÀY)');
+    lines.push(D);
+    lines.push('');
+    if (upcomingActivities.length === 0) {
+      lines.push('  Không có hoạt động sắp tới trong 30 ngày tới.');
+    } else {
+      const UW = { dt: 12, nm: 44, st: 22 } as const;
+      lines.push(`  ┌${'─'.repeat(UW.dt + 2)}┬${'─'.repeat(UW.nm + 2)}┬${'─'.repeat(UW.st + 2)}┐`);
+      lines.push(`  │ ${'DUE DATE'.padEnd(UW.dt)} │ ${'HOẠT ĐỘNG'.padEnd(UW.nm)} │ ${'TRẠNG THÁI'.padEnd(UW.st)} │`);
+      lines.push(`  ├${'─'.repeat(UW.dt + 2)}┼${'─'.repeat(UW.nm + 2)}┼${'─'.repeat(UW.st + 2)}┤`);
+      upcomingActivities.forEach(a => {
+        lines.push(`  │ ${rp(fmtD(a.plan_end ?? ''), UW.dt)} │ ${rp(a.activity, UW.nm)} │ ${rp(a.status || '—', UW.st)} │`);
+      });
+      lines.push(`  └${'─'.repeat(UW.dt + 2)}┴${'─'.repeat(UW.nm + 2)}┴${'─'.repeat(UW.st + 2)}┘`);
+    }
+    lines.push('');
+
+    // IV. Risks & Issues
+    lines.push(D);
+    lines.push('  IV. RỦI RO & VẤN ĐỀ (CHƯA ĐÓNG)');
+    lines.push(D);
+    lines.push('');
+    lines.push(`  A. RỦI RO (${openRisks.length}):`);
+    lines.push(`  ${'─'.repeat(55)}`);
+    if (openRisks.length === 0) {
+      lines.push('  Không có rủi ro nào đang mở.');
+    } else {
+      openRisks.forEach((r, i) => {
+        const prioMap: Record<string, string> = { Critical: '[!!!]', High: '[!! ]', Medium: '[!  ]', Low: '[   ]' };
+        lines.push(`  ${String(i + 1).padStart(2)}. ${prioMap[r.priority] ?? '[   ]'} [${r.priority}] ${r.description}`);
+        lines.push(`      Trạng thái: ${r.status}${r.owner ? `  ·  Owner: ${r.owner}` : ''}`);
+        if (r.mitigation) lines.push(`      Biện pháp: ${r.mitigation}`);
+      });
+    }
+    lines.push('');
+    lines.push(`  B. VẤN ĐỀ (${openIssues.length}):`);
+    lines.push(`  ${'─'.repeat(55)}`);
+    if (openIssues.length === 0) {
+      lines.push('  Không có vấn đề nào đang mở.');
+    } else {
+      openIssues.forEach((r, i) => {
+        const prioMap: Record<string, string> = { Critical: '[!!!]', High: '[!! ]', Medium: '[!  ]', Low: '[   ]' };
+        lines.push(`  ${String(i + 1).padStart(2)}. ${prioMap[r.priority] ?? '[   ]'} [${r.priority}] ${r.description}`);
+        lines.push(`      Trạng thái: ${r.status}${r.owner ? `  ·  Owner: ${r.owner}` : ''}`);
+        if (r.mitigation) lines.push(`      Xử lý: ${r.mitigation}`);
+      });
+    }
+    lines.push('');
+
+    // V. Epic/Phase Progress
+    if (epicStats.length > 0) {
+      lines.push(D);
+      lines.push('  V.  TIẾN ĐỘ THEO EPIC / PHASE');
+      lines.push(D);
+      lines.push('');
+      const EW = { nm: 28, pc: 6, dn: 8, tt: 8, br: 22 } as const;
+      lines.push(`  ┌${'─'.repeat(EW.nm + 2)}┬${'─'.repeat(EW.pc + 2)}┬${'─'.repeat(EW.dn + 2)}┬${'─'.repeat(EW.tt + 2)}┬${'─'.repeat(EW.br + 2)}┐`);
+      lines.push(`  │ ${'EPIC / PHASE'.padEnd(EW.nm)} │ ${'PCT'.padStart(EW.pc)} │ ${'DONE'.padStart(EW.dn)} │ ${'TOTAL'.padStart(EW.tt)} │ ${'PROGRESS'.padEnd(EW.br)} │`);
+      lines.push(`  ├${'─'.repeat(EW.nm + 2)}┼${'─'.repeat(EW.pc + 2)}┼${'─'.repeat(EW.dn + 2)}┼${'─'.repeat(EW.tt + 2)}┼${'─'.repeat(EW.br + 2)}┤`);
+      epicStats.forEach(e => {
+        const bLen = 20;
+        const filled2 = Math.round((e.pct / 100) * bLen);
+        const bar2 = '█'.repeat(filled2) + '░'.repeat(bLen - filled2);
+        lines.push(`  │ ${rp(e.phase, EW.nm)} │ ${lp(e.pct + '%', EW.pc)} │ ${lp(e.done, EW.dn)} │ ${lp(e.total, EW.tt)} │ [${bar2}] │`);
+      });
+      lines.push(`  └${'─'.repeat(EW.nm + 2)}┴${'─'.repeat(EW.pc + 2)}┴${'─'.repeat(EW.dn + 2)}┴${'─'.repeat(EW.tt + 2)}┴${'─'.repeat(EW.br + 2)}┘`);
+      lines.push('');
+    }
+
+    // VI. Bug stats
+    if (bugStats && bugStats.total > 0) {
+      lines.push(D);
+      lines.push('  VI. TỔNG HỢP BUG');
+      lines.push(D);
+      lines.push('');
+      const critBugs = (bugStats.byPriority['Critical'] ?? 0) + (bugStats.byPriority['Highest'] ?? 0);
+      const openBugs = (bugStats.byStatus['Open'] ?? 0) + (bugStats.byStatus['New'] ?? 0) + (bugStats.byStatus['To Do'] ?? 0);
+      lines.push(`  Tổng Bug: ${bugStats.total}   ·   Critical/Highest: ${critBugs}   ·   Chưa xử lý: ${openBugs}`);
+      lines.push('');
+      lines.push('  Theo trạng thái:');
+      Object.entries(bugStats.byStatus).sort((a, b) => b[1] - a[1]).forEach(([st, cnt]) => {
+        const pct = Math.round(cnt / bugStats.total * 100);
+        lines.push(`    ${st.padEnd(24)} ${String(cnt).padStart(5)} (${String(pct).padStart(3)}%)`);
+      });
+      lines.push('');
+    }
+
+    lines.push(D);
+    lines.push(`  ${project.name}   ·   Project Management Office   ·   Tài liệu bảo mật — Nội bộ`);
+    lines.push(D);
+
+  } else {
+    // ── English ───────────────────────────────────────────────────────────────
+    lines.push(box1);
+    lines.push(boxL('PROJECT STATUS REPORT'));
+    lines.push(boxL(project.name.toUpperCase()));
+    lines.push(box2);
+    lines.push('');
+    lines.push(`  Report Date   : ${today}              Reference : PRJ-${yyyymm}-001`);
+    lines.push(`  Period        : ${fmtD(periodStart)} → ${fmtD(periodEnd)}`);
+    if (selectedMilestone) {
+      lines.push(`  Milestone     : ${selectedMilestone.name}`);
+    }
+    lines.push(`  Phase         : ${project.current_phase}`);
+    lines.push(`  Customer      : ${project.customer_name || project.program_name || 'N/A'}`);
+    lines.push(`  PM            : ${project.pm_name || 'N/A'}`);
+    lines.push(`  End Date      : ${project.end_date ? fmtD(project.end_date) : 'N/A'}${
+      project.days_until_deadline !== null
+        ? ` (${project.days_until_deadline < 0 ? `OVERDUE ${Math.abs(project.days_until_deadline)} days` : `${project.days_until_deadline} days remaining`})`
+        : ''}`);
+    lines.push('');
+
+    const summaryTextEN = rag === 'red'
+      ? 'Project is at RED status — critical issues require immediate attention from stakeholders. Escalation and corrective action are needed this period.'
+      : rag === 'amber'
+      ? 'Project is at AMBER status — risks and issues are present and require close monitoring. Action is needed to prevent escalation.'
+      : 'Project is tracking GREEN — all key indicators are within acceptable thresholds. No escalations are required at this time.';
+    const wordsEN = summaryTextEN.split(' ');
+    const wrappedEN: string[] = [];
+    let curEN = '';
+    for (const w of wordsEN) {
+      if ((curEN ? curEN + ' ' + w : w).length > 84) { wrappedEN.push(curEN); curEN = w; }
+      else curEN = curEN ? curEN + ' ' + w : w;
+    }
+    if (curEN) wrappedEN.push(curEN);
+    lines.push(sbox1);
+    lines.push(sboxL('SUMMARY'));
+    lines.push(sboxL(''));
+    wrappedEN.forEach(l => lines.push(sboxL(l)));
+    lines.push(sbox2);
+    lines.push('');
+
+    lines.push(D);
+    lines.push('  I.  EXECUTIVE SUMMARY');
+    lines.push(D);
+    lines.push('');
+    lines.push(`  Overall Status: ● ${ragLabel}`);
+    lines.push('');
+    lines.push('  KEY METRICS:');
+    lines.push(`  ${'─'.repeat(55)}`);
+    lines.push(`  Total Activities     : ${lp(stats.total, 5)}    Done           : ${lp(stats.done, 5)}`);
+    lines.push(`  Completion (wtd)     : ${lp(stats.completion_pct + '%', 5)}    In Progress    : ${lp(stats.inProgress, 5)}`);
+    lines.push(`  Not Started          : ${lp(stats.notStarted, 5)}    Open Risks     : ${lp(openRisks.length, 5)}`);
+    lines.push(`  Open Issues          : ${lp(openIssues.length, 5)}`);
+    lines.push(`  ${'─'.repeat(55)}`);
+    lines.push('');
+    const barLenEN = 40;
+    const filledEN = Math.round((stats.completion_pct / 100) * barLenEN);
+    lines.push(`  Overall Progress: [${'█'.repeat(filledEN)}${'░'.repeat(barLenEN - filledEN)}] ${stats.completion_pct}%`);
+    lines.push('');
+
+    lines.push(D);
+    lines.push('  II. PROGRESS IN PERIOD — COMPLETED ACTIVITIES');
+    lines.push(D);
+    lines.push(`  Reporting Period: ${fmtD(periodStart)} → ${fmtD(periodEnd)}`);
+    lines.push('');
+    if (completedInPeriod.length === 0) {
+      lines.push('  No activities completed in this period.');
+    } else {
+      completedInPeriod.forEach((a, i) => {
+        lines.push(`  ${String(i + 1).padStart(2)}. [+] ${a.activity}${a.deliverable ? `\n       → ${a.deliverable}` : ''}${a.actual_end ? `  [${a.actual_end}]` : ''}`);
+      });
+    }
+    lines.push('');
+
+    lines.push(D);
+    lines.push('  III. UPCOMING ACTIVITIES (NEXT 30 DAYS)');
+    lines.push(D);
+    lines.push('');
+    if (upcomingActivities.length === 0) {
+      lines.push('  No upcoming activities in the next 30 days.');
+    } else {
+      const UW2 = { dt: 12, nm: 44, st: 22 } as const;
+      lines.push(`  ┌${'─'.repeat(UW2.dt + 2)}┬${'─'.repeat(UW2.nm + 2)}┬${'─'.repeat(UW2.st + 2)}┐`);
+      lines.push(`  │ ${'DUE DATE'.padEnd(UW2.dt)} │ ${'ACTIVITY'.padEnd(UW2.nm)} │ ${'STATUS'.padEnd(UW2.st)} │`);
+      lines.push(`  ├${'─'.repeat(UW2.dt + 2)}┼${'─'.repeat(UW2.nm + 2)}┼${'─'.repeat(UW2.st + 2)}┤`);
+      upcomingActivities.forEach(a => {
+        lines.push(`  │ ${rp(fmtD(a.plan_end ?? ''), UW2.dt)} │ ${rp(a.activity, UW2.nm)} │ ${rp(a.status || '—', UW2.st)} │`);
+      });
+      lines.push(`  └${'─'.repeat(UW2.dt + 2)}┴${'─'.repeat(UW2.nm + 2)}┴${'─'.repeat(UW2.st + 2)}┘`);
+    }
+    lines.push('');
+
+    lines.push(D);
+    lines.push('  IV. RISKS & ISSUES (OPEN / NOT CLOSED)');
+    lines.push(D);
+    lines.push('');
+    lines.push(`  A. RISKS (${openRisks.length}):`);
+    lines.push(`  ${'─'.repeat(55)}`);
+    if (openRisks.length === 0) {
+      lines.push('  No open risks at this time.');
+    } else {
+      openRisks.forEach((r, i) => {
+        const prioMap: Record<string, string> = { Critical: '[!!!]', High: '[!! ]', Medium: '[!  ]', Low: '[   ]' };
+        lines.push(`  ${String(i + 1).padStart(2)}. ${prioMap[r.priority] ?? '[   ]'} [${r.priority}] ${r.description}`);
+        lines.push(`      Status: ${r.status}${r.owner ? `  ·  Owner: ${r.owner}` : ''}`);
+        if (r.mitigation) lines.push(`      Mitigation: ${r.mitigation}`);
+      });
+    }
+    lines.push('');
+    lines.push(`  B. ISSUES (${openIssues.length}):`);
+    lines.push(`  ${'─'.repeat(55)}`);
+    if (openIssues.length === 0) {
+      lines.push('  No open issues at this time.');
+    } else {
+      openIssues.forEach((r, i) => {
+        const prioMap: Record<string, string> = { Critical: '[!!!]', High: '[!! ]', Medium: '[!  ]', Low: '[   ]' };
+        lines.push(`  ${String(i + 1).padStart(2)}. ${prioMap[r.priority] ?? '[   ]'} [${r.priority}] ${r.description}`);
+        lines.push(`      Status: ${r.status}${r.owner ? `  ·  Owner: ${r.owner}` : ''}`);
+        if (r.mitigation) lines.push(`      Resolution: ${r.mitigation}`);
+      });
+    }
+    lines.push('');
+
+    if (epicStats.length > 0) {
+      lines.push(D);
+      lines.push('  V.  EPIC / PHASE PROGRESS');
+      lines.push(D);
+      lines.push('');
+      const EW2 = { nm: 28, pc: 6, dn: 8, tt: 8, br: 22 } as const;
+      lines.push(`  ┌${'─'.repeat(EW2.nm + 2)}┬${'─'.repeat(EW2.pc + 2)}┬${'─'.repeat(EW2.dn + 2)}┬${'─'.repeat(EW2.tt + 2)}┬${'─'.repeat(EW2.br + 2)}┐`);
+      lines.push(`  │ ${'EPIC / PHASE'.padEnd(EW2.nm)} │ ${'PCT'.padStart(EW2.pc)} │ ${'DONE'.padStart(EW2.dn)} │ ${'TOTAL'.padStart(EW2.tt)} │ ${'PROGRESS'.padEnd(EW2.br)} │`);
+      lines.push(`  ├${'─'.repeat(EW2.nm + 2)}┼${'─'.repeat(EW2.pc + 2)}┼${'─'.repeat(EW2.dn + 2)}┼${'─'.repeat(EW2.tt + 2)}┼${'─'.repeat(EW2.br + 2)}┤`);
+      epicStats.forEach(e => {
+        const bLen2 = 20;
+        const filled3 = Math.round((e.pct / 100) * bLen2);
+        const bar3 = '█'.repeat(filled3) + '░'.repeat(bLen2 - filled3);
+        lines.push(`  │ ${rp(e.phase, EW2.nm)} │ ${lp(e.pct + '%', EW2.pc)} │ ${lp(e.done, EW2.dn)} │ ${lp(e.total, EW2.tt)} │ [${bar3}] │`);
+      });
+      lines.push(`  └${'─'.repeat(EW2.nm + 2)}┴${'─'.repeat(EW2.pc + 2)}┴${'─'.repeat(EW2.dn + 2)}┴${'─'.repeat(EW2.tt + 2)}┴${'─'.repeat(EW2.br + 2)}┘`);
+      lines.push('');
+    }
+
+    if (bugStats && bugStats.total > 0) {
+      lines.push(D);
+      lines.push('  VI. BUG SUMMARY');
+      lines.push(D);
+      lines.push('');
+      const critBugsEN = (bugStats.byPriority['Critical'] ?? 0) + (bugStats.byPriority['Highest'] ?? 0);
+      const openBugsEN = (bugStats.byStatus['Open'] ?? 0) + (bugStats.byStatus['New'] ?? 0) + (bugStats.byStatus['To Do'] ?? 0);
+      lines.push(`  Total Bugs: ${bugStats.total}   ·   Critical/Highest: ${critBugsEN}   ·   Open/New: ${openBugsEN}`);
+      lines.push('');
+      lines.push('  By Status:');
+      Object.entries(bugStats.byStatus).sort((a, b) => b[1] - a[1]).forEach(([st, cnt]) => {
+        const pct = Math.round(cnt / bugStats.total * 100);
+        lines.push(`    ${st.padEnd(24)} ${String(cnt).padStart(5)} (${String(pct).padStart(3)}%)`);
+      });
+      lines.push('');
+    }
+
+    lines.push(D);
+    lines.push(`  ${project.name}   ·   Project Management Office   ·   Confidential — Internal Only`);
+    lines.push(D);
+  }
+
+  return lines.join('\n');
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function DocumentsPage() {
@@ -172,12 +580,29 @@ export default function DocumentsPage() {
   const [pptOpen, setPptOpen] = useState(false);
   const [pptForm, setPptForm] = useState<Record<string, string>>({});
 
+  // ── Project Report state ─────────────────────────────────────────────────
+  const [projReportOpen, setProjReportOpen] = useState(false);
+  const [projReportMode, setProjReportMode] = useState<'date' | 'milestone'>('date');
+  const [projReportStart, setProjReportStart] = useState(getDefaultStart);
+  const [projReportEnd, setProjReportEnd] = useState(getDefaultEnd);
+  const [projReportMilestoneId, setProjReportMilestoneId] = useState('');
+  const [projReportLang, setProjReportLang] = useState('Vietnamese');
+  const [projMilestones, setProjMilestones] = useState<Milestone[]>([]);
+  const [projReportData, setProjReportData] = useState<ProjectReportData | null>(null);
+  const [projReportText, setProjReportText] = useState('');
+  const [projReportAIText, setProjReportAIText] = useState('');
+  const [projReportLoading, setProjReportLoading] = useState(false);
+  const [projReportAILoading, setProjReportAILoading] = useState(false);
+  const [projReportView, setProjReportView] = useState<'template' | 'ai'>('template');
+
   const load = useCallback(async () => {
-    const [data, proj] = await Promise.all([
+    const [data, proj, ms] = await Promise.all([
       fetch(`/api/projects/${id}/documents`).then(r => r.json()) as Promise<DocRecord[]>,
       fetch(`/api/projects/${id}`).then(r => r.json()),
+      fetch(`/api/projects/${id}/milestones`).then(r => r.json()).catch(() => []),
     ]);
     setProjectName(proj.name ?? '');
+    setProjMilestones(Array.isArray(ms) ? ms : []);
 
     const map: Record<string, Record<string, string>> = {};
     const weekly: DocRecord[] = [];
@@ -189,7 +614,6 @@ export default function DocumentsPage() {
       }
     }
     setDocs(map);
-    // Sort weekly reports newest first using title dates
     setWeeklyReports(weekly.sort((a, b) => b.title.localeCompare(a.title)));
     if (map['kickoff_ppt']) setPptForm(map['kickoff_ppt']);
   }, [id]);
@@ -283,7 +707,72 @@ export default function DocumentsPage() {
     toast.success('Downloaded as text');
   };
 
+  // ── Project Report handlers ───────────────────────────────────────────────
+
+  const fetchAndGenerateReport = async () => {
+    setProjReportLoading(true);
+    setProjReportText('');
+    setProjReportAIText('');
+    setProjReportData(null);
+    try {
+      let url = `/api/projects/${id}/project-report`;
+      if (projReportMode === 'date') {
+        url += `?start=${projReportStart}&end=${projReportEnd}`;
+      } else if (projReportMilestoneId) {
+        url += `?milestone_id=${projReportMilestoneId}`;
+      }
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('Failed to fetch report data');
+      const data: ProjectReportData = await res.json();
+      setProjReportData(data);
+      const text = buildProjectReport(data, projReportLang);
+      setProjReportText(text);
+      setProjReportView('template');
+    } catch (e) { toast.error(String(e)); }
+    finally { setProjReportLoading(false); }
+  };
+
+  const generateAIReport = async () => {
+    if (!projReportData) { toast.error('Generate template report first'); return; }
+    setProjReportAILoading(true);
+    try {
+      const res = await fetch(`/api/projects/${id}/project-report`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reportData: projReportData, language: projReportLang }),
+      });
+      const json = await res.json();
+      if (json.error === 'NO_API_KEY') { toast.error('No Anthropic API key configured'); return; }
+      if (json.error) throw new Error(json.error);
+      setProjReportAIText(json.report);
+      setProjReportView('ai');
+    } catch (e) { toast.error(String(e)); }
+    finally { setProjReportAILoading(false); }
+  };
+
+  const copyReport = () => {
+    const text = projReportView === 'ai' ? projReportAIText : projReportText;
+    if (!text) return;
+    navigator.clipboard.writeText(text);
+    toast.success('Copied to clipboard');
+  };
+
+  const downloadReport = () => {
+    const text = projReportView === 'ai' ? projReportAIText : projReportText;
+    if (!text) return;
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${projectName.replace(/\s+/g, '-')}_Project-Report_${new Date().toISOString().slice(0, 10)}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success('Downloaded');
+  };
+
   // ─────────────────────────────────────────────────────────────────────────
+
+  const activeReportText = projReportView === 'ai' ? projReportAIText : projReportText;
 
   return (
     <div className="flex flex-col lg:flex-row min-h-screen">
@@ -323,6 +812,36 @@ export default function DocumentsPage() {
           </Card>
         </div>
 
+        {/* ── Project Report ─────────────────────────────────────────────── */}
+        <div className="mb-8">
+          <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-3">Project Report</h2>
+          <Card className="p-5 flex flex-col gap-3 border-violet-200 bg-violet-50/40 max-w-sm">
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded-lg bg-violet-100 flex items-center justify-center shrink-0">
+                <BarChart2 className="h-4 w-4 text-violet-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="font-semibold text-sm text-slate-800">Project Status Report</h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Báo cáo tổng hợp — tiến độ, rủi ro, issues, milestones
+                </p>
+              </div>
+            </div>
+            <p className="text-xs text-slate-500">
+              Lọc theo khoảng thời gian hoặc milestone. Tự động thống kê risks & issues chưa đóng.
+            </p>
+            <div className="flex gap-2 mt-auto">
+              <Button
+                size="sm"
+                onClick={() => setProjReportOpen(true)}
+                className="gap-1.5 bg-violet-600 hover:bg-violet-700 flex-1"
+              >
+                <BarChart2 className="h-3 w-3" /> Generate Report
+              </Button>
+            </div>
+          </Card>
+        </div>
+
         {/* ── Weekly Reports ─────────────────────────────────────────────── */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-3">
@@ -352,7 +871,6 @@ export default function DocumentsPage() {
                 const pct = content.completion_pct ? Number(content.completion_pct) : undefined;
                 return (
                   <div key={doc.id} className="flex items-center gap-4 px-4 py-3 hover:bg-slate-50 transition-colors">
-                    {/* Date block */}
                     <div className="w-28 shrink-0">
                       {dates ? (
                         <>
@@ -364,7 +882,6 @@ export default function DocumentsPage() {
                       )}
                     </div>
 
-                    {/* Progress */}
                     {pct !== undefined && (
                       <div className="w-16 shrink-0">
                         <p className="text-[10px] text-slate-500 font-medium">{pct}%</p>
@@ -374,7 +891,6 @@ export default function DocumentsPage() {
                       </div>
                     )}
 
-                    {/* Title snippet */}
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-medium text-slate-800 truncate">{doc.title}</p>
                       {content.report_text && (
@@ -382,14 +898,12 @@ export default function DocumentsPage() {
                       )}
                     </div>
 
-                    {/* RAG badge */}
                     {rag && (
                       <span className={`text-[10px] px-2 py-0.5 rounded border font-medium shrink-0 ${statusRagColor(rag)}`}>
                         {rag}
                       </span>
                     )}
 
-                    {/* Actions */}
                     <div className="flex gap-1.5 shrink-0">
                       <Link href={`/projects/${id}/reports`}>
                         <Button size="sm" variant="outline" className="h-7 px-2.5 text-xs gap-1">
@@ -516,6 +1030,170 @@ export default function DocumentsPage() {
               {saving ? 'Saving...' : 'Save'}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Project Report Dialog ──────────────────────────────────────────── */}
+      <Dialog open={projReportOpen} onOpenChange={o => { if (!o) { setProjReportOpen(false); } }}>
+        <DialogContent className="max-w-5xl max-h-[92vh] flex flex-col overflow-hidden">
+          <DialogHeader className="shrink-0">
+            <DialogTitle className="flex items-center gap-2">
+              <BarChart2 className="h-5 w-5 text-violet-600" />
+              Project Status Report — {projectName}
+            </DialogTitle>
+          </DialogHeader>
+
+          {/* Controls */}
+          <div className="shrink-0 border rounded-lg p-4 bg-slate-50 space-y-4">
+            {/* Mode + language row */}
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Mode toggle */}
+              <div className="flex rounded-lg overflow-hidden border bg-white">
+                <button
+                  onClick={() => setProjReportMode('date')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors ${projReportMode === 'date' ? 'bg-violet-600 text-white' : 'text-slate-600 hover:bg-slate-50'}`}
+                >
+                  <Calendar className="h-3 w-3" /> Theo thời gian
+                </button>
+                <button
+                  onClick={() => setProjReportMode('milestone')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors ${projReportMode === 'milestone' ? 'bg-violet-600 text-white' : 'text-slate-600 hover:bg-slate-50'}`}
+                >
+                  <Flag className="h-3 w-3" /> Theo milestone
+                </button>
+              </div>
+
+              {/* Language */}
+              <Select value={projReportLang} onValueChange={setProjReportLang}>
+                <SelectTrigger className="w-36 h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Vietnamese">Vietnamese</SelectItem>
+                  <SelectItem value="English">English</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Date / Milestone inputs */}
+            {projReportMode === 'date' ? (
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <Label className="text-xs text-slate-500 w-10">From</Label>
+                  <Input
+                    type="date"
+                    value={projReportStart}
+                    onChange={e => setProjReportStart(e.target.value)}
+                    className="h-8 text-xs w-36"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <Label className="text-xs text-slate-500 w-4">To</Label>
+                  <Input
+                    type="date"
+                    value={projReportEnd}
+                    onChange={e => setProjReportEnd(e.target.value)}
+                    className="h-8 text-xs w-36"
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <Label className="text-xs text-slate-500 w-20">Milestone</Label>
+                <Select value={projReportMilestoneId} onValueChange={setProjReportMilestoneId}>
+                  <SelectTrigger className="h-8 text-xs w-72">
+                    <SelectValue placeholder={projMilestones.length === 0 ? 'No milestones' : 'Select milestone…'} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {projMilestones.map(m => (
+                      <SelectItem key={m.id} value={String(m.id)}>
+                        {m.name}{m.start_date ? ` (${m.start_date}` : ''}{m.end_date ? ` → ${m.end_date})` : m.start_date ? ')' : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {/* Generate buttons */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <Button
+                size="sm"
+                onClick={fetchAndGenerateReport}
+                disabled={projReportLoading || (projReportMode === 'milestone' && !projReportMilestoneId)}
+                className="gap-1.5 bg-violet-600 hover:bg-violet-700"
+              >
+                {projReportLoading ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <BarChart2 className="h-3.5 w-3.5" />}
+                {projReportLoading ? 'Generating…' : 'Generate Template'}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={generateAIReport}
+                disabled={projReportAILoading || !projReportData}
+                className="gap-1.5 border-violet-200 text-violet-700 hover:bg-violet-50"
+              >
+                {projReportAILoading ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                {projReportAILoading ? 'Generating with AI…' : 'Generate with Claude'}
+              </Button>
+
+              {activeReportText && (
+                <>
+                  <Button size="sm" variant="outline" onClick={copyReport} className="gap-1.5 ml-auto">
+                    <Copy className="h-3.5 w-3.5" /> Copy
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={downloadReport} className="gap-1.5">
+                    <Download className="h-3.5 w-3.5" /> Download
+                  </Button>
+                </>
+              )}
+            </div>
+
+            {/* View toggle (when both are available) */}
+            {projReportText && projReportAIText && (
+              <div className="flex rounded-lg overflow-hidden border bg-white w-fit">
+                <button
+                  onClick={() => setProjReportView('template')}
+                  className={`px-3 py-1 text-xs font-medium transition-colors ${projReportView === 'template' ? 'bg-violet-600 text-white' : 'text-slate-600 hover:bg-slate-50'}`}
+                >
+                  Template
+                </button>
+                <button
+                  onClick={() => setProjReportView('ai')}
+                  className={`flex items-center gap-1 px-3 py-1 text-xs font-medium transition-colors ${projReportView === 'ai' ? 'bg-violet-600 text-white' : 'text-slate-600 hover:bg-slate-50'}`}
+                >
+                  <Sparkles className="h-3 w-3" /> AI
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Report output */}
+          <div className="flex-1 overflow-hidden">
+            {activeReportText ? (
+              <div className="h-full overflow-auto">
+                {projReportView === 'ai' ? (
+                  <div
+                    className="p-4 text-sm text-slate-700 leading-relaxed whitespace-pre-wrap font-sans"
+                    style={{ minHeight: '100%' }}
+                  >
+                    {projReportAIText}
+                  </div>
+                ) : (
+                  <pre className="p-4 text-xs font-mono text-slate-700 leading-relaxed whitespace-pre overflow-x-auto">
+                    {projReportText}
+                  </pre>
+                )}
+              </div>
+            ) : (
+              <div className="h-full flex items-center justify-center text-slate-400 text-sm">
+                <div className="text-center">
+                  <BarChart2 className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                  <p>Chọn khoảng thời gian hoặc milestone rồi ấn <strong>Generate Template</strong></p>
+                </div>
+              </div>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>
