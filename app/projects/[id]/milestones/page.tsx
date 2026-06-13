@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { Plus, Pencil, Trash2, Flag, ChevronRight, ChevronDown, X, Search, Layers, ChevronsDownUp, ChevronsUpDown } from 'lucide-react';
+import { Plus, Pencil, Trash2, Flag, ChevronRight, ChevronDown, X, Search, Layers, ChevronsDownUp, ChevronsUpDown, FileDown } from 'lucide-react';
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 type Milestone = {
@@ -85,6 +85,10 @@ export default function MilestonesPage() {
   const [epicConfirmOpen, setEpicConfirmOpen] = useState(false);
   const [pendingEpic, setPendingEpic] = useState<ActivityItem | null>(null);
   const [collapsedEpics, setCollapsedEpics] = useState<Set<number>>(new Set());
+
+  // picker collapse state
+  const [pickerCollapsedPhases, setPickerCollapsedPhases] = useState<Set<string>>(new Set());
+  const [pickerCollapsedEpics, setPickerCollapsedEpics] = useState<Set<number>>(new Set());
 
   // ── loaders ─────────────────────────────────────────────────────────────
   const loadMilestones = useCallback(async () => {
@@ -202,6 +206,115 @@ export default function MilestonesPage() {
 
   function expandAll() {
     setCollapsedEpics(new Set());
+  }
+
+  // picker collapse/expand helpers
+  function togglePickerPhase(phase: string) {
+    setPickerCollapsedPhases(prev => {
+      const next = new Set(prev);
+      if (next.has(phase)) next.delete(phase); else next.add(phase);
+      return next;
+    });
+  }
+
+  function togglePickerEpic(epicId: number) {
+    setPickerCollapsedEpics(prev => {
+      const next = new Set(prev);
+      if (next.has(epicId)) next.delete(epicId); else next.add(epicId);
+      return next;
+    });
+  }
+
+  function pickerCollapseAll(phases: string[], epicIds: number[]) {
+    setPickerCollapsedPhases(new Set(phases));
+    setPickerCollapsedEpics(new Set(epicIds));
+  }
+
+  function pickerExpandAll() {
+    setPickerCollapsedPhases(new Set());
+    setPickerCollapsedEpics(new Set());
+  }
+
+  // ── export PDF (print window) ──────────────────────────────────────────────
+  function exportPDF() {
+    if (!selected) return;
+
+    const rows: string[] = [];
+    for (const [phase, parents] of Object.entries(displayByPhase)) {
+      rows.push(`<tr class="phase-header"><td colspan="5">${phase}</td></tr>`);
+      for (const parent of parents) {
+        const isEpic = parent.no === 'EPIC';
+        const label = isEpic
+          ? `<span class="badge-epic">EPIC</span> ${parent.activity}`
+          : `${parent.jira_key ? `<span class="badge-jira">${parent.jira_key}</span> ` : ''}${parent.activity}`;
+        rows.push(`<tr class="${isEpic ? 'epic-row' : ''}">
+          <td class="indent-0">${label}</td>
+          <td><span class="status">${parent.status}</span></td>
+          <td>${parent.completion_pct ?? 0}%</td>
+          <td>${fmt(parent.plan_start)}</td>
+          <td>${fmt(parent.plan_end)}</td>
+        </tr>`);
+        for (const child of (childrenByParent[parent.id] ?? [])) {
+          rows.push(`<tr class="child-row">
+            <td class="indent-1">↳ ${child.jira_key ? `<span class="badge-jira">${child.jira_key}</span> ` : ''}${child.activity}</td>
+            <td><span class="status">${child.status}</span></td>
+            <td>${child.completion_pct ?? 0}%</td>
+            <td>${fmt(child.plan_start)}</td>
+            <td>${fmt(child.plan_end)}</td>
+          </tr>`);
+        }
+      }
+    }
+
+    const html = `<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<title>${selected.name}</title>
+<style>
+  @page { margin: 20mm; size: A4 landscape; }
+  body { font-family: Arial, sans-serif; font-size: 11px; color: #1e293b; }
+  h1 { font-size: 18px; margin: 0 0 4px; color: #ea580c; }
+  .meta { font-size: 11px; color: #64748b; margin-bottom: 16px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+  th { background: #f1f5f9; text-align: left; padding: 6px 8px; font-size: 10px; font-weight: 700; color: #475569; border-bottom: 2px solid #e2e8f0; }
+  td { padding: 5px 8px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+  .phase-header td { background: #fff7ed; font-weight: 700; font-size: 10px; color: #c2410c; text-transform: uppercase; letter-spacing: 0.05em; padding: 6px 8px; border-top: 1px solid #fed7aa; }
+  .epic-row td { background: #fff7ed; }
+  .child-row td { background: #fafafa; }
+  .indent-1 { padding-left: 24px !important; }
+  .badge-epic { background: #fed7aa; color: #c2410c; font-size: 9px; font-weight: 700; padding: 1px 5px; border-radius: 3px; margin-right: 4px; }
+  .badge-jira { background: #dbeafe; color: #1d4ed8; font-size: 9px; font-family: monospace; padding: 1px 5px; border-radius: 3px; margin-right: 4px; }
+  .status { font-size: 9px; padding: 2px 6px; border-radius: 10px; background: #f1f5f9; color: #475569; }
+  @media print { button { display: none; } }
+</style>
+</head>
+<body>
+<h1>${selected.name}</h1>
+<div class="meta">
+  Project: <strong>${project?.name ?? ''}</strong> &nbsp;|&nbsp;
+  Thời gian: <strong>${fmt(selected.start_date)} → ${fmt(selected.end_date)}</strong> &nbsp;|&nbsp;
+  Tổng: <strong>${milestoneItems.length} item</strong> &nbsp;|&nbsp;
+  Xuất lúc: <strong>${new Date().toLocaleDateString('vi-VN')}</strong>
+</div>
+<table>
+  <thead><tr>
+    <th style="width:45%">Activity</th>
+    <th style="width:15%">Trạng thái</th>
+    <th style="width:8%">%</th>
+    <th style="width:14%">Bắt đầu</th>
+    <th style="width:14%">Kết thúc</th>
+  </tr></thead>
+  <tbody>${rows.join('')}</tbody>
+</table>
+</body></html>`;
+
+    const win = window.open('', '_blank', 'width=1100,height=800');
+    if (!win) { toast.error('Vui lòng cho phép popup để xuất PDF'); return; }
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+    setTimeout(() => { win.print(); }, 500);
   }
 
   // ── computed ─────────────────────────────────────────────────────────────
@@ -373,7 +486,15 @@ export default function MilestonesPage() {
                       );
                     })()}
                     <Button
-                      onClick={() => { setSearch(''); setPickerOpen(true); }}
+                      onClick={exportPDF}
+                      variant="outline"
+                      className="gap-1.5 border-slate-300 text-slate-600 hover:bg-slate-50"
+                    >
+                      <FileDown className="h-4 w-4" />
+                      Export PDF
+                    </Button>
+                    <Button
+                      onClick={() => { setSearch(''); setPickerCollapsedPhases(new Set()); setPickerCollapsedEpics(new Set()); setPickerOpen(true); }}
                       variant="outline"
                       className="gap-1.5 border-orange-300 text-orange-600 hover:bg-orange-50"
                     >
@@ -545,15 +666,35 @@ export default function MilestonesPage() {
           <DialogHeader>
             <DialogTitle>Thêm vào &quot;{selected?.name}&quot;</DialogTitle>
           </DialogHeader>
-          <div className="relative mt-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-            <Input
-              className="pl-9"
-              placeholder="Tìm kiếm theo tên, phase, Jira key..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              autoFocus
-            />
+          <div className="flex items-center gap-2 mt-1">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <Input
+                className="pl-9"
+                placeholder="Tìm kiếm theo tên, phase, Jira key..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                autoFocus
+              />
+            </div>
+            {filteredPickerEntries.length > 0 && (
+              (() => {
+                const allPhases = filteredPickerEntries.map(([p]) => p);
+                const allEpicIds = filteredPickerEntries.flatMap(([, g]) => g.epics.map(eg => eg.epic.id));
+                const allCollapsed = allPhases.every(p => pickerCollapsedPhases.has(p));
+                return allCollapsed ? (
+                  <Button variant="ghost" size="sm" onClick={pickerExpandAll} className="gap-1.5 text-slate-500 hover:text-slate-700 text-xs px-2 shrink-0">
+                    <ChevronsUpDown className="h-3.5 w-3.5" />
+                    Expand All
+                  </Button>
+                ) : (
+                  <Button variant="ghost" size="sm" onClick={() => pickerCollapseAll(allPhases, allEpicIds)} className="gap-1.5 text-slate-500 hover:text-slate-700 text-xs px-2 shrink-0">
+                    <ChevronsDownUp className="h-3.5 w-3.5" />
+                    Collapse All
+                  </Button>
+                );
+              })()
+            )}
           </div>
           <div className="overflow-y-auto flex-1 mt-2 -mx-1 px-1">
             {filteredPickerEntries.length === 0 ? (
@@ -562,23 +703,44 @@ export default function MilestonesPage() {
               </p>
             ) : (
               <div className="space-y-5">
-                {filteredPickerEntries.map(([phase, group]) => (
+                {filteredPickerEntries.map(([phase, group]) => {
+                  const phaseCollapsed = pickerCollapsedPhases.has(phase);
+                  return (
                   <div key={phase}>
-                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 sticky top-0 bg-white py-1">{phase}</p>
+                    <button
+                      onClick={() => togglePickerPhase(phase)}
+                      className="w-full flex items-center gap-1.5 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 sticky top-0 bg-white py-1 hover:text-orange-500 transition-colors"
+                    >
+                      {phaseCollapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                      {phase}
+                    </button>
+                    {!phaseCollapsed && (
                     <div className="space-y-2">
 
                       {/* Epics with their children */}
                       {group.epics
                         .filter(eg => !q || matchesQ(eg.epic) || eg.children.some(matchesQ))
-                        .map(eg => (
+                        .map(eg => {
+                          const epicCollapsed = pickerCollapsedEpics.has(eg.epic.id);
+                          const filteredChildren = eg.children.filter(c => !q || matchesQ(c));
+                          return (
                           <div key={eg.epic.id}>
-                            {/* Epic row — clicking triggers bulk-add confirm */}
-                            <button
-                              onClick={() => handlePickerClick(eg.epic)}
-                              className="w-full text-left bg-orange-50 hover:bg-orange-100 border border-orange-200 hover:border-orange-400 rounded-lg px-4 py-2.5 transition-colors flex items-center gap-3"
-                            >
-                              <Layers className="h-4 w-4 text-orange-500 shrink-0" />
-                              <div className="flex-1 min-w-0">
+                            {/* Epic row — left side collapses children, right side adds */}
+                            <div className="bg-orange-50 border border-orange-200 hover:border-orange-400 rounded-lg px-3 py-2.5 transition-colors flex items-center gap-2">
+                              {filteredChildren.length > 0 && (
+                                <button
+                                  onClick={() => togglePickerEpic(eg.epic.id)}
+                                  className="p-0.5 rounded text-orange-400 hover:text-orange-600 shrink-0"
+                                  title={epicCollapsed ? 'Expand children' : 'Collapse children'}
+                                >
+                                  {epicCollapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                                </button>
+                              )}
+                              {filteredChildren.length === 0 && <Layers className="h-4 w-4 text-orange-500 shrink-0" />}
+                              <button
+                                onClick={() => handlePickerClick(eg.epic)}
+                                className="flex-1 text-left min-w-0"
+                              >
                                 <div className="flex items-center gap-2 flex-wrap">
                                   <span className="text-xs font-semibold text-orange-600 bg-orange-100 px-1.5 py-0.5 rounded">EPIC</span>
                                   {eg.epic.jira_key && (
@@ -592,17 +754,17 @@ export default function MilestonesPage() {
                                   {(eg.epic.plan_start || eg.epic.plan_end) && (
                                     <span className="text-xs text-slate-400">{fmt(eg.epic.plan_start)} → {fmt(eg.epic.plan_end)}</span>
                                   )}
-                                  {eg.children.length > 0 && (
-                                    <span className="text-xs text-orange-500">{eg.children.length} children</span>
+                                  {filteredChildren.length > 0 && (
+                                    <span className="text-xs text-orange-500">{filteredChildren.length} children</span>
                                   )}
                                 </div>
-                              </div>
-                            </button>
+                              </button>
+                            </div>
 
                             {/* Children under this epic */}
-                            {eg.children.filter(c => !q || matchesQ(c)).length > 0 && (
+                            {filteredChildren.length > 0 && !epicCollapsed && (
                               <div className="ml-5 mt-1 space-y-1 pl-4 border-l-2 border-orange-100">
-                                {eg.children.filter(c => !q || matchesQ(c)).map(child => (
+                                {filteredChildren.map(child => (
                                   <button
                                     key={child.id}
                                     onClick={() => handlePickerClick(child)}
@@ -630,7 +792,8 @@ export default function MilestonesPage() {
                               </div>
                             )}
                           </div>
-                        ))}
+                          );
+                        })}
 
                       {/* Orphan children (epic is already in milestone or different phase) */}
                       {group.orphanChildren.filter(c => !q || matchesQ(c)).map(c => {
@@ -686,8 +849,10 @@ export default function MilestonesPage() {
                       ))}
 
                     </div>
+                    )}
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
