@@ -1100,7 +1100,7 @@ export default function DocumentsPage() {
             ) : (
               <div className="flex items-center gap-2">
                 <Label className="text-xs text-slate-500 w-20">Milestone</Label>
-                <Select value={projReportMilestoneId} onValueChange={setProjReportMilestoneId}>
+                <Select value={projReportMilestoneId} onValueChange={(v) => v && setProjReportMilestoneId(v)}>
                   <SelectTrigger className="h-8 text-xs w-72">
                     <SelectValue placeholder={projMilestones.length === 0 ? 'No milestones' : 'Select milestone…'} />
                   </SelectTrigger>
