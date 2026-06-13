@@ -214,66 +214,81 @@ function buildProjectReport(data: ProjectReportData, language: string): string {
     : (rag === 'red' ? 'RED' : rag === 'amber' ? 'AMBER' : 'GREEN');
 
   const lines: string[] = [];
-  const D = '  ' + '━'.repeat(90);
-  const box1 = '  ╔' + '═'.repeat(88) + '╗';
-  const box2 = '  ╚' + '═'.repeat(88) + '╝';
-  const boxL = (s: string) => { const p = 88 - s.length; return `  ║${' '.repeat(Math.floor(p / 2))}${s}${' '.repeat(p - Math.floor(p / 2))}║`; };
-  const sbox1 = `  ┌${'─'.repeat(88)}┐`;
-  const sbox2 = `  └${'─'.repeat(88)}┘`;
-  const sboxL = (s: string) => `  │ ${s}${' '.repeat(Math.max(0, 86 - s.length))} │`;
+  const D = '  ' + '━'.repeat(94);
+  const box1 = '  ╔' + '═'.repeat(92) + '╗';
+  const box2 = '  ╚' + '═'.repeat(92) + '╝';
+  const boxL = (s: string) => { const p = 92 - s.length; return `  ║${' '.repeat(Math.floor(p / 2))}${s}${' '.repeat(p - Math.floor(p / 2))}║`; };
+  const sbox1 = `  ┌${'─'.repeat(92)}┐`;
+  const sbox2 = `  └${'─'.repeat(92)}┘`;
+  const sboxL = (s: string) => `  │ ${s}${' '.repeat(Math.max(0, 90 - s.length))} │`;
 
   const rp = (s: string, n: number) => (s.length > n ? s.slice(0, n - 1) + '…' : s).padEnd(n);
   const lp = (s: string | number, n: number) => String(s).padStart(n);
 
+  const wrapText = (text: string, maxLen: number): string[] => {
+    const words = text.split(' ');
+    const result: string[] = [];
+    let cur = '';
+    for (const w of words) {
+      if ((cur ? cur + ' ' + w : w).length > maxLen) { result.push(cur); cur = w; }
+      else cur = cur ? cur + ' ' + w : w;
+    }
+    if (cur) result.push(cur);
+    return result;
+  };
+
   if (isVN) {
+    // ── Header ──────────────────────────────────────────────────────────────
     lines.push(box1);
     lines.push(boxL('BÁO CÁO TÌNH TRẠNG DỰ ÁN'));
     lines.push(boxL(project.name.toUpperCase()));
     lines.push(box2);
     lines.push('');
-    lines.push(`  Ngày báo cáo  : ${today}              Mã tham chiếu : PRJ-${yyyymm}-001`);
-    lines.push(`  Kỳ báo cáo   : ${fmtD(periodStart)} → ${fmtD(periodEnd)}`);
-    if (selectedMilestone) {
-      lines.push(`  Milestone     : ${selectedMilestone.name}`);
-    }
-    lines.push(`  Giai đoạn     : ${project.current_phase}`);
-    lines.push(`  Khách hàng    : ${project.customer_name || project.program_name || 'N/A'}`);
-    lines.push(`  PM            : ${project.pm_name || 'N/A'}`);
-    lines.push(`  Ngày kết thúc : ${project.end_date ? fmtD(project.end_date) : 'N/A'}${
+    lines.push(`  Ngày báo cáo   : ${today}              Mã tham chiếu : PRJ-${yyyymm}-001`);
+    lines.push(`  Kỳ báo cáo    : ${fmtD(periodStart)} → ${fmtD(periodEnd)}`);
+    if (selectedMilestone) lines.push(`  Milestone      : ${selectedMilestone.name}`);
+    lines.push(`  Phân loại      : Bảo mật — Chỉ dành cho nội bộ`);
+    lines.push(`  Phân phối      : PM, Project Sponsor, Steering Committee`);
+    lines.push(`  Giai đoạn      : ${project.current_phase}`);
+    lines.push(`  Khách hàng     : ${project.customer_name || project.program_name || 'N/A'}`);
+    lines.push(`  PM             : ${project.pm_name || 'N/A'}`);
+    lines.push(`  Ngày kết thúc  : ${project.end_date ? fmtD(project.end_date) : 'N/A'}${
       project.days_until_deadline !== null
         ? ` (${project.days_until_deadline < 0 ? `Quá hạn ${Math.abs(project.days_until_deadline)} ngày` : `Còn ${project.days_until_deadline} ngày`})`
         : ''}`);
     lines.push('');
 
-    // Summary box
+    // ── Summary box ──────────────────────────────────────────────────────────
     const summaryText = rag === 'red'
-      ? 'Dự án đang ở trạng thái ĐỎ — có các vấn đề nghiêm trọng cần được xử lý khẩn cấp. Cần hành động ngay từ các bên liên quan.'
+      ? `Dự án đang ở trạng thái ĐỎ — có các vấn đề nghiêm trọng cần được xử lý khẩn cấp. Tính đến kỳ báo cáo, dự án đã hoàn thành ${stats.completion_pct}% với ${stats.done}/${stats.total} hoạt động. Cần hành động ngay từ PM và các bên liên quan.`
       : rag === 'amber'
-      ? 'Dự án đang ở trạng thái VÀNG — có một số rủi ro/vấn đề cần theo dõi sát sao. Cần chú ý để tránh leo thang.'
-      : 'Dự án đang vận hành tốt — tất cả các chỉ số đều trong ngưỡng kiểm soát. Không có leo thang nào cần thiết trong kỳ này.';
-    const words = summaryText.split(' ');
-    const wrappedLines: string[] = [];
-    let cur = '';
-    for (const w of words) {
-      if ((cur ? cur + ' ' + w : w).length > 84) { wrappedLines.push(cur); cur = w; }
-      else cur = cur ? cur + ' ' + w : w;
-    }
-    if (cur) wrappedLines.push(cur);
+      ? `Dự án đang ở trạng thái VÀNG — có một số rủi ro/vấn đề cần theo dõi sát sao. Tính đến kỳ báo cáo, dự án đã hoàn thành ${stats.completion_pct}% với ${stats.done}/${stats.total} hoạt động. Cần chú ý để tránh leo thang.`
+      : `Dự án đang vận hành tốt ở trạng thái XANH. Tính đến kỳ báo cáo, dự án đã hoàn thành ${stats.completion_pct}% với ${stats.done}/${stats.total} hoạt động — tất cả các chỉ số đều trong ngưỡng kiểm soát.`;
     lines.push(sbox1);
     lines.push(sboxL('TÓM TẮT'));
     lines.push(sboxL(''));
-    wrappedLines.forEach(l => lines.push(sboxL(l)));
+    wrapText(summaryText, 88).forEach(l => lines.push(sboxL(l)));
     lines.push(sbox2);
     lines.push('');
 
-    // I. Executive Summary
+    // ── I. Executive Summary ─────────────────────────────────────────────────
     lines.push(D);
     lines.push('  I.  TÓM TẮT ĐIỀU HÀNH');
     lines.push(D);
     lines.push('');
-    lines.push(`  Tình trạng tổng thể: ● ${ragLabel}`);
+    lines.push(`  Trạng thái tổng thể dự án: ● ${ragLabel}`);
     lines.push('');
-    lines.push(`  CHỈ SỐ CHÍNH:`);
+    const s1vn = rag === 'red'
+      ? `Dự án hiện ở mức ĐỎ với ${openRisks.length} rủi ro và ${openIssues.length} vấn đề đang mở — cần xử lý khẩn cấp.`
+      : rag === 'amber'
+      ? `Dự án ở mức VÀNG với ${openRisks.length} rủi ro và ${openIssues.length} vấn đề cần theo dõi sát sao.`
+      : 'Dự án đang ở trạng thái tốt — toàn bộ các chỉ số đều trong ngưỡng kiểm soát.';
+    if (project.days_until_deadline !== null && project.days_until_deadline < 0)
+      lines.push(`  [!] CẢNH BÁO: Dự án đã quá hạn ${Math.abs(project.days_until_deadline)} ngày — cần hành động ngay lập tức.`);
+    lines.push(`  ${s1vn}`);
+    if (openRisks.length === 0 && openIssues.length === 0) lines.push('  [+] Tích cực: Hiện không có rủi ro hoặc vấn đề nào đang mở.');
+    lines.push('');
+    lines.push('  CHỈ SỐ CHÍNH:');
     lines.push(`  ${'─'.repeat(55)}`);
     lines.push(`  Tổng hoạt động       : ${lp(stats.total, 5)}    Hoàn thành     : ${lp(stats.done, 5)}`);
     lines.push(`  Tiến độ (trọng số)   : ${lp(stats.completion_pct + '%', 5)}    Đang thực hiện : ${lp(stats.inProgress, 5)}`);
@@ -281,17 +296,14 @@ function buildProjectReport(data: ProjectReportData, language: string): string {
     lines.push(`  Vấn đề mở            : ${lp(openIssues.length, 5)}`);
     lines.push(`  ${'─'.repeat(55)}`);
     lines.push('');
-
-    // Progress bar
     const barLen = 40;
     const filled = Math.round((stats.completion_pct / 100) * barLen);
-    const bar = '█'.repeat(filled) + '░'.repeat(barLen - filled);
-    lines.push(`  Tiến độ tổng thể: [${bar}] ${stats.completion_pct}%`);
+    lines.push(`  Tiến độ tổng thể: [${'█'.repeat(filled)}${'░'.repeat(barLen - filled)}] ${stats.completion_pct}%`);
     lines.push('');
 
-    // II. Completed in period
+    // ── II. Completed in Period ──────────────────────────────────────────────
     lines.push(D);
-    lines.push('  II. TIẾN ĐỘ TRONG KỲ — HOÀN THÀNH');
+    lines.push('  II. TIẾN ĐỘ TRONG KỲ — HOÀN THÀNH TRONG GIAI ĐOẠN');
     lines.push(D);
     lines.push(`  Kỳ báo cáo: ${fmtD(periodStart)} → ${fmtD(periodEnd)}`);
     lines.push('');
@@ -299,19 +311,44 @@ function buildProjectReport(data: ProjectReportData, language: string): string {
       lines.push('  Không có hoạt động nào hoàn thành trong giai đoạn này.');
     } else {
       completedInPeriod.forEach((a, i) => {
-        lines.push(`  ${String(i + 1).padStart(2)}. [+] ${a.activity}${a.deliverable ? `\n       → ${a.deliverable}` : ''}${a.actual_end ? `  [${a.actual_end}]` : ''}`);
+        lines.push(`  ${String(i + 1).padStart(2)}. [+]  ${a.activity}${a.deliverable ? `  →  ${a.deliverable}` : ''}${a.actual_end ? `  [${a.actual_end}]` : ''}`);
       });
     }
     lines.push('');
 
-    // III. Upcoming
+    // ── III. Actions Required ────────────────────────────────────────────────
     lines.push(D);
-    lines.push('  III. HOẠT ĐỘNG SẮP TỚI (30 NGÀY)');
+    lines.push('  III. HÀNH ĐỘNG CẦN THIẾT — PM / Project Sponsor');
     lines.push(D);
     lines.push('');
-    if (upcomingActivities.length === 0) {
-      lines.push('  Không có hoạt động sắp tới trong 30 ngày tới.');
+    const critRisksVN = openRisks.filter(r => r.priority === 'Critical' || r.priority === 'High');
+    const critIssuesVN = openIssues.filter(r => r.priority === 'Critical' || r.priority === 'High');
+    let aiVN = 0;
+    const actVN: string[] = [];
+    if (project.days_until_deadline !== null && project.days_until_deadline < 0) {
+      aiVN++;
+      actVN.push(`  ${aiVN}. [KHẨN CẤP — QUÁ HẠN]  Dự án đã quá hạn ${Math.abs(project.days_until_deadline)} ngày.`);
+      actVN.push(`     → Đề xuất: Xem xét lại kế hoạch, nguồn lực và phạm vi với Project Sponsor ngay lập tức.`);
+    }
+    critRisksVN.forEach(r => {
+      aiVN++;
+      actVN.push(`  ${aiVN}. [RỦI RO — ${r.priority.toUpperCase()}]  ${r.description}`);
+      actVN.push(`     → Biện pháp: ${r.mitigation || 'Đánh giá và triển khai biện pháp xử lý ngay lập tức'}.`);
+    });
+    critIssuesVN.forEach(r => {
+      aiVN++;
+      actVN.push(`  ${aiVN}. [VẤN ĐỀ — ${r.priority.toUpperCase()}]  ${r.description}`);
+      actVN.push(`     → Xử lý: ${r.mitigation || 'Cần hành động ngay lập tức'}.`);
+    });
+    if (actVN.length === 0) {
+      lines.push('  Không có leo thang nào cần PM xử lý ngay. Dự án đang trong tầm kiểm soát.');
     } else {
+      actVN.forEach(a => lines.push(a));
+    }
+    lines.push('');
+    if (upcomingActivities.length > 0) {
+      lines.push('  HOẠT ĐỘNG SẮP ĐẾN HẠN (30 NGÀY TỚI):');
+      lines.push(`  ${'─'.repeat(82)}`);
       const UW = { dt: 12, nm: 44, st: 22 } as const;
       lines.push(`  ┌${'─'.repeat(UW.dt + 2)}┬${'─'.repeat(UW.nm + 2)}┬${'─'.repeat(UW.st + 2)}┐`);
       lines.push(`  │ ${'DUE DATE'.padEnd(UW.dt)} │ ${'HOẠT ĐỘNG'.padEnd(UW.nm)} │ ${'TRẠNG THÁI'.padEnd(UW.st)} │`);
@@ -320,12 +357,32 @@ function buildProjectReport(data: ProjectReportData, language: string): string {
         lines.push(`  │ ${rp(fmtD(a.plan_end ?? ''), UW.dt)} │ ${rp(a.activity, UW.nm)} │ ${rp(a.status || '—', UW.st)} │`);
       });
       lines.push(`  └${'─'.repeat(UW.dt + 2)}┴${'─'.repeat(UW.nm + 2)}┴${'─'.repeat(UW.st + 2)}┘`);
+      lines.push('');
     }
-    lines.push('');
 
-    // IV. Risks & Issues
+    // ── IV. Epic/Phase Progress ──────────────────────────────────────────────
+    if (epicStats.length > 0) {
+      lines.push(D);
+      lines.push('  IV. TIẾN ĐỘ THEO EPIC / PHASE');
+      lines.push(D);
+      lines.push('');
+      const EW = { nm: 28, pc: 6, dn: 8, tt: 8, br: 22 } as const;
+      lines.push(`  ┌${'─'.repeat(EW.nm + 2)}┬${'─'.repeat(EW.pc + 2)}┬${'─'.repeat(EW.dn + 2)}┬${'─'.repeat(EW.tt + 2)}┬${'─'.repeat(EW.br + 2)}┐`);
+      lines.push(`  │ ${'EPIC / PHASE'.padEnd(EW.nm)} │ ${'PCT'.padStart(EW.pc)} │ ${'DONE'.padStart(EW.dn)} │ ${'TOTAL'.padStart(EW.tt)} │ ${'TIẾN ĐỘ'.padEnd(EW.br)} │`);
+      lines.push(`  ├${'─'.repeat(EW.nm + 2)}┼${'─'.repeat(EW.pc + 2)}┼${'─'.repeat(EW.dn + 2)}┼${'─'.repeat(EW.tt + 2)}┼${'─'.repeat(EW.br + 2)}┤`);
+      epicStats.forEach(e => {
+        const bLen = 20;
+        const filled2 = Math.round((e.pct / 100) * bLen);
+        const bar2 = '█'.repeat(filled2) + '░'.repeat(bLen - filled2);
+        lines.push(`  │ ${rp(e.phase, EW.nm)} │ ${lp(e.pct + '%', EW.pc)} │ ${lp(e.done, EW.dn)} │ ${lp(e.total, EW.tt)} │ [${bar2}] │`);
+      });
+      lines.push(`  └${'─'.repeat(EW.nm + 2)}┴${'─'.repeat(EW.pc + 2)}┴${'─'.repeat(EW.dn + 2)}┴${'─'.repeat(EW.tt + 2)}┴${'─'.repeat(EW.br + 2)}┘`);
+      lines.push('');
+    }
+
+    // ── V. Risks & Issues ────────────────────────────────────────────────────
     lines.push(D);
-    lines.push('  IV. RỦI RO & VẤN ĐỀ (CHƯA ĐÓNG)');
+    lines.push('  V.  RỦI RO & VẤN ĐỀ (CHƯA ĐÓNG)');
     lines.push(D);
     lines.push('');
     lines.push(`  A. RỦI RO (${openRisks.length}):`);
@@ -355,40 +412,38 @@ function buildProjectReport(data: ProjectReportData, language: string): string {
     }
     lines.push('');
 
-    // V. Epic/Phase Progress
-    if (epicStats.length > 0) {
-      lines.push(D);
-      lines.push('  V.  TIẾN ĐỘ THEO EPIC / PHASE');
-      lines.push(D);
-      lines.push('');
-      const EW = { nm: 28, pc: 6, dn: 8, tt: 8, br: 22 } as const;
-      lines.push(`  ┌${'─'.repeat(EW.nm + 2)}┬${'─'.repeat(EW.pc + 2)}┬${'─'.repeat(EW.dn + 2)}┬${'─'.repeat(EW.tt + 2)}┬${'─'.repeat(EW.br + 2)}┐`);
-      lines.push(`  │ ${'EPIC / PHASE'.padEnd(EW.nm)} │ ${'PCT'.padStart(EW.pc)} │ ${'DONE'.padStart(EW.dn)} │ ${'TOTAL'.padStart(EW.tt)} │ ${'PROGRESS'.padEnd(EW.br)} │`);
-      lines.push(`  ├${'─'.repeat(EW.nm + 2)}┼${'─'.repeat(EW.pc + 2)}┼${'─'.repeat(EW.dn + 2)}┼${'─'.repeat(EW.tt + 2)}┼${'─'.repeat(EW.br + 2)}┤`);
-      epicStats.forEach(e => {
-        const bLen = 20;
-        const filled2 = Math.round((e.pct / 100) * bLen);
-        const bar2 = '█'.repeat(filled2) + '░'.repeat(bLen - filled2);
-        lines.push(`  │ ${rp(e.phase, EW.nm)} │ ${lp(e.pct + '%', EW.pc)} │ ${lp(e.done, EW.dn)} │ ${lp(e.total, EW.tt)} │ [${bar2}] │`);
-      });
-      lines.push(`  └${'─'.repeat(EW.nm + 2)}┴${'─'.repeat(EW.pc + 2)}┴${'─'.repeat(EW.dn + 2)}┴${'─'.repeat(EW.tt + 2)}┴${'─'.repeat(EW.br + 2)}┘`);
-      lines.push('');
-    }
-
-    // VI. Bug stats
+    // ── VI. Bug Report ───────────────────────────────────────────────────────
     if (bugStats && bugStats.total > 0) {
       lines.push(D);
-      lines.push('  VI. TỔNG HỢP BUG');
+      lines.push('  VI. BUG REPORT — TỔNG HỢP LỖI DỰ ÁN');
       lines.push(D);
       lines.push('');
       const critBugs = (bugStats.byPriority['Critical'] ?? 0) + (bugStats.byPriority['Highest'] ?? 0);
-      const openBugs = (bugStats.byStatus['Open'] ?? 0) + (bugStats.byStatus['New'] ?? 0) + (bugStats.byStatus['To Do'] ?? 0);
+      const openBugs = (bugStats.byStatus['Open'] ?? 0) + (bugStats.byStatus['New'] ?? 0) + (bugStats.byStatus['To Do'] ?? 0) + (bugStats.byStatus['To-do'] ?? 0);
       lines.push(`  Tổng Bug: ${bugStats.total}   ·   Critical/Highest: ${critBugs}   ·   Chưa xử lý: ${openBugs}`);
       lines.push('');
-      lines.push('  Theo trạng thái:');
+      lines.push('  A. PHÂN BỔ THEO TRẠNG THÁI:');
+      lines.push(`  ${'─'.repeat(50)}`);
+      const bw = { st: 24 } as const;
       Object.entries(bugStats.byStatus).sort((a, b) => b[1] - a[1]).forEach(([st, cnt]) => {
-        const pct = Math.round(cnt / bugStats.total * 100);
-        lines.push(`    ${st.padEnd(24)} ${String(cnt).padStart(5)} (${String(pct).padStart(3)}%)`);
+        const pct = bugStats.total > 0 ? Math.round(cnt / bugStats.total * 100) : 0;
+        const bLen = Math.round(pct / 5);
+        const bar = '█'.repeat(bLen) + '░'.repeat(20 - bLen);
+        const stLabel = st.length > bw.st ? st.slice(0, bw.st - 1) + '…' : st;
+        lines.push(`  ${stLabel.padEnd(bw.st)} ${String(cnt).padStart(8)} (${String(pct).padStart(3)}%) [${bar}]`);
+      });
+      lines.push('');
+      lines.push('  B. PHÂN BỔ THEO PRIORITY:');
+      lines.push(`  ${'─'.repeat(50)}`);
+      ['Critical', 'Highest', 'High', 'Medium', 'Low', 'Lowest'].forEach(pr => {
+        const cnt = bugStats.byPriority[pr];
+        if (!cnt) return;
+        const pct = bugStats.total > 0 ? Math.round(cnt / bugStats.total * 100) : 0;
+        lines.push(`  ${pr.padEnd(bw.st)} ${String(cnt).padStart(8)} (${String(pct).padStart(3)}%)`);
+      });
+      Object.entries(bugStats.byPriority).filter(([pr]) => !['Critical','Highest','High','Medium','Low','Lowest'].includes(pr)).forEach(([pr, cnt]) => {
+        const pct = bugStats.total > 0 ? Math.round(cnt / bugStats.total * 100) : 0;
+        lines.push(`  ${pr.padEnd(bw.st)} ${String(cnt).padStart(8)} (${String(pct).padStart(3)}%)`);
       });
       lines.push('');
     }
@@ -398,51 +453,55 @@ function buildProjectReport(data: ProjectReportData, language: string): string {
     lines.push(D);
 
   } else {
-    // ── English ───────────────────────────────────────────────────────────────
+    // ── English ──────────────────────────────────────────────────────────────
     lines.push(box1);
     lines.push(boxL('PROJECT STATUS REPORT'));
     lines.push(boxL(project.name.toUpperCase()));
     lines.push(box2);
     lines.push('');
-    lines.push(`  Report Date   : ${today}              Reference : PRJ-${yyyymm}-001`);
-    lines.push(`  Period        : ${fmtD(periodStart)} → ${fmtD(periodEnd)}`);
-    if (selectedMilestone) {
-      lines.push(`  Milestone     : ${selectedMilestone.name}`);
-    }
-    lines.push(`  Phase         : ${project.current_phase}`);
-    lines.push(`  Customer      : ${project.customer_name || project.program_name || 'N/A'}`);
-    lines.push(`  PM            : ${project.pm_name || 'N/A'}`);
-    lines.push(`  End Date      : ${project.end_date ? fmtD(project.end_date) : 'N/A'}${
+    lines.push(`  Report Date    : ${today}              Reference : PRJ-${yyyymm}-001`);
+    lines.push(`  Period         : ${fmtD(periodStart)} → ${fmtD(periodEnd)}`);
+    if (selectedMilestone) lines.push(`  Milestone      : ${selectedMilestone.name}`);
+    lines.push(`  Classification : Confidential — Internal Distribution Only`);
+    lines.push(`  Distribution   : PM, Project Sponsor, Steering Committee`);
+    lines.push(`  Phase          : ${project.current_phase}`);
+    lines.push(`  Customer       : ${project.customer_name || project.program_name || 'N/A'}`);
+    lines.push(`  PM             : ${project.pm_name || 'N/A'}`);
+    lines.push(`  End Date       : ${project.end_date ? fmtD(project.end_date) : 'N/A'}${
       project.days_until_deadline !== null
         ? ` (${project.days_until_deadline < 0 ? `OVERDUE ${Math.abs(project.days_until_deadline)} days` : `${project.days_until_deadline} days remaining`})`
         : ''}`);
     lines.push('');
 
+    // Summary box
     const summaryTextEN = rag === 'red'
-      ? 'Project is at RED status — critical issues require immediate attention from stakeholders. Escalation and corrective action are needed this period.'
+      ? `Project is tracking RED — critical issues require immediate attention. As of this reporting period, the project has completed ${stats.completion_pct}% with ${stats.done}/${stats.total} activities. Escalation and corrective action are required.`
       : rag === 'amber'
-      ? 'Project is at AMBER status — risks and issues are present and require close monitoring. Action is needed to prevent escalation.'
-      : 'Project is tracking GREEN — all key indicators are within acceptable thresholds. No escalations are required at this time.';
-    const wordsEN = summaryTextEN.split(' ');
-    const wrappedEN: string[] = [];
-    let curEN = '';
-    for (const w of wordsEN) {
-      if ((curEN ? curEN + ' ' + w : w).length > 84) { wrappedEN.push(curEN); curEN = w; }
-      else curEN = curEN ? curEN + ' ' + w : w;
-    }
-    if (curEN) wrappedEN.push(curEN);
+      ? `Project is tracking AMBER — risks and issues are present and require close monitoring. As of this reporting period, the project has completed ${stats.completion_pct}% with ${stats.done}/${stats.total} activities. Action is needed to prevent escalation.`
+      : `Project is tracking GREEN — all indicators are within acceptable thresholds. As of this reporting period, the project has completed ${stats.completion_pct}% with ${stats.done}/${stats.total} activities. No escalations required.`;
     lines.push(sbox1);
     lines.push(sboxL('SUMMARY'));
     lines.push(sboxL(''));
-    wrappedEN.forEach(l => lines.push(sboxL(l)));
+    wrapText(summaryTextEN, 88).forEach(l => lines.push(sboxL(l)));
     lines.push(sbox2);
     lines.push('');
 
+    // I. Executive Summary
     lines.push(D);
     lines.push('  I.  EXECUTIVE SUMMARY');
     lines.push(D);
     lines.push('');
-    lines.push(`  Overall Status: ● ${ragLabel}`);
+    lines.push(`  Overall Project Status: ● ${ragLabel}`);
+    lines.push('');
+    const s1en = rag === 'red'
+      ? `Project is at RED status with ${openRisks.length} open risks and ${openIssues.length} open issues requiring immediate attention.`
+      : rag === 'amber'
+      ? `Project is at AMBER status with ${openRisks.length} open risks and ${openIssues.length} open issues under close monitoring.`
+      : 'Project is tracking GREEN — all key indicators are within acceptable thresholds.';
+    if (project.days_until_deadline !== null && project.days_until_deadline < 0)
+      lines.push(`  [!] ALERT: Project is OVERDUE by ${Math.abs(project.days_until_deadline)} days — immediate action required.`);
+    lines.push(`  ${s1en}`);
+    if (openRisks.length === 0 && openIssues.length === 0) lines.push('  [+] Positive: No open risks or issues recorded at this time.');
     lines.push('');
     lines.push('  KEY METRICS:');
     lines.push(`  ${'─'.repeat(55)}`);
@@ -457,6 +516,7 @@ function buildProjectReport(data: ProjectReportData, language: string): string {
     lines.push(`  Overall Progress: [${'█'.repeat(filledEN)}${'░'.repeat(barLenEN - filledEN)}] ${stats.completion_pct}%`);
     lines.push('');
 
+    // II. Completed in Period
     lines.push(D);
     lines.push('  II. PROGRESS IN PERIOD — COMPLETED ACTIVITIES');
     lines.push(D);
@@ -466,18 +526,44 @@ function buildProjectReport(data: ProjectReportData, language: string): string {
       lines.push('  No activities completed in this period.');
     } else {
       completedInPeriod.forEach((a, i) => {
-        lines.push(`  ${String(i + 1).padStart(2)}. [+] ${a.activity}${a.deliverable ? `\n       → ${a.deliverable}` : ''}${a.actual_end ? `  [${a.actual_end}]` : ''}`);
+        lines.push(`  ${String(i + 1).padStart(2)}. [+]  ${a.activity}${a.deliverable ? `  →  ${a.deliverable}` : ''}${a.actual_end ? `  [${a.actual_end}]` : ''}`);
       });
     }
     lines.push('');
 
+    // III. Actions Required
     lines.push(D);
-    lines.push('  III. UPCOMING ACTIVITIES (NEXT 30 DAYS)');
+    lines.push('  III. ACTIONS REQUIRED — PM / Project Sponsor');
     lines.push(D);
     lines.push('');
-    if (upcomingActivities.length === 0) {
-      lines.push('  No upcoming activities in the next 30 days.');
+    const critRisksEN = openRisks.filter(r => r.priority === 'Critical' || r.priority === 'High');
+    const critIssuesEN = openIssues.filter(r => r.priority === 'Critical' || r.priority === 'High');
+    let aiEN = 0;
+    const actEN: string[] = [];
+    if (project.days_until_deadline !== null && project.days_until_deadline < 0) {
+      aiEN++;
+      actEN.push(`  ${aiEN}. [URGENT — OVERDUE]  Project is overdue by ${Math.abs(project.days_until_deadline)} days.`);
+      actEN.push(`     → Recommend: Immediate review of plan, resources and scope with Project Sponsor.`);
+    }
+    critRisksEN.forEach(r => {
+      aiEN++;
+      actEN.push(`  ${aiEN}. [RISK — ${r.priority.toUpperCase()}]  ${r.description}`);
+      actEN.push(`     → Mitigation: ${r.mitigation || 'Immediate assessment and corrective action required'}.`);
+    });
+    critIssuesEN.forEach(r => {
+      aiEN++;
+      actEN.push(`  ${aiEN}. [ISSUE — ${r.priority.toUpperCase()}]  ${r.description}`);
+      actEN.push(`     → Resolution: ${r.mitigation || 'Immediate action required'}.`);
+    });
+    if (actEN.length === 0) {
+      lines.push('  No immediate escalations required at this time. Project is under control.');
     } else {
+      actEN.forEach(a => lines.push(a));
+    }
+    lines.push('');
+    if (upcomingActivities.length > 0) {
+      lines.push('  ACTIVITIES DUE IN NEXT 30 DAYS:');
+      lines.push(`  ${'─'.repeat(82)}`);
       const UW2 = { dt: 12, nm: 44, st: 22 } as const;
       lines.push(`  ┌${'─'.repeat(UW2.dt + 2)}┬${'─'.repeat(UW2.nm + 2)}┬${'─'.repeat(UW2.st + 2)}┐`);
       lines.push(`  │ ${'DUE DATE'.padEnd(UW2.dt)} │ ${'ACTIVITY'.padEnd(UW2.nm)} │ ${'STATUS'.padEnd(UW2.st)} │`);
@@ -486,11 +572,32 @@ function buildProjectReport(data: ProjectReportData, language: string): string {
         lines.push(`  │ ${rp(fmtD(a.plan_end ?? ''), UW2.dt)} │ ${rp(a.activity, UW2.nm)} │ ${rp(a.status || '—', UW2.st)} │`);
       });
       lines.push(`  └${'─'.repeat(UW2.dt + 2)}┴${'─'.repeat(UW2.nm + 2)}┴${'─'.repeat(UW2.st + 2)}┘`);
+      lines.push('');
     }
-    lines.push('');
 
+    // IV. Epic/Phase Progress
+    if (epicStats.length > 0) {
+      lines.push(D);
+      lines.push('  IV. EPIC / PHASE PROGRESS');
+      lines.push(D);
+      lines.push('');
+      const EW2 = { nm: 28, pc: 6, dn: 8, tt: 8, br: 22 } as const;
+      lines.push(`  ┌${'─'.repeat(EW2.nm + 2)}┬${'─'.repeat(EW2.pc + 2)}┬${'─'.repeat(EW2.dn + 2)}┬${'─'.repeat(EW2.tt + 2)}┬${'─'.repeat(EW2.br + 2)}┐`);
+      lines.push(`  │ ${'EPIC / PHASE'.padEnd(EW2.nm)} │ ${'PCT'.padStart(EW2.pc)} │ ${'DONE'.padStart(EW2.dn)} │ ${'TOTAL'.padStart(EW2.tt)} │ ${'PROGRESS'.padEnd(EW2.br)} │`);
+      lines.push(`  ├${'─'.repeat(EW2.nm + 2)}┼${'─'.repeat(EW2.pc + 2)}┼${'─'.repeat(EW2.dn + 2)}┼${'─'.repeat(EW2.tt + 2)}┼${'─'.repeat(EW2.br + 2)}┤`);
+      epicStats.forEach(e => {
+        const bLen2 = 20;
+        const filled3 = Math.round((e.pct / 100) * bLen2);
+        const bar3 = '█'.repeat(filled3) + '░'.repeat(bLen2 - filled3);
+        lines.push(`  │ ${rp(e.phase, EW2.nm)} │ ${lp(e.pct + '%', EW2.pc)} │ ${lp(e.done, EW2.dn)} │ ${lp(e.total, EW2.tt)} │ [${bar3}] │`);
+      });
+      lines.push(`  └${'─'.repeat(EW2.nm + 2)}┴${'─'.repeat(EW2.pc + 2)}┴${'─'.repeat(EW2.dn + 2)}┴${'─'.repeat(EW2.tt + 2)}┴${'─'.repeat(EW2.br + 2)}┘`);
+      lines.push('');
+    }
+
+    // V. Risks & Issues
     lines.push(D);
-    lines.push('  IV. RISKS & ISSUES (OPEN / NOT CLOSED)');
+    lines.push('  V.  RISKS & ISSUES (OPEN / NOT CLOSED)');
     lines.push(D);
     lines.push('');
     lines.push(`  A. RISKS (${openRisks.length}):`);
@@ -520,38 +627,38 @@ function buildProjectReport(data: ProjectReportData, language: string): string {
     }
     lines.push('');
 
-    if (epicStats.length > 0) {
-      lines.push(D);
-      lines.push('  V.  EPIC / PHASE PROGRESS');
-      lines.push(D);
-      lines.push('');
-      const EW2 = { nm: 28, pc: 6, dn: 8, tt: 8, br: 22 } as const;
-      lines.push(`  ┌${'─'.repeat(EW2.nm + 2)}┬${'─'.repeat(EW2.pc + 2)}┬${'─'.repeat(EW2.dn + 2)}┬${'─'.repeat(EW2.tt + 2)}┬${'─'.repeat(EW2.br + 2)}┐`);
-      lines.push(`  │ ${'EPIC / PHASE'.padEnd(EW2.nm)} │ ${'PCT'.padStart(EW2.pc)} │ ${'DONE'.padStart(EW2.dn)} │ ${'TOTAL'.padStart(EW2.tt)} │ ${'PROGRESS'.padEnd(EW2.br)} │`);
-      lines.push(`  ├${'─'.repeat(EW2.nm + 2)}┼${'─'.repeat(EW2.pc + 2)}┼${'─'.repeat(EW2.dn + 2)}┼${'─'.repeat(EW2.tt + 2)}┼${'─'.repeat(EW2.br + 2)}┤`);
-      epicStats.forEach(e => {
-        const bLen2 = 20;
-        const filled3 = Math.round((e.pct / 100) * bLen2);
-        const bar3 = '█'.repeat(filled3) + '░'.repeat(bLen2 - filled3);
-        lines.push(`  │ ${rp(e.phase, EW2.nm)} │ ${lp(e.pct + '%', EW2.pc)} │ ${lp(e.done, EW2.dn)} │ ${lp(e.total, EW2.tt)} │ [${bar3}] │`);
-      });
-      lines.push(`  └${'─'.repeat(EW2.nm + 2)}┴${'─'.repeat(EW2.pc + 2)}┴${'─'.repeat(EW2.dn + 2)}┴${'─'.repeat(EW2.tt + 2)}┴${'─'.repeat(EW2.br + 2)}┘`);
-      lines.push('');
-    }
-
+    // VI. Bug Report
     if (bugStats && bugStats.total > 0) {
       lines.push(D);
-      lines.push('  VI. BUG SUMMARY');
+      lines.push('  VI. BUG REPORT — PROJECT BUG SUMMARY');
       lines.push(D);
       lines.push('');
       const critBugsEN = (bugStats.byPriority['Critical'] ?? 0) + (bugStats.byPriority['Highest'] ?? 0);
-      const openBugsEN = (bugStats.byStatus['Open'] ?? 0) + (bugStats.byStatus['New'] ?? 0) + (bugStats.byStatus['To Do'] ?? 0);
+      const openBugsEN = (bugStats.byStatus['Open'] ?? 0) + (bugStats.byStatus['New'] ?? 0) + (bugStats.byStatus['To Do'] ?? 0) + (bugStats.byStatus['To-do'] ?? 0);
       lines.push(`  Total Bugs: ${bugStats.total}   ·   Critical/Highest: ${critBugsEN}   ·   Open/New: ${openBugsEN}`);
       lines.push('');
-      lines.push('  By Status:');
+      lines.push('  A. DISTRIBUTION BY STATUS:');
+      lines.push(`  ${'─'.repeat(50)}`);
+      const bw2 = { st: 24 } as const;
       Object.entries(bugStats.byStatus).sort((a, b) => b[1] - a[1]).forEach(([st, cnt]) => {
-        const pct = Math.round(cnt / bugStats.total * 100);
-        lines.push(`    ${st.padEnd(24)} ${String(cnt).padStart(5)} (${String(pct).padStart(3)}%)`);
+        const pct = bugStats.total > 0 ? Math.round(cnt / bugStats.total * 100) : 0;
+        const bLen = Math.round(pct / 5);
+        const bar = '█'.repeat(bLen) + '░'.repeat(20 - bLen);
+        const stLabel = st.length > bw2.st ? st.slice(0, bw2.st - 1) + '…' : st;
+        lines.push(`  ${stLabel.padEnd(bw2.st)} ${String(cnt).padStart(8)} (${String(pct).padStart(3)}%) [${bar}]`);
+      });
+      lines.push('');
+      lines.push('  B. DISTRIBUTION BY PRIORITY:');
+      lines.push(`  ${'─'.repeat(50)}`);
+      ['Critical', 'Highest', 'High', 'Medium', 'Low', 'Lowest'].forEach(pr => {
+        const cnt = bugStats.byPriority[pr];
+        if (!cnt) return;
+        const pct = bugStats.total > 0 ? Math.round(cnt / bugStats.total * 100) : 0;
+        lines.push(`  ${pr.padEnd(bw2.st)} ${String(cnt).padStart(8)} (${String(pct).padStart(3)}%)`);
+      });
+      Object.entries(bugStats.byPriority).filter(([pr]) => !['Critical','Highest','High','Medium','Low','Lowest'].includes(pr)).forEach(([pr, cnt]) => {
+        const pct = bugStats.total > 0 ? Math.round(cnt / bugStats.total * 100) : 0;
+        lines.push(`  ${pr.padEnd(bw2.st)} ${String(cnt).padStart(8)} (${String(pct).padStart(3)}%)`);
       });
       lines.push('');
     }
