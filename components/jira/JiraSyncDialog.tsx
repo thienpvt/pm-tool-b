@@ -389,7 +389,7 @@ export default function JiraSyncDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col overflow-hidden p-0">
+      <DialogContent className="w-[98vw] max-w-[98vw] sm:max-w-[98vw] h-[94vh] flex flex-col overflow-hidden p-0">
 
         {/* Header */}
         <DialogHeader className="px-6 pt-5 pb-3 shrink-0 border-b">
