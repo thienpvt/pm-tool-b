@@ -8,8 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Plus, Trash2, Save, Download, Upload, FileDown, AlertCircle, GanttChart, LayoutList, CalendarX2, ChevronDown, ChevronRight, ChevronsUpDown, X, Tag, Copy, Eye, FolderPlus } from 'lucide-react';
+import { Plus, Trash2, Save, Download, Upload, FileDown, AlertCircle, GanttChart, LayoutList, CalendarX2, ChevronDown, ChevronRight, ChevronsUpDown, X, Tag, Copy, Eye, FolderPlus, RefreshCw } from 'lucide-react';
 import ImportMappingDialog from '@/components/timeline/ImportMappingDialog';
+import JiraSyncDialog from '@/components/jira/JiraSyncDialog';
 
 type Activity = {
   id: number; phase: string; no: string; activity: string; deliverable: string;
@@ -843,6 +844,7 @@ export default function TimelinePage() {
   const [filterPhase, setFilterPhase] = useState('All');
   const [saving, setSaving] = useState<number | null>(null);
   const [importOpen, setImportOpen] = useState(false);
+  const [jiraSyncOpen, setJiraSyncOpen] = useState(false);
   const [detailActivity, setDetailActivity] = useState<Activity | null>(null);
   const [viewMode, setViewMode] = useState<'table' | 'roadmap'>('table');
   const [dateMode, setDateMode] = useState<DateMode>('both');
@@ -1306,6 +1308,9 @@ export default function TimelinePage() {
               <Button variant="outline" size="sm" onClick={handleDownloadTemplate} className="gap-1.5 h-9">
                 <FileDown className="h-3.5 w-3.5" /> Template
               </Button>
+              <Button variant="outline" size="sm" onClick={() => setJiraSyncOpen(true)} className="gap-1.5 h-9">
+                <RefreshCw className="h-3.5 w-3.5" /> Sync Jira
+              </Button>
               <Button variant="outline" size="sm" onClick={() => setImportOpen(true)} className="gap-1.5 h-9">
                 <Upload className="h-3.5 w-3.5" /> Import
               </Button>
@@ -1652,6 +1657,13 @@ export default function TimelinePage() {
         projectId={id}
         projectPhase={project?.current_phase ?? ''}
         onImported={load}
+      />
+      <JiraSyncDialog
+        open={jiraSyncOpen}
+        onOpenChange={setJiraSyncOpen}
+        projectId={id}
+        mode="timeline"
+        onSynced={load}
       />
     </div>
   );

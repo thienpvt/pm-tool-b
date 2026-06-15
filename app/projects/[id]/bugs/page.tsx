@@ -11,6 +11,7 @@ import {
   FlaskConical, Sparkles, Calendar, Trash2, History, Download,
 } from 'lucide-react';
 import BugImportDialog from '@/components/bugs/BugImportDialog';
+import JiraSyncDialog from '@/components/jira/JiraSyncDialog';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -82,6 +83,7 @@ export default function BugsPage() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'summary' | 'list'>('summary');
   const [importOpen, setImportOpen] = useState(false);
+  const [jiraSyncOpen, setJiraSyncOpen] = useState(false);
   const [projectName, setProjectName] = useState('');
 
   // Snapshot dates
@@ -380,6 +382,10 @@ export default function BugsPage() {
                   {exportingPdf ? 'Đang xuất...' : 'Export PDF'}
                 </Button>
               )}
+              <Button variant="outline" onClick={() => setJiraSyncOpen(true)} className="gap-2">
+                <RefreshCw className="h-4 w-4" />
+                Sync from Jira
+              </Button>
               <Button onClick={() => setImportOpen(true)} className="gap-2 bg-red-500 hover:bg-red-600">
                 <Upload className="h-4 w-4" />
                 Import Bugs
@@ -842,6 +848,13 @@ export default function BugsPage() {
         onOpenChange={setImportOpen}
         projectId={id}
         onImported={handleAfterImport}
+      />
+      <JiraSyncDialog
+        open={jiraSyncOpen}
+        onOpenChange={setJiraSyncOpen}
+        projectId={id}
+        mode="bug"
+        onSynced={handleAfterImport}
       />
     </div>
   );
