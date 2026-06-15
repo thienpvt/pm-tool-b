@@ -1296,6 +1296,10 @@ export default function TimelinePage() {
               </SelectContent>
             </Select>
 
+            <Button variant="outline" size="sm" onClick={() => setJiraSyncOpen(true)} className="gap-1.5 h-9">
+              <RefreshCw className="h-3.5 w-3.5" /> Sync Jira
+            </Button>
+
             {viewMode === 'table' && <>
               {phaseGroups.length > 1 && filterPhase === 'All' && (
                 <button
@@ -1307,9 +1311,6 @@ export default function TimelinePage() {
               )}
               <Button variant="outline" size="sm" onClick={handleDownloadTemplate} className="gap-1.5 h-9">
                 <FileDown className="h-3.5 w-3.5" /> Template
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => setJiraSyncOpen(true)} className="gap-1.5 h-9">
-                <RefreshCw className="h-3.5 w-3.5" /> Sync Jira
               </Button>
               <Button variant="outline" size="sm" onClick={() => setImportOpen(true)} className="gap-1.5 h-9">
                 <Upload className="h-3.5 w-3.5" /> Import
