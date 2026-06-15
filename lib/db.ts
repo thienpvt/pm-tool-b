@@ -24,7 +24,9 @@ class PostgresClient implements DbClient {
   private needsReturningId(sql: string): boolean {
     const match = /INSERT\s+(?:OR\s+\w+\s+)?INTO\s+(\w+)/i.exec(sql);
     const table = match?.[1]?.toLowerCase();
-    return !!table && table !== 'settings';
+    // Tables that use non-SERIAL primary keys (no 'id' column to RETURNING)
+    const noIdTables = ['settings', 'company_jira_config'];
+    return !!table && !noIdTables.includes(table);
   }
 
   async get<T>(sql: string, ...params: unknown[]): Promise<T | undefined> {
