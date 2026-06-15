@@ -1,23 +1,40 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { getDb } from '@/lib/db';
+import { getSessionFromRequest } from '@/lib/auth';
 
-export async function GET() {
-  const baseUrl = process.env.JIRA_BASE_URL?.replace(/\/$/, '');
-  const email = process.env.JIRA_EMAIL;
-  const token = process.env.JIRA_API_TOKEN;
+export async function GET(req: NextRequest) {
+  const user = await getSessionFromRequest(req);
+  if (!user) return NextResponse.json({ ok: false, error: 'Chưa đăng nhập' }, { status: 401 });
+  if (!user.company_id) return NextResponse.json({ ok: false, error: 'Tài khoản chưa thuộc công ty nào' }, { status: 400 });
+
+  const db = await getDb();
+  const cfg = await db.get<{ base_url_var: string; email_var: string; token_var: string }>(
+    'SELECT base_url_var, email_var, token_var FROM company_jira_config WHERE company_id = ?',
+    user.company_id,
+  );
+
+  if (!cfg?.base_url_var || !cfg?.email_var || !cfg?.token_var) {
+    return NextResponse.json({
+      ok: false,
+      error: 'Công ty chưa được cấu hình Jira. Admin vào Quản trị → Companies → Cấu hình Jira.',
+    }, { status: 503 });
+  }
+
+  const baseUrl = process.env[cfg.base_url_var]?.replace(/\/$/, '');
+  const email   = process.env[cfg.email_var];
+  const token   = process.env[cfg.token_var];
 
   if (!baseUrl || !email || !token) {
-    return NextResponse.json(
-      {
-        ok: false,
-        error: 'Thiếu biến môi trường. Cần set: JIRA_BASE_URL, JIRA_EMAIL, JIRA_API_TOKEN',
-        missing: [
-          !baseUrl && 'JIRA_BASE_URL',
-          !email && 'JIRA_EMAIL',
-          !token && 'JIRA_API_TOKEN',
-        ].filter(Boolean),
-      },
-      { status: 503 }
-    );
+    const missing = [
+      !baseUrl && cfg.base_url_var,
+      !email   && cfg.email_var,
+      !token   && cfg.token_var,
+    ].filter(Boolean);
+    return NextResponse.json({
+      ok: false,
+      error: `Biến môi trường chưa được set trên Railway: ${missing.join(', ')}`,
+      missing,
+    }, { status: 503 });
   }
 
   const auth = 'Basic ' + Buffer.from(`${email}:${token}`).toString('base64');
@@ -30,10 +47,7 @@ export async function GET() {
     if (!resp.ok) {
       const errText = await resp.text();
       let errMsg = `Jira trả về ${resp.status}`;
-      try {
-        const j = JSON.parse(errText);
-        if (j.message) errMsg = j.message;
-      } catch { /* keep default */ }
+      try { const j = JSON.parse(errText); if (j.message) errMsg = j.message; } catch { /* keep */ }
       return NextResponse.json({ ok: false, error: errMsg }, { status: resp.status });
     }
 

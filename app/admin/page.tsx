@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { Plus, Pencil, Trash2, KeyRound, Building2, Users, ShieldCheck, ClipboardList, CheckCircle2, Clock, XCircle, Phone, Mail, MessageSquare } from 'lucide-react';
+import { Plus, Pencil, Trash2, KeyRound, Building2, Users, ShieldCheck, ClipboardList, CheckCircle2, Clock, XCircle, Phone, Mail, MessageSquare, Link2, CheckCircle, Loader2 } from 'lucide-react';
 
 type Company = { id: number; name: string; user_count: number };
 type User = { id: number; username: string; display_name: string; company_id: number | null; company_name: string | null; is_admin: number };
@@ -49,6 +49,13 @@ export default function AdminPage() {
   const [resetPwd, setResetPwd] = useState('');
   const [resetConfirm, setResetConfirm] = useState('');
 
+  // Jira config dialog
+  const [jiraOpen, setJiraOpen] = useState(false);
+  const [jiraCompany, setJiraCompany] = useState<Company | null>(null);
+  const [jiraForm, setJiraForm] = useState({ base_url_var: '', email_var: '', token_var: '' });
+  const [jiraTesting, setJiraTesting] = useState(false);
+  const [jiraTestResult, setJiraTestResult] = useState<{ ok: boolean; message: string } | null>(null);
+
   const loadCompanies = useCallback(() =>
     fetch('/api/admin/companies').then(r => r.json()).then(setCompanies), []);
   const loadUsers = useCallback(() =>
@@ -88,6 +95,46 @@ export default function AdminPage() {
     await fetch(`/api/admin/companies?id=${c.id}`, { method: 'DELETE' });
     toast.success('Company deleted');
     loadCompanies();
+  };
+
+  // ── Jira Config ────────────────────────────────────────────────────────────
+  const openJiraConfig = async (c: Company) => {
+    setJiraCompany(c);
+    setJiraTestResult(null);
+    const res = await fetch(`/api/admin/jira-config/${c.id}`);
+    const data = await res.json();
+    setJiraForm({ base_url_var: data.base_url_var || '', email_var: data.email_var || '', token_var: data.token_var || '' });
+    setJiraOpen(true);
+  };
+
+  const saveJiraConfig = async () => {
+    if (!jiraCompany) return;
+    const res = await fetch(`/api/admin/jira-config/${jiraCompany.id}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(jiraForm),
+    });
+    if (!res.ok) { toast.error('Lưu thất bại'); return; }
+    toast.success(`Đã lưu cấu hình Jira cho ${jiraCompany.name}`);
+    setJiraOpen(false);
+  };
+
+  const testJiraConfig = async () => {
+    setJiraTesting(true);
+    setJiraTestResult(null);
+    try {
+      const res = await fetch('/api/jira/test');
+      const data = await res.json();
+      if (data.ok) {
+        setJiraTestResult({ ok: true, message: `Kết nối thành công — ${data.displayName} (${data.email})` });
+      } else {
+        setJiraTestResult({ ok: false, message: data.error ?? 'Lỗi không xác định' });
+      }
+    } catch {
+      setJiraTestResult({ ok: false, message: 'Không kết nối được tới server' });
+    } finally {
+      setJiraTesting(false);
+    }
   };
 
   // ── Users ──────────────────────────────────────────────────────────────────
@@ -311,10 +358,13 @@ export default function AdminPage() {
                     <td className="px-5 py-3 text-slate-400 text-xs">{c.id}</td>
                     <td className="px-5 py-3">
                       <div className="flex gap-2">
-                        <button onClick={() => openEditCompany(c)} className="text-slate-400 hover:text-blue-600 transition-colors">
+                        <button onClick={() => openEditCompany(c)} className="text-slate-400 hover:text-blue-600 transition-colors" title="Edit company">
                           <Pencil className="h-4 w-4" />
                         </button>
-                        <button onClick={() => deleteCompany(c)} className="text-slate-400 hover:text-red-500 transition-colors">
+                        <button onClick={() => openJiraConfig(c)} className="text-slate-400 hover:text-violet-600 transition-colors" title="Cấu hình Jira">
+                          <Link2 className="h-4 w-4" />
+                        </button>
+                        <button onClick={() => deleteCompany(c)} className="text-slate-400 hover:text-red-500 transition-colors" title="Delete">
                           <Trash2 className="h-4 w-4" />
                         </button>
                       </div>
@@ -447,6 +497,78 @@ export default function AdminPage() {
             <Button onClick={saveCompany} className="bg-blue-600 hover:bg-blue-700" disabled={!companyName.trim()}>
               {editCompany ? 'Save' : 'Create'}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Jira Config Dialog ─────────────────────────────────────────────── */}
+      <Dialog open={jiraOpen} onOpenChange={setJiraOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Link2 className="h-4 w-4 text-violet-600" />
+              Cấu hình Jira — {jiraCompany?.name}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <p className="text-xs text-slate-500 bg-slate-50 rounded-lg p-3 leading-relaxed">
+              Nhập <strong>tên biến môi trường</strong> đã set trên Railway cho công ty này.
+              Ví dụ: nếu bạn set <code className="bg-slate-200 px-1 rounded">JIRA_URL_ACME=https://acme.atlassian.net</code> thì nhập <code className="bg-slate-200 px-1 rounded">JIRA_URL_ACME</code> vào ô dưới.
+            </p>
+            <div>
+              <Label>Tên biến Base URL <span className="text-red-500">*</span></Label>
+              <Input
+                className="mt-1.5 font-mono"
+                value={jiraForm.base_url_var}
+                onChange={e => setJiraForm(f => ({ ...f, base_url_var: e.target.value.trim() }))}
+                placeholder="VD: JIRA_URL_ACME"
+              />
+              <p className="text-xs text-slate-400 mt-1">Giá trị trỏ tới: <code>https://yourcompany.atlassian.net</code></p>
+            </div>
+            <div>
+              <Label>Tên biến Email <span className="text-red-500">*</span></Label>
+              <Input
+                className="mt-1.5 font-mono"
+                value={jiraForm.email_var}
+                onChange={e => setJiraForm(f => ({ ...f, email_var: e.target.value.trim() }))}
+                placeholder="VD: JIRA_EMAIL_ACME"
+              />
+              <p className="text-xs text-slate-400 mt-1">Giá trị là email đăng nhập Jira</p>
+            </div>
+            <div>
+              <Label>Tên biến API Token <span className="text-red-500">*</span></Label>
+              <Input
+                className="mt-1.5 font-mono"
+                value={jiraForm.token_var}
+                onChange={e => setJiraForm(f => ({ ...f, token_var: e.target.value.trim() }))}
+                placeholder="VD: JIRA_TOKEN_ACME"
+              />
+              <p className="text-xs text-slate-400 mt-1">Lấy token tại: id.atlassian.com → Security → API tokens</p>
+            </div>
+
+            {jiraTestResult && (
+              <div className={`flex items-start gap-2 text-sm rounded-lg p-3 ${jiraTestResult.ok ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+                {jiraTestResult.ok
+                  ? <CheckCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                  : <Loader2 className="h-4 w-4 shrink-0 mt-0.5 opacity-0" />}
+                {jiraTestResult.message}
+              </div>
+            )}
+          </div>
+          <DialogFooter className="flex justify-between items-center">
+            <Button variant="outline" onClick={testJiraConfig} disabled={jiraTesting}
+              className="gap-1.5 text-violet-600 border-violet-200 hover:bg-violet-50">
+              {jiraTesting
+                ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Đang kiểm tra...</>
+                : <><Link2 className="h-3.5 w-3.5" /> Kiểm tra kết nối</>}
+            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setJiraOpen(false)}>Huỷ</Button>
+              <Button onClick={saveJiraConfig} className="bg-violet-600 hover:bg-violet-700"
+                disabled={!jiraForm.base_url_var || !jiraForm.email_var || !jiraForm.token_var}>
+                Lưu cấu hình
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>

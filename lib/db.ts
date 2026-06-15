@@ -81,6 +81,12 @@ async function initPostgresSchema(db: DbClient) {
       key TEXT PRIMARY KEY,
       value TEXT NOT NULL DEFAULT ''
     );
+    CREATE TABLE IF NOT EXISTS company_jira_config (
+      company_id INTEGER PRIMARY KEY REFERENCES companies(id) ON DELETE CASCADE,
+      base_url_var TEXT NOT NULL DEFAULT '',
+      email_var TEXT NOT NULL DEFAULT '',
+      token_var TEXT NOT NULL DEFAULT ''
+    );
     CREATE TABLE IF NOT EXISTS customers (
       id SERIAL PRIMARY KEY,
       name TEXT NOT NULL,

@@ -1,12 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getDb } from '@/lib/db';
+import { getSessionFromRequest } from '@/lib/auth';
 
-function getJiraCredentials() {
-  const baseUrl = process.env.JIRA_BASE_URL?.replace(/\/$/, '');
-  const email = process.env.JIRA_EMAIL;
-  const token = process.env.JIRA_API_TOKEN;
-  if (!baseUrl || !email || !token) {
-    return null;
-  }
+async function getJiraCredentials(req: NextRequest) {
+  const user = await getSessionFromRequest(req);
+  if (!user?.company_id) return null;
+
+  const db = await getDb();
+  const cfg = await db.get<{ base_url_var: string; email_var: string; token_var: string }>(
+    'SELECT base_url_var, email_var, token_var FROM company_jira_config WHERE company_id = ?',
+    user.company_id,
+  );
+  if (!cfg?.base_url_var || !cfg?.email_var || !cfg?.token_var) return null;
+
+  const baseUrl = process.env[cfg.base_url_var]?.replace(/\/$/, '');
+  const email   = process.env[cfg.email_var];
+  const token   = process.env[cfg.token_var];
+  if (!baseUrl || !email || !token) return null;
+
   return { baseUrl, email, token };
 }
 
@@ -15,10 +26,10 @@ function makeAuthHeader(email: string, token: string) {
 }
 
 export async function POST(req: NextRequest) {
-  const creds = getJiraCredentials();
+  const creds = await getJiraCredentials(req);
   if (!creds) {
     return NextResponse.json(
-      { error: 'Jira chưa được cấu hình. Vui lòng set biến môi trường JIRA_BASE_URL, JIRA_EMAIL, JIRA_API_TOKEN.' },
+      { error: 'Jira chưa được cấu hình cho công ty này. Admin cần vào trang Quản trị → Companies → Cấu hình Jira.' },
       { status: 503 }
     );
   }
@@ -67,9 +78,9 @@ export async function POST(req: NextRequest) {
 
     const data = await resp.json();
     return NextResponse.json({
-      issues: data.issues ?? [],
-      total: data.total ?? 0,
-      startAt: data.startAt ?? 0,
+      issues:     data.issues ?? [],
+      total:      data.total ?? 0,
+      startAt:    data.startAt ?? 0,
       maxResults: data.maxResults ?? maxResults,
     });
   } catch (err) {
