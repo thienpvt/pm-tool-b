@@ -25,6 +25,16 @@ function makeAuthHeader(email: string, token: string) {
   return 'Basic ' + Buffer.from(`${email}:${token}`).toString('base64');
 }
 
+const FIELDS = [
+  'key', 'summary', 'issuetype', 'status', 'assignee', 'reporter',
+  'priority', 'created', 'duedate', 'labels', 'components', 'parent',
+  'customfield_10014', // Epic Link (classic)
+  'customfield_10008', // Epic Name
+  'customfield_10016', // Story Points
+  'resolution',
+  'customfield_10020', // Sprint (next-gen / team-managed)
+];
+
 export async function POST(req: NextRequest) {
   const creds = await getJiraCredentials(req);
   if (!creds) {
@@ -35,9 +45,9 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { jql, startAt = 0, maxResults = 100 } = body as {
+  const { jql, nextPageToken, maxResults = 100 } = body as {
     jql: string;
-    startAt?: number;
+    nextPageToken?: string;
     maxResults?: number;
   };
 
@@ -45,28 +55,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'jql là bắt buộc' }, { status: 400 });
   }
 
-  const fields = [
-    'key', 'summary', 'issuetype', 'status', 'assignee', 'reporter',
-    'priority', 'created', 'duedate', 'labels', 'components', 'parent',
-    'customfield_10014', // Epic Link (classic)
-    'customfield_10008', // Epic Name
-    'customfield_10016', // Story Points
-    'resolution',
-    'customfield_10020', // Sprint (next-gen / team-managed)
-  ];
-
-  // Use POST body — Jira Cloud deprecated the GET+query-params variant (returns 410)
-  const url = `${creds.baseUrl}/rest/api/3/search`;
+  // Jira Cloud new endpoint (POST /rest/api/3/search/jql), cursor-based pagination
+  const requestBody: Record<string, unknown> = { jql, maxResults, fields: FIELDS };
+  if (nextPageToken) requestBody.nextPageToken = nextPageToken;
 
   try {
-    const resp = await fetch(url, {
+    const resp = await fetch(`${creds.baseUrl}/rest/api/3/search/jql`, {
       method: 'POST',
       headers: {
         Authorization: makeAuthHeader(creds.email, creds.token),
         Accept: 'application/json',
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ jql, startAt, maxResults, fields }),
+      body: JSON.stringify(requestBody),
     });
 
     if (!resp.ok) {
@@ -82,10 +83,9 @@ export async function POST(req: NextRequest) {
 
     const data = await resp.json();
     return NextResponse.json({
-      issues:     data.issues ?? [],
-      total:      data.total ?? 0,
-      startAt:    data.startAt ?? 0,
-      maxResults: data.maxResults ?? maxResults,
+      issues:        data.issues ?? [],
+      total:         data.total ?? data.issues?.length ?? 0,
+      nextPageToken: data.nextPageToken ?? null,
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

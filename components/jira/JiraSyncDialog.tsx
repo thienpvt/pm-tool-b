@@ -309,9 +309,9 @@ export default function JiraSyncDialog({
     status:     { op: 'not in', values: [] },
   });
 
-  const [issues, setIssues]       = useState<JiraIssue[]>([]);
-  const [total, setTotal]         = useState(0);
-  const [page, setPage]           = useState(0);
+  const [issues, setIssues]               = useState<JiraIssue[]>([]);
+  const [total, setTotal]                 = useState(0);
+  const [nextPageToken, setNextPageToken] = useState<string | null>(null);
   const PAGE = 100;
 
   const jql = buildJQL(filter);
@@ -320,7 +320,7 @@ export default function JiraSyncDialog({
     setStep(1);
     setIssues([]);
     setTotal(0);
-    setPage(0);
+    setNextPageToken(null);
   };
 
   const handleOpenChange = (o: boolean) => {
@@ -328,21 +328,43 @@ export default function JiraSyncDialog({
     onOpenChange(o);
   };
 
-  const handleFetch = async (p = 0) => {
+  // Initial fetch — replaces issue list
+  const handleFetch = async () => {
     if (!filter.projectKey.trim()) { toast.error('Vui lòng nhập Jira Project Key'); return; }
     setLoading(true);
     try {
       const res = await fetch('/api/jira/search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jql, startAt: p * PAGE, maxResults: PAGE }),
+        body: JSON.stringify({ jql, maxResults: PAGE }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? 'Lỗi không xác định');
       setIssues(data.issues ?? []);
-      setTotal(data.total ?? 0);
-      setPage(p);
+      setTotal(data.total ?? (data.issues?.length ?? 0));
+      setNextPageToken(data.nextPageToken ?? null);
       setStep(2);
+    } catch (err) {
+      toast.error((err as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load more — appends to existing list
+  const handleFetchMore = async () => {
+    if (!nextPageToken) return;
+    setLoading(true);
+    try {
+      const res = await fetch('/api/jira/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jql, maxResults: PAGE, nextPageToken }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? 'Lỗi không xác định');
+      setIssues(prev => [...prev, ...(data.issues ?? [])]);
+      setNextPageToken(data.nextPageToken ?? null);
     } catch (err) {
       toast.error((err as Error).message);
     } finally {
@@ -565,19 +587,15 @@ export default function JiraSyncDialog({
                 </div>
               )}
 
-              {/* Pagination for browsing (sync only does current page) */}
-              {total > PAGE && (
-                <div className="flex items-center justify-between">
-                  <Button variant="outline" size="sm" disabled={page === 0 || loading}
-                    onClick={() => handleFetch(page - 1)}>
-                    {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : <ChevronLeft className="w-3 h-3" />}
-                    Trang trước
-                  </Button>
-                  <span className="text-xs text-slate-500">Trang {page + 1} / {Math.ceil(total / PAGE)}</span>
-                  <Button variant="outline" size="sm" disabled={(page + 1) * PAGE >= total || loading}
-                    onClick={() => handleFetch(page + 1)}>
-                    Trang sau
-                    {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : <ChevronRight className="w-3 h-3" />}
+              {/* Load more (cursor-based — appends to list) */}
+              {nextPageToken && (
+                <div className="flex justify-center pt-1">
+                  <Button variant="outline" size="sm" onClick={handleFetchMore} disabled={loading}
+                    className="gap-1.5 text-blue-600 border-blue-200 hover:bg-blue-50">
+                    {loading
+                      ? <><Loader2 className="w-3 h-3 animate-spin" /> Đang tải...</>
+                      : <><ChevronRight className="w-3 h-3" /> Tải thêm {total > issues.length ? `(còn ${total - issues.length})` : ''}</>
+                    }
                   </Button>
                 </div>
               )}
@@ -594,7 +612,7 @@ export default function JiraSyncDialog({
                 </h3>
                 <div className="text-sm text-blue-700 space-y-1.5">
                   <p>• <strong>Nguồn:</strong> Jira project <code className="bg-blue-100 px-1.5 py-0.5 rounded font-mono">{filter.projectKey}</code></p>
-                  <p>• <strong>Tổng tìm thấy:</strong> {total} issues / sync trang này: <strong>{issues.length} issues</strong></p>
+                  <p>• <strong>Tổng tìm thấy:</strong> {total} issues / đã tải: <strong>{issues.length} issues</strong>{nextPageToken ? ' (còn issues chưa tải — nhấn "Tải thêm" ở bước trước)' : ' ✓ đầy đủ'}</p>
                   <p>• <strong>Đích:</strong> {
                     mode === 'timeline'
                       ? 'Project Timeline — upsert theo Jira Key (thêm mới nếu chưa có, cập nhật nếu đã có)'
@@ -617,12 +635,12 @@ export default function JiraSyncDialog({
                 </div>
               )}
 
-              {total > PAGE && (
+              {nextPageToken && (
                 <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex gap-2 text-xs text-amber-700">
                   <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                   <span>
-                    Jira có <strong>{total} issues</strong> nhưng sẽ chỉ sync <strong>{issues.length} issues</strong> của trang {page + 1}.
-                    Hãy dùng bộ lọc hẹp hơn (thêm Labels, Component hoặc Status) để giảm số lượng.
+                    Chưa tải hết — Jira có <strong>{total} issues</strong>, đã tải <strong>{issues.length}</strong>.
+                    Quay lại bước trước và nhấn <strong>"Tải thêm"</strong> để lấy phần còn lại trước khi sync.
                   </span>
                 </div>
               )}
@@ -650,7 +668,7 @@ export default function JiraSyncDialog({
               Huỷ
             </Button>
             {step === 1 && (
-              <Button onClick={() => handleFetch(0)} disabled={loading || !filter.projectKey.trim()}>
+              <Button onClick={handleFetch} disabled={loading || !filter.projectKey.trim()}>
                 {loading
                   ? <><Loader2 className="w-4 h-4 mr-1 animate-spin" />Đang tải...</>
                   : <><Search className="w-4 h-4 mr-1" />Fetch từ Jira</>
