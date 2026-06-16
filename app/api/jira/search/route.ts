@@ -53,16 +53,20 @@ export async function POST(req: NextRequest) {
     'customfield_10016', // Story Points
     'resolution',
     'customfield_10020', // Sprint (next-gen / team-managed)
-  ].join(',');
+  ];
 
-  const url = `${creds.baseUrl}/rest/api/3/search?jql=${encodeURIComponent(jql)}&startAt=${startAt}&maxResults=${maxResults}&fields=${fields}`;
+  // Use POST body — Jira Cloud deprecated the GET+query-params variant (returns 410)
+  const url = `${creds.baseUrl}/rest/api/3/search`;
 
   try {
     const resp = await fetch(url, {
+      method: 'POST',
       headers: {
         Authorization: makeAuthHeader(creds.email, creds.token),
         Accept: 'application/json',
+        'Content-Type': 'application/json',
       },
+      body: JSON.stringify({ jql, startAt, maxResults, fields }),
     });
 
     if (!resp.ok) {
