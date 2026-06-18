@@ -374,7 +374,7 @@ export async function GET(req: NextRequest) {
   // In milestone mode: pick the latest snapshot within the milestone's end-date month
   const bugRows = milestoneMonth
     ? await db.all(`
-        SELECT b.project_id, p.name as project_name, b.status, b.priority, COUNT(*) as cnt
+        SELECT b.project_id, p.name as project_name, b.status, b.priority, b.severity, COUNT(*) as cnt
         FROM bugs b
         JOIN projects p ON b.project_id = p.id
         WHERE b.snapshot_date = (
@@ -386,10 +386,10 @@ export async function GET(req: NextRequest) {
         AND b.snapshot_date LIKE '${milestoneMonth}%'
         AND b.snapshot_date != ''
         ${cc} ${mpWhere}
-        GROUP BY b.project_id, p.name, b.status, b.priority
-      `, ...cp) as { project_id: number; project_name: string; status: string; priority: string; cnt: number }[]
+        GROUP BY b.project_id, p.name, b.status, b.priority, b.severity
+      `, ...cp) as { project_id: number; project_name: string; status: string; priority: string; severity: string; cnt: number }[]
     : await db.all(`
-        SELECT b.project_id, p.name as project_name, b.status, b.priority, COUNT(*) as cnt
+        SELECT b.project_id, p.name as project_name, b.status, b.priority, b.severity, COUNT(*) as cnt
         FROM bugs b
         JOIN projects p ON b.project_id = p.id
         WHERE b.snapshot_date = (
@@ -398,27 +398,30 @@ export async function GET(req: NextRequest) {
         )
         AND (b.snapshot_date IS NOT NULL AND b.snapshot_date != '')
         ${cc}
-        GROUP BY b.project_id, p.name, b.status, b.priority
-      `, ...cp) as { project_id: number; project_name: string; status: string; priority: string; cnt: number }[];
+        GROUP BY b.project_id, p.name, b.status, b.priority, b.severity
+      `, ...cp) as { project_id: number; project_name: string; status: string; priority: string; severity: string; cnt: number }[];
 
   // Build bug stats
-  type BugProjectSummary = { projectId: number; projectName: string; total: number; byStatus: Record<string, number>; byPriority: Record<string, number> };
+  type BugProjectSummary = { projectId: number; projectName: string; total: number; byStatus: Record<string, number>; byPriority: Record<string, number>; bySeverity: Record<string, number> };
   const bugProjectMap: Record<number, BugProjectSummary> = {};
   const bugTotalByStatus: Record<string, number> = {};
   const bugTotalByPriority: Record<string, number> = {};
+  const bugTotalBySeverity: Record<string, number> = {};
   let bugGrandTotal = 0;
 
   for (const row of bugRows) {
     const cnt = Number(row.cnt);
     if (!bugProjectMap[row.project_id]) {
-      bugProjectMap[row.project_id] = { projectId: row.project_id, projectName: row.project_name, total: 0, byStatus: {}, byPriority: {} };
+      bugProjectMap[row.project_id] = { projectId: row.project_id, projectName: row.project_name, total: 0, byStatus: {}, byPriority: {}, bySeverity: {} };
     }
     const bp = bugProjectMap[row.project_id];
     bp.total += cnt;
     bp.byStatus[row.status] = (bp.byStatus[row.status] ?? 0) + cnt;
     bp.byPriority[row.priority] = (bp.byPriority[row.priority] ?? 0) + cnt;
+    if (row.severity) bp.bySeverity[row.severity] = (bp.bySeverity[row.severity] ?? 0) + cnt;
     bugTotalByStatus[row.status] = (bugTotalByStatus[row.status] ?? 0) + cnt;
     bugTotalByPriority[row.priority] = (bugTotalByPriority[row.priority] ?? 0) + cnt;
+    if (row.severity) bugTotalBySeverity[row.severity] = (bugTotalBySeverity[row.severity] ?? 0) + cnt;
     bugGrandTotal += cnt;
   }
 
@@ -426,6 +429,7 @@ export async function GET(req: NextRequest) {
     total: bugGrandTotal,
     byStatus: bugTotalByStatus,
     byPriority: bugTotalByPriority,
+    bySeverity: bugTotalBySeverity,
     byProject: Object.values(bugProjectMap).sort((a, b) => b.total - a.total),
   };
 

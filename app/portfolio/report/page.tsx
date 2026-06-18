@@ -81,8 +81,8 @@ type PortfolioReportData = {
   reportDate: string;
 };
 
-type BugProjectSummary = { projectId: number; projectName: string; total: number; byStatus: Record<string, number>; byPriority: Record<string, number> };
-type BugStats = { total: number; byStatus: Record<string, number>; byPriority: Record<string, number>; byProject: BugProjectSummary[] };
+type BugProjectSummary = { projectId: number; projectName: string; total: number; byStatus: Record<string, number>; byPriority: Record<string, number>; bySeverity: Record<string, number> };
+type BugStats = { total: number; byStatus: Record<string, number>; byPriority: Record<string, number>; bySeverity: Record<string, number>; byProject: BugProjectSummary[] };
 type PortfolioMilestone = { id: number; project_id: number; name: string; start_date: string; end_date: string; project_name: string; program_name: string };
 type MilestoneInfo = { id: number; name: string; project_name: string; program_name: string; start_date: string; end_date: string };
 // milestoneInfo is an array when milestones are selected
@@ -211,7 +211,7 @@ function pickSummary(status: 'red' | 'amber' | 'green', lang: 'vn' | 'en'): stri
 }
 
 // ─── Build Template Report ────────────────────────────────────────────────────
-function buildTemplateReport(data: PortfolioReportData, language: string, periodStart: string, periodEnd: string, companyName = ''): string {
+function buildTemplateReport(data: PortfolioReportData, language: string, periodStart: string, periodEnd: string, companyName = '', bugDimension: 'status' | 'severity' = 'severity'): string {
   const isVN = language === 'Vietnamese';
   const today = new Date().toLocaleDateString(isVN ? 'vi-VN' : 'en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
   const yyyymm = new Date().toISOString().slice(0, 7).replace('-', '');
@@ -388,42 +388,43 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
       lines.push('');
 
       // Summary row
-      const criticalBugsVN = (bs.byPriority['Critical'] ?? 0) + (bs.byPriority['Highest'] ?? 0);
+      const criticalBugsVN = bs.bySeverity['Critical'] ?? 0;
       const openBugsVN = (bs.byStatus['Open'] ?? 0) + (bs.byStatus['New'] ?? 0) + (bs.byStatus['To Do'] ?? 0) + (bs.byStatus['To-do'] ?? 0);
-      lines.push(`  Tổng Bug : ${bs.total}   ·   Dự án có Bug: ${bs.byProject.length}   ·   Critical/Highest: ${criticalBugsVN}   ·   Chưa xử lý: ${openBugsVN}`);
+      lines.push(`  Tổng Bug : ${bs.total}   ·   Dự án có Bug: ${bs.byProject.length}   ·   Critical: ${criticalBugsVN}   ·   Chưa xử lý: ${openBugsVN}`);
       lines.push('');
 
-      // Status breakdown
-      lines.push('  A. PHÂN BỔ THEO TRẠNG THÁI:');
-      lines.push(`  ${'─'.repeat(50)}`);
       const bugBW = { st: 24, ct: 8, pt: 8, br: 20 } as const;
-      Object.entries(bs.byStatus).sort((a, b) => b[1] - a[1]).forEach(([st, cnt]) => {
-        const pct = bs.total > 0 ? Math.round(cnt / bs.total * 100) : 0;
-        const barLen = Math.round(pct / 5);
-        const bar = '█'.repeat(barLen) + '░'.repeat(20 - barLen);
-        const stLabel = st.length > bugBW.st ? st.slice(0, bugBW.st - 1) + '…' : st;
-        lines.push(`  ${stLabel.padEnd(bugBW.st)} ${String(cnt).padStart(bugBW.ct)} (${String(pct).padStart(3)}%) [${bar}]`);
-      });
-      lines.push('');
 
-      // Priority breakdown
-      lines.push('  B. PHÂN BỔ THEO PRIORITY:');
-      lines.push(`  ${'─'.repeat(50)}`);
-      ['Critical', 'Highest', 'High', 'Medium', 'Low', 'Lowest'].forEach(pr => {
-        const cnt = bs.byPriority[pr];
-        if (!cnt) return;
-        const pct = bs.total > 0 ? Math.round(cnt / bs.total * 100) : 0;
-        lines.push(`  ${pr.padEnd(bugBW.st)} ${String(cnt).padStart(bugBW.ct)} (${String(pct).padStart(3)}%)`);
-      });
-      // remaining priorities
-      Object.entries(bs.byPriority).filter(([pr]) => !['Critical','Highest','High','Medium','Low','Lowest'].includes(pr)).forEach(([pr, cnt]) => {
-        const pct = bs.total > 0 ? Math.round(cnt / bs.total * 100) : 0;
-        lines.push(`  ${pr.padEnd(bugBW.st)} ${String(cnt).padStart(bugBW.ct)} (${String(pct).padStart(3)}%)`);
-      });
+      if (bugDimension === 'status') {
+        lines.push('  A. PHÂN BỔ THEO TRẠNG THÁI:');
+        lines.push(`  ${'─'.repeat(50)}`);
+        Object.entries(bs.byStatus).sort((a, b) => b[1] - a[1]).forEach(([st, cnt]) => {
+          const pct = bs.total > 0 ? Math.round(cnt / bs.total * 100) : 0;
+          const barLen = Math.round(pct / 5);
+          const bar = '█'.repeat(barLen) + '░'.repeat(20 - barLen);
+          const stLabel = st.length > bugBW.st ? st.slice(0, bugBW.st - 1) + '…' : st;
+          lines.push(`  ${stLabel.padEnd(bugBW.st)} ${String(cnt).padStart(bugBW.ct)} (${String(pct).padStart(3)}%) [${bar}]`);
+        });
+      } else {
+        lines.push('  A. PHÂN BỔ THEO SEVERITY:');
+        lines.push(`  ${'─'.repeat(50)}`);
+        ['Critical', 'High', 'Medium', 'Low'].forEach(sv => {
+          const cnt = bs.bySeverity[sv];
+          if (!cnt) return;
+          const pct = bs.total > 0 ? Math.round(cnt / bs.total * 100) : 0;
+          const barLen = Math.round(pct / 5);
+          const bar = '█'.repeat(barLen) + '░'.repeat(20 - barLen);
+          lines.push(`  ${sv.padEnd(bugBW.st)} ${String(cnt).padStart(bugBW.ct)} (${String(pct).padStart(3)}%) [${bar}]`);
+        });
+        Object.entries(bs.bySeverity).filter(([sv]) => !['Critical','High','Medium','Low'].includes(sv)).forEach(([sv, cnt]) => {
+          const pct = bs.total > 0 ? Math.round(cnt / bs.total * 100) : 0;
+          lines.push(`  ${sv.padEnd(bugBW.st)} ${String(cnt).padStart(bugBW.ct)} (${String(pct).padStart(3)}%)`);
+        });
+      }
       lines.push('');
 
       // Per-project table
-      lines.push('  C. PHÂN BỔ THEO DỰ ÁN:');
+      lines.push('  B. PHÂN BỔ THEO DỰ ÁN:');
       const BP = { nm: 26, tt: 8 } as const;
       lines.push(`  ┌${'─'.repeat(BP.nm+2)}┬${'─'.repeat(BP.tt+2)}┐`);
       lines.push(`  │ ${'DỰ ÁN'.padEnd(BP.nm)} │ ${'TỔNG BUG'.padStart(BP.tt)} │`);
@@ -645,38 +646,42 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
       lines.push(D);
       lines.push('');
 
-      const criticalBugsEN = (bsEN.byPriority['Critical'] ?? 0) + (bsEN.byPriority['Highest'] ?? 0);
+      const criticalBugsEN = bsEN.bySeverity['Critical'] ?? 0;
       const openBugsEN = (bsEN.byStatus['Open'] ?? 0) + (bsEN.byStatus['New'] ?? 0) + (bsEN.byStatus['To Do'] ?? 0) + (bsEN.byStatus['To-do'] ?? 0);
-      lines.push(`  Total Bugs: ${bsEN.total}   ·   Projects with Bugs: ${bsEN.byProject.length}   ·   Critical/Highest: ${criticalBugsEN}   ·   Open/New: ${openBugsEN}`);
+      lines.push(`  Total Bugs: ${bsEN.total}   ·   Projects with Bugs: ${bsEN.byProject.length}   ·   Critical: ${criticalBugsEN}   ·   Open/New: ${openBugsEN}`);
       lines.push('');
 
-      lines.push('  A. DISTRIBUTION BY STATUS:');
-      lines.push(`  ${'─'.repeat(50)}`);
       const bugBW2 = { st: 24, ct: 8, pt: 8, br: 20 } as const;
-      Object.entries(bsEN.byStatus).sort((a, b) => b[1] - a[1]).forEach(([st, cnt]) => {
-        const pct = bsEN.total > 0 ? Math.round(cnt / bsEN.total * 100) : 0;
-        const barLen = Math.round(pct / 5);
-        const bar = '█'.repeat(barLen) + '░'.repeat(20 - barLen);
-        const stLabel = st.length > bugBW2.st ? st.slice(0, bugBW2.st - 1) + '…' : st;
-        lines.push(`  ${stLabel.padEnd(bugBW2.st)} ${String(cnt).padStart(bugBW2.ct)} (${String(pct).padStart(3)}%) [${bar}]`);
-      });
+
+      if (bugDimension === 'status') {
+        lines.push('  A. DISTRIBUTION BY STATUS:');
+        lines.push(`  ${'─'.repeat(50)}`);
+        Object.entries(bsEN.byStatus).sort((a, b) => b[1] - a[1]).forEach(([st, cnt]) => {
+          const pct = bsEN.total > 0 ? Math.round(cnt / bsEN.total * 100) : 0;
+          const barLen = Math.round(pct / 5);
+          const bar = '█'.repeat(barLen) + '░'.repeat(20 - barLen);
+          const stLabel = st.length > bugBW2.st ? st.slice(0, bugBW2.st - 1) + '…' : st;
+          lines.push(`  ${stLabel.padEnd(bugBW2.st)} ${String(cnt).padStart(bugBW2.ct)} (${String(pct).padStart(3)}%) [${bar}]`);
+        });
+      } else {
+        lines.push('  A. DISTRIBUTION BY SEVERITY:');
+        lines.push(`  ${'─'.repeat(50)}`);
+        ['Critical', 'High', 'Medium', 'Low'].forEach(sv => {
+          const cnt = bsEN.bySeverity[sv];
+          if (!cnt) return;
+          const pct = bsEN.total > 0 ? Math.round(cnt / bsEN.total * 100) : 0;
+          const barLen = Math.round(pct / 5);
+          const bar = '█'.repeat(barLen) + '░'.repeat(20 - barLen);
+          lines.push(`  ${sv.padEnd(bugBW2.st)} ${String(cnt).padStart(bugBW2.ct)} (${String(pct).padStart(3)}%) [${bar}]`);
+        });
+        Object.entries(bsEN.bySeverity).filter(([sv]) => !['Critical','High','Medium','Low'].includes(sv)).forEach(([sv, cnt]) => {
+          const pct = bsEN.total > 0 ? Math.round(cnt / bsEN.total * 100) : 0;
+          lines.push(`  ${sv.padEnd(bugBW2.st)} ${String(cnt).padStart(bugBW2.ct)} (${String(pct).padStart(3)}%)`);
+        });
+      }
       lines.push('');
 
-      lines.push('  B. DISTRIBUTION BY PRIORITY:');
-      lines.push(`  ${'─'.repeat(50)}`);
-      ['Critical', 'Highest', 'High', 'Medium', 'Low', 'Lowest'].forEach(pr => {
-        const cnt = bsEN.byPriority[pr];
-        if (!cnt) return;
-        const pct = bsEN.total > 0 ? Math.round(cnt / bsEN.total * 100) : 0;
-        lines.push(`  ${pr.padEnd(bugBW2.st)} ${String(cnt).padStart(bugBW2.ct)} (${String(pct).padStart(3)}%)`);
-      });
-      Object.entries(bsEN.byPriority).filter(([pr]) => !['Critical','Highest','High','Medium','Low','Lowest'].includes(pr)).forEach(([pr, cnt]) => {
-        const pct = bsEN.total > 0 ? Math.round(cnt / bsEN.total * 100) : 0;
-        lines.push(`  ${pr.padEnd(bugBW2.st)} ${String(cnt).padStart(bugBW2.ct)} (${String(pct).padStart(3)}%)`);
-      });
-      lines.push('');
-
-      lines.push('  C. BY PROJECT:');
+      lines.push('  B. BY PROJECT:');
       const BP2 = { nm: 26, tt: 8 } as const;
       lines.push(`  ┌${'─'.repeat(BP2.nm+2)}┬${'─'.repeat(BP2.tt+2)}┐`);
       lines.push(`  │ ${'PROJECT'.padEnd(BP2.nm)} │ ${'BUGS'.padStart(BP2.tt)} │`);
@@ -865,7 +870,7 @@ function wrapEmailDocument(innerHtml: string, companyName: string): string {
 }
 
 // ─── Build HTML Report (black / white / red theme) ───────────────────────────
-function buildHtmlReport(data: PortfolioReportData, language: string, periodStart: string, periodEnd: string, companyName = ''): string {
+function buildHtmlReport(data: PortfolioReportData, language: string, periodStart: string, periodEnd: string, companyName = '', bugDimension: 'status' | 'severity' = 'severity'): string {
   const isVN = language === 'Vietnamese';
   const today = new Date().toLocaleDateString(isVN ? 'vi-VN' : 'en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
   const yyyymm = new Date().toISOString().slice(0, 7).replace('-', '');
@@ -1159,7 +1164,6 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
   if (data.bugStats && data.bugStats.total > 0) {
     const bs = data.bugStats;
 
-    // Color mapping for bug status
     const BUG_STATUS_COLORS: Record<string, string> = {
       'Done': '#16A34A', 'Closed': '#16A34A', 'Fixed': '#16A34A', 'Resolved': '#16A34A',
       'ANBM': '#16A34A', 'Deployed': '#16A34A', 'READY TO RELEASE': '#16A34A', 'READY FOR RELEASE': '#16A34A',
@@ -1171,23 +1175,27 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
     };
     const bugStatusColor = (s: string) => BUG_STATUS_COLORS[s] ?? '#9CA3AF';
 
-    const BUG_PRIORITY_COLORS: Record<string, string> = {
-      'Critical': '#DC2626', 'Highest': '#DC2626',
-      'High': '#EA580C',
-      'Medium': '#D97706',
-      'Low': '#3B82F6', 'Lowest': '#3B82F6',
+    const BUG_SEVERITY_COLORS: Record<string, string> = {
+      'Critical': '#DC2626', 'High': '#EA580C', 'Medium': '#D97706', 'Low': '#3B82F6',
     };
-    const bugPriorityColor = (p: string) => BUG_PRIORITY_COLORS[p] ?? '#9CA3AF';
+    const bugSeverityColor = (sv: string) => BUG_SEVERITY_COLORS[sv] ?? '#9CA3AF';
 
-    // Sorted statuses and priorities by total count
     const statusEntries = Object.entries(bs.byStatus).sort((a, b) => b[1] - a[1]);
-    const priorityEntries = Object.entries(bs.byPriority).sort((a, b) => b[1] - a[1]);
+    const severityEntries = (['Critical', 'High', 'Medium', 'Low'] as string[])
+      .map(sv => [sv, bs.bySeverity[sv] ?? 0] as [string, number])
+      .filter(([, v]) => v > 0)
+      .concat(Object.entries(bs.bySeverity).filter(([sv]) => !['Critical','High','Medium','Low'].includes(sv)));
 
-    // Bug status bar chart (per project, stacked by status)
-    const bugBarItems = bs.byProject.slice(0, 20); // max 20 projects
-    const topStatuses = statusEntries.slice(0, 6).map(([s]) => s);
+    const bugBarItems = bs.byProject.slice(0, 20);
 
-    const svgBugBarChart = (items: BugProjectSummary[], statuses: string[], w = 800, h = 160): string => {
+    // Generic stacked bar chart — accepts a dimension-keyed map getter
+    const svgBugBarChart = (
+      items: BugProjectSummary[],
+      keys: string[],
+      colorFn: (k: string) => string,
+      getMap: (item: BugProjectSummary) => Record<string, number>,
+      w = 800, h = 160,
+    ): string => {
       const rawMax = Math.max(...items.map(i => i.total), 1);
       const step = rawMax <= 5 ? 1 : rawMax <= 20 ? 5 : rawMax <= 50 ? 10 : rawMax <= 100 ? 20 : 50;
       const max = Math.ceil(rawMax / step) * step;
@@ -1205,28 +1213,24 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
       }
       s += `<line x1="${leftPad}" y1="${topPad + h}" x2="${w}" y2="${topPad + h}" stroke="rgba(0,0,0,0.12)" stroke-width="1"/>`;
       items.forEach((item, i) => {
+        const map = getMap(item);
         const x = leftPad + i * slotW + (slotW - barW) / 2;
         const totalH = max > 0 ? Math.round((item.total / max) * h) : 0;
         const barTop = topPad + h - totalH;
-        // Draw stacked segments from bottom up
         let yOffset = topPad + h;
-        statuses.forEach(st => {
-          const cnt = item.byStatus[st] ?? 0;
+        keys.forEach(k => {
+          const cnt = map[k] ?? 0;
           if (cnt <= 0) return;
           const segH = max > 0 ? Math.round((cnt / max) * h) : 0;
           if (segH <= 0) return;
           yOffset -= segH;
-          s += `<rect x="${x.toFixed(1)}" y="${yOffset.toFixed(1)}" width="${barW}" height="${segH}" fill="${bugStatusColor(st)}" opacity="0.85"/>`;
+          s += `<rect x="${x.toFixed(1)}" y="${yOffset.toFixed(1)}" width="${barW}" height="${segH}" fill="${colorFn(k)}" opacity="0.85"/>`;
         });
-        // Remaining (statuses not in topStatuses)
-        const topTotal = statuses.reduce((acc, st) => acc + (item.byStatus[st] ?? 0), 0);
+        const topTotal = keys.reduce((acc, k) => acc + (map[k] ?? 0), 0);
         const otherCnt = item.total - topTotal;
         if (otherCnt > 0) {
           const segH = max > 0 ? Math.round((otherCnt / max) * h) : 0;
-          if (segH > 0) {
-            yOffset -= segH;
-            s += `<rect x="${x.toFixed(1)}" y="${yOffset.toFixed(1)}" width="${barW}" height="${segH}" fill="#CBD5E1" opacity="0.85"/>`;
-          }
+          if (segH > 0) { yOffset -= segH; s += `<rect x="${x.toFixed(1)}" y="${yOffset.toFixed(1)}" width="${barW}" height="${segH}" fill="#CBD5E1" opacity="0.85"/>`; }
         }
         if (totalH > 0) {
           s += `<text x="${(x + barW / 2).toFixed(1)}" y="${barTop - 5}" text-anchor="middle" font-size="10" font-weight="700" fill="#374151">${item.total}</text>`;
@@ -1244,24 +1248,20 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
     // KPI cards row
     const totalBugColor = bs.total > 100 ? '#DC2626' : bs.total > 30 ? '#D97706' : '#6B7280';
     h += `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px;">`;
-    // Total bugs
     h += `<div style="background:#F5F3FF;border:1px solid #DDD6FE;border-radius:8px;padding:14px 10px;text-align:center;">`;
     h += `<div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#6B7280;margin-bottom:6px;">${isVN ? 'Tổng Bug' : 'Total Bugs'}</div>`;
     h += `<div style="font-size:26px;font-weight:700;color:${totalBugColor};line-height:1;">${bs.total}</div>`;
     h += `<div style="font-size:10px;color:#9CA3AF;margin-top:4px;">${isVN ? 'tất cả dự án' : 'all projects'}</div></div>`;
-    // Projects with bugs
     h += `<div style="background:#F8F9FA;border:1px solid #E5E7EB;border-radius:8px;padding:14px 10px;text-align:center;">`;
     h += `<div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#6B7280;margin-bottom:6px;">${isVN ? 'Dự án có Bug' : 'Projects w/ Bugs'}</div>`;
     h += `<div style="font-size:26px;font-weight:700;color:#111827;line-height:1;">${bs.byProject.length}</div>`;
     h += `<div style="font-size:10px;color:#9CA3AF;margin-top:4px;">${isVN ? 'dự án' : 'projects'}</div></div>`;
-    // Critical bugs
-    const criticalBugs = (bs.byPriority['Critical'] ?? 0) + (bs.byPriority['Highest'] ?? 0);
+    const criticalBugs = bs.bySeverity['Critical'] ?? 0;
     const criticalColor = criticalBugs > 0 ? '#DC2626' : '#16A34A';
     h += `<div style="background:${criticalColor}11;border:1px solid ${criticalColor}33;border-radius:8px;padding:14px 10px;text-align:center;">`;
-    h += `<div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#6B7280;margin-bottom:6px;">${isVN ? 'Critical/Highest' : 'Critical/Highest'}</div>`;
+    h += `<div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#6B7280;margin-bottom:6px;">Critical</div>`;
     h += `<div style="font-size:26px;font-weight:700;color:${criticalColor};line-height:1;">${criticalBugs}</div>`;
-    h += `<div style="font-size:10px;color:#9CA3AF;margin-top:4px;">${isVN ? 'ưu tiên cao nhất' : 'highest priority'}</div></div>`;
-    // Open bugs
+    h += `<div style="font-size:10px;color:#9CA3AF;margin-top:4px;">${isVN ? 'mức độ critical' : 'critical severity'}</div></div>`;
     const openBugs = (bs.byStatus['Open'] ?? 0) + (bs.byStatus['New'] ?? 0) + (bs.byStatus['To Do'] ?? 0) + (bs.byStatus['To-do'] ?? 0);
     const openColor = openBugs > 20 ? '#DC2626' : openBugs > 5 ? '#D97706' : '#6B7280';
     h += `<div style="background:${openColor}11;border:1px solid ${openColor}33;border-radius:8px;padding:14px 10px;text-align:center;">`;
@@ -1270,50 +1270,50 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
     h += `<div style="font-size:10px;color:#9CA3AF;margin-top:4px;">${isVN ? 'bug chưa xử lý' : 'unresolved bugs'}</div></div>`;
     h += `</div>`;
 
-    // Row: two donuts side by side
-    h += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">`;
-
-    // Donut 1: by Status
-    const statusSegs = statusEntries.map(([s, v]) => ({ val: v, color: bugStatusColor(s), label: s }));
-    h += `<div class="rpd-panel"><div class="rpd-ptitle">${isVN ? 'Phân bổ theo Trạng thái' : 'Distribution by Status'}</div>`;
-    h += `<div class="rpd-pie-lay"><div style="flex-shrink:0;">${svgDonut(statusSegs.map(s => ({ val: s.val, color: s.color })), 140, 58, 36)}</div>`;
-    h += `<div class="rpd-pie-leg">`;
-    statusEntries.slice(0, 7).forEach(([st, cnt]) => {
-      const pct = bs.total > 0 ? Math.round(cnt / bs.total * 100) : 0;
-      h += `<div class="rpd-leg-row"><div class="rpd-leg-dot" style="background:${bugStatusColor(st)};border:1px solid rgba(0,0,0,0.1);"></div><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${st}</span><span class="rpd-leg-val">${cnt} <span style="color:#9CA3AF;font-size:10px;">(${pct}%)</span></span></div>`;
-    });
-    h += `<div style="margin-top:6px;padding-top:6px;border-top:1px solid #E5E7EB;font-size:11px;color:#6B7280;">${isVN ? 'Tổng cộng' : 'Total'}: <strong style="color:#111827;">${bs.total}</strong> bugs</div>`;
-    h += `</div></div></div>`;
-
-    // Donut 2: by Priority
-    const prioritySegs = priorityEntries.map(([p, v]) => ({ val: v, color: bugPriorityColor(p), label: p }));
-    h += `<div class="rpd-panel"><div class="rpd-ptitle">${isVN ? 'Phân bổ theo Priority' : 'Distribution by Priority'}</div>`;
-    h += `<div class="rpd-pie-lay"><div style="flex-shrink:0;">${svgDonut(prioritySegs.map(s => ({ val: s.val, color: s.color })), 140, 58, 36)}</div>`;
-    h += `<div class="rpd-pie-leg">`;
-    priorityEntries.forEach(([pr, cnt]) => {
-      const pct = bs.total > 0 ? Math.round(cnt / bs.total * 100) : 0;
-      h += `<div class="rpd-leg-row"><div class="rpd-leg-dot" style="background:${bugPriorityColor(pr)};border:1px solid rgba(0,0,0,0.1);"></div>${pr}<span class="rpd-leg-val">${cnt} <span style="color:#9CA3AF;font-size:10px;">(${pct}%)</span></span></div>`;
-    });
-    h += `<div style="margin-top:6px;padding-top:6px;border-top:1px solid #E5E7EB;font-size:11px;color:#6B7280;">${isVN ? 'Tổng cộng' : 'Total'}: <strong style="color:#111827;">${bs.total}</strong> bugs</div>`;
-    h += `</div></div></div>`;
-
-    h += `</div>`; // donut grid
-
-    // Bug bar chart per project
-    if (bugBarItems.length > 0) {
-      h += `<div class="rpd-bar-panel"><div class="rpd-panel">`;
-      h += `<div class="rpd-ptitle">${isVN ? 'Số lượng Bug theo Dự án (chia theo Status)' : 'Bug Count by Project (by Status)'}</div>`;
-      h += `<div>${svgBugBarChart(bugBarItems, topStatuses, Math.max(600, bugBarItems.length * 80), 160)}</div>`;
-      // Legend
-      h += `<div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:10px;justify-content:center;">`;
-      topStatuses.forEach(st => {
-        h += `<div style="display:flex;align-items:center;gap:5px;font-size:11px;color:#6B7280;"><div style="width:10px;height:10px;border-radius:2px;background:${bugStatusColor(st)};display:inline-block;"></div>${st}</div>`;
+    // Single donut + bar chart based on selected dimension
+    if (bugDimension === 'status') {
+      const statusSegs = statusEntries.map(([s, v]) => ({ val: v, color: bugStatusColor(s) }));
+      h += `<div style="display:grid;grid-template-columns:1fr;gap:12px;margin-bottom:12px;">`;
+      h += `<div class="rpd-panel"><div class="rpd-ptitle">${isVN ? 'Phân bổ theo Trạng thái' : 'Distribution by Status'}</div>`;
+      h += `<div class="rpd-pie-lay"><div style="flex-shrink:0;">${svgDonut(statusSegs, 140, 58, 36)}</div>`;
+      h += `<div class="rpd-pie-leg">`;
+      statusEntries.slice(0, 7).forEach(([st, cnt]) => {
+        const pct = bs.total > 0 ? Math.round(cnt / bs.total * 100) : 0;
+        h += `<div class="rpd-leg-row"><div class="rpd-leg-dot" style="background:${bugStatusColor(st)};border:1px solid rgba(0,0,0,0.1);"></div><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${st}</span><span class="rpd-leg-val">${cnt} <span style="color:#9CA3AF;font-size:10px;">(${pct}%)</span></span></div>`;
       });
-      if (statusEntries.length > topStatuses.length) {
-        h += `<div style="display:flex;align-items:center;gap:5px;font-size:11px;color:#6B7280;"><div style="width:10px;height:10px;border-radius:2px;background:#CBD5E1;border:1px solid #94A3B8;display:inline-block;"></div>${isVN ? 'Khác' : 'Others'}</div>`;
+      h += `<div style="margin-top:6px;padding-top:6px;border-top:1px solid #E5E7EB;font-size:11px;color:#6B7280;">${isVN ? 'Tổng cộng' : 'Total'}: <strong style="color:#111827;">${bs.total}</strong> bugs</div>`;
+      h += `</div></div></div></div>`;
+      if (bugBarItems.length > 0) {
+        const topStatuses = statusEntries.slice(0, 6).map(([s]) => s);
+        h += `<div class="rpd-bar-panel"><div class="rpd-panel">`;
+        h += `<div class="rpd-ptitle">${isVN ? 'Số lượng Bug theo Dự án (chia theo Status)' : 'Bug Count by Project (by Status)'}</div>`;
+        h += `<div>${svgBugBarChart(bugBarItems, topStatuses, bugStatusColor, item => item.byStatus, Math.max(600, bugBarItems.length * 80), 160)}</div>`;
+        h += `<div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:10px;justify-content:center;">`;
+        topStatuses.forEach(st => { h += `<div style="display:flex;align-items:center;gap:5px;font-size:11px;color:#6B7280;"><div style="width:10px;height:10px;border-radius:2px;background:${bugStatusColor(st)};display:inline-block;"></div>${st}</div>`; });
+        if (statusEntries.length > topStatuses.length) h += `<div style="display:flex;align-items:center;gap:5px;font-size:11px;color:#6B7280;"><div style="width:10px;height:10px;border-radius:2px;background:#CBD5E1;border:1px solid #94A3B8;display:inline-block;"></div>${isVN ? 'Khác' : 'Others'}</div>`;
+        h += `</div></div></div>`;
       }
-      h += `</div>`;
-      h += `</div></div>`;
+    } else {
+      const severitySegs = severityEntries.map(([sv, v]) => ({ val: v, color: bugSeverityColor(sv) }));
+      h += `<div style="display:grid;grid-template-columns:1fr;gap:12px;margin-bottom:12px;">`;
+      h += `<div class="rpd-panel"><div class="rpd-ptitle">${isVN ? 'Phân bổ theo Mức độ (Severity)' : 'Distribution by Severity'}</div>`;
+      h += `<div class="rpd-pie-lay"><div style="flex-shrink:0;">${svgDonut(severitySegs, 140, 58, 36)}</div>`;
+      h += `<div class="rpd-pie-leg">`;
+      severityEntries.forEach(([sv, cnt]) => {
+        const pct = bs.total > 0 ? Math.round(cnt / bs.total * 100) : 0;
+        h += `<div class="rpd-leg-row"><div class="rpd-leg-dot" style="background:${bugSeverityColor(sv)};border:1px solid rgba(0,0,0,0.1);"></div><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${sv}</span><span class="rpd-leg-val">${cnt} <span style="color:#9CA3AF;font-size:10px;">(${pct}%)</span></span></div>`;
+      });
+      h += `<div style="margin-top:6px;padding-top:6px;border-top:1px solid #E5E7EB;font-size:11px;color:#6B7280;">${isVN ? 'Tổng cộng' : 'Total'}: <strong style="color:#111827;">${bs.total}</strong> bugs</div>`;
+      h += `</div></div></div></div>`;
+      if (bugBarItems.length > 0) {
+        const topSeverities = ['Critical', 'High', 'Medium', 'Low'];
+        h += `<div class="rpd-bar-panel"><div class="rpd-panel">`;
+        h += `<div class="rpd-ptitle">${isVN ? 'Số lượng Bug theo Dự án (chia theo Severity)' : 'Bug Count by Project (by Severity)'}</div>`;
+        h += `<div>${svgBugBarChart(bugBarItems, topSeverities, bugSeverityColor, item => item.bySeverity, Math.max(600, bugBarItems.length * 80), 160)}</div>`;
+        h += `<div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:10px;justify-content:center;">`;
+        topSeverities.forEach(sv => { h += `<div style="display:flex;align-items:center;gap:5px;font-size:11px;color:#6B7280;"><div style="width:10px;height:10px;border-radius:2px;background:${bugSeverityColor(sv)};display:inline-block;"></div>${sv}</div>`; });
+        h += `</div></div></div>`;
+      }
     }
 
     h += `</div>`; // bug section
@@ -1539,6 +1539,7 @@ export default function PortfolioReportPage() {
   const [generating, setGenerating] = useState(false);
   const [language, setLanguage] = useState<'Vietnamese' | 'English'>('Vietnamese');
   const [mode, setMode] = useState<'manual' | 'ai'>('manual');
+  const [bugDimension, setBugDimension] = useState<'status' | 'severity'>('severity');
   const [apiKeySet, setApiKeySet] = useState<false | 'db' | 'env'>(false);
   const [showKeyInput, setShowKeyInput] = useState(false);
   const [apiKeyInput, setApiKeyInput] = useState('');
@@ -1640,8 +1641,8 @@ export default function PortfolioReportPage() {
     const fd = selectedProjectIds.size > 0 ? filterDataByProjects(data, selectedProjectIds) : data;
     const ps = data.periodStart || periodStart;
     const pe = data.periodEnd   || periodEnd;
-    setReport(buildTemplateReport(fd, language, ps, pe, companyName));
-    setHtmlReport(buildHtmlReport(fd, language, ps, pe, companyName));
+    setReport(buildTemplateReport(fd, language, ps, pe, companyName, bugDimension));
+    setHtmlReport(buildHtmlReport(fd, language, ps, pe, companyName, bugDimension));
     setViewMode('preview');
     toast.success(`Portfolio report generated (${fd.kpi.totalProjects} projects)!`);
   };
@@ -2223,6 +2224,25 @@ export default function PortfolioReportPage() {
                   <SelectItem value="English">🇬🇧 English</SelectItem>
                 </SelectContent>
               </Select>
+
+              {/* Bug dimension toggle */}
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-slate-500 font-medium">Bug chart:</span>
+                <div className="flex items-center bg-slate-100 rounded-lg p-0.5 gap-0.5">
+                  <button
+                    onClick={() => setBugDimension('severity')}
+                    className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${bugDimension === 'severity' ? 'bg-white shadow text-violet-700' : 'text-slate-400 hover:text-slate-600'}`}
+                  >
+                    Severity
+                  </button>
+                  <button
+                    onClick={() => setBugDimension('status')}
+                    className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${bugDimension === 'status' ? 'bg-white shadow text-slate-700' : 'text-slate-400 hover:text-slate-600'}`}
+                  >
+                    Status
+                  </button>
+                </div>
+              </div>
 
               <div className="ml-auto flex items-center gap-2">
                 <div className="flex items-center bg-slate-100 rounded-lg p-1 gap-1">
