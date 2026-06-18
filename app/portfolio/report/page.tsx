@@ -381,7 +381,7 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
 
     // ── IV. Bug Report ────────────────────────────────────────────────────────
     if (data.bugStats && data.bugStats.total > 0) {
-      const bs = data.bugStats;
+      const bs = { ...data.bugStats, bySeverity: data.bugStats.bySeverity ?? {} };
       lines.push(D);
       lines.push('  IV. BUG REPORT — TỔNG HỢP LỖI TOÀN PORTFOLIO');
       lines.push(D);
@@ -640,7 +640,7 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
 
     // ── IV. Bug Report ────────────────────────────────────────────────────────
     if (data.bugStats && data.bugStats.total > 0) {
-      const bsEN = data.bugStats;
+      const bsEN = { ...data.bugStats, bySeverity: data.bugStats.bySeverity ?? {} };
       lines.push(D);
       lines.push('  IV. BUG REPORT — PORTFOLIO-WIDE BUG SUMMARY');
       lines.push(D);
@@ -1162,7 +1162,7 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
 
   // ── Bug Report Section ────────────────────────────────────────────────────
   if (data.bugStats && data.bugStats.total > 0) {
-    const bs = data.bugStats;
+    const bs = { ...data.bugStats, bySeverity: data.bugStats.bySeverity ?? {} };
 
     const BUG_STATUS_COLORS: Record<string, string> = {
       'Done': '#16A34A', 'Closed': '#16A34A', 'Fixed': '#16A34A', 'Resolved': '#16A34A',
