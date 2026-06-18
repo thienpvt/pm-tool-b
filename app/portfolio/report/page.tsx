@@ -388,12 +388,13 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
       lines.push('');
 
       // Summary row
-      const criticalBugsVN = bs.bySeverity['Critical'] ?? 0;
+      const criticalBugsVN = (bs.bySeverity['Blocker'] ?? 0) + (bs.bySeverity['Critical'] ?? 0) + (bs.bySeverity['Highest'] ?? 0);
       const openBugsVN = (bs.byStatus['Open'] ?? 0) + (bs.byStatus['New'] ?? 0) + (bs.byStatus['To Do'] ?? 0) + (bs.byStatus['To-do'] ?? 0);
-      lines.push(`  Tổng Bug : ${bs.total}   ·   Dự án có Bug: ${bs.byProject.length}   ·   Critical: ${criticalBugsVN}   ·   Chưa xử lý: ${openBugsVN}`);
+      lines.push(`  Tổng Bug : ${bs.total}   ·   Dự án có Bug: ${bs.byProject.length}   ·   Blocker/Critical: ${criticalBugsVN}   ·   Chưa xử lý: ${openBugsVN}`);
       lines.push('');
 
       const bugBW = { st: 24, ct: 8, pt: 8, br: 20 } as const;
+      const SEV_ORDER_VN = ['Blocker','Critical','Highest','Major','High','Medium','Normal','Moderate','Low','Minor','Trivial','Lowest'];
 
       if (bugDimension === 'status') {
         lines.push('  A. PHÂN BỔ THEO TRẠNG THÁI:');
@@ -408,17 +409,15 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
       } else {
         lines.push('  A. PHÂN BỔ THEO SEVERITY:');
         lines.push(`  ${'─'.repeat(50)}`);
-        ['Critical', 'High', 'Medium', 'Low'].forEach(sv => {
-          const cnt = bs.bySeverity[sv];
-          if (!cnt) return;
+        const sevRows = [
+          ...SEV_ORDER_VN.filter(sv => (bs.bySeverity[sv] ?? 0) > 0).map(sv => [sv, bs.bySeverity[sv]] as [string, number]),
+          ...Object.entries(bs.bySeverity).filter(([sv]) => !SEV_ORDER_VN.includes(sv)).sort((a, b) => b[1] - a[1]),
+        ];
+        sevRows.forEach(([sv, cnt]) => {
           const pct = bs.total > 0 ? Math.round(cnt / bs.total * 100) : 0;
           const barLen = Math.round(pct / 5);
           const bar = '█'.repeat(barLen) + '░'.repeat(20 - barLen);
           lines.push(`  ${sv.padEnd(bugBW.st)} ${String(cnt).padStart(bugBW.ct)} (${String(pct).padStart(3)}%) [${bar}]`);
-        });
-        Object.entries(bs.bySeverity).filter(([sv]) => !['Critical','High','Medium','Low'].includes(sv)).forEach(([sv, cnt]) => {
-          const pct = bs.total > 0 ? Math.round(cnt / bs.total * 100) : 0;
-          lines.push(`  ${sv.padEnd(bugBW.st)} ${String(cnt).padStart(bugBW.ct)} (${String(pct).padStart(3)}%)`);
         });
       }
       lines.push('');
@@ -646,12 +645,13 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
       lines.push(D);
       lines.push('');
 
-      const criticalBugsEN = bsEN.bySeverity['Critical'] ?? 0;
+      const criticalBugsEN = (bsEN.bySeverity['Blocker'] ?? 0) + (bsEN.bySeverity['Critical'] ?? 0) + (bsEN.bySeverity['Highest'] ?? 0);
       const openBugsEN = (bsEN.byStatus['Open'] ?? 0) + (bsEN.byStatus['New'] ?? 0) + (bsEN.byStatus['To Do'] ?? 0) + (bsEN.byStatus['To-do'] ?? 0);
-      lines.push(`  Total Bugs: ${bsEN.total}   ·   Projects with Bugs: ${bsEN.byProject.length}   ·   Critical: ${criticalBugsEN}   ·   Open/New: ${openBugsEN}`);
+      lines.push(`  Total Bugs: ${bsEN.total}   ·   Projects with Bugs: ${bsEN.byProject.length}   ·   Blocker/Critical: ${criticalBugsEN}   ·   Open/New: ${openBugsEN}`);
       lines.push('');
 
       const bugBW2 = { st: 24, ct: 8, pt: 8, br: 20 } as const;
+      const SEV_ORDER_EN = ['Blocker','Critical','Highest','Major','High','Medium','Normal','Moderate','Low','Minor','Trivial','Lowest'];
 
       if (bugDimension === 'status') {
         lines.push('  A. DISTRIBUTION BY STATUS:');
@@ -666,17 +666,15 @@ function buildTemplateReport(data: PortfolioReportData, language: string, period
       } else {
         lines.push('  A. DISTRIBUTION BY SEVERITY:');
         lines.push(`  ${'─'.repeat(50)}`);
-        ['Critical', 'High', 'Medium', 'Low'].forEach(sv => {
-          const cnt = bsEN.bySeverity[sv];
-          if (!cnt) return;
+        const sevRowsEN = [
+          ...SEV_ORDER_EN.filter(sv => (bsEN.bySeverity[sv] ?? 0) > 0).map(sv => [sv, bsEN.bySeverity[sv]] as [string, number]),
+          ...Object.entries(bsEN.bySeverity).filter(([sv]) => !SEV_ORDER_EN.includes(sv)).sort((a, b) => b[1] - a[1]),
+        ];
+        sevRowsEN.forEach(([sv, cnt]) => {
           const pct = bsEN.total > 0 ? Math.round(cnt / bsEN.total * 100) : 0;
           const barLen = Math.round(pct / 5);
           const bar = '█'.repeat(barLen) + '░'.repeat(20 - barLen);
           lines.push(`  ${sv.padEnd(bugBW2.st)} ${String(cnt).padStart(bugBW2.ct)} (${String(pct).padStart(3)}%) [${bar}]`);
-        });
-        Object.entries(bsEN.bySeverity).filter(([sv]) => !['Critical','High','Medium','Low'].includes(sv)).forEach(([sv, cnt]) => {
-          const pct = bsEN.total > 0 ? Math.round(cnt / bsEN.total * 100) : 0;
-          lines.push(`  ${sv.padEnd(bugBW2.st)} ${String(cnt).padStart(bugBW2.ct)} (${String(pct).padStart(3)}%)`);
         });
       }
       lines.push('');
@@ -1176,15 +1174,20 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
     const bugStatusColor = (s: string) => BUG_STATUS_COLORS[s] ?? '#9CA3AF';
 
     const BUG_SEVERITY_COLORS: Record<string, string> = {
-      'Critical': '#DC2626', 'High': '#EA580C', 'Medium': '#D97706', 'Low': '#3B82F6',
+      'Blocker': '#7C3AED', 'Critical': '#DC2626', 'Highest': '#DC2626',
+      'High': '#EA580C', 'Major': '#EA580C',
+      'Medium': '#D97706', 'Normal': '#D97706', 'Moderate': '#D97706',
+      'Low': '#3B82F6', 'Minor': '#3B82F6',
+      'Trivial': '#6B7280', 'Lowest': '#6B7280',
     };
     const bugSeverityColor = (sv: string) => BUG_SEVERITY_COLORS[sv] ?? '#9CA3AF';
 
+    const SEVERITY_ORDER = ['Blocker','Critical','Highest','Major','High','Medium','Normal','Moderate','Low','Minor','Trivial','Lowest'];
     const statusEntries = Object.entries(bs.byStatus).sort((a, b) => b[1] - a[1]);
-    const severityEntries = (['Critical', 'High', 'Medium', 'Low'] as string[])
-      .map(sv => [sv, bs.bySeverity[sv] ?? 0] as [string, number])
-      .filter(([, v]) => v > 0)
-      .concat(Object.entries(bs.bySeverity).filter(([sv]) => !['Critical','High','Medium','Low'].includes(sv)));
+    const severityEntries = [
+      ...SEVERITY_ORDER.filter(sv => (bs.bySeverity[sv] ?? 0) > 0).map(sv => [sv, bs.bySeverity[sv]] as [string, number]),
+      ...Object.entries(bs.bySeverity).filter(([sv]) => !SEVERITY_ORDER.includes(sv)).sort((a, b) => b[1] - a[1]),
+    ];
 
     const bugBarItems = bs.byProject.slice(0, 20);
 
@@ -1256,12 +1259,12 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
     h += `<div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#6B7280;margin-bottom:6px;">${isVN ? 'Dự án có Bug' : 'Projects w/ Bugs'}</div>`;
     h += `<div style="font-size:26px;font-weight:700;color:#111827;line-height:1;">${bs.byProject.length}</div>`;
     h += `<div style="font-size:10px;color:#9CA3AF;margin-top:4px;">${isVN ? 'dự án' : 'projects'}</div></div>`;
-    const criticalBugs = bs.bySeverity['Critical'] ?? 0;
+    const criticalBugs = (bs.bySeverity['Blocker'] ?? 0) + (bs.bySeverity['Critical'] ?? 0) + (bs.bySeverity['Highest'] ?? 0);
     const criticalColor = criticalBugs > 0 ? '#DC2626' : '#16A34A';
     h += `<div style="background:${criticalColor}11;border:1px solid ${criticalColor}33;border-radius:8px;padding:14px 10px;text-align:center;">`;
-    h += `<div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#6B7280;margin-bottom:6px;">Critical</div>`;
+    h += `<div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#6B7280;margin-bottom:6px;">Blocker/Critical</div>`;
     h += `<div style="font-size:26px;font-weight:700;color:${criticalColor};line-height:1;">${criticalBugs}</div>`;
-    h += `<div style="font-size:10px;color:#9CA3AF;margin-top:4px;">${isVN ? 'mức độ critical' : 'critical severity'}</div></div>`;
+    h += `<div style="font-size:10px;color:#9CA3AF;margin-top:4px;">${isVN ? 'mức độ cao nhất' : 'highest severity'}</div></div>`;
     const openBugs = (bs.byStatus['Open'] ?? 0) + (bs.byStatus['New'] ?? 0) + (bs.byStatus['To Do'] ?? 0) + (bs.byStatus['To-do'] ?? 0);
     const openColor = openBugs > 20 ? '#DC2626' : openBugs > 5 ? '#D97706' : '#6B7280';
     h += `<div style="background:${openColor}11;border:1px solid ${openColor}33;border-radius:8px;padding:14px 10px;text-align:center;">`;
@@ -1306,12 +1309,13 @@ function buildHtmlReport(data: PortfolioReportData, language: string, periodStar
       h += `<div style="margin-top:6px;padding-top:6px;border-top:1px solid #E5E7EB;font-size:11px;color:#6B7280;">${isVN ? 'Tổng cộng' : 'Total'}: <strong style="color:#111827;">${bs.total}</strong> bugs</div>`;
       h += `</div></div></div></div>`;
       if (bugBarItems.length > 0) {
-        const topSeverities = ['Critical', 'High', 'Medium', 'Low'];
+        const topSeverities = severityEntries.slice(0, 6).map(([sv]) => sv);
         h += `<div class="rpd-bar-panel"><div class="rpd-panel">`;
         h += `<div class="rpd-ptitle">${isVN ? 'Số lượng Bug theo Dự án (chia theo Severity)' : 'Bug Count by Project (by Severity)'}</div>`;
-        h += `<div>${svgBugBarChart(bugBarItems, topSeverities, bugSeverityColor, item => item.bySeverity, Math.max(600, bugBarItems.length * 80), 160)}</div>`;
+        h += `<div>${svgBugBarChart(bugBarItems, topSeverities, bugSeverityColor, item => item.bySeverity ?? {}, Math.max(600, bugBarItems.length * 80), 160)}</div>`;
         h += `<div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:10px;justify-content:center;">`;
         topSeverities.forEach(sv => { h += `<div style="display:flex;align-items:center;gap:5px;font-size:11px;color:#6B7280;"><div style="width:10px;height:10px;border-radius:2px;background:${bugSeverityColor(sv)};display:inline-block;"></div>${sv}</div>`; });
+        if (severityEntries.length > topSeverities.length) h += `<div style="display:flex;align-items:center;gap:5px;font-size:11px;color:#6B7280;"><div style="width:10px;height:10px;border-radius:2px;background:#CBD5E1;border:1px solid #94A3B8;display:inline-block;"></div>${isVN ? 'Khác' : 'Others'}</div>`;
         h += `</div></div></div>`;
       }
     }

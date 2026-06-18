@@ -371,22 +371,10 @@ export async function GET(req: NextRequest) {
   }
 
   // ─── Bug Report stats ─────────────────────────────────────────────────────
-  // effective_severity: use explicit severity if set, otherwise derive from priority
-  const severityCaseExpr = `
-    CASE
-      WHEN b.severity IS NOT NULL AND b.severity != '' THEN b.severity
-      WHEN LOWER(COALESCE(b.priority,'')) IN ('critical','highest','blocker') THEN 'Critical'
-      WHEN LOWER(COALESCE(b.priority,'')) IN ('high','major') THEN 'High'
-      WHEN LOWER(COALESCE(b.priority,'')) IN ('low','minor','lowest','trivial') THEN 'Low'
-      ELSE 'Medium'
-    END
-  `;
-
   // In milestone mode: pick the latest snapshot within the milestone's end-date month
   const bugRows = milestoneMonth
     ? await db.all(`
-        SELECT b.project_id, p.name as project_name, b.status, b.priority,
-               (${severityCaseExpr}) as severity, COUNT(*) as cnt
+        SELECT b.project_id, p.name as project_name, b.status, b.priority, b.severity, COUNT(*) as cnt
         FROM bugs b
         JOIN projects p ON b.project_id = p.id
         WHERE b.snapshot_date = (
@@ -398,11 +386,10 @@ export async function GET(req: NextRequest) {
         AND b.snapshot_date LIKE '${milestoneMonth}%'
         AND b.snapshot_date != ''
         ${cc} ${mpWhere}
-        GROUP BY b.project_id, p.name, b.status, b.priority, (${severityCaseExpr})
+        GROUP BY b.project_id, p.name, b.status, b.priority, b.severity
       `, ...cp) as { project_id: number; project_name: string; status: string; priority: string; severity: string; cnt: number }[]
     : await db.all(`
-        SELECT b.project_id, p.name as project_name, b.status, b.priority,
-               (${severityCaseExpr}) as severity, COUNT(*) as cnt
+        SELECT b.project_id, p.name as project_name, b.status, b.priority, b.severity, COUNT(*) as cnt
         FROM bugs b
         JOIN projects p ON b.project_id = p.id
         WHERE b.snapshot_date = (
@@ -411,7 +398,7 @@ export async function GET(req: NextRequest) {
         )
         AND (b.snapshot_date IS NOT NULL AND b.snapshot_date != '')
         ${cc}
-        GROUP BY b.project_id, p.name, b.status, b.priority, (${severityCaseExpr})
+        GROUP BY b.project_id, p.name, b.status, b.priority, b.severity
       `, ...cp) as { project_id: number; project_name: string; status: string; priority: string; severity: string; cnt: number }[];
 
   // Build bug stats
@@ -431,10 +418,10 @@ export async function GET(req: NextRequest) {
     bp.total += cnt;
     bp.byStatus[row.status] = (bp.byStatus[row.status] ?? 0) + cnt;
     bp.byPriority[row.priority] = (bp.byPriority[row.priority] ?? 0) + cnt;
-    bp.bySeverity[row.severity] = (bp.bySeverity[row.severity] ?? 0) + cnt;
+    if (row.severity) bp.bySeverity[row.severity] = (bp.bySeverity[row.severity] ?? 0) + cnt;
     bugTotalByStatus[row.status] = (bugTotalByStatus[row.status] ?? 0) + cnt;
     bugTotalByPriority[row.priority] = (bugTotalByPriority[row.priority] ?? 0) + cnt;
-    bugTotalBySeverity[row.severity] = (bugTotalBySeverity[row.severity] ?? 0) + cnt;
+    if (row.severity) bugTotalBySeverity[row.severity] = (bugTotalBySeverity[row.severity] ?? 0) + cnt;
     bugGrandTotal += cnt;
   }
 
