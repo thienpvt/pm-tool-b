@@ -66,8 +66,8 @@ export async function POST(req: NextRequest, { params }: Params) {
     await db.run(
       `INSERT INTO bugs
          (project_id, issue_type, issue_key, issue_id, summary, assignee, reporter,
-          priority, status, resolution, created, snapshot_date)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          priority, severity, status, resolution, created, snapshot_date)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       id,
       bug.issue_type ?? '',
       bug.issue_key ?? '',
@@ -76,6 +76,7 @@ export async function POST(req: NextRequest, { params }: Params) {
       bug.assignee ?? '',
       bug.reporter ?? '',
       bug.priority ?? 'Medium',
+      bug.severity ?? '',
       bug.status ?? 'To Do',
       bug.resolution ?? '',
       bug.created ?? '',

@@ -19,6 +19,7 @@ const BUG_FIELDS: { key: string; label: string; required?: boolean }[] = [
   { key: 'assignee',   label: 'Assignee' },
   { key: 'reporter',   label: 'Reporter' },
   { key: 'priority',   label: 'Priority' },
+  { key: 'severity',   label: 'Severity' },
   { key: 'status',     label: 'Status' },
   { key: 'resolution', label: 'Resolution' },
   { key: 'created',    label: 'Created Date' },
@@ -27,7 +28,7 @@ const BUG_FIELDS: { key: string; label: string; required?: boolean }[] = [
 const FIELD_GROUPS: { label: string; icon: React.ComponentType<{ className?: string }>; keys: string[]; color: string }[] = [
   { label: 'Thông tin cơ bản', icon: Info,     keys: ['issue_type', 'issue_key', 'issue_id', 'summary'], color: 'blue'   },
   { label: 'Phân công',        icon: Users,    keys: ['assignee', 'reporter'],                            color: 'purple' },
-  { label: 'Phân loại',        icon: Tag,      keys: ['priority', 'status', 'resolution'],                color: 'green'  },
+  { label: 'Phân loại',        icon: Tag,      keys: ['priority', 'severity', 'status', 'resolution'],   color: 'green'  },
   { label: 'Thời gian',        icon: Calendar, keys: ['created'],                                         color: 'orange' },
 ];
 
@@ -38,7 +39,8 @@ const FIELD_ALIASES: Record<string, string[]> = {
   summary:    ['summary', 'title', 'description', 'subject', 'name', 'bug name', 'mo ta', 'tieu de'],
   assignee:   ['assignee', 'assigned to', 'owner', 'developer', 'nguoi xu ly', 'phu trach'],
   reporter:   ['reporter', 'reported by', 'created by', 'nguoi bao', 'nguoi tao'],
-  priority:   ['priority', 'severity', 'urgency', 'do uu tien', 'muc do'],
+  priority:   ['priority', 'urgency', 'do uu tien', 'muc do uu tien'],
+  severity:   ['severity', 'muc do', 'do nghiem trong', 'nghiem trong'],
   status:     ['status', 'state', 'bug status', 'trang thai'],
   resolution: ['resolution', 'resolved', 'fix status', 'ket qua'],
   created:    ['created', 'created date', 'create date', 'date created', 'creation date', 'ngay tao'],
@@ -89,6 +91,20 @@ const PRIORITY_MAP: Record<string, string> = {
 };
 const PRIORITIES = ['Critical', 'Major', 'Medium', 'Minor'];
 
+const SEVERITY_MAP: Record<string, string> = {
+  critical: 'Critical', blocker: 'Critical', highest: 'Critical', s1: 'Critical', '1': 'Critical',
+  high: 'High', major: 'High', s2: 'High', '2': 'High',
+  medium: 'Medium', normal: 'Medium', moderate: 'Medium', s3: 'Medium', '3': 'Medium',
+  low: 'Low', minor: 'Low', trivial: 'Low', s4: 'Low', '4': 'Low',
+};
+const SEVERITIES = ['Critical', 'High', 'Medium', 'Low'];
+
+function fuzzySeverity(raw: string): string {
+  if (!raw) return '';
+  if (SEVERITIES.includes(raw)) return raw;
+  return SEVERITY_MAP[norm(raw)] ?? SEVERITY_MAP[Object.keys(SEVERITY_MAP).find(k => norm(raw).includes(k) || k.includes(norm(raw))) ?? ''] ?? raw;
+}
+
 const BUG_STATUS_MAP: Record<string, string> = {
   todo: 'To Do', 'to do': 'To Do', open: 'To Do', new: 'To Do', backlog: 'To Do',
   inprogress: 'In Progress', 'in progress': 'In Progress', doing: 'In Progress', ongoing: 'In Progress', processing: 'In Progress',
@@ -118,9 +134,10 @@ function fuzzyStatus(raw: string): string {
 function resolveField(field: string, raw: string): string {
   if (!raw) return '';
   switch (field) {
-    case 'created': return normalizeDate(raw);
+    case 'created':  return normalizeDate(raw);
     case 'priority': return fuzzyPriority(raw);
-    case 'status': return fuzzyStatus(raw);
+    case 'severity': return fuzzySeverity(raw);
+    case 'status':   return fuzzyStatus(raw);
     default: return raw;
   }
 }
@@ -314,6 +331,7 @@ export default function BugImportDialog({
         assignee:   get(row, 'assignee'),
         reporter:   get(row, 'reporter'),
         priority:   resolveField('priority', get(row, 'priority')) || 'Medium',
+        severity:   resolveField('severity', get(row, 'severity')),
         status:     resolveField('status', get(row, 'status')) || 'To Do',
         resolution: get(row, 'resolution'),
         created:    resolveField('created', get(row, 'created')),

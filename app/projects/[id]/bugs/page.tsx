@@ -24,6 +24,7 @@ type BugRecord = {
   assignee: string;
   reporter: string;
   priority: string;
+  severity: string;
   status: string;
   resolution: string;
   created: string;
@@ -46,6 +47,15 @@ const PRIORITY_BADGE: Record<string, string> = {
   Major:    'bg-orange-100 text-orange-700 border-orange-200',
   Medium:   'bg-yellow-100 text-yellow-700 border-yellow-200',
   Minor:    'bg-green-100 text-green-700 border-green-200',
+};
+const SEVERITY_COLORS: Record<string, string> = {
+  Critical: '#dc2626', High: '#f97316', Medium: '#eab308', Low: '#22c55e',
+};
+const SEVERITY_BADGE: Record<string, string> = {
+  Critical: 'bg-red-100 text-red-700 border-red-200',
+  High:     'bg-orange-100 text-orange-700 border-orange-200',
+  Medium:   'bg-yellow-100 text-yellow-700 border-yellow-200',
+  Low:      'bg-green-100 text-green-700 border-green-200',
 };
 const STATUS_BADGE: Record<string, string> = {
   'To Do':          'bg-slate-100 text-slate-600',
@@ -97,6 +107,7 @@ export default function BugsPage() {
   // List filters
   const [filterStatus, setFilterStatus] = useState('__all__');
   const [filterPriority, setFilterPriority] = useState('__all__');
+  const [filterSeverity, setFilterSeverity] = useState('__all__');
   const [page, setPage] = useState(1);
   const [exportingPdf, setExportingPdf] = useState(false);
   const summaryRef = useRef<HTMLDivElement>(null);
@@ -195,6 +206,16 @@ export default function BugsPage() {
       .sort((a, b) => (order.indexOf(a.name) ?? 99) - (order.indexOf(b.name) ?? 99));
   }, [bugs]);
 
+  const severityData = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const b of bugs) {
+      if (b.severity) counts[b.severity] = (counts[b.severity] ?? 0) + 1;
+    }
+    const order = ['Critical', 'High', 'Medium', 'Low'];
+    return Object.entries(counts).map(([name, value]) => ({ name, value }))
+      .sort((a, b) => (order.indexOf(a.name) ?? 99) - (order.indexOf(b.name) ?? 99));
+  }, [bugs]);
+
   const statusChartData = useMemo(() => {
     const counts: Record<string, number> = {};
     for (const b of bugs) {
@@ -229,14 +250,16 @@ export default function BugsPage() {
   const filteredBugs = useMemo(() => bugs.filter(b => {
     if (filterStatus !== '__all__' && b.status !== filterStatus) return false;
     if (filterPriority !== '__all__' && b.priority !== filterPriority) return false;
+    if (filterSeverity !== '__all__' && b.severity !== filterSeverity) return false;
     return true;
-  }), [bugs, filterStatus, filterPriority]);
+  }), [bugs, filterStatus, filterPriority, filterSeverity]);
 
   const totalPages = Math.max(1, Math.ceil(filteredBugs.length / PAGE_SIZE));
   const pagedBugs = filteredBugs.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const allStatuses = useMemo(() => Array.from(new Set(bugs.map(b => b.status).filter(Boolean))).sort(), [bugs]);
   const allPriorities = useMemo(() => Array.from(new Set(bugs.map(b => b.priority).filter(Boolean))).sort(), [bugs]);
-  useEffect(() => { setPage(1); }, [filterStatus, filterPriority]);
+  const allSeverities = useMemo(() => Array.from(new Set(bugs.map(b => b.severity).filter(Boolean))).sort(), [bugs]);
+  useEffect(() => { setPage(1); }, [filterStatus, filterPriority, filterSeverity]);
 
   const exportPdf = useCallback(async () => {
     const target = activeTab === 'summary' ? summaryRef.current : listRef.current;
@@ -455,7 +478,7 @@ export default function BugsPage() {
           {/* ── Summary Tab ────────────────────────────────────────────────────── */}
           {!loading && bugs.length > 0 && activeTab === 'summary' && (
             <div ref={summaryRef} className="space-y-6 bg-white rounded-xl p-4">
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-4 gap-4">
 
                 {/* Active bugs table */}
                 <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
@@ -551,6 +574,32 @@ export default function BugsPage() {
                     )}
                   </div>
                 </div>
+
+                {/* Pie chart: Severity */}
+                <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                  <div className="px-4 py-3 border-b border-slate-100">
+                    <h3 className="font-semibold text-slate-700 text-sm">Severity</h3>
+                    <p className="text-xs text-slate-400">Mức độ nghiêm trọng</p>
+                  </div>
+                  <div className="p-2" style={{ height: 220 }}>
+                    {severityData.length > 0 ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie data={severityData} cx="50%" cy="50%" outerRadius={75}
+                            dataKey="value" labelLine={false} label={renderCustomLabel}>
+                            {severityData.map(entry => (
+                              <Cell key={entry.name} fill={SEVERITY_COLORS[entry.name] ?? '#94a3b8'} />
+                            ))}
+                          </Pie>
+                          <Tooltip formatter={(value, name) => [value, name]} />
+                          <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11 }} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="flex items-center justify-center h-full text-slate-300 text-sm">Chưa có dữ liệu severity</div>
+                    )}
+                  </div>
+                </div>
               </div>
 
               {/* KPI cards */}
@@ -631,6 +680,39 @@ export default function BugsPage() {
                   </div>
                 </div>
               </div>
+
+              {/* Severity breakdown */}
+              {severityData.length > 0 && (
+                <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+                  <p className="text-xs text-slate-400 uppercase tracking-wide font-medium mb-4">Số Bug theo Severity</p>
+                  <div className="space-y-3">
+                    {(['Critical', 'High', 'Medium', 'Low'] as const).map(severity => {
+                      const count = bugs.filter(b => b.severity === severity).length;
+                      if (count === 0) return null;
+                      const pct = bugs.length > 0 ? Math.round(count / bugs.length * 100) : 0;
+                      const barColors: Record<string, string> = {
+                        Critical: 'bg-red-500', High: 'bg-orange-400', Medium: 'bg-yellow-400', Low: 'bg-green-400',
+                      };
+                      return (
+                        <div key={severity} className="flex items-center gap-3">
+                          <div className="w-20 shrink-0">
+                            <span className={`text-xs px-2 py-0.5 rounded border font-semibold ${SEVERITY_BADGE[severity]}`}>
+                              {severity}
+                            </span>
+                          </div>
+                          <div className="flex-1 bg-slate-100 rounded-full h-2.5 overflow-hidden">
+                            <div className={`h-full rounded-full transition-all ${barColors[severity]}`} style={{ width: `${pct}%` }} />
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0 min-w-[4rem] justify-end">
+                            <span className="text-sm font-bold text-slate-700">{count}</span>
+                            <span className="text-xs text-slate-400">({pct}%)</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {/* Status overview */}
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
@@ -752,8 +834,20 @@ export default function BugsPage() {
                     </SelectContent>
                   </Select>
                 </div>
+                {allSeverities.length > 0 && (
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs text-slate-400">Severity:</span>
+                    <Select value={filterSeverity} onValueChange={v => setFilterSeverity(v ?? '__all__')}>
+                      <SelectTrigger className="h-7 text-xs w-36"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__all__">Tất cả</SelectItem>
+                        {allSeverities.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
                 <div className="ml-auto text-xs text-slate-400">
-                  {filteredBugs.length} bug{filterStatus !== '__all__' || filterPriority !== '__all__' ? ` (lọc từ ${bugs.length})` : ''}
+                  {filteredBugs.length} bug{filterStatus !== '__all__' || filterPriority !== '__all__' || filterSeverity !== '__all__' ? ` (lọc từ ${bugs.length})` : ''}
                 </div>
               </div>
 
@@ -762,7 +856,7 @@ export default function BugsPage() {
                   <table className="w-full text-sm">
                     <thead className="bg-slate-50 border-b border-slate-200">
                       <tr>
-                        {['Issue Type','Key','ID','Summary','Assignee','Reporter','Priority','Status','Resolution','Created'].map(h => (
+                        {['Issue Type','Key','ID','Summary','Assignee','Reporter','Priority','Severity','Status','Resolution','Created'].map(h => (
                           <th key={h} className="text-left px-3 py-3 font-semibold text-slate-600 text-xs whitespace-nowrap">{h}</th>
                         ))}
                       </tr>
@@ -770,7 +864,7 @@ export default function BugsPage() {
                     <tbody className="divide-y divide-slate-100">
                       {pagedBugs.length === 0 ? (
                         <tr>
-                          <td colSpan={10} className="px-3 py-8 text-center text-slate-400 text-sm">
+                          <td colSpan={11} className="px-3 py-8 text-center text-slate-400 text-sm">
                             Không có bug nào khớp với bộ lọc
                           </td>
                         </tr>
@@ -793,6 +887,11 @@ export default function BugsPage() {
                           <td className="px-3 py-2.5">
                             {bug.priority
                               ? <span className={`text-xs px-1.5 py-0.5 rounded border font-medium ${PRIORITY_BADGE[bug.priority] ?? 'bg-slate-100 text-slate-600 border-slate-200'}`}>{bug.priority}</span>
+                              : <span className="text-slate-300">—</span>}
+                          </td>
+                          <td className="px-3 py-2.5">
+                            {bug.severity
+                              ? <span className={`text-xs px-1.5 py-0.5 rounded border font-medium ${SEVERITY_BADGE[bug.severity] ?? 'bg-slate-100 text-slate-600 border-slate-200'}`}>{bug.severity}</span>
                               : <span className="text-slate-300">—</span>}
                           </td>
                           <td className="px-3 py-2.5">

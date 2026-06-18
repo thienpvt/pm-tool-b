@@ -1,17 +1,15 @@
 'use client';
-import React, { useState, useCallback, KeyboardEvent } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/components/ui/select';
 import { toast } from 'sonner';
 import {
-  RefreshCw, X, ChevronRight, ChevronLeft, Search, Loader2,
-  AlertCircle, CheckCircle2, Filter, Database, Check,
+  RefreshCw, ChevronRight, ChevronLeft, Loader2,
+  AlertCircle, CheckCircle2, Database, Check,
+  Save, Trash2, BookOpen,
 } from 'lucide-react';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
@@ -21,21 +19,6 @@ interface JiraSyncDialogProps {
   projectId: string;
   mode: 'timeline' | 'bug';
   onSynced: () => void;
-}
-
-type Operator = '=' | '!=' | 'in' | 'not in';
-
-interface FilterField {
-  op: Operator;
-  values: string[];
-}
-
-interface FilterState {
-  projectKey: string;
-  labels: FilterField;
-  component: FilterField;
-  issueTypes: string[];
-  status: FilterField;
 }
 
 interface JiraIssue {
@@ -51,27 +34,23 @@ interface JiraIssue {
     labels: string[];
     components: { name: string }[];
     parent?: { key: string };
-    customfield_10014?: string;   // Epic Link (classic projects)
-    customfield_10016?: number;   // Story Points
-    customfield_10020?: Array<{ name: string; state: string }> | string; // Sprint
+    customfield_10014?: string;
+    customfield_10016?: number;
+    customfield_10020?: Array<{ name: string; state: string }> | string;
     resolution?: { name: string } | null;
     created: string;
     duedate?: string | null;
   };
 }
 
+interface JqlPreset {
+  id: number;
+  name: string;
+  jql: string;
+  created_at: string;
+}
+
 // ─── Constants ─────────────────────────────────────────────────────────────────
-const ISSUE_TYPES = ['Epic', 'Story', 'Task', 'Bug', 'Sub-task'];
-const OPERATORS: { value: Operator; label: string }[] = [
-  { value: '=',      label: '= (bằng)'          },
-  { value: '!=',     label: '!= (khác)'          },
-  { value: 'in',     label: 'in (thuộc)'         },
-  { value: 'not in', label: 'not in (không thuộc)' },
-];
-const COMMON_STATUSES = [
-  'To Do', 'In Progress', 'Done', 'In Review', 'Blocked',
-  'Ready for Test', 'Closed', 'Resolved', "Won't Fix", 'Reopen',
-];
 const TYPE_COLORS: Record<string, string> = {
   Epic:       'bg-purple-100 text-purple-700',
   Story:      'bg-green-100 text-green-700',
@@ -80,29 +59,7 @@ const TYPE_COLORS: Record<string, string> = {
   'Sub-task': 'bg-orange-100 text-orange-700',
 };
 
-// ─── JQL Builder ───────────────────────────────────────────────────────────────
-function buildClause(field: string, { op, values }: FilterField): string {
-  if (!values.length) return '';
-  if (values.length === 1 && (op === '=' || op === '!=')) {
-    return `${field} ${op} "${values[0]}"`;
-  }
-  const actualOp = op === '=' ? 'in' : op === '!=' ? 'not in' : op;
-  return `${field} ${actualOp} (${values.map(v => `"${v}"`).join(', ')})`;
-}
-
-function buildJQL(f: FilterState): string {
-  if (!f.projectKey.trim()) return '';
-  const clauses: string[] = [`project = "${f.projectKey.trim().toUpperCase()}"`];
-  const lbl = buildClause('labels',    f.labels);    if (lbl) clauses.push(lbl);
-  const cmp = buildClause('component', f.component); if (cmp) clauses.push(cmp);
-  if (f.issueTypes.length) {
-    clauses.push(`issuetype in (${f.issueTypes.join(', ')})`);
-  }
-  const sts = buildClause('status', f.status); if (sts) clauses.push(sts);
-  return clauses.join(' AND ') + ' ORDER BY created ASC';
-}
-
-// ─── Field Mapping: Jira → PM tool ────────────────────────────────────────────
+// ─── Field Mapping helpers ─────────────────────────────────────────────────────
 function isoToDate(raw: string | null | undefined): string {
   if (!raw) return '';
   const d = new Date(raw);
@@ -183,114 +140,12 @@ function mapToBugs(issues: JiraIssue[]) {
       assignee:   f.assignee?.displayName ?? '',
       reporter:   f.reporter?.displayName ?? '',
       priority:   normalizePriority(f.priority?.name ?? 'Medium'),
+      severity:   '',
       status:     normalizeBugStatus(f.status.name),
       resolution: f.resolution?.name ?? '',
       created:    isoToDate(f.created),
     };
   });
-}
-
-// ─── ChipInput ─────────────────────────────────────────────────────────────────
-function ChipInput({
-  values, onChange, placeholder, suggestions = [],
-}: {
-  values: string[];
-  onChange: (v: string[]) => void;
-  placeholder?: string;
-  suggestions?: string[];
-}) {
-  const [input, setInput] = useState('');
-  const [showSug, setShowSug] = useState(false);
-
-  const add = useCallback((val: string) => {
-    const v = val.trim();
-    if (v && !values.includes(v)) onChange([...values, v]);
-    setInput('');
-    setShowSug(false);
-  }, [values, onChange]);
-
-  const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); add(input); }
-    else if (e.key === 'Backspace' && !input && values.length) onChange(values.slice(0, -1));
-  };
-
-  const filtered = suggestions.filter(
-    s => s.toLowerCase().includes(input.toLowerCase()) && !values.includes(s)
-  );
-
-  return (
-    <div className="relative">
-      <div className="flex flex-wrap gap-1 min-h-9 px-2 py-1.5 border rounded-md bg-background items-center focus-within:ring-1 focus-within:ring-ring">
-        {values.map(v => (
-          <span key={v} className="inline-flex items-center gap-1 bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-full font-medium">
-            {v}
-            <button type="button" onClick={() => onChange(values.filter(x => x !== v))}
-              className="hover:text-blue-900 leading-none">
-              <X className="w-3 h-3" />
-            </button>
-          </span>
-        ))}
-        <input
-          className="flex-1 min-w-[120px] text-sm outline-none bg-transparent"
-          value={input}
-          onChange={e => { setInput(e.target.value); setShowSug(true); }}
-          onKeyDown={onKeyDown}
-          onFocus={() => setShowSug(true)}
-          onBlur={() => setTimeout(() => setShowSug(false), 150)}
-          placeholder={values.length ? '' : placeholder}
-        />
-      </div>
-      {showSug && input && filtered.length > 0 && (
-        <div className="absolute z-50 w-full mt-1 border rounded-md bg-white shadow-lg max-h-40 overflow-y-auto">
-          {filtered.map(s => (
-            <button key={s} type="button" onMouseDown={() => add(s)}
-              className="w-full text-left px-3 py-1.5 text-sm hover:bg-slate-100">
-              {s}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── FilterRow helper ──────────────────────────────────────────────────────────
-function FilterRow({
-  label, field, onChange, placeholder, suggestions,
-}: {
-  label: string;
-  field: FilterField;
-  onChange: (f: FilterField) => void;
-  placeholder: string;
-  suggestions?: string[];
-}) {
-  return (
-    <div className="space-y-1.5">
-      <label className="text-sm font-medium text-slate-700">
-        {label} <span className="text-xs text-slate-400">(tuỳ chọn)</span>
-      </label>
-      <div className="flex gap-2">
-        <div className="w-44 shrink-0">
-          <Select value={field.op} onValueChange={v => onChange({ ...field, op: v as Operator })}>
-            <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {OPERATORS.map(o => (
-                <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex-1">
-          <ChipInput
-            values={field.values}
-            onChange={v => onChange({ ...field, values: v })}
-            placeholder={placeholder}
-            suggestions={suggestions}
-          />
-        </div>
-      </div>
-    </div>
-  );
 }
 
 // ─── Main component ────────────────────────────────────────────────────────────
@@ -301,42 +156,66 @@ export default function JiraSyncDialog({
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
 
-  const [filter, setFilter] = useState<FilterState>({
-    projectKey: '',
-    labels:     { op: 'in',     values: [] },
-    component:  { op: 'in',     values: [] },
-    issueTypes: mode === 'bug' ? ['Bug'] : ['Epic', 'Story', 'Task', 'Bug'],
-    status:     { op: 'not in', values: [] },
-  });
+  const [jql, setJql] = useState('');
+  const [presets, setPresets] = useState<JqlPreset[]>([]);
+  const [presetName, setPresetName] = useState('');
+  const [savingPreset, setSavingPreset] = useState(false);
 
   const [issues, setIssues]               = useState<JiraIssue[]>([]);
   const [total, setTotal]                 = useState(0);
   const [nextPageToken, setNextPageToken] = useState<string | null>(null);
   const PAGE = 100;
 
-  const jql = buildJQL(filter);
-
-  const reset = () => {
+  const reset = useCallback(() => {
     setStep(1);
     setIssues([]);
     setTotal(0);
     setNextPageToken(null);
-  };
+  }, []);
 
   const handleOpenChange = (o: boolean) => {
     if (!o) reset();
     onOpenChange(o);
   };
 
-  // Initial fetch — replaces issue list
+  useEffect(() => {
+    if (open) {
+      fetch('/api/jira/jql-presets').then(r => r.json()).then(setPresets).catch(() => {});
+    }
+  }, [open]);
+
+  const handleSavePreset = async () => {
+    if (!presetName.trim()) { toast.error('Nhập tên để lưu'); return; }
+    if (!jql.trim()) { toast.error('JQL không được để trống'); return; }
+    setSavingPreset(true);
+    try {
+      const res = await fetch('/api/jira/jql-presets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: presetName.trim(), jql: jql.trim() }),
+      });
+      const saved = await res.json();
+      setPresets(p => [saved, ...p.slice(0, 9)]);
+      setPresetName('');
+      toast.success(`Đã lưu JQL "${saved.name}"`);
+    } catch { toast.error('Lưu thất bại'); }
+    setSavingPreset(false);
+  };
+
+  const handleDeletePreset = async (id: number) => {
+    await fetch(`/api/jira/jql-presets/${id}`, { method: 'DELETE' });
+    setPresets(p => p.filter(x => x.id !== id));
+    toast.success('Đã xóa preset');
+  };
+
   const handleFetch = async () => {
-    if (!filter.projectKey.trim()) { toast.error('Vui lòng nhập Jira Project Key'); return; }
+    if (!jql.trim()) { toast.error('Vui lòng nhập JQL'); return; }
     setLoading(true);
     try {
       const res = await fetch('/api/jira/search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jql, maxResults: PAGE }),
+        body: JSON.stringify({ jql: jql.trim(), maxResults: PAGE }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? 'Lỗi không xác định');
@@ -351,7 +230,6 @@ export default function JiraSyncDialog({
     }
   };
 
-  // Load more — appends to existing list
   const handleFetchMore = async () => {
     if (!nextPageToken) return;
     setLoading(true);
@@ -359,7 +237,7 @@ export default function JiraSyncDialog({
       const res = await fetch('/api/jira/search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jql, maxResults: PAGE, nextPageToken }),
+        body: JSON.stringify({ jql: jql.trim(), maxResults: PAGE, nextPageToken }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? 'Lỗi không xác định');
@@ -407,7 +285,7 @@ export default function JiraSyncDialog({
     }
   };
 
-  const STEP_LABELS = ['Bộ lọc JQL', 'Xem trước', 'Xác nhận'];
+  const STEP_LABELS = ['Câu JQL', 'Xem trước', 'Xác nhận'];
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -419,7 +297,6 @@ export default function JiraSyncDialog({
             <RefreshCw className="w-4 h-4 text-blue-600" />
             Sync từ Jira — {mode === 'timeline' ? 'Project Timeline' : 'Bug Tracking'}
           </DialogTitle>
-          {/* Stepper */}
           <div className="flex items-center gap-1 pt-2">
             {STEP_LABELS.map((label, i) => {
               const n = i + 1;
@@ -447,92 +324,78 @@ export default function JiraSyncDialog({
         {/* Body */}
         <div className="flex-1 overflow-y-auto min-h-0 px-6 py-4">
 
-          {/* ── Step 1: JQL Filter Builder ── */}
+          {/* ── Step 1: JQL Input ── */}
           {step === 1 && (
             <div className="space-y-5">
-              {/* Project Key */}
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 <label className="text-sm font-medium text-slate-700">
-                  Jira Project Key <span className="text-red-500">*</span>
+                  Câu JQL <span className="text-red-500">*</span>
                 </label>
-                <Input
-                  value={filter.projectKey}
-                  onChange={e => setFilter(f => ({ ...f, projectKey: e.target.value.toUpperCase() }))}
-                  placeholder="VD: MYPROJ, BACKEND, MOB..."
-                  className="font-mono uppercase tracking-wider"
+                <textarea
+                  value={jql}
+                  onChange={e => setJql(e.target.value)}
+                  rows={5}
+                  className="w-full font-mono text-sm border border-slate-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none bg-slate-50 leading-relaxed"
+                  placeholder={
+                    mode === 'bug'
+                      ? 'project = "MYPROJ" AND issuetype = Bug AND status != Done ORDER BY created ASC'
+                      : 'project = "MYPROJ" AND issuetype in (Epic, Story, Task) ORDER BY created ASC'
+                  }
                 />
                 <p className="text-xs text-slate-400">
-                  Tìm trong URL Jira: .../jira/software/projects/<strong>MYPROJ</strong>/boards
+                  Nhập câu JQL trực tiếp. Ví dụ: <code className="bg-slate-100 px-1 rounded">project = "ABC" AND issuetype = Bug AND sprint in openSprints()</code>
                 </p>
               </div>
 
-              <FilterRow
-                label="Labels"
-                field={filter.labels}
-                onChange={v => setFilter(f => ({ ...f, labels: v }))}
-                placeholder='Nhập label rồi Enter, VD: "v1.0", "release-2"'
-              />
-
-              <FilterRow
-                label="Component"
-                field={filter.component}
-                onChange={v => setFilter(f => ({ ...f, component: v }))}
-                placeholder='Nhập component rồi Enter, VD: "Backend", "Mobile"'
-              />
-
-              {/* Issue Type */}
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium text-slate-700">
-                  Issue Type <span className="text-xs text-slate-400">(tuỳ chọn)</span>
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {ISSUE_TYPES.map(t => {
-                    const selected = filter.issueTypes.includes(t);
-                    return (
-                      <button key={t} type="button"
-                        onClick={() => setFilter(f => ({
-                          ...f,
-                          issueTypes: selected
-                            ? f.issueTypes.filter(x => x !== t)
-                            : [...f.issueTypes, t],
-                        }))}
-                        className={`px-3 py-1 rounded-full text-xs font-medium border transition-all ${
-                          selected
-                            ? `${TYPE_COLORS[t] ?? 'bg-gray-100 text-gray-700'} border-current`
-                            : 'bg-slate-50 text-slate-400 border-slate-200 hover:border-slate-300'
-                        }`}>
-                        {selected && <Check className="w-3 h-3 inline mr-1" />}
-                        {t}
-                      </button>
-                    );
-                  })}
-                  {filter.issueTypes.length > 0 && (
-                    <button type="button"
-                      onClick={() => setFilter(f => ({ ...f, issueTypes: [] }))}
-                      className="text-xs text-slate-400 hover:text-slate-600 underline px-1">
-                      Bỏ chọn tất cả
-                    </button>
-                  )}
-                </div>
+              {/* Save preset */}
+              <div className="flex items-center gap-2">
+                <Input
+                  className="h-8 text-xs flex-1"
+                  placeholder="Đặt tên để lưu JQL này..."
+                  value={presetName}
+                  onChange={e => setPresetName(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') handleSavePreset(); }}
+                />
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5 h-8 text-xs shrink-0"
+                  disabled={savingPreset || !presetName.trim() || !jql.trim()}
+                  onClick={handleSavePreset}
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  {savingPreset ? 'Đang lưu...' : 'Lưu JQL'}
+                </Button>
               </div>
 
-              <FilterRow
-                label="Status"
-                field={filter.status}
-                onChange={v => setFilter(f => ({ ...f, status: v }))}
-                placeholder='Nhập status rồi Enter hoặc chọn từ gợi ý'
-                suggestions={COMMON_STATUSES}
-              />
-
-              {/* JQL Preview */}
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium text-slate-700 flex items-center gap-1.5">
-                  <Filter className="w-3.5 h-3.5 text-slate-500" /> JQL được tạo tự động
-                </label>
-                <div className="bg-slate-900 text-green-300 font-mono text-xs px-4 py-3 rounded-lg leading-relaxed break-all min-h-[52px]">
-                  {jql || <span className="text-slate-600 italic">Nhập Project Key để xem JQL...</span>}
+              {/* Saved presets */}
+              {presets.length > 0 && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
+                    <BookOpen className="w-3.5 h-3.5" />
+                    JQL đã lưu ({presets.length}/10)
+                  </div>
+                  <div className="space-y-1.5">
+                    {presets.map(p => (
+                      <div key={p.id} className="flex items-start gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 group hover:border-blue-300 hover:bg-blue-50/40 transition-colors">
+                        <button
+                          className="flex-1 text-left min-w-0"
+                          onClick={() => { setJql(p.jql); toast.success(`Đã tải "${p.name}"`); }}
+                        >
+                          <p className="text-xs font-semibold text-blue-700 group-hover:text-blue-800">{p.name}</p>
+                          <p className="text-[11px] text-slate-400 font-mono truncate mt-0.5">{p.jql}</p>
+                        </button>
+                        <button
+                          onClick={() => handleDeletePreset(p.id)}
+                          className="shrink-0 text-slate-300 hover:text-red-500 transition-colors mt-0.5"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           )}
 
@@ -542,7 +405,7 @@ export default function JiraSyncDialog({
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <p className="text-sm text-slate-600">
                   Tìm thấy <span className="font-semibold text-blue-600">{total}</span> issues
-                  {total > PAGE && <span className="text-amber-600 ml-1 text-xs">(hiển thị {PAGE}/lần, cần dùng filter hẹp hơn)</span>}
+                  {total > PAGE && <span className="text-amber-600 ml-1 text-xs">(tải {PAGE}/lần)</span>}
                 </p>
                 <code className="text-[11px] text-slate-400 truncate max-w-xs font-mono">{jql}</code>
               </div>
@@ -550,7 +413,7 @@ export default function JiraSyncDialog({
               {issues.length === 0 ? (
                 <div className="text-center py-16 text-slate-400">
                   <AlertCircle className="w-8 h-8 mx-auto mb-2 opacity-40" />
-                  <p className="text-sm">Không tìm thấy issue nào với bộ lọc này</p>
+                  <p className="text-sm">Không tìm thấy issue nào với JQL này</p>
                 </div>
               ) : (
                 <div className="border rounded-lg overflow-hidden">
@@ -587,7 +450,6 @@ export default function JiraSyncDialog({
                 </div>
               )}
 
-              {/* Load more (cursor-based — appends to list) */}
               {nextPageToken && (
                 <div className="flex justify-center pt-1">
                   <Button variant="outline" size="sm" onClick={handleFetchMore} disabled={loading}
@@ -611,11 +473,10 @@ export default function JiraSyncDialog({
                   Xác nhận sync {issues.length} issues
                 </h3>
                 <div className="text-sm text-blue-700 space-y-1.5">
-                  <p>• <strong>Nguồn:</strong> Jira project <code className="bg-blue-100 px-1.5 py-0.5 rounded font-mono">{filter.projectKey}</code></p>
                   <p>• <strong>Tổng tìm thấy:</strong> {total} issues / đã tải: <strong>{issues.length} issues</strong>{nextPageToken ? ' (còn issues chưa tải — nhấn "Tải thêm" ở bước trước)' : ' ✓ đầy đủ'}</p>
                   <p>• <strong>Đích:</strong> {
                     mode === 'timeline'
-                      ? 'Project Timeline — upsert theo Jira Key (thêm mới nếu chưa có, cập nhật nếu đã có)'
+                      ? 'Project Timeline — upsert theo Jira Key'
                       : `Bug Tracking — snapshot ngày ${new Date().toLocaleDateString('vi-VN', { year:'numeric',month:'2-digit',day:'2-digit' })}`
                   }</p>
                 </div>
@@ -640,7 +501,7 @@ export default function JiraSyncDialog({
                   <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                   <span>
                     Chưa tải hết — Jira có <strong>{total} issues</strong>, đã tải <strong>{issues.length}</strong>.
-                    Quay lại bước trước và nhấn <strong>"Tải thêm"</strong> để lấy phần còn lại trước khi sync.
+                    Quay lại bước trước và nhấn <strong>&ldquo;Tải thêm&rdquo;</strong> để lấy phần còn lại trước khi sync.
                   </span>
                 </div>
               )}
@@ -668,10 +529,10 @@ export default function JiraSyncDialog({
               Huỷ
             </Button>
             {step === 1 && (
-              <Button onClick={handleFetch} disabled={loading || !filter.projectKey.trim()}>
+              <Button onClick={handleFetch} disabled={loading || !jql.trim()}>
                 {loading
                   ? <><Loader2 className="w-4 h-4 mr-1 animate-spin" />Đang tải...</>
-                  : <><Search className="w-4 h-4 mr-1" />Fetch từ Jira</>
+                  : <><RefreshCw className="w-4 h-4 mr-1" />Fetch từ Jira</>
                 }
               </Button>
             )}
