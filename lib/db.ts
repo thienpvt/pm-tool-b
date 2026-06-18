@@ -377,10 +377,17 @@ async function initPostgresSchema(db: DbClient) {
       assignee TEXT DEFAULT '',
       reporter TEXT DEFAULT '',
       priority TEXT DEFAULT 'Medium',
+      severity TEXT DEFAULT '',
       status TEXT DEFAULT 'To Do',
       resolution TEXT DEFAULT '',
       created TEXT DEFAULT '',
       snapshot_date TEXT DEFAULT '',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE TABLE IF NOT EXISTS jira_jql_presets (
+      id SERIAL PRIMARY KEY,
+      name TEXT NOT NULL,
+      jql TEXT NOT NULL,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
     CREATE TABLE IF NOT EXISTS bug_import_mappings (

@@ -22,9 +22,11 @@ export async function GET(req: NextRequest, { params }: Params) {
   const date = url.searchParams.get('date');
   let bugs;
 
+  const BUG_COLS = 'id, issue_type, issue_key, issue_id, summary, assignee, reporter, priority, severity, status, resolution, created, snapshot_date, created_at';
+
   if (date) {
     bugs = await db.all(
-      'SELECT * FROM bugs WHERE project_id = ? AND snapshot_date = ? ORDER BY created_at',
+      `SELECT ${BUG_COLS} FROM bugs WHERE project_id = ? AND snapshot_date = ? ORDER BY created_at`,
       id, date,
     );
   } else {
@@ -36,12 +38,12 @@ export async function GET(req: NextRequest, { params }: Params) {
     );
     if (latest) {
       bugs = await db.all(
-        'SELECT * FROM bugs WHERE project_id = ? AND snapshot_date = ? ORDER BY created_at',
+        `SELECT ${BUG_COLS} FROM bugs WHERE project_id = ? AND snapshot_date = ? ORDER BY created_at`,
         id, latest.snapshot_date,
       );
     } else {
       bugs = await db.all(
-        'SELECT * FROM bugs WHERE project_id = ? ORDER BY created_at',
+        `SELECT ${BUG_COLS} FROM bugs WHERE project_id = ? ORDER BY created_at`,
         id,
       );
     }
