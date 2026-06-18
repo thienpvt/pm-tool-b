@@ -175,6 +175,7 @@ export default function JiraSyncDialog({
   const [presetName, setPresetName] = useState('');
   const [savingPreset, setSavingPreset] = useState(false);
   const [severityFieldId, setSeverityFieldId] = useState('customfield_1185');
+  const [severityFieldOptions, setSeverityFieldOptions] = useState<Array<{ id: string; name: string }>>([]);
 
   const [issues, setIssues]               = useState<JiraIssue[]>([]);
   const [total, setTotal]                 = useState(0);
@@ -201,11 +202,13 @@ export default function JiraSyncDialog({
         .then(r => r.json())
         .then((fields: Array<{ id: string; name: string }>) => {
           if (!Array.isArray(fields)) return;
-          const found = fields.find(f => f.name.toLowerCase().includes('severity'));
-          if (found) {
-            setSeverityFieldId(found.id);
-            console.log('[JiraSyncDialog] severity field detected:', found.id, found.name);
-          }
+          const candidates = fields.filter(f => f.name.toLowerCase().includes('severity'));
+          if (candidates.length === 0) return;
+          setSeverityFieldOptions(candidates);
+          // Prefer "migrated" variant, otherwise first match
+          const best = candidates.find(f => f.name.toLowerCase().includes('migrated')) ?? candidates[0];
+          setSeverityFieldId(best.id);
+          console.log('[JiraSyncDialog] severity candidates:', candidates.map(f => `${f.id}:${f.name}`).join(', '));
         })
         .catch(() => {});
     }
@@ -374,6 +377,24 @@ export default function JiraSyncDialog({
                 </p>
               </div>
 
+              {/* Severity field selector — bug mode only */}
+              {mode === 'bug' && severityFieldOptions.length > 0 && (
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-slate-600">
+                    Field Severity <span className="text-slate-400 font-normal">(chọn đúng custom field)</span>
+                  </label>
+                  <select
+                    value={severityFieldId}
+                    onChange={e => setSeverityFieldId(e.target.value)}
+                    className="w-full h-8 text-xs border border-slate-200 rounded-lg px-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  >
+                    {severityFieldOptions.map(f => (
+                      <option key={f.id} value={f.id}>{f.name} ({f.id})</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               {/* Save preset */}
               <div className="flex items-center gap-2">
                 <Input
@@ -453,7 +474,10 @@ export default function JiraSyncDialog({
                         <th className="text-left px-3 py-2 w-28">Status</th>
                         <th className="text-left px-3 py-2 w-28">Assignee</th>
                         <th className="text-left px-3 py-2 w-20">Priority</th>
-                        <th className="text-left px-3 py-2 w-20">Severity</th>
+                        <th className="text-left px-3 py-2 w-20">
+                          Severity
+                          <span className="block text-[9px] font-normal text-slate-400 leading-tight">{severityFieldId}</span>
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
