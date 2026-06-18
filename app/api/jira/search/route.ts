@@ -46,18 +46,21 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { jql, nextPageToken, maxResults = 100 } = body as {
+  const { jql, nextPageToken, maxResults = 100, extraFields = [] } = body as {
     jql: string;
     nextPageToken?: string;
     maxResults?: number;
+    extraFields?: string[];
   };
 
   if (!jql) {
     return NextResponse.json({ error: 'jql là bắt buộc' }, { status: 400 });
   }
 
+  const allFields = [...new Set([...FIELDS, ...extraFields])];
+
   // Jira Cloud new endpoint (POST /rest/api/3/search/jql), cursor-based pagination
-  const requestBody: Record<string, unknown> = { jql, maxResults, fields: FIELDS };
+  const requestBody: Record<string, unknown> = { jql, maxResults, fields: allFields };
   if (nextPageToken) requestBody.nextPageToken = nextPageToken;
 
   try {
@@ -84,10 +87,13 @@ export async function POST(req: NextRequest) {
 
     const data = await resp.json();
 
-    // Debug: log customfield_1185 from first issue so it appears in Railway logs
+    // Debug: log ALL custom fields from first issue to identify correct field IDs
     const firstIssue = data.issues?.[0];
     if (firstIssue) {
-      console.log('[jira/search] customfield_1185 sample:', JSON.stringify(firstIssue.fields?.customfield_1185));
+      const customFields = Object.entries(firstIssue.fields ?? {})
+        .filter(([k]) => k.startsWith('customfield_'))
+        .map(([k, v]) => `${k}=${JSON.stringify(v)}`);
+      console.log('[jira/search] custom fields on first issue:', customFields.join(' | '));
     }
 
     return NextResponse.json({

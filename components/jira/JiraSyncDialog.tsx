@@ -37,10 +37,10 @@ interface JiraIssue {
     customfield_10014?: string;
     customfield_10016?: number;
     customfield_10020?: Array<{ name: string; state: string }> | string;
-    customfield_1185?: unknown;
     resolution?: { name: string } | null;
     created: string;
     duedate?: string | null;
+    [key: string]: unknown;
   };
 }
 
@@ -143,7 +143,7 @@ function mapToActivities(issues: JiraIssue[]) {
   });
 }
 
-function mapToBugs(issues: JiraIssue[]) {
+function mapToBugs(issues: JiraIssue[], severityFieldId: string) {
   return issues.map(issue => {
     const f = issue.fields;
     return {
@@ -154,7 +154,7 @@ function mapToBugs(issues: JiraIssue[]) {
       assignee:   f.assignee?.displayName ?? '',
       reporter:   f.reporter?.displayName ?? '',
       priority:   normalizePriority(f.priority?.name ?? 'Medium'),
-      severity:   extractOptionValue(f.customfield_1185),
+      severity:   extractOptionValue(f[severityFieldId]),
       status:     normalizeBugStatus(f.status.name),
       resolution: f.resolution?.name ?? '',
       created:    isoToDate(f.created),
@@ -174,6 +174,7 @@ export default function JiraSyncDialog({
   const [presets, setPresets] = useState<JqlPreset[]>([]);
   const [presetName, setPresetName] = useState('');
   const [savingPreset, setSavingPreset] = useState(false);
+  const [severityFieldId, setSeverityFieldId] = useState('customfield_1185');
 
   const [issues, setIssues]               = useState<JiraIssue[]>([]);
   const [total, setTotal]                 = useState(0);
@@ -195,6 +196,18 @@ export default function JiraSyncDialog({
   useEffect(() => {
     if (open) {
       fetch('/api/jira/jql-presets').then(r => r.json()).then(setPresets).catch(() => {});
+      // Auto-detect severity custom field ID from Jira
+      fetch('/api/jira/fields')
+        .then(r => r.json())
+        .then((fields: Array<{ id: string; name: string }>) => {
+          if (!Array.isArray(fields)) return;
+          const found = fields.find(f => f.name.toLowerCase().includes('severity'));
+          if (found) {
+            setSeverityFieldId(found.id);
+            console.log('[JiraSyncDialog] severity field detected:', found.id, found.name);
+          }
+        })
+        .catch(() => {});
     }
   }, [open]);
 
@@ -229,7 +242,7 @@ export default function JiraSyncDialog({
       const res = await fetch('/api/jira/search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jql: jql.trim(), maxResults: PAGE }),
+        body: JSON.stringify({ jql: jql.trim(), maxResults: PAGE, extraFields: [severityFieldId] }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? 'Lỗi không xác định');
@@ -251,7 +264,7 @@ export default function JiraSyncDialog({
       const res = await fetch('/api/jira/search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jql: jql.trim(), maxResults: PAGE, nextPageToken }),
+        body: JSON.stringify({ jql: jql.trim(), maxResults: PAGE, nextPageToken, extraFields: [severityFieldId] }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? 'Lỗi không xác định');
@@ -280,7 +293,7 @@ export default function JiraSyncDialog({
       } else {
         const today = new Date().toISOString().split('T')[0];
         await fetch(`/api/projects/${projectId}/bugs?date=${today}`, { method: 'DELETE' });
-        const bugs = mapToBugs(issues);
+        const bugs = mapToBugs(issues, severityFieldId);
         const res = await fetch(`/api/projects/${projectId}/bugs`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -445,7 +458,7 @@ export default function JiraSyncDialog({
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {issues.map(issue => {
-                        const severity = extractOptionValue(issue.fields.customfield_1185);
+                        const severity = extractOptionValue(issue.fields[severityFieldId]);
                         const SEVERITY_BADGE: Record<string, string> = {
                           Blocker:  'bg-purple-100 text-purple-700',
                           Critical: 'bg-red-100 text-red-700',
