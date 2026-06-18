@@ -48,14 +48,28 @@ const PRIORITY_BADGE: Record<string, string> = {
   Medium:   'bg-yellow-100 text-yellow-700 border-yellow-200',
   Minor:    'bg-green-100 text-green-700 border-green-200',
 };
+const SEVERITY_ORDER = ['Blocker','Critical','Highest','Major','High','Medium','Normal','Moderate','Low','Minor','Trivial','Lowest'];
 const SEVERITY_COLORS: Record<string, string> = {
-  Critical: '#dc2626', High: '#f97316', Medium: '#eab308', Low: '#22c55e',
+  Blocker: '#7c3aed',
+  Critical: '#dc2626', Highest: '#dc2626',
+  Major: '#f97316', High: '#f97316',
+  Medium: '#eab308', Normal: '#eab308', Moderate: '#eab308',
+  Low: '#22c55e', Minor: '#3b82f6',
+  Trivial: '#94a3b8', Lowest: '#94a3b8',
 };
 const SEVERITY_BADGE: Record<string, string> = {
+  Blocker:  'bg-purple-100 text-purple-700 border-purple-200',
   Critical: 'bg-red-100 text-red-700 border-red-200',
+  Highest:  'bg-red-100 text-red-700 border-red-200',
+  Major:    'bg-orange-100 text-orange-700 border-orange-200',
   High:     'bg-orange-100 text-orange-700 border-orange-200',
   Medium:   'bg-yellow-100 text-yellow-700 border-yellow-200',
+  Normal:   'bg-yellow-100 text-yellow-700 border-yellow-200',
+  Moderate: 'bg-yellow-100 text-yellow-700 border-yellow-200',
   Low:      'bg-green-100 text-green-700 border-green-200',
+  Minor:    'bg-blue-100 text-blue-700 border-blue-200',
+  Trivial:  'bg-slate-100 text-slate-500 border-slate-200',
+  Lowest:   'bg-slate-100 text-slate-500 border-slate-200',
 };
 const STATUS_BADGE: Record<string, string> = {
   'To Do':          'bg-slate-100 text-slate-600',
@@ -211,9 +225,12 @@ export default function BugsPage() {
     for (const b of bugs) {
       if (b.severity) counts[b.severity] = (counts[b.severity] ?? 0) + 1;
     }
-    const order = ['Critical', 'High', 'Medium', 'Low'];
     return Object.entries(counts).map(([name, value]) => ({ name, value }))
-      .sort((a, b) => (order.indexOf(a.name) ?? 99) - (order.indexOf(b.name) ?? 99));
+      .sort((a, b) => {
+        const ia = SEVERITY_ORDER.indexOf(a.name);
+        const ib = SEVERITY_ORDER.indexOf(b.name);
+        return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
+      });
   }, [bugs]);
 
   const statusChartData = useMemo(() => {
@@ -686,22 +703,17 @@ export default function BugsPage() {
                 <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
                   <p className="text-xs text-slate-400 uppercase tracking-wide font-medium mb-4">Số Bug theo Severity</p>
                   <div className="space-y-3">
-                    {(['Critical', 'High', 'Medium', 'Low'] as const).map(severity => {
-                      const count = bugs.filter(b => b.severity === severity).length;
-                      if (count === 0) return null;
+                    {severityData.map(({ name: severity, value: count }) => {
                       const pct = bugs.length > 0 ? Math.round(count / bugs.length * 100) : 0;
-                      const barColors: Record<string, string> = {
-                        Critical: 'bg-red-500', High: 'bg-orange-400', Medium: 'bg-yellow-400', Low: 'bg-green-400',
-                      };
                       return (
                         <div key={severity} className="flex items-center gap-3">
                           <div className="w-20 shrink-0">
-                            <span className={`text-xs px-2 py-0.5 rounded border font-semibold ${SEVERITY_BADGE[severity]}`}>
+                            <span className={`text-xs px-2 py-0.5 rounded border font-semibold ${SEVERITY_BADGE[severity] ?? 'bg-slate-100 text-slate-600 border-slate-200'}`}>
                               {severity}
                             </span>
                           </div>
                           <div className="flex-1 bg-slate-100 rounded-full h-2.5 overflow-hidden">
-                            <div className={`h-full rounded-full transition-all ${barColors[severity]}`} style={{ width: `${pct}%` }} />
+                            <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: SEVERITY_COLORS[severity] ?? '#94a3b8' }} />
                           </div>
                           <div className="flex items-center gap-1.5 shrink-0 min-w-[4rem] justify-end">
                             <span className="text-sm font-bold text-slate-700">{count}</span>
