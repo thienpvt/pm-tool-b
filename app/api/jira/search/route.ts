@@ -33,6 +33,7 @@ const FIELDS = [
   'customfield_10016', // Story Points
   'resolution',
   'customfield_10020', // Sprint (next-gen / team-managed)
+  'customfield_1185',  // Severity (migrated)
 ];
 
 export async function POST(req: NextRequest) {

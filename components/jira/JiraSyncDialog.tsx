@@ -37,6 +37,7 @@ interface JiraIssue {
     customfield_10014?: string;
     customfield_10016?: number;
     customfield_10020?: Array<{ name: string; state: string }> | string;
+    customfield_1185?: { id?: string; value: string } | null;
     resolution?: { name: string } | null;
     created: string;
     duedate?: string | null;
@@ -110,14 +111,6 @@ function normalizePriority(raw: string): string {
   return raw;
 }
 
-function normalizeSeverity(raw: string): string {
-  const n = raw.toLowerCase().trim();
-  if (['highest','blocker','critical'].includes(n)) return 'Critical';
-  if (['high','major'].includes(n)) return 'High';
-  if (['medium','normal','moderate'].includes(n)) return 'Medium';
-  if (['low','minor','lowest','trivial'].includes(n)) return 'Low';
-  return '';
-}
 
 function mapToActivities(issues: JiraIssue[]) {
   return issues.map(issue => {
@@ -149,7 +142,7 @@ function mapToBugs(issues: JiraIssue[]) {
       assignee:   f.assignee?.displayName ?? '',
       reporter:   f.reporter?.displayName ?? '',
       priority:   normalizePriority(f.priority?.name ?? 'Medium'),
-      severity:   normalizeSeverity(f.priority?.name ?? ''),
+      severity:   f.customfield_1185?.value ?? '',
       status:     normalizeBugStatus(f.status.name),
       resolution: f.resolution?.name ?? '',
       created:    isoToDate(f.created),
@@ -440,12 +433,19 @@ export default function JiraSyncDialog({
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {issues.map(issue => {
-                        const severity = normalizeSeverity(issue.fields.priority?.name ?? '');
+                        const severity = issue.fields.customfield_1185?.value ?? '';
                         const SEVERITY_BADGE: Record<string, string> = {
+                          Blocker:  'bg-purple-100 text-purple-700',
                           Critical: 'bg-red-100 text-red-700',
+                          Highest:  'bg-red-100 text-red-700',
+                          Major:    'bg-orange-100 text-orange-700',
                           High:     'bg-orange-100 text-orange-700',
                           Medium:   'bg-yellow-100 text-yellow-700',
+                          Normal:   'bg-yellow-100 text-yellow-700',
                           Low:      'bg-green-100 text-green-700',
+                          Minor:    'bg-blue-100 text-blue-700',
+                          Trivial:  'bg-slate-100 text-slate-500',
+                          Lowest:   'bg-slate-100 text-slate-500',
                         };
                         return (
                         <tr key={issue.key} className="hover:bg-slate-50/70">
@@ -463,7 +463,7 @@ export default function JiraSyncDialog({
                           <td className="px-3 py-2 text-slate-500">{issue.fields.priority?.name ?? '—'}</td>
                           <td className="px-3 py-2">
                             {severity
-                              ? <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${SEVERITY_BADGE[severity] ?? ''}`}>{severity}</span>
+                              ? <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${SEVERITY_BADGE[severity] ?? 'bg-slate-100 text-slate-600'}`}>{severity}</span>
                               : <span className="text-slate-300">—</span>}
                           </td>
                         </tr>
