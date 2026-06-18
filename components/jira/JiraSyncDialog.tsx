@@ -37,7 +37,7 @@ interface JiraIssue {
     customfield_10014?: string;
     customfield_10016?: number;
     customfield_10020?: Array<{ name: string; state: string }> | string;
-    customfield_1185?: { id?: string; value: string } | null;
+    customfield_1185?: unknown;
     resolution?: { name: string } | null;
     created: string;
     duedate?: string | null;
@@ -102,6 +102,18 @@ function normalizeBugStatus(raw: string): string {
   return raw;
 }
 
+// Handles Jira custom field responses: Option object {value}, plain string, or null
+function extractOptionValue(field: unknown): string {
+  if (!field) return '';
+  if (typeof field === 'string') return field;
+  if (typeof field === 'object' && field !== null) {
+    const o = field as Record<string, unknown>;
+    if (typeof o.value === 'string' && o.value) return o.value;
+    if (typeof o.name === 'string' && o.name) return o.name;
+  }
+  return '';
+}
+
 function normalizePriority(raw: string): string {
   const n = raw.toLowerCase().trim();
   if (['highest','blocker','critical'].includes(n)) return 'Critical';
@@ -142,7 +154,7 @@ function mapToBugs(issues: JiraIssue[]) {
       assignee:   f.assignee?.displayName ?? '',
       reporter:   f.reporter?.displayName ?? '',
       priority:   normalizePriority(f.priority?.name ?? 'Medium'),
-      severity:   f.customfield_1185?.value ?? '',
+      severity:   extractOptionValue(f.customfield_1185),
       status:     normalizeBugStatus(f.status.name),
       resolution: f.resolution?.name ?? '',
       created:    isoToDate(f.created),
@@ -433,7 +445,7 @@ export default function JiraSyncDialog({
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {issues.map(issue => {
-                        const severity = issue.fields.customfield_1185?.value ?? '';
+                        const severity = extractOptionValue(issue.fields.customfield_1185);
                         const SEVERITY_BADGE: Record<string, string> = {
                           Blocker:  'bg-purple-100 text-purple-700',
                           Critical: 'bg-red-100 text-red-700',

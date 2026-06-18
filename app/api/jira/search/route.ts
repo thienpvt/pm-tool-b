@@ -83,6 +83,13 @@ export async function POST(req: NextRequest) {
     }
 
     const data = await resp.json();
+
+    // Debug: log customfield_1185 from first issue so it appears in Railway logs
+    const firstIssue = data.issues?.[0];
+    if (firstIssue) {
+      console.log('[jira/search] customfield_1185 sample:', JSON.stringify(firstIssue.fields?.customfield_1185));
+    }
+
     return NextResponse.json({
       issues:        data.issues ?? [],
       total:         data.total ?? data.issues?.length ?? 0,
