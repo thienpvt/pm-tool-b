@@ -57,7 +57,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
   const members = await db.all<Record<string, string>>('SELECT * FROM team_members WHERE project_id = ? ORDER BY domain, id', Number(id));
 
   const months = getMonths(project.start_date, project.end_date);
-  const totalCols = 3 + months.length + 1; // Domain, Role, Name, months..., Notes
+  const totalCols = 4 + months.length + 1; // Domain, Role, Name, Email, months..., Notes
 
   const wb = new ExcelJS.Workbook();
   wb.creator = 'PM Tool';
@@ -82,7 +82,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
   ws.addRow([]); // blank
 
   // Header row
-  const hdrRow = ws.addRow(['Domain', 'Role', 'Name', ...months.map(displayMonth), 'Notes']);
+  const hdrRow = ws.addRow(['Domain', 'Role', 'Name', 'Email', ...months.map(displayMonth), 'Notes']);
   hdrRow.eachCell(cell => {
     cell.fill = solidFill(NAVY);
     cell.font = HEADER_FONT;
@@ -91,6 +91,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
   });
   hdrRow.getCell(2).alignment = { horizontal: 'left', vertical: 'middle' };
   hdrRow.getCell(3).alignment = { horizontal: 'left', vertical: 'middle' };
+  hdrRow.getCell(4).alignment = { horizontal: 'left', vertical: 'middle' };
   hdrRow.getCell(totalCols).alignment = { horizontal: 'left', vertical: 'middle' };
   hdrRow.height = 32;
 
@@ -98,7 +99,8 @@ export async function GET(_req: NextRequest, { params }: Params) {
   ws.getColumn(1).width = 14;
   ws.getColumn(2).width = 22;
   ws.getColumn(3).width = 24;
-  months.forEach((_, i) => { ws.getColumn(4 + i).width = 10; });
+  ws.getColumn(4).width = 28;
+  months.forEach((_, i) => { ws.getColumn(5 + i).width = 10; });
   ws.getColumn(totalCols).width = 32;
 
   // Domains
@@ -120,15 +122,15 @@ export async function GET(_req: NextRequest, { params }: Params) {
       const cap = JSON.parse(m.capacity_json || '{}') as Record<string, number>;
       months.forEach(mo => { totalCap[mo] = (totalCap[mo] ?? 0) + (cap[mo] ?? 0); });
 
-      const row = ws.addRow(['', m.role, m.name, ...months.map(mo => cap[mo] ?? ''), m.notes]);
+      const row = ws.addRow(['', m.role, m.name, m.email ?? '', ...months.map(mo => cap[mo] ?? ''), m.notes]);
       row.eachCell((cell, colNum) => {
         cell.font = BODY_FONT;
         cell.alignment = { horizontal: 'center', vertical: 'middle' };
         cell.border = border();
-        if (colNum === 2 || colNum === 3) cell.alignment = { horizontal: 'left', vertical: 'middle' };
+        if (colNum === 2 || colNum === 3 || colNum === 4) cell.alignment = { horizontal: 'left', vertical: 'middle' };
         if (colNum === totalCols) cell.alignment = { horizontal: 'left', vertical: 'middle' };
         // Highlight capacity >= 1
-        if (colNum >= 4 && colNum < totalCols) {
+        if (colNum >= 5 && colNum < totalCols) {
           const val = typeof cell.value === 'number' ? cell.value : 0;
           if (val >= 1) {
             cell.font = { ...BODY_FONT, color: { argb: 'FFDC2626' }, bold: true };
@@ -141,7 +143,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
       });
       if (i % 2 === 1) {
         row.eachCell((cell, colNum) => {
-          if (colNum >= 4 && colNum < totalCols && !cell.fill) {
+          if (colNum >= 5 && colNum < totalCols && !cell.fill) {
             cell.fill = solidFill('FFF8FAFC');
           }
         });
@@ -150,7 +152,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
     });
 
     // Total row
-    const totRow = ws.addRow(['', 'Total (MM)', '', ...months.map(mo => totalCap[mo] > 0 ? +totalCap[mo].toFixed(1) : ''), '']);
+    const totRow = ws.addRow(['', 'Total (MM)', '', '', ...months.map(mo => totalCap[mo] > 0 ? +totalCap[mo].toFixed(1) : ''), '']);
     totRow.eachCell((cell, colNum) => {
       cell.fill = solidFill(TOTAL_BG);
       cell.font = BOLD_FONT;
@@ -158,7 +160,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
       cell.border = { bottom: { style: 'thin', color: { argb: SEP2 } }, right: { style: 'thin', color: { argb: SEP } } };
       if (colNum === 2) cell.alignment = { horizontal: 'left' };
       // Highlight overallocation
-      if (colNum >= 4 && colNum < totalCols) {
+      if (colNum >= 5 && colNum < totalCols) {
         const val = typeof cell.value === 'number' ? cell.value : 0;
         if (val > 1) {
           cell.font = { ...BOLD_FONT, color: { argb: 'FFDC2626' } };
@@ -169,19 +171,19 @@ export async function GET(_req: NextRequest, { params }: Params) {
     totRow.height = 18;
   }
 
-  ws.views = [{ state: 'frozen', xSplit: 3, ySplit: 4, topLeftCell: 'D5' }];
+  ws.views = [{ state: 'frozen', xSplit: 4, ySplit: 4, topLeftCell: 'E5' }];
 
   // ── Sheet 2: Org Structure ─────────────────────────────────────────────────
   const ws2 = wb.addWorksheet('Org Structure');
 
   const orgTitle = ws2.addRow([`ORG STRUCTURE — ${project.name}`]);
-  ws2.mergeCells(1, 1, 1, 4);
+  ws2.mergeCells(1, 1, 1, 5);
   orgTitle.getCell(1).font = { bold: true, size: 14, color: { argb: 'FF1E293B' }, name: 'Calibri' };
   orgTitle.height = 28;
 
   ws2.addRow([]); // blank
 
-  const orgHdr = ws2.addRow(['Domain', 'Role', 'Name', 'Notes']);
+  const orgHdr = ws2.addRow(['Domain', 'Role', 'Name', 'Email', 'Notes']);
   orgHdr.eachCell(cell => {
     cell.fill = solidFill(NAVY);
     cell.font = HEADER_FONT;
@@ -193,18 +195,19 @@ export async function GET(_req: NextRequest, { params }: Params) {
   ws2.getColumn(1).width = 18;
   ws2.getColumn(2).width = 24;
   ws2.getColumn(3).width = 28;
-  ws2.getColumn(4).width = 36;
+  ws2.getColumn(4).width = 28;
+  ws2.getColumn(5).width = 36;
 
   for (const domain of domains) {
-    const dr = ws2.addRow([domain, '', '', '']);
-    ws2.mergeCells(dr.number, 1, dr.number, 4);
+    const dr = ws2.addRow([domain, '', '', '', '']);
+    ws2.mergeCells(dr.number, 1, dr.number, 5);
     dr.getCell(1).fill = solidFill(PHASE_BG);
     dr.getCell(1).font = { bold: true, size: 10, color: { argb: PHASE_FN }, name: 'Calibri' };
     dr.getCell(1).alignment = { vertical: 'middle', indent: 1 };
     dr.height = 18;
 
     for (const m of members.filter(x => x.domain === domain)) {
-      const row = ws2.addRow(['', m.role, m.name, m.notes]);
+      const row = ws2.addRow(['', m.role, m.name, m.email ?? '', m.notes]);
       row.eachCell(cell => {
         cell.font = BODY_FONT;
         cell.alignment = { vertical: 'top', wrapText: true };

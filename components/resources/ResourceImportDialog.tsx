@@ -27,16 +27,17 @@ function parseMonthFromHeader(text: string): string | null {
 
 type ColumnDef = { index: number; name: string; samples: string[] };
 
-type FieldMap = { squad: number; role: number; name: number; notes: number };
+type FieldMap = { squad: number; role: number; name: number; email: number; notes: number };
 
 type MonthCol = { colIndex: number; monthKey: string; colName: string };
 
-type ParsedMember = { domain: string; role: string; name: string; capacity_json: string; notes: string };
+type ParsedMember = { domain: string; role: string; name: string; email: string; capacity_json: string; notes: string };
 
 const FIELD_LABELS: Record<keyof FieldMap, string> = {
   squad: 'Squad/Team',
   role: 'Role',
   name: 'Name *',
+  email: 'Email',
   notes: 'Notes',
 };
 
@@ -44,6 +45,7 @@ const FIELD_ALIASES: Record<keyof FieldMap, string[]> = {
   squad: ['squad', 'team', 'domain', 'group', 'department', 'nhóm', 'squad/team', 'team/squad'],
   role: ['role', 'position', 'title', 'vai trò', 'chức danh'],
   name: ['name', 'fullname', 'full name', 'member', 'tên', 'họ tên', 'nhân viên', 'resource'],
+  email: ['email', 'e-mail', 'mail', 'địa chỉ email', 'email address'],
   notes: ['notes', 'note', 'comment', 'remarks', 'ghi chú'],
 };
 
@@ -73,7 +75,7 @@ export default function ResourceImportDialog({ projectId, open, onOpenChange, on
   const [step, setStep] = useState<Step>(1);
   const [columns, setColumns] = useState<ColumnDef[]>([]);
   const [allRows, setAllRows] = useState<string[][]>([]);
-  const [fieldMap, setFieldMap] = useState<FieldMap>({ squad: -1, role: -1, name: -1, notes: -1 });
+  const [fieldMap, setFieldMap] = useState<FieldMap>({ squad: -1, role: -1, name: -1, email: -1, notes: -1 });
   const [monthCols, setMonthCols] = useState<MonthCol[]>([]);
   const [parsed, setParsed] = useState<ParsedMember[]>([]);
   const [parsedMonths, setParsedMonths] = useState<string[]>([]);
@@ -86,7 +88,7 @@ export default function ResourceImportDialog({ projectId, open, onOpenChange, on
     setStep(1);
     setColumns([]);
     setAllRows([]);
-    setFieldMap({ squad: -1, role: -1, name: -1, notes: -1 });
+    setFieldMap({ squad: -1, role: -1, name: -1, email: -1, notes: -1 });
     setMonthCols([]);
     setParsed([]);
     setParsedMonths([]);
@@ -132,13 +134,14 @@ export default function ResourceImportDialog({ projectId, open, onOpenChange, on
     const members: ParsedMember[] = [];
     const monthKeys = monthCols.map(m => m.monthKey).sort();
 
-    const mappedColIndices = new Set([fieldMap.squad, fieldMap.role, fieldMap.name, fieldMap.notes].filter(i => i >= 0));
+    const mappedColIndices = new Set([fieldMap.squad, fieldMap.role, fieldMap.name, fieldMap.email, fieldMap.notes].filter(i => i >= 0));
 
     for (const row of allRows) {
       const nameVal = fieldMap.name >= 0 ? (row[fieldMap.name] ?? '').trim() : '';
       if (!nameVal) continue;
       const squadVal = fieldMap.squad >= 0 ? (row[fieldMap.squad] ?? '').trim() : '';
       const roleVal = fieldMap.role >= 0 ? (row[fieldMap.role] ?? '').trim() : '';
+      const emailVal = fieldMap.email >= 0 ? (row[fieldMap.email] ?? '').trim() : '';
       const notesVal = fieldMap.notes >= 0 ? (row[fieldMap.notes] ?? '').trim() : '';
 
       const cap: Record<string, number> = {};
@@ -152,6 +155,7 @@ export default function ResourceImportDialog({ projectId, open, onOpenChange, on
         domain: squadVal || 'Other',
         role: roleVal,
         name: nameVal,
+        email: emailVal,
         capacity_json: JSON.stringify(cap),
         notes: notesVal,
       });
@@ -343,6 +347,7 @@ export default function ResourceImportDialog({ projectId, open, onOpenChange, on
                     <th className="px-3 py-2.5 text-left w-28">Squad/Team</th>
                     <th className="px-3 py-2.5 text-left w-32">Role</th>
                     <th className="px-3 py-2.5 text-left w-36">Name</th>
+                    <th className="px-3 py-2.5 text-left w-40">Email</th>
                     {parsedMonths.slice(0, 12).map(m => (
                       <th key={m} className="px-2 py-2.5 text-center w-14">
                         {new Date(m + '-01').toLocaleDateString('en-GB', { month: 'short', year: '2-digit' })}
@@ -369,6 +374,7 @@ export default function ResourceImportDialog({ projectId, open, onOpenChange, on
                           </td>
                           <td className="px-3 py-1.5 text-slate-600">{m.role || '—'}</td>
                           <td className="px-3 py-1.5 font-medium text-slate-800">{m.name}</td>
+                          <td className="px-3 py-1.5 text-slate-500 text-[10px]">{m.email || '—'}</td>
                           {parsedMonths.slice(0, 12).map(mo => {
                             const v = cap[mo];
                             return (

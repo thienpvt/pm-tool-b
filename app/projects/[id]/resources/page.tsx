@@ -13,7 +13,7 @@ import ResourceImportDialog from '@/components/resources/ResourceImportDialog';
 
 type TeamMember = {
   id: number; domain: string; role: string; name: string;
-  capacity_json: string; notes: string;
+  email: string; capacity_json: string; notes: string;
 };
 
 type GlobalMember = TeamMember & {
@@ -60,7 +60,7 @@ function MemberNameInput({
   value: string;
   portfolioMembers: PortfolioMember[];
   onChange: (v: string) => void;
-  onSelectMember: (name: string, role: string) => void;
+  onSelectMember: (name: string, role: string, email: string) => void;
   onBlur: () => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -99,7 +99,7 @@ function MemberNameInput({
   const handleSelect = (m: PortfolioMember) => {
     if (blurTimer.current) clearTimeout(blurTimer.current);
     setOpen(false);
-    onSelectMember(m.name, m.role);
+    onSelectMember(m.name, m.role, m.email);
   };
 
   const dropdown = open && suggestions.length > 0
@@ -256,7 +256,7 @@ export default function ResourcesPage() {
   const addMember = async () => {
     const res = await fetch(`/api/projects/${id}/team`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ domain: '', role: '', name: 'New Member', capacity_json: '{}' }),
+      body: JSON.stringify({ domain: '', role: '', name: 'New Member', email: '', capacity_json: '{}' }),
     });
     res.json().then((row: TeamMember) => setMembers(m => [...m, row]));
   };
@@ -314,7 +314,7 @@ export default function ResourcesPage() {
     for (const m of toCopy) {
       await fetch(`/api/projects/${id}/team`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ domain: m.domain, role: m.role, name: m.name, capacity_json: '{}' }),
+        body: JSON.stringify({ domain: m.domain, role: m.role, name: m.name, email: m.email ?? '', capacity_json: '{}' }),
       });
       count++;
     }
@@ -466,6 +466,7 @@ export default function ResourcesPage() {
                   <th className="px-3 py-3 text-left w-28">Squad/Team</th>
                   <th className="px-3 py-3 text-left w-32">Role</th>
                   <th className="px-3 py-3 text-left w-44">Name</th>
+                  <th className="px-3 py-3 text-left w-44">Email</th>
                   {months.map(m => (
                     <th key={m} className="px-2 py-3 text-center w-20">{displayMonth(m)}</th>
                   ))}
@@ -476,13 +477,13 @@ export default function ResourcesPage() {
               <tbody>
                 {members.length === 0 ? (
                   <tr>
-                    <td colSpan={months.length + 5} className="text-center py-12 text-slate-400">
+                    <td colSpan={months.length + 6} className="text-center py-12 text-slate-400">
                       No team members. Click &quot;Add Member&quot; or &quot;Import&quot;.
                     </td>
                   </tr>
                 ) : Object.keys(grouped).length === 0 ? (
                   <tr>
-                    <td colSpan={months.length + 5} className="text-center py-8 text-slate-400">
+                    <td colSpan={months.length + 6} className="text-center py-8 text-slate-400">
                       No members match the current filter.
                     </td>
                   </tr>
@@ -490,7 +491,7 @@ export default function ResourcesPage() {
                   Object.entries(grouped).map(([squad, rows]) => (
                     <React.Fragment key={squad}>
                       <tr className="bg-[#D6E4F0]">
-                        <td colSpan={months.length + 5} className="px-3 py-1.5 font-semibold text-[#1A3A5C] text-xs uppercase tracking-wide">
+                        <td colSpan={months.length + 6} className="px-3 py-1.5 font-semibold text-[#1A3A5C] text-xs uppercase tracking-wide">
                           {squad || 'No Squad'}
                         </td>
                       </tr>
@@ -522,15 +523,24 @@ export default function ResourcesPage() {
                                 value={row.name}
                                 portfolioMembers={portfolioMembers}
                                 onChange={v => updateField(row.id, 'name', v)}
-                                onSelectMember={(name, role) => {
+                                onSelectMember={(name, role, email) => {
                                   setMembers(ms => ms.map(r =>
-                                    r.id === row.id ? { ...r, name, role: role || r.role } : r
+                                    r.id === row.id ? { ...r, name, role: role || r.role, email: email || r.email } : r
                                   ));
                                   setTimeout(() => {
-                                    const updated = { ...row, name, role: role || row.role };
+                                    const updated = { ...row, name, role: role || row.role, email: email || row.email };
                                     saveRow(updated);
                                   }, 0);
                                 }}
+                                onBlur={() => saveRow(row)}
+                              />
+                            </td>
+                            <td className="px-3 py-2">
+                              <Input
+                                className="h-6 text-xs"
+                                value={row.email ?? ''}
+                                placeholder="email@example.com"
+                                onChange={e => updateField(row.id, 'email', e.target.value)}
                                 onBlur={() => saveRow(row)}
                               />
                             </td>

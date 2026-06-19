@@ -13,7 +13,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   const { id } = await params;
   const body = await req.json();
   const db = await getDb();
-  const r = await db.run('INSERT INTO team_members (project_id, domain, role, name, capacity_json, notes) VALUES (?,?,?,?,?,?)', id, body.domain ?? '', body.role ?? '', body.name ?? '', body.capacity_json ?? '{}', body.notes ?? '');
+  const r = await db.run('INSERT INTO team_members (project_id, domain, role, name, email, capacity_json, notes) VALUES (?,?,?,?,?,?,?)', id, body.domain ?? '', body.role ?? '', body.name ?? '', body.email ?? '', body.capacity_json ?? '{}', body.notes ?? '');
   return NextResponse.json(await db.get('SELECT * FROM team_members WHERE id = ?', r.lastInsertRowid), { status: 201 });
 }
 

@@ -150,6 +150,7 @@ async function initPostgresSchema(db: DbClient) {
       domain TEXT,
       role TEXT,
       name TEXT NOT NULL,
+      email TEXT DEFAULT '',
       capacity_json TEXT DEFAULT '{}',
       notes TEXT
     );
@@ -458,6 +459,7 @@ async function migratePostgresSchema(pool: Pool) {
     `ALTER TABLE bugs ADD COLUMN IF NOT EXISTS snapshot_date TEXT DEFAULT ''`,
     `ALTER TABLE bugs ADD COLUMN IF NOT EXISTS severity TEXT DEFAULT ''`,
     `CREATE TABLE IF NOT EXISTS jira_jql_presets (id SERIAL PRIMARY KEY, name TEXT NOT NULL, jql TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
+    `ALTER TABLE team_members ADD COLUMN IF NOT EXISTS email TEXT DEFAULT ''`,
     // Fix existing Jira-imported activities: set parent_id for children whose phase matches an Epic's phase.
     // Only runs when there is exactly one Epic in the phase (safe, idempotent — parent_id IS NULL guard).
     `UPDATE activities a
@@ -552,7 +554,7 @@ export type Activity = {
 };
 export type TeamMember = {
   id: number; project_id: number; domain: string; role: string;
-  name: string; capacity_json: string; notes: string;
+  name: string; email: string; capacity_json: string; notes: string;
 };
 export type Meeting = {
   id: number; project_id: number; name: string; frequency: string;

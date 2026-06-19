@@ -7,6 +7,7 @@ export type ParsedMember = {
   domain: string;
   role: string;
   name: string;
+  email: string;
   capacity_json: string; // JSON string like { "2025-01": 1, "2025-06": 0.5 }
   notes: string;
 };
@@ -75,6 +76,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   let notesCol = -1;
   let roleCol = -1;
   let nameCol = -1;
+  let emailCol = -1;
 
   ws.eachRow((row, rowNum) => {
     if (headerRowNum !== -1) return;
@@ -83,6 +85,7 @@ export async function POST(req: NextRequest, { params }: Params) {
       const v = cellStr(cell).toLowerCase();
       if (v === 'role') { roleCol = colNum; hasRole = true; }
       if (v === 'name') { nameCol = colNum; hasName = true; }
+      if (v === 'email') emailCol = colNum;
       if (v === 'notes') notesCol = colNum;
       const mo = parseMonthHeader(cellStr(cell));
       if (mo) { monthColMap[colNum] = mo; hasMonths = true; }
@@ -125,11 +128,13 @@ export async function POST(req: NextRequest, { params }: Params) {
     }
 
     const notes = notesCol > 0 ? cellStr(row.getCell(notesCol)) : '';
+    const email = emailCol > 0 ? cellStr(row.getCell(emailCol)) : '';
 
     members.push({
       domain: currentDomain,
       role: roleVal,
       name: nameVal,
+      email,
       capacity_json: JSON.stringify(cap),
       notes,
     });
