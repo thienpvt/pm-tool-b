@@ -50,7 +50,7 @@ const FIELD_ALIASES: Record<keyof FieldMap, string[]> = {
 };
 
 function autoSuggest(columns: ColumnDef[]): FieldMap {
-  const mapping: FieldMap = { squad: -1, role: -1, name: -1, notes: -1 };
+  const mapping: FieldMap = { squad: -1, role: -1, name: -1, email: -1, notes: -1 };
   for (const col of columns) {
     const lower = col.name.toLowerCase().trim();
     for (const [field, aliasList] of Object.entries(FIELD_ALIASES) as [keyof FieldMap, string[]][]) {
