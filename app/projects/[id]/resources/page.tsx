@@ -216,12 +216,14 @@ export default function ResourcesPage() {
     const map: Record<string, Record<string, { project_name: string; cap: number }[]>> = {};
     for (const gm of globalMembers) {
       if (String(gm.project_id) === id) continue;
+      // Use email as the identity key when available to avoid conflating same-name different people
+      const memberKey = gm.email?.trim() ? gm.email.trim().toLowerCase() : gm.name;
       const cap = JSON.parse(gm.capacity_json || '{}') as Record<string, number>;
       for (const [month, val] of Object.entries(cap)) {
         if (!val) continue;
-        if (!map[gm.name]) map[gm.name] = {};
-        if (!map[gm.name][month]) map[gm.name][month] = [];
-        map[gm.name][month].push({ project_name: gm.project_name, cap: val });
+        if (!map[memberKey]) map[memberKey] = {};
+        if (!map[memberKey][month]) map[memberKey][month] = [];
+        map[memberKey][month].push({ project_name: gm.project_name, cap: val });
       }
     }
     return map;
@@ -497,7 +499,8 @@ export default function ResourcesPage() {
                       </tr>
                       {rows.map((row, i) => {
                         const cap = JSON.parse(row.capacity_json || '{}');
-                        const otherProjects = crossCapMap[row.name] ?? {};
+                        const memberKey = row.email?.trim() ? row.email.trim().toLowerCase() : row.name;
+                        const otherProjects = crossCapMap[memberKey] ?? {};
                         return (
                           <tr key={row.id} className={`border-t hover:bg-slate-50 ${i % 2 ? 'bg-slate-50/40' : ''}`}>
                             <td className="px-3 py-2">
