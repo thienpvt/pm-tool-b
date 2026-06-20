@@ -30,6 +30,16 @@ type ProgramAllocation = {
   actual_fte: number;
 };
 
+// Overhead FTE model: an overhead person is 1.0 FTE of overhead by default.
+// `overhead_remaining` is the (optional, manually entered) portion of overhead time
+// NOT inside any project. When unset (0) we assume full-time overhead, so the
+// remaining out-of-project overhead = 1 − their in-project allocation.
+function overheadRemainingOf(m: { current_month_fte: number; overhead_remaining: number }): number {
+  const inProject = Number(m.current_month_fte) || 0;
+  const explicit = Number(m.overhead_remaining) || 0;
+  return explicit > 0 ? explicit : Math.max(0, 1 - inProject);
+}
+
 // ── FTE KPI summary bar ────────────────────────────────────────────────────────
 // allProjectFte = sum current_month_fte of ALL internal members (delivery + overhead in project)
 // overheadRemainingFte = sum overhead_remaining of overhead members (non-project overhead time)
@@ -642,7 +652,7 @@ export default function PortfolioResourcesPage() {
   const allProjectFte = internalMembers.reduce((s, m) => s + (Number(m.current_month_fte) || 0), 0);
   const overheadRemainingFte = internalMembers
     .filter(m => m.member_category === 'overhead')
-    .reduce((s, m) => s + (Number(m.overhead_remaining) || 0), 0);
+    .reduce((s, m) => s + overheadRemainingOf(m), 0);
 
   return (
     <div className="flex flex-col lg:flex-row min-h-screen">

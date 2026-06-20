@@ -15,6 +15,7 @@ type Member = {
   domain: string;
   role: string;
   name: string;
+  email: string;
   capacity_json: string;
   notes: string;
   project_name: string;
@@ -35,6 +36,26 @@ type PersonSummary = {
   maxLoad: number;
   rows: Member[];
 };
+
+// Identity key for a person: prefer email (unique) over name, so two different
+// people who happen to share a name are NOT merged / double-counted.
+function personKey(m: { email?: string; name: string }): string {
+  return m.email?.trim() ? m.email.trim().toLowerCase() : m.name.trim().toLowerCase();
+}
+
+// Overhead FTE model: an overhead person is 1.0 FTE of overhead by default.
+// `overhead_remaining` is the (optional, manually entered) portion of overhead time
+// that is NOT inside any project. When it is left unset (0) we assume the person is
+// full-time overhead, so the remaining = 1 − their in-project allocation.
+function overheadRemainingOf(m: { current_month_fte: number; overhead_remaining: number }): number {
+  const inProject = Number(m.current_month_fte) || 0;
+  const explicit = Number(m.overhead_remaining) || 0;
+  return explicit > 0 ? explicit : Math.max(0, 1 - inProject);
+}
+// Total overhead FTE of an overhead person = in-project part + remaining (out-of-project) part.
+function overheadFteOf(m: { current_month_fte: number; overhead_remaining: number }): number {
+  return (Number(m.current_month_fte) || 0) + overheadRemainingOf(m);
+}
 
 function displayMonth(ym: string) {
   const [y, m] = ym.split('-');
@@ -318,7 +339,7 @@ function FteKpiBar({ quota, deliveryFte, overheadFte, internalMembers }: {
   // Card 2: tất cả overhead members (trong dự án + ngoài dự án)
   const overheadMembers = internalMembers
     .filter(m => isOverhead(m))
-    .sort((a, b) => (b.current_month_fte + b.overhead_remaining) - (a.current_month_fte + a.overhead_remaining));
+    .sort((a, b) => overheadFteOf(b) - overheadFteOf(a));
   // Card 3: delivery members chưa phân bổ dự án nào (không phải overhead)
   const benchMembers = internalMembers
     .filter(m => !isOverhead(m) && m.current_month_fte === 0)
@@ -338,7 +359,7 @@ function FteKpiBar({ quota, deliveryFte, overheadFte, internalMembers }: {
       title: `Nhân sự Overhead (${overheadMembers.length} người)`,
       members: overheadMembers,
       fteLabel: 'FTE overhead',
-      fteValue: m => fmtFte(m.current_month_fte + m.overhead_remaining),
+      fteValue: m => fmtFte(overheadFteOf(m)),
     },
     bench: {
       title: `Nhân sự Bench — chưa phân bổ (${benchMembers.length} người)`,
@@ -535,14 +556,21 @@ export default function GlobalResourcesPage() {
     .reduce((s, m) => s + (Number(m.current_month_fte) || 0), 0);
   const overheadTotalFte = internalMembers
     .filter(m => m.member_category === 'overhead')
-    .reduce((s, m) => s + (Number(m.current_month_fte) || 0) + (Number(m.overhead_remaining) || 0), 0);
+    .reduce((s, m) => s + overheadFteOf(m), 0);
 
   // Derived from portfolio members
   const externalMembers = portfolioMembers.filter(m => m.member_type === 'external');
   const teamMemberNameSet = new Set(members.map(m => m.name.trim().toLowerCase()));
-  const unassignedInternal = portfolioMembers.filter(
-    m => m.member_type !== 'external' && !teamMemberNameSet.has(m.name.trim().toLowerCase())
+  const teamMemberEmailSet = new Set(
+    members.map(m => m.email?.trim().toLowerCase()).filter(Boolean) as string[]
   );
+  const unassignedInternal = portfolioMembers.filter(m => {
+    if (m.member_type === 'external') return false;
+    const email = m.email?.trim().toLowerCase();
+    // Assigned if matched by email (preferred) or by name.
+    if (email && teamMemberEmailSet.has(email)) return false;
+    return !teamMemberNameSet.has(m.name.trim().toLowerCase());
+  });
 
   const domains = ['All', ...new Set(members.map(m => m.domain))].filter(Boolean).sort();
 
@@ -559,7 +587,7 @@ export default function GlobalResourcesPage() {
   // Build one PersonSummary per unique person
   const personMap = new Map<string, PersonSummary>();
   for (const m of filtered) {
-    const key = m.name.trim().toLowerCase();
+    const key = personKey(m);
     if (!personMap.has(key)) {
       personMap.set(key, {
         name: m.name.trim(),
@@ -621,10 +649,10 @@ export default function GlobalResourcesPage() {
   }
 
   // Summary stats (from all members, not filtered)
-  const totalPersons = new Set(members.map(m => m.name.trim().toLowerCase())).size;
+  const totalPersons = new Set(members.map(m => personKey(m))).size;
   const allPersonMap = new Map<string, Record<string, number>>();
   for (const m of members) {
-    const key = m.name.trim().toLowerCase();
+    const key = personKey(m);
     if (!allPersonMap.has(key)) allPersonMap.set(key, {});
     try {
       const cap = JSON.parse(m.capacity_json || '{}') as Record<string, number>;

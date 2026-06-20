@@ -12,7 +12,10 @@ export async function GET(req: NextRequest) {
          SELECT COUNT(DISTINCT ppa.program_id)
          FROM team_members tm
          JOIN program_project_allocations ppa ON ppa.project_id = tm.project_id
-         WHERE tm.name = pm.name
+         WHERE CASE WHEN COALESCE(TRIM(pm.email), '') <> ''
+                    THEN LOWER(TRIM(tm.email)) = LOWER(TRIM(pm.email))
+                    ELSE LOWER(TRIM(tm.name)) = LOWER(TRIM(pm.name))
+               END
        ), 0) AS program_count,
        COALESCE((
          SELECT SUM(
@@ -23,7 +26,12 @@ export async function GET(req: NextRequest) {
          )
          FROM team_members tm
          JOIN projects p ON p.id = tm.project_id
-         WHERE LOWER(TRIM(tm.name)) = LOWER(TRIM(pm.name))
+         -- Identify the same person by email when available, else by name,
+         -- so two different people sharing a name are not summed together.
+         WHERE CASE WHEN COALESCE(TRIM(pm.email), '') <> ''
+                    THEN LOWER(TRIM(tm.email)) = LOWER(TRIM(pm.email))
+                    ELSE LOWER(TRIM(tm.name)) = LOWER(TRIM(pm.name))
+               END
            AND p.company_id = pm.company_id
        ), 0) AS current_month_fte
      FROM portfolio_members pm
