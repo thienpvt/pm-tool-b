@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { Plus, Pencil, Trash2, Flag, ChevronRight, ChevronDown, X, Search, Layers, ChevronsDownUp, ChevronsUpDown, FileDown } from 'lucide-react';
+import { statusPct, weightedProgress } from '@/lib/status-weights';
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 type Milestone = {
@@ -250,7 +251,7 @@ export default function MilestonesPage() {
         rows.push(`<tr class="${isEpic ? 'epic-row' : ''}">
           <td class="indent-0">${label}</td>
           <td><span class="status">${parent.status}</span></td>
-          <td>${parent.completion_pct ?? 0}%</td>
+          <td>${itemPct(parent)}%</td>
           <td>${fmt(parent.plan_start)}</td>
           <td>${fmt(parent.plan_end)}</td>
         </tr>`);
@@ -258,7 +259,7 @@ export default function MilestonesPage() {
           rows.push(`<tr class="child-row">
             <td class="indent-1">↳ ${child.jira_key ? `<span class="badge-jira">${child.jira_key}</span> ` : ''}${child.activity}</td>
             <td><span class="status">${child.status}</span></td>
-            <td>${child.completion_pct ?? 0}%</td>
+            <td>${itemPct(child)}%</td>
             <td>${fmt(child.plan_start)}</td>
             <td>${fmt(child.plan_end)}</td>
           </tr>`);
@@ -295,6 +296,7 @@ export default function MilestonesPage() {
   Project: <strong>${project?.name ?? ''}</strong> &nbsp;|&nbsp;
   Thời gian: <strong>${fmt(selected.start_date)} → ${fmt(selected.end_date)}</strong> &nbsp;|&nbsp;
   Tổng: <strong>${milestoneItems.length} item</strong> &nbsp;|&nbsp;
+  Tiến độ (weighted): <strong>${milestonePct}%</strong> &nbsp;|&nbsp;
   Xuất lúc: <strong>${new Date().toLocaleDateString('vi-VN')}</strong>
 </div>
 <table>
@@ -373,6 +375,21 @@ export default function MilestonesPage() {
       (childrenByParent[item.parent_id] = childrenByParent[item.parent_id] ?? []).push(item);
     }
   }
+
+  // ── weighted progress (%) ──────────────────────────────────────────────────
+  // Mỗi story/task: % = trọng số trạng thái × 100 (Done=100, In Testing=60, ...).
+  // EPIC: trung bình cộng % của các child trong milestone.
+  function itemPct(item: ActivityItem): number {
+    if (item.no === 'EPIC') {
+      const kids = childrenByParent[item.id] ?? [];
+      return kids.length > 0 ? weightedProgress(kids.map(k => k.status)) : statusPct(item.status);
+    }
+    return statusPct(item.status);
+  }
+
+  // Tiến độ tổng milestone = Σ(trọng số trạng thái) / tổng số leaf activity (EPIC không tính).
+  const milestoneLeaves = milestoneItems.filter(i => i.no !== 'EPIC');
+  const milestonePct = weightedProgress(milestoneLeaves.map(i => i.status));
 
   // Top-level: no parent, or parent not in milestone
   const topLevelItems = milestoneItems.filter(
@@ -461,12 +478,21 @@ export default function MilestonesPage() {
             ) : (
               <>
                 <div className="flex items-center justify-between mb-5">
-                  <div>
+                  <div className="min-w-0 flex-1">
                     <h2 className="text-lg font-bold text-slate-800">{selected.name}</h2>
                     <p className="text-sm text-slate-500 mt-0.5">
                       {fmt(selected.start_date)} → {fmt(selected.end_date)}
                       <span className="ml-3 text-orange-600 font-medium">{milestoneItems.length} item</span>
                     </p>
+                    {milestoneLeaves.length > 0 && (
+                      <div className="flex items-center gap-3 mt-2 max-w-md">
+                        <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+                          <div className="h-full bg-orange-500 rounded-full transition-all" style={{ width: `${milestonePct}%` }} />
+                        </div>
+                        <span className="text-sm font-bold text-orange-600 tabular-nums shrink-0">{milestonePct}%</span>
+                        <span className="text-xs text-slate-400 shrink-0">tiến độ (weighted)</span>
+                      </div>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     {(() => {
@@ -549,7 +575,7 @@ export default function MilestonesPage() {
                                   </div>
                                   <div className="flex items-center gap-3 mt-1.5 flex-wrap">
                                     <Badge className={`text-xs px-1.5 py-0 ${statusColor(parent.status)}`}>{parent.status}</Badge>
-                                    <span className="text-xs text-slate-400">{parent.completion_pct ?? 0}%</span>
+                                    <span className="text-xs text-slate-400">{itemPct(parent)}%</span>
                                     {(parent.plan_start || parent.plan_end) && (
                                       <span className="text-xs text-slate-400">{fmt(parent.plan_start)} → {fmt(parent.plan_end)}</span>
                                     )}
@@ -560,7 +586,7 @@ export default function MilestonesPage() {
                                 </div>
                                 <div className="w-20 shrink-0">
                                   <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                    <div className="h-full bg-orange-400 rounded-full" style={{ width: `${parent.completion_pct ?? 0}%` }} />
+                                    <div className="h-full bg-orange-400 rounded-full" style={{ width: `${itemPct(parent)}%` }} />
                                   </div>
                                 </div>
                                 <button
@@ -589,7 +615,7 @@ export default function MilestonesPage() {
                                         </div>
                                         <div className="flex items-center gap-3 mt-1 flex-wrap">
                                           <Badge className={`text-xs px-1.5 py-0 ${statusColor(child.status)}`}>{child.status}</Badge>
-                                          <span className="text-xs text-slate-400">{child.completion_pct ?? 0}%</span>
+                                          <span className="text-xs text-slate-400">{itemPct(child)}%</span>
                                           {(child.plan_start || child.plan_end) && (
                                             <span className="text-xs text-slate-400">{fmt(child.plan_start)} → {fmt(child.plan_end)}</span>
                                           )}
@@ -597,7 +623,7 @@ export default function MilestonesPage() {
                                       </div>
                                       <div className="w-16 shrink-0">
                                         <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                          <div className="h-full bg-orange-300 rounded-full" style={{ width: `${child.completion_pct ?? 0}%` }} />
+                                          <div className="h-full bg-orange-300 rounded-full" style={{ width: `${itemPct(child)}%` }} />
                                         </div>
                                       </div>
                                       <button
@@ -750,7 +776,7 @@ export default function MilestonesPage() {
                                 </div>
                                 <div className="flex items-center gap-3 mt-1 flex-wrap">
                                   <Badge className={`text-xs px-1.5 py-0 ${statusColor(eg.epic.status)}`}>{eg.epic.status}</Badge>
-                                  <span className="text-xs text-slate-400">{eg.epic.completion_pct ?? 0}%</span>
+                                  <span className="text-xs text-slate-400">{eg.children.length > 0 ? weightedProgress(eg.children.map(c => c.status)) : statusPct(eg.epic.status)}%</span>
                                   {(eg.epic.plan_start || eg.epic.plan_end) && (
                                     <span className="text-xs text-slate-400">{fmt(eg.epic.plan_start)} → {fmt(eg.epic.plan_end)}</span>
                                   )}
@@ -784,7 +810,7 @@ export default function MilestonesPage() {
                                       <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                                         <span className="text-xs text-orange-400">Epic: {eg.epic.activity}</span>
                                         <Badge className={`text-xs px-1.5 py-0 ${statusColor(child.status)}`}>{child.status}</Badge>
-                                        <span className="text-xs text-slate-400">{child.completion_pct ?? 0}%</span>
+                                        <span className="text-xs text-slate-400">{statusPct(child.status)}%</span>
                                       </div>
                                     </div>
                                   </button>
@@ -816,7 +842,7 @@ export default function MilestonesPage() {
                               <div className="flex items-center gap-2 mt-1 flex-wrap">
                                 {epicName && <span className="text-xs text-orange-400">Epic: {epicName}</span>}
                                 <Badge className={`text-xs px-1.5 py-0 ${statusColor(c.status)}`}>{c.status}</Badge>
-                                <span className="text-xs text-slate-400">{c.completion_pct ?? 0}%</span>
+                                <span className="text-xs text-slate-400">{statusPct(c.status)}%</span>
                               </div>
                             </div>
                           </button>
@@ -839,7 +865,7 @@ export default function MilestonesPage() {
                             </div>
                             <div className="flex items-center gap-3 mt-1 flex-wrap">
                               <Badge className={`text-xs px-1.5 py-0 ${statusColor(a.status)}`}>{a.status}</Badge>
-                              <span className="text-xs text-slate-400">{a.completion_pct ?? 0}%</span>
+                              <span className="text-xs text-slate-400">{statusPct(a.status)}%</span>
                               {(a.plan_start || a.plan_end) && (
                                 <span className="text-xs text-slate-400">{fmt(a.plan_start)} → {fmt(a.plan_end)}</span>
                               )}

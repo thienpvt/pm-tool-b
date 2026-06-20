@@ -1,5 +1,6 @@
 import { Pool } from 'pg';
 import crypto from 'crypto';
+import { STATUS_WEIGHTS } from './status-weights';
 
 // ── Interface ──────────────────────────────────────────────────────────────────
 export interface DbClient {
@@ -484,6 +485,49 @@ async function migratePostgresSchema(pool: Pool) {
   }
 }
 
+// ── One-time backfill: completion_pct = weighted progress by status ────────────
+// Đưa dữ liệu completion_pct hiện tại về đúng công thức trọng số trạng thái:
+//   - Story/task (leaf): completion_pct = round(trọng số × 100)
+//   - EPIC: completion_pct = trung bình cộng completion_pct của các child
+// Chạy một lần (guard bằng settings flag) để không ghi đè chỉnh sửa thủ công sau này.
+async function backfillWeightedCompletion(pool: Pool) {
+  const FLAG = 'completion_pct_weighted_v1';
+  try {
+    const done = await pool.query('SELECT value FROM settings WHERE key = $1', [FLAG]);
+    if (done.rows.length > 0) return;
+
+    // Leaf activities (no != 'EPIC'): set completion_pct from status weight.
+    const cases = Object.entries(STATUS_WEIGHTS)
+      .map(([status, w]) => `WHEN status = '${status.replace(/'/g, "''")}' THEN ${Math.round(w * 100)}`)
+      .join(' ');
+    await pool.query(
+      `UPDATE activities
+       SET completion_pct = CASE ${cases} ELSE 0 END
+       WHERE COALESCE(no, '') <> 'EPIC'`
+    );
+
+    // EPIC activities: average of their children's completion_pct.
+    await pool.query(
+      `UPDATE activities e
+       SET completion_pct = sub.avg_pct
+       FROM (
+         SELECT parent_id, ROUND(AVG(completion_pct))::int AS avg_pct
+         FROM activities
+         WHERE parent_id IS NOT NULL
+         GROUP BY parent_id
+       ) sub
+       WHERE e.id = sub.parent_id AND COALESCE(e.no, '') = 'EPIC'`
+    );
+
+    await pool.query(
+      `INSERT INTO settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO NOTHING`,
+      [FLAG, new Date().toISOString()]
+    );
+  } catch {
+    /* settings table may not exist yet on first run — will retry next boot */
+  }
+}
+
 // ── Seed default users ─────────────────────────────────────────────────────────
 async function seedAuthData(db: DbClient) {
   const row = await db.get<{ c: string | number }>('SELECT COUNT(*) as c FROM users');
@@ -525,6 +569,7 @@ export async function getDb(): Promise<DbClient> {
   const client = new PostgresClient(pool);
   await initPostgresSchema(client);
   await migratePostgresSchema(pool);
+  await backfillWeightedCompletion(pool);
   _client = client;
 
   await seedAuthData(_client);
