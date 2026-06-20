@@ -2,8 +2,11 @@
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import Sidebar from '@/components/layout/Sidebar';
-import { ChevronDown, ChevronRight, ChevronLeft, Building2, Map, CalendarDays, Download, Filter, X } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ChevronDown, ChevronRight, ChevronLeft, Building2, Map, CalendarDays, Download, Filter, X, Flag, Layers } from 'lucide-react';
 import { toPng } from 'html-to-image';
+import { statusPct, weightedProgress } from '@/lib/status-weights';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type PhaseInfo = {
@@ -26,6 +29,37 @@ type ProjectRow = {
 type ProgramGroup = { id: number; name: string; industry: string; projects: ProjectRow[] };
 type RoadmapData = { programs: ProgramGroup[]; noProgramProjects: ProjectRow[] };
 
+type EpicChild = {
+  id: number; no: string; activity: string; status: string;
+  plan_start: string | null; plan_end: string | null; jira_key: string | null;
+  weighted_pct: number;
+};
+type EpicNode = {
+  id: number; phase: string; no: string; activity: string; status: string;
+  plan_start: string | null; plan_end: string | null; jira_key: string | null;
+  child_count: number; weighted_pct: number; children: EpicChild[];
+};
+
+type MilestoneRow = {
+  id: number; project_id: number; name: string;
+  start_date: string | null; end_date: string | null;
+  project_name: string; program_name: string | null;
+};
+type MilestoneItem = {
+  id: number; phase: string; no: string; activity: string; status: string;
+  completion_pct: number; plan_start: string | null; plan_end: string | null;
+  jira_key: string; parent_id: number | null;
+};
+
+// Dữ liệu chung cho dialog chi tiết Epic (dùng cả ở phase-mode lẫn milestone-mode)
+type EpicDetailData = {
+  projectName: string;
+  epicActivity: string;
+  jira_key: string | null;
+  status: string;
+  children: { id: number; jira_key: string | null; no: string; activity: string; status: string; plan_start: string | null; plan_end: string | null }[];
+};
+
 // ─── Phase colours (vivid, clearly distinct) ──────────────────────────────────
 type PhaseStyle = { labelBg: string; bg: string; border: string; fill: string; textColor: string };
 
@@ -38,6 +72,16 @@ const PS: Record<string, PhaseStyle> = {
 const PHASES = ['Initiation', 'Planning', 'Execution', 'Closing'] as const;
 
 const RAG_COLOR: Record<string, string> = { red: '#ef4444', amber: '#f59e0b', green: '#22c55e' };
+
+const STATUS_COLOR: Record<string, string> = {
+  'Done': 'bg-green-100 text-green-700', 'Deployed': 'bg-green-100 text-green-700',
+  'UAT': 'bg-green-100 text-green-700', 'QC Done': 'bg-green-100 text-green-700',
+  'In Progress': 'bg-blue-100 text-blue-700', 'In Review': 'bg-indigo-100 text-indigo-700',
+  'In Testing': 'bg-cyan-100 text-cyan-700', 'In Dev': 'bg-amber-100 text-amber-700',
+  'To-do': 'bg-slate-100 text-slate-500', 'To Do': 'bg-slate-100 text-slate-500',
+  'Blocked': 'bg-red-100 text-red-700', 'New': 'bg-slate-100 text-slate-500',
+};
+function statusColor(s: string) { return STATUS_COLOR[s] ?? 'bg-slate-100 text-slate-500'; }
 
 // ─── Layout ───────────────────────────────────────────────────────────────────
 const LABEL_W = 220;
@@ -58,6 +102,13 @@ const QUICK_VIEWS: { label: string; v: [number, number] }[] = [
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+function fmt(d: string | null | undefined) {
+  if (!d) return '—';
+  const [y, m, day] = d.split('-');
+  if (!day) return d;
+  return `${day}/${m}/${y}`;
+}
+
 function buildYearTimeline(year: number, startMonth = 0, endMonth = 11) {
   const rStart  = new Date(year, startMonth, 1, 0, 0, 0);
   const rEnd    = new Date(year, endMonth + 1, 0, 23, 59, 59);
@@ -107,6 +158,22 @@ export default function PortfolioRoadmap() {
   const [filterProject, setFilterProject] = useState<number | null>(null);
   const roadmapRef = useRef<HTMLDivElement>(null);
 
+  // View mode: phase-timeline (default) hoặc milestone-list
+  const [viewMode, setViewMode] = useState<'phase' | 'milestone'>('phase');
+
+  // Phase-mode: expand phase → xem epic; epic data lazy-load theo project
+  const [expandedPhases, setExpandedPhases] = useState<Set<string>>(new Set());
+  const [epicsByProject, setEpicsByProject] = useState<Record<number, EpicNode[] | 'loading'>>({});
+
+  // Epic detail dialog (dùng chung)
+  const [epicDetail, setEpicDetail] = useState<EpicDetailData | null>(null);
+
+  // Milestone-mode
+  const [milestones, setMilestones] = useState<MilestoneRow[] | null>(null);
+  const [selectedMilestoneId, setSelectedMilestoneId] = useState<number | null>(null);
+  const [milestoneItems, setMilestoneItems] = useState<MilestoneItem[] | null>(null);
+  const [collapsedMsEpics, setCollapsedMsEpics] = useState<Set<number>>(new Set());
+
   useEffect(() => {
     fetch('/api/portfolio/roadmap').then(r => r.json()).then((d: RoadmapData) => {
       setData(d);
@@ -115,8 +182,50 @@ export default function PortfolioRoadmap() {
     });
   }, []);
 
-  // Available years: range from (min project year - 1) to (max project year + 1),
-  // always including at least currentYear-1 .. currentYear+2
+  // Load milestone list lần đầu khi chuyển sang milestone mode
+  useEffect(() => {
+    if (viewMode === 'milestone' && milestones === null) {
+      fetch('/api/portfolio/milestones').then(r => r.json()).then((d: MilestoneRow[]) => setMilestones(d));
+    }
+  }, [viewMode, milestones]);
+
+  const selectedMilestone = useMemo(
+    () => milestones?.find(m => m.id === selectedMilestoneId) ?? null,
+    [milestones, selectedMilestoneId]
+  );
+
+  // Load epics+children của milestone đã chọn
+  useEffect(() => {
+    if (!selectedMilestone) { setMilestoneItems(null); return; }
+    setMilestoneItems(null);
+    setCollapsedMsEpics(new Set());
+    fetch(`/api/projects/${selectedMilestone.project_id}/milestones/${selectedMilestone.id}/epics`)
+      .then(r => r.json())
+      .then((d: MilestoneItem[]) => setMilestoneItems(d));
+  }, [selectedMilestone]);
+
+  const loadEpics = useCallback(async (projectId: number) => {
+    let already = false;
+    setEpicsByProject(prev => {
+      if (prev[projectId]) { already = true; return prev; }
+      return { ...prev, [projectId]: 'loading' };
+    });
+    if (already) return;
+    const d = await fetch(`/api/portfolio/roadmap/epics?project_id=${projectId}`).then(r => r.json());
+    setEpicsByProject(prev => ({ ...prev, [projectId]: (d.epics ?? []) as EpicNode[] }));
+  }, []);
+
+  const togglePhaseExpand = useCallback((projectId: number, phase: string) => {
+    const key = `${projectId}:${phase}`;
+    setExpandedPhases(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+    loadEpics(projectId);
+  }, [loadEpics]);
+
+  // Available years
   const availableYears = useMemo(() => {
     const cur = new Date().getFullYear();
     let minY = cur - 1;
@@ -225,6 +334,39 @@ export default function PortfolioRoadmap() {
     }
   }, [selectedYear]);
 
+  // ── Milestone computed (weighted-by-status) ────────────────────────────────
+  const ms = useMemo(() => {
+    if (!milestoneItems) return null;
+    const inIds = new Set(milestoneItems.map(i => i.id));
+    const childrenByParent: Record<number, MilestoneItem[]> = {};
+    for (const it of milestoneItems) {
+      if (it.parent_id && inIds.has(it.parent_id)) {
+        (childrenByParent[it.parent_id] = childrenByParent[it.parent_id] ?? []).push(it);
+      }
+    }
+    const leaves = milestoneItems.filter(i => i.no !== 'EPIC');
+    const overallPct = weightedProgress(leaves.map(i => i.status));
+    const topLevel = milestoneItems.filter(i => !i.parent_id || !inIds.has(i.parent_id));
+    const byPhase: Record<string, MilestoneItem[]> = {};
+    for (const it of topLevel) (byPhase[it.phase] = byPhase[it.phase] ?? []).push(it);
+    const itemPct = (it: MilestoneItem): number => {
+      if (it.no === 'EPIC') {
+        const kids = childrenByParent[it.id] ?? [];
+        return kids.length > 0 ? weightedProgress(kids.map(k => k.status)) : statusPct(it.status);
+      }
+      return statusPct(it.status);
+    };
+    return { childrenByParent, overallPct, byPhase, itemPct, count: milestoneItems.length };
+  }, [milestoneItems]);
+
+  const toggleMsEpic = useCallback((epicId: number) => {
+    setCollapsedMsEpics(prev => {
+      const next = new Set(prev);
+      if (next.has(epicId)) next.delete(epicId); else next.add(epicId);
+      return next;
+    });
+  }, []);
+
   // ── Loading ─────────────────────────────────────────────────────────────────
   if (loading) {
     return (
@@ -256,56 +398,85 @@ export default function PortfolioRoadmap() {
               Portfolio Roadmap
             </h1>
             <p className="text-sm text-slate-500 mt-0.5">
-              {totalProjects} project{totalProjects !== 1 ? 's' : ''} · phase bars from activity dates
+              {viewMode === 'phase'
+                ? <>{totalProjects} project{totalProjects !== 1 ? 's' : ''} · phase bars from activity dates</>
+                : <>Xem theo milestone · tiến độ weighted theo trạng thái</>}
             </p>
           </div>
 
-          {/* Year selector */}
-          <div className="flex items-center gap-2">
+          {/* View-mode toggle */}
+          <div className="flex items-center gap-1 bg-slate-100 rounded-xl p-1">
             <button
-              onClick={() => curYearIdx > 0 && setYearAndReset(availableYears[curYearIdx - 1])}
-              disabled={curYearIdx <= 0}
-              className="p-1.5 rounded-lg border hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              onClick={() => setViewMode('phase')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors ${
+                viewMode === 'phase' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'
+              }`}
             >
-              <ChevronLeft className="h-4 w-4 text-slate-500" />
+              <Map className="h-3.5 w-3.5" /> Theo Phase
             </button>
-            <div className="flex items-center gap-1 bg-slate-100 rounded-xl p-1">
-              {availableYears.map(y => (
-                <button
-                  key={y}
-                  onClick={() => setYearAndReset(y)}
-                  className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-colors ${
-                    y === selectedYear
-                      ? 'bg-white shadow-sm text-blue-600'
-                      : 'text-slate-500 hover:text-slate-700'
-                  }`}
-                >
-                  {y}
-                </button>
-              ))}
-            </div>
             <button
-              onClick={() => curYearIdx < availableYears.length - 1 && setYearAndReset(availableYears[curYearIdx + 1])}
-              disabled={curYearIdx >= availableYears.length - 1}
-              className="p-1.5 rounded-lg border hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              onClick={() => setViewMode('milestone')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors ${
+                viewMode === 'milestone' ? 'bg-white shadow-sm text-orange-600' : 'text-slate-500 hover:text-slate-700'
+              }`}
             >
-              <ChevronRight className="h-4 w-4 text-slate-500" />
+              <Flag className="h-3.5 w-3.5" /> Theo Milestone
             </button>
           </div>
 
+          {/* Year selector (phase mode only) */}
+          {viewMode === 'phase' && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => curYearIdx > 0 && setYearAndReset(availableYears[curYearIdx - 1])}
+                disabled={curYearIdx <= 0}
+                className="p-1.5 rounded-lg border hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronLeft className="h-4 w-4 text-slate-500" />
+              </button>
+              <div className="flex items-center gap-1 bg-slate-100 rounded-xl p-1">
+                {availableYears.map(y => (
+                  <button
+                    key={y}
+                    onClick={() => setYearAndReset(y)}
+                    className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-colors ${
+                      y === selectedYear
+                        ? 'bg-white shadow-sm text-blue-600'
+                        : 'text-slate-500 hover:text-slate-700'
+                    }`}
+                  >
+                    {y}
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={() => curYearIdx < availableYears.length - 1 && setYearAndReset(availableYears[curYearIdx + 1])}
+                disabled={curYearIdx >= availableYears.length - 1}
+                className="p-1.5 rounded-lg border hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronRight className="h-4 w-4 text-slate-500" />
+              </button>
+            </div>
+          )}
+
           <div className="flex items-center gap-2 shrink-0">
-            <button
-              onClick={handleExportPng}
-              disabled={exporting}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              <Download className="h-3.5 w-3.5" />
-              {exporting ? 'Exporting…' : 'Export PNG'}
-            </button>
+            {viewMode === 'phase' && (
+              <button
+                onClick={handleExportPng}
+                disabled={exporting}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <Download className="h-3.5 w-3.5" />
+                {exporting ? 'Exporting…' : 'Export PNG'}
+              </button>
+            )}
             <Link href="/" className="text-sm text-blue-600 hover:underline">← Dashboard</Link>
           </div>
         </div>
 
+        {/* ════════════════════ PHASE MODE ════════════════════ */}
+        {viewMode === 'phase' && (
+        <>
         {/* ── View range controls ── */}
         <div className="shrink-0 px-6 py-2 bg-slate-50 border-b flex items-center gap-3 flex-wrap">
           <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider shrink-0">View:</span>
@@ -423,6 +594,9 @@ export default function PortfolioRoadmap() {
           <span className="text-slate-300 mx-1">|</span>
           <span className="text-slate-500">Bar fill = completion %</span>
           <span className="flex items-center gap-1.5 text-slate-500">
+            <Layers className="h-3 w-3" /> Bấm phase để mở/đóng Epic
+          </span>
+          <span className="flex items-center gap-1.5 text-slate-500">
             <span className="inline-block w-0.5 h-4 bg-blue-400 rounded" />Today
           </span>
         </div>
@@ -523,7 +697,24 @@ export default function PortfolioRoadmap() {
                       (project.start_date || project.end_date) &&
                       fallbackR1 > 0 && fallbackR0 < 100;
 
-                    const numBars = barsToShow.length + (showFallback ? 1 : 0);
+                    const projEpics = epicsByProject[project.id];
+
+                    // Build render lines: phase bar, then (if expanded) its epic bars
+                    type Line =
+                      | { kind: 'phase'; ph: PhaseInfo }
+                      | { kind: 'epic'; ph: PhaseInfo; epic: EpicNode };
+                    const lines: Line[] = [];
+                    for (const ph of barsToShow) {
+                      lines.push({ kind: 'phase', ph });
+                      const expanded = expandedPhases.has(`${project.id}:${ph.phase}`);
+                      if (expanded && Array.isArray(projEpics)) {
+                        for (const epic of projEpics.filter(e => e.phase === ph.phase)) {
+                          lines.push({ kind: 'epic', ph, epic });
+                        }
+                      }
+                    }
+
+                    const numBars = lines.length + (showFallback ? 1 : 0);
                     const rowH = Math.max(
                       (numBars || 1) * (BAR_H + BAR_GAP) + ROW_PAD * 2,
                       BAR_H + ROW_PAD * 2,
@@ -591,38 +782,45 @@ export default function PortfolioRoadmap() {
                             />
                           )}
 
-                          {/* Phase bars */}
-                          {barsToShow.map((ph, barIdx) => {
-                            const s = PS[ph.phase] ?? PS['Execution'];
-                            const r0 = ph.start_date ? rawPct(ph.start_date) : 0;
-                            const r1 = ph.end_date   ? rawPct(ph.end_date, true) : 100;
-                            const startPct = Math.max(0, r0);
-                            const endPct   = Math.min(100, r1);
-                            const widthPct = Math.max(endPct - startPct, 0.4);
-                            const top = ROW_PAD + barIdx * (BAR_H + BAR_GAP);
+                          {/* Lines: phase bars + expanded epic bars */}
+                          {lines.map((line, lineIdx) => {
+                            const top = ROW_PAD + lineIdx * (BAR_H + BAR_GAP);
 
-                            return (
-                              <Link key={ph.phase} href={`/projects/${project.id}`} className="block">
-                                <div
-                                  className="absolute group cursor-pointer"
+                            if (line.kind === 'phase') {
+                              const ph = line.ph;
+                              const s = PS[ph.phase] ?? PS['Execution'];
+                              const r0 = ph.start_date ? rawPct(ph.start_date) : 0;
+                              const r1 = ph.end_date   ? rawPct(ph.end_date, true) : 100;
+                              const startPct = Math.max(0, r0);
+                              const endPct   = Math.min(100, r1);
+                              const widthPct = Math.max(endPct - startPct, 0.4);
+                              const expanded = expandedPhases.has(`${project.id}:${ph.phase}`);
+
+                              return (
+                                <button
+                                  key={`ph-${ph.phase}`}
+                                  type="button"
+                                  onClick={() => togglePhaseExpand(project.id, ph.phase)}
+                                  className="absolute group text-left"
                                   style={{ top, left: `${startPct}%`, width: `${widthPct}%`, height: BAR_H }}
+                                  title={`${ph.phase}: ${ph.done}/${ph.total} done · ${ph.completion_pct}% — bấm để xem Epic`}
                                 >
                                   <div
                                     className="relative h-full rounded-md overflow-hidden flex items-center shadow-sm transition-opacity hover:opacity-90"
                                     style={{ backgroundColor: s.bg, border: `1.5px solid ${s.border}` }}
-                                    title={`${ph.phase}: ${ph.done}/${ph.total} done · ${ph.completion_pct}%`}
                                   >
-                                    {/* Completion fill */}
                                     <div
                                       aria-hidden
                                       className="absolute inset-y-0 left-0"
                                       style={{ width: `${ph.completion_pct}%`, backgroundColor: s.fill }}
                                     />
-                                    {/* Label */}
                                     <div
-                                      className="relative z-10 flex items-center gap-1 px-2 min-w-0 w-full"
+                                      className="relative z-10 flex items-center gap-1 px-1.5 min-w-0 w-full"
                                       style={{ color: s.textColor }}
                                     >
+                                      {expanded
+                                        ? <ChevronDown className="h-3 w-3 shrink-0" />
+                                        : <ChevronRight className="h-3 w-3 shrink-0" />}
                                       {ph.epic_key && (
                                         <span
                                           className="text-[9px] font-mono font-bold shrink-0 px-1 py-px rounded"
@@ -642,8 +840,60 @@ export default function PortfolioRoadmap() {
                                       </span>
                                     </div>
                                   </div>
+                                </button>
+                              );
+                            }
+
+                            // Epic line
+                            const { epic, ph } = line;
+                            const s = PS[ph.phase] ?? PS['Execution'];
+                            const e0 = epic.plan_start ? rawPct(epic.plan_start)
+                              : ph.start_date ? rawPct(ph.start_date) : 0;
+                            const e1 = epic.plan_end ? rawPct(epic.plan_end, true)
+                              : ph.end_date ? rawPct(ph.end_date, true) : 100;
+                            const startPct = Math.max(0, Math.min(100, e0));
+                            const endPct   = Math.max(0, Math.min(100, e1));
+                            const widthPct = Math.max(endPct - startPct, 0.4);
+
+                            return (
+                              <button
+                                key={`ep-${epic.id}`}
+                                type="button"
+                                onClick={() => setEpicDetail({
+                                  projectName: project.name,
+                                  epicActivity: epic.activity,
+                                  jira_key: epic.jira_key,
+                                  status: epic.status,
+                                  children: epic.children.map(c => ({
+                                    id: c.id, jira_key: c.jira_key, no: c.no, activity: c.activity,
+                                    status: c.status, plan_start: c.plan_start, plan_end: c.plan_end,
+                                  })),
+                                })}
+                                className="absolute group text-left"
+                                style={{ top, left: `${startPct}%`, width: `${widthPct}%`, height: BAR_H }}
+                                title={`Epic: ${epic.activity} · ${epic.weighted_pct}% (${epic.child_count} child) — bấm xem chi tiết`}
+                              >
+                                <div
+                                  className="relative h-full rounded-md overflow-hidden flex items-center border border-dashed shadow-sm transition-opacity hover:opacity-90"
+                                  style={{ backgroundColor: '#ffffff', borderColor: s.border }}
+                                >
+                                  <div
+                                    aria-hidden
+                                    className="absolute inset-y-0 left-0 opacity-70"
+                                    style={{ width: `${epic.weighted_pct}%`, backgroundColor: s.fill }}
+                                  />
+                                  <div className="relative z-10 flex items-center gap-1 px-1.5 min-w-0 w-full" style={{ color: s.textColor }}>
+                                    <Layers className="h-2.5 w-2.5 shrink-0 opacity-70" />
+                                    {epic.jira_key && (
+                                      <span className="text-[9px] font-mono font-bold shrink-0 px-1 py-px rounded" style={{ backgroundColor: 'rgba(255,255,255,0.5)' }}>
+                                        {epic.jira_key}
+                                      </span>
+                                    )}
+                                    <span className="text-[10px] font-medium truncate flex-1">{epic.activity}</span>
+                                    <span className="text-[10px] font-bold shrink-0 ml-0.5">{epic.weighted_pct}%</span>
+                                  </div>
                                 </div>
-                              </Link>
+                              </button>
                             );
                           })}
 
@@ -702,7 +952,261 @@ export default function PortfolioRoadmap() {
 
           </div>
         </div>
+        </>
+        )}
+
+        {/* ════════════════════ MILESTONE MODE ════════════════════ */}
+        {viewMode === 'milestone' && (
+        <>
+          {/* Milestone selector */}
+          <div className="shrink-0 px-6 py-2.5 bg-slate-50 border-b flex items-center gap-3 flex-wrap">
+            <Flag className="h-4 w-4 text-orange-500 shrink-0" />
+            <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider shrink-0">Milestone:</span>
+            <select
+              value={selectedMilestoneId ?? ''}
+              onChange={e => setSelectedMilestoneId(e.target.value === '' ? null : +e.target.value)}
+              className="text-sm border border-slate-200 rounded-md px-2 py-1.5 text-slate-700 bg-white focus:outline-none focus:ring-1 focus:ring-orange-400 min-w-[280px]"
+            >
+              <option value="">— Chọn milestone —</option>
+              {(() => {
+                if (!milestones) return null;
+                const byProject: Record<string, MilestoneRow[]> = {};
+                for (const m of milestones) (byProject[m.project_name] = byProject[m.project_name] ?? []).push(m);
+                return Object.entries(byProject).map(([proj, list]) => (
+                  <optgroup key={proj} label={proj}>
+                    {list.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                  </optgroup>
+                ));
+              })()}
+            </select>
+            {milestones && milestones.length === 0 && (
+              <span className="text-xs text-slate-400">Chưa có milestone nào. Tạo milestone trong từng project.</span>
+            )}
+          </div>
+
+          <div className="flex-1 overflow-auto p-6">
+            {!selectedMilestone ? (
+              <div className="flex flex-col items-center justify-center h-full text-slate-300 gap-2">
+                <Flag className="h-12 w-12 text-slate-200" />
+                <p className="text-sm">Chọn một milestone để xem Epic, child và tiến độ.</p>
+              </div>
+            ) : !ms ? (
+              <div className="flex items-center justify-center py-20">
+                <div className="w-7 h-7 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : (
+              <div className="max-w-5xl mx-auto">
+                {/* Milestone header */}
+                <div className="bg-white rounded-xl border shadow-sm p-5 mb-5">
+                  <div className="flex items-start justify-between gap-4 flex-wrap">
+                    <div className="min-w-0">
+                      <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                        <Flag className="h-5 w-5 text-orange-500 shrink-0" />
+                        {selectedMilestone.name}
+                      </h2>
+                      <p className="text-sm text-slate-500 mt-1">
+                        <Link href={`/projects/${selectedMilestone.project_id}/milestones`} className="text-blue-600 hover:underline">
+                          {selectedMilestone.project_name}
+                        </Link>
+                        {selectedMilestone.program_name && <span className="text-slate-400"> · {selectedMilestone.program_name}</span>}
+                        <span className="mx-2 text-slate-300">|</span>
+                        {fmt(selectedMilestone.start_date)} → {fmt(selectedMilestone.end_date)}
+                        <span className="ml-2 text-orange-600 font-medium">{ms.count} item</span>
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3 min-w-[220px]">
+                      <div className="flex-1 h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                        <div className="h-full bg-orange-500 rounded-full transition-all" style={{ width: `${ms.overallPct}%` }} />
+                      </div>
+                      <span className="text-lg font-bold text-orange-600 tabular-nums shrink-0">{ms.overallPct}%</span>
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-slate-400 mt-2">Tiến độ tổng = weighted theo trạng thái (EPIC không tính vào leaf).</p>
+                </div>
+
+                {ms.count === 0 ? (
+                  <div className="border border-dashed border-slate-300 rounded-lg p-10 text-center text-slate-400">
+                    <p className="text-sm">Milestone này chưa có item nào.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {Object.entries(ms.byPhase).map(([phase, parents]) => (
+                      <div key={phase}>
+                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3 px-1">{phase}</p>
+                        <div className="space-y-2">
+                          {parents.map(parent => {
+                            const kids = ms.childrenByParent[parent.id] ?? [];
+                            const isEpic = parent.no === 'EPIC';
+                            const collapsed = collapsedMsEpics.has(parent.id);
+                            const pct = ms.itemPct(parent);
+                            return (
+                              <div key={parent.id}>
+                                <div className={`rounded-lg border px-4 py-3 flex items-center gap-3 transition-colors ${
+                                  isEpic ? 'bg-orange-50/50 border-orange-200 hover:border-orange-300' : 'bg-white border-slate-200 hover:border-slate-300'
+                                }`}>
+                                  {isEpic && kids.length > 0 && (
+                                    <button
+                                      onClick={() => toggleMsEpic(parent.id)}
+                                      className="p-0.5 rounded text-slate-400 hover:text-orange-500 transition-colors shrink-0"
+                                    >
+                                      {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                                    </button>
+                                  )}
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      {isEpic && <span className="text-xs font-semibold text-orange-600 bg-orange-100 px-1.5 py-0.5 rounded">EPIC</span>}
+                                      {parent.jira_key && <span className="text-xs font-mono bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded">{parent.jira_key}</span>}
+                                      {parent.no && parent.no !== 'EPIC' && <span className="text-xs text-slate-400">#{parent.no}</span>}
+                                      <span className="text-sm font-medium text-slate-800 truncate">{parent.activity}</span>
+                                    </div>
+                                    <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+                                      <Badge className={`text-xs px-1.5 py-0 ${statusColor(parent.status)}`}>{parent.status}</Badge>
+                                      <span className="text-xs text-slate-400">{pct}%</span>
+                                      {(parent.plan_start || parent.plan_end) && (
+                                        <span className="text-xs text-slate-400">{fmt(parent.plan_start)} → {fmt(parent.plan_end)}</span>
+                                      )}
+                                      {kids.length > 0 && <span className="text-xs text-orange-500">{kids.length} sub-item</span>}
+                                    </div>
+                                  </div>
+                                  <div className="w-20 shrink-0">
+                                    <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                      <div className="h-full bg-orange-400 rounded-full" style={{ width: `${pct}%` }} />
+                                    </div>
+                                  </div>
+                                  {isEpic && (
+                                    <button
+                                      onClick={() => setEpicDetail({
+                                        projectName: selectedMilestone.project_name,
+                                        epicActivity: parent.activity,
+                                        jira_key: parent.jira_key || null,
+                                        status: parent.status,
+                                        children: kids.map(c => ({
+                                          id: c.id, jira_key: c.jira_key || null, no: c.no, activity: c.activity,
+                                          status: c.status, plan_start: c.plan_start, plan_end: c.plan_end,
+                                        })),
+                                      })}
+                                      className="text-xs font-medium text-orange-600 hover:text-orange-700 hover:underline shrink-0"
+                                    >
+                                      Chi tiết
+                                    </button>
+                                  )}
+                                </div>
+
+                                {kids.length > 0 && !collapsed && (
+                                  <div className="ml-5 mt-1.5 space-y-1.5 pl-4 border-l-2 border-orange-100">
+                                    {kids.map(child => (
+                                      <div key={child.id} className="bg-white rounded-lg border border-slate-200 px-4 py-2.5 flex items-center gap-3">
+                                        <div className="flex-1 min-w-0">
+                                          <div className="flex items-center gap-2 flex-wrap">
+                                            {child.jira_key && <span className="text-xs font-mono bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded">{child.jira_key}</span>}
+                                            {child.no && child.no !== 'EPIC' && <span className="text-xs text-slate-400">{child.no}</span>}
+                                            <span className="text-sm text-slate-700 truncate">{child.activity}</span>
+                                          </div>
+                                          <div className="flex items-center gap-3 mt-1 flex-wrap">
+                                            <Badge className={`text-xs px-1.5 py-0 ${statusColor(child.status)}`}>{child.status}</Badge>
+                                            <span className="text-xs text-slate-400">{statusPct(child.status)}%</span>
+                                            {(child.plan_start || child.plan_end) && (
+                                              <span className="text-xs text-slate-400">{fmt(child.plan_start)} → {fmt(child.plan_end)}</span>
+                                            )}
+                                          </div>
+                                        </div>
+                                        <div className="w-16 shrink-0">
+                                          <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                            <div className="h-full bg-orange-300 rounded-full" style={{ width: `${statusPct(child.status)}%` }} />
+                                          </div>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </>
+        )}
       </main>
+
+      {/* ── Epic detail dialog ── */}
+      <Dialog open={!!epicDetail} onOpenChange={open => { if (!open) setEpicDetail(null); }}>
+        <DialogContent className="sm:max-w-3xl max-h-[85vh] flex flex-col">
+          {epicDetail && (() => {
+            const childTotal = weightedProgress(epicDetail.children.map(c => c.status));
+            return (
+              <>
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2 flex-wrap pr-6">
+                    <span className="text-xs font-semibold text-orange-600 bg-orange-100 px-1.5 py-0.5 rounded">EPIC</span>
+                    {epicDetail.jira_key && (
+                      <span className="text-xs font-mono bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded">{epicDetail.jira_key}</span>
+                    )}
+                    <span className="text-base font-bold text-slate-800">{epicDetail.epicActivity}</span>
+                  </DialogTitle>
+                </DialogHeader>
+
+                <p className="text-xs text-slate-500 -mt-1">
+                  {epicDetail.projectName}
+                  <span className="mx-2 text-slate-300">|</span>
+                  <Badge className={`text-xs px-1.5 py-0 ${statusColor(epicDetail.status)}`}>{epicDetail.status}</Badge>
+                </p>
+
+                {/* Tổng tiến độ các child (weighted) */}
+                <div className="bg-slate-50 rounded-lg border p-3 flex items-center gap-3">
+                  <span className="text-sm font-semibold text-slate-600 shrink-0">Tiến độ tổng ({epicDetail.children.length} child)</span>
+                  <div className="flex-1 h-2.5 bg-slate-200 rounded-full overflow-hidden">
+                    <div className="h-full bg-orange-500 rounded-full transition-all" style={{ width: `${childTotal}%` }} />
+                  </div>
+                  <span className="text-lg font-bold text-orange-600 tabular-nums shrink-0">{childTotal}%</span>
+                </div>
+                <p className="text-[11px] text-slate-400 -mt-1">Tính theo tỷ trọng (weighted) trạng thái của toàn bộ child.</p>
+
+                {/* Bảng child */}
+                <div className="overflow-auto flex-1 -mx-1 px-1">
+                  {epicDetail.children.length === 0 ? (
+                    <p className="text-sm text-slate-400 text-center py-8">Epic này chưa có child nào.</p>
+                  ) : (
+                    <table className="w-full text-sm border-collapse">
+                      <thead>
+                        <tr className="text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wider border-b">
+                          <th className="py-2 px-2">Key / No</th>
+                          <th className="py-2 px-2">Activity</th>
+                          <th className="py-2 px-2">Trạng thái</th>
+                          <th className="py-2 px-2 text-right">%</th>
+                          <th className="py-2 px-2">Bắt đầu</th>
+                          <th className="py-2 px-2">Kết thúc</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {epicDetail.children.map(c => (
+                          <tr key={c.id} className="border-b last:border-b-0 hover:bg-slate-50">
+                            <td className="py-2 px-2 whitespace-nowrap">
+                              {c.jira_key
+                                ? <span className="text-xs font-mono bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded">{c.jira_key}</span>
+                                : <span className="text-xs text-slate-400">{c.no || '—'}</span>}
+                            </td>
+                            <td className="py-2 px-2 text-slate-700">{c.activity}</td>
+                            <td className="py-2 px-2"><Badge className={`text-xs px-1.5 py-0 ${statusColor(c.status)}`}>{c.status}</Badge></td>
+                            <td className="py-2 px-2 text-right tabular-nums text-slate-600">{statusPct(c.status)}%</td>
+                            <td className="py-2 px-2 text-slate-500 whitespace-nowrap">{fmt(c.plan_start)}</td>
+                            <td className="py-2 px-2 text-slate-500 whitespace-nowrap">{fmt(c.plan_end)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              </>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
