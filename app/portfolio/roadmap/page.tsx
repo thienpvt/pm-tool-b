@@ -73,6 +73,19 @@ const PHASES = ['Initiation', 'Planning', 'Execution', 'Closing'] as const;
 
 const RAG_COLOR: Record<string, string> = { red: '#ef4444', amber: '#f59e0b', green: '#22c55e' };
 
+// ─── Epic colours — bảng màu riêng, KHÁC hẳn 4 phase (tím/xanh dương/vàng/xanh lá) ──
+// Xoay vòng theo epic.id để các Epic cạnh nhau nhìn khác nhau, dễ phân biệt với phase.
+type EpicStyle = { bg: string; fill: string; border: string; textColor: string };
+const EPIC_PALETTE: EpicStyle[] = [
+  { bg: '#ecfeff', fill: '#22d3ee', border: '#0e7490', textColor: '#155e75' }, // cyan
+  { bg: '#fff1f2', fill: '#fb7185', border: '#be123c', textColor: '#9f1239' }, // rose
+  { bg: '#f0fdfa', fill: '#2dd4bf', border: '#0f766e', textColor: '#115e59' }, // teal
+  { bg: '#fdf4ff', fill: '#e879f9', border: '#a21caf', textColor: '#86198f' }, // fuchsia
+  { bg: '#eef2ff', fill: '#818cf8', border: '#4338ca', textColor: '#3730a3' }, // indigo
+  { bg: '#fff7ed', fill: '#fb923c', border: '#c2410c', textColor: '#9a3412' }, // orange
+];
+function epicStyle(id: number): EpicStyle { return EPIC_PALETTE[id % EPIC_PALETTE.length]; }
+
 const STATUS_COLOR: Record<string, string> = {
   'Done': 'bg-green-100 text-green-700', 'Deployed': 'bg-green-100 text-green-700',
   'UAT': 'bg-green-100 text-green-700', 'QC Done': 'bg-green-100 text-green-700',
@@ -594,7 +607,12 @@ export default function PortfolioRoadmap() {
           <span className="text-slate-300 mx-1">|</span>
           <span className="text-slate-500">Bar fill = completion %</span>
           <span className="flex items-center gap-1.5 text-slate-500">
-            <Layers className="h-3 w-3" /> Bấm phase để mở/đóng Epic
+            <span className="flex items-center gap-0.5">
+              {EPIC_PALETTE.slice(0, 4).map((e, i) => (
+                <span key={i} className="w-2 h-2 rounded-sm inline-block" style={{ backgroundColor: e.fill, border: `1px solid ${e.border}` }} />
+              ))}
+            </span>
+            <Layers className="h-3 w-3" /> Epic (màu riêng) — bấm phase để mở/đóng
           </span>
           <span className="flex items-center gap-1.5 text-slate-500">
             <span className="inline-block w-0.5 h-4 bg-blue-400 rounded" />Today
@@ -844,9 +862,9 @@ export default function PortfolioRoadmap() {
                               );
                             }
 
-                            // Epic line
+                            // Epic line — dùng bảng màu riêng (khác phase)
                             const { epic, ph } = line;
-                            const s = PS[ph.phase] ?? PS['Execution'];
+                            const es = epicStyle(epic.id);
                             const e0 = epic.plan_start ? rawPct(epic.plan_start)
                               : ph.start_date ? rawPct(ph.start_date) : 0;
                             const e1 = epic.plan_end ? rawPct(epic.plan_end, true)
@@ -874,15 +892,15 @@ export default function PortfolioRoadmap() {
                                 title={`Epic: ${epic.activity} · ${epic.weighted_pct}% (${epic.child_count} child) — bấm xem chi tiết`}
                               >
                                 <div
-                                  className="relative h-full rounded-md overflow-hidden flex items-center border border-dashed shadow-sm transition-opacity hover:opacity-90"
-                                  style={{ backgroundColor: '#ffffff', borderColor: s.border }}
+                                  className="relative h-full rounded-md overflow-hidden flex items-center shadow-sm transition-opacity hover:opacity-90"
+                                  style={{ backgroundColor: es.bg, border: `1.5px solid ${es.border}`, borderLeftWidth: 4 }}
                                 >
                                   <div
                                     aria-hidden
-                                    className="absolute inset-y-0 left-0 opacity-70"
-                                    style={{ width: `${epic.weighted_pct}%`, backgroundColor: s.fill }}
+                                    className="absolute inset-y-0 left-0 opacity-65"
+                                    style={{ width: `${epic.weighted_pct}%`, backgroundColor: es.fill }}
                                   />
-                                  <div className="relative z-10 flex items-center gap-1 px-1.5 min-w-0 w-full" style={{ color: s.textColor }}>
+                                  <div className="relative z-10 flex items-center gap-1 px-1.5 min-w-0 w-full" style={{ color: es.textColor }}>
                                     <Layers className="h-2.5 w-2.5 shrink-0 opacity-70" />
                                     {epic.jira_key && (
                                       <span className="text-[9px] font-mono font-bold shrink-0 px-1 py-px rounded" style={{ backgroundColor: 'rgba(255,255,255,0.5)' }}>
