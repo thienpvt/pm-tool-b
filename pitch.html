@@ -1,0 +1,1220 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gambaru PMO – Pitch Deck</title>
+<style>
+/* ═══════════════════════════════════════════════
+   BASE RESET & SCREEN LAYOUT
+═══════════════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --indigo:    #4F46E5;
+  --indigo-d:  #3730A3;
+  --indigo-l:  #818CF8;
+  --indigo-xl: #C7D2FE;
+  --cyan:      #06B6D4;
+  --green:     #10B981;
+  --amber:     #F59E0B;
+  --red:       #EF4444;
+  --dark:      #06041A;
+  --dark2:     #0F0E2C;
+  --dark3:     #1E1B4B;
+  --white:     #FFFFFF;
+  --gray-50:   #F8FAFC;
+  --gray-100:  #F1F5F9;
+  --gray-200:  #E2E8F0;
+  --gray-400:  #94A3B8;
+  --gray-600:  #475569;
+  --gray-800:  #1E293B;
+  --slide-w: 1120px;
+  --slide-h: 788px;
+}
+
+body {
+  background: #111827;
+  font-family: 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px;
+  gap: 14px;
+  min-height: 100vh;
+}
+
+/* Print controls */
+.print-bar {
+  width: var(--slide-w);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 18px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px;
+}
+.print-btn {
+  background: var(--indigo);
+  color: white;
+  border: none;
+  padding: 9px 22px;
+  border-radius: 7px;
+  font-size: 14px;
+  font-family: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+.print-btn:hover { background: var(--indigo-d); }
+.print-hint { color: rgba(255,255,255,0.5); font-size: 13px; }
+.print-hint strong { color: rgba(255,255,255,0.8); }
+.slide-counter { margin-left: auto; color: rgba(255,255,255,0.35); font-size: 12px; }
+
+/* ─── Slide base ─── */
+.slide {
+  width: var(--slide-w);
+  height: var(--slide-h);
+  position: relative;
+  overflow: hidden;
+  border-radius: 14px;
+  flex-shrink: 0;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+}
+
+/* ═══════════════════════════════════════════════
+   SLIDE 1 — COVER
+═══════════════════════════════════════════════ */
+.s1 {
+  background: linear-gradient(135deg, var(--dark) 0%, var(--dark3) 55%, #2D2778 100%);
+  display: flex;
+}
+.s1-left {
+  flex: 0 0 54%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 60px 48px 60px 56px;
+  position: relative;
+  z-index: 2;
+}
+.s1-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(79,70,229,0.25);
+  border: 1px solid rgba(129,140,248,0.4);
+  border-radius: 100px;
+  padding: 5px 14px;
+  margin-bottom: 28px;
+  width: fit-content;
+}
+.s1-badge-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--indigo-l);
+  box-shadow: 0 0 8px var(--indigo-l);
+}
+.s1-badge span { color: var(--indigo-xl); font-size: 12px; font-weight: 600; letter-spacing: 0.5px; }
+.s1-logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.s1-logo-icon {
+  width: 48px; height: 48px;
+  background: linear-gradient(135deg, var(--indigo), #6D28D9);
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  font-weight: 800;
+  color: white;
+  box-shadow: 0 4px 20px rgba(79,70,229,0.5);
+}
+.s1-logo span {
+  font-size: 28px;
+  font-weight: 800;
+  color: white;
+  letter-spacing: -0.5px;
+}
+.s1-h1 {
+  font-size: 46px;
+  font-weight: 800;
+  color: white;
+  line-height: 1.1;
+  letter-spacing: -1px;
+  margin-bottom: 18px;
+}
+.s1-h1 em {
+  font-style: normal;
+  background: linear-gradient(90deg, var(--indigo-l), var(--cyan));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.s1-sub {
+  font-size: 16px;
+  color: rgba(255,255,255,0.65);
+  line-height: 1.6;
+  margin-bottom: 36px;
+  max-width: 400px;
+}
+.s1-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.s1-tag {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 100px;
+  padding: 5px 14px;
+  color: rgba(255,255,255,0.75);
+  font-size: 12.5px;
+  font-weight: 500;
+}
+.s1-tag.accent { background: rgba(79,70,229,0.2); border-color: rgba(129,140,248,0.35); color: var(--indigo-xl); }
+
+/* Cover right: dashboard mockup */
+.s1-right {
+  flex: 0 0 46%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 40px 40px 20px;
+  position: relative;
+}
+.s1-glow {
+  position: absolute;
+  width: 300px; height: 300px;
+  background: radial-gradient(circle, rgba(99,102,241,0.3) 0%, transparent 70%);
+  border-radius: 50%;
+  pointer-events: none;
+}
+.mockup {
+  width: 420px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 16px;
+  padding: 18px;
+  backdrop-filter: blur(10px);
+  position: relative;
+  z-index: 2;
+}
+.mockup-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+}
+.mockup-dot { width:10px; height:10px; border-radius:50%; }
+.mockup-title { color: rgba(255,255,255,0.5); font-size: 11px; margin-left: 6px; letter-spacing: 0.5px; }
+.kpi-row { display: flex; gap: 10px; margin-bottom: 14px; }
+.kpi-card {
+  flex: 1;
+  background: rgba(255,255,255,0.05);
+  border-radius: 10px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255,255,255,0.07);
+}
+.kpi-val { font-size: 22px; font-weight: 800; }
+.kpi-lbl { font-size: 10px; color: rgba(255,255,255,0.45); margin-top: 2px; }
+.kpi-card.green .kpi-val { color: #34D399; }
+.kpi-card.amber .kpi-val { color: #FCD34D; }
+.kpi-card.red   .kpi-val { color: #F87171; }
+.mock-section-title { color: rgba(255,255,255,0.35); font-size: 10px; letter-spacing: 0.8px; text-transform: uppercase; margin-bottom: 8px; }
+.mock-bar-item { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.mock-bar-name { color: rgba(255,255,255,0.6); font-size: 11px; width: 56px; flex-shrink: 0; }
+.mock-bar-track { flex: 1; height: 6px; background: rgba(255,255,255,0.08); border-radius: 3px; overflow: hidden; }
+.mock-bar-fill  { height: 100%; border-radius: 3px; transition: width 1s ease; }
+.mock-bar-pct   { color: rgba(255,255,255,0.5); font-size: 10px; width: 28px; text-align: right; flex-shrink: 0; }
+.mock-pills { display: flex; gap: 8px; margin-top: 14px; }
+.mock-pill { padding: 4px 10px; border-radius: 100px; font-size: 10.5px; font-weight: 600; }
+.mock-pill.g { background: rgba(52,211,153,0.15); color: #34D399; border: 1px solid rgba(52,211,153,0.3); }
+.mock-pill.a { background: rgba(252,211,77,0.15);  color: #FCD34D; border: 1px solid rgba(252,211,77,0.3); }
+.mock-pill.r { background: rgba(248,113,113,0.15); color: #F87171; border: 1px solid rgba(248,113,113,0.3); }
+
+/* Year watermark */
+.s1-year {
+  position: absolute;
+  bottom: 22px;
+  right: 28px;
+  color: rgba(255,255,255,0.2);
+  font-size: 11px;
+  letter-spacing: 1px;
+}
+
+/* ═══════════════════════════════════════════════
+   SLIDE 2 — PROBLEM
+═══════════════════════════════════════════════ */
+.s2 { background: var(--white); display: flex; flex-direction: column; padding: 50px 56px; }
+.slide-header { margin-bottom: 36px; }
+.slide-eyebrow {
+  display: inline-block;
+  color: var(--indigo);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+.slide-eyebrow::before { content: ''; display: inline-block; width: 24px; height: 2px; background: var(--indigo); margin-right: 8px; vertical-align: middle; }
+.slide-h2 { font-size: 34px; font-weight: 800; color: var(--gray-800); letter-spacing: -0.5px; line-height: 1.15; }
+.slide-h2 span { color: var(--indigo); }
+.problem-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; flex: 1; }
+.prob-card {
+  border: 1.5px solid var(--gray-200);
+  border-radius: 16px;
+  padding: 28px;
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  transition: border-color 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+.prob-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+}
+.prob-card.c1::before { background: linear-gradient(90deg, #EF4444, #F97316); }
+.prob-card.c2::before { background: linear-gradient(90deg, #F59E0B, #FBBF24); }
+.prob-card.c3::before { background: linear-gradient(90deg, #6366F1, #8B5CF6); }
+.prob-card.c4::before { background: linear-gradient(90deg, #0EA5E9, #06B6D4); }
+.prob-icon {
+  width: 52px; height: 52px; border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 26px; flex-shrink: 0;
+}
+.prob-card.c1 .prob-icon { background: #FEF2F2; }
+.prob-card.c2 .prob-icon { background: #FFFBEB; }
+.prob-card.c3 .prob-icon { background: #EEF2FF; }
+.prob-card.c4 .prob-icon { background: #F0F9FF; }
+.prob-body {}
+.prob-num { font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px; }
+.prob-card.c1 .prob-num { color: #EF4444; }
+.prob-card.c2 .prob-num { color: #F59E0B; }
+.prob-card.c3 .prob-num { color: #6366F1; }
+.prob-card.c4 .prob-num { color: #0EA5E9; }
+.prob-title { font-size: 18px; font-weight: 700; color: var(--gray-800); margin-bottom: 8px; }
+.prob-desc  { font-size: 13.5px; color: var(--gray-600); line-height: 1.55; }
+
+/* ═══════════════════════════════════════════════
+   SLIDE 3 — SOLUTION
+═══════════════════════════════════════════════ */
+.s3 {
+  background: linear-gradient(135deg, #0A0820 0%, #1E1B4B 60%, #2D2778 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 50px 56px;
+  gap: 0;
+}
+.s3-top {
+  text-align: center;
+  margin-bottom: 40px;
+}
+.s3-eyebrow { color: var(--indigo-l); font-size: 12px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 12px; }
+.s3-h2 { font-size: 36px; font-weight: 800; color: white; letter-spacing: -0.5px; line-height: 1.1; margin-bottom: 12px; }
+.s3-h2 em { font-style: normal; background: linear-gradient(90deg, var(--indigo-l), var(--cyan)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+.s3-sub { font-size: 15px; color: rgba(255,255,255,0.55); max-width: 520px; margin: 0 auto; line-height: 1.6; }
+.s3-hub {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  position: relative;
+}
+.hub-center {
+  width: 130px; height: 130px;
+  background: linear-gradient(135deg, var(--indigo), #6D28D9);
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 50px rgba(79,70,229,0.5);
+  border: 2px solid rgba(129,140,248,0.4);
+  flex-shrink: 0;
+  z-index: 2;
+  position: relative;
+}
+.hub-center-icon { font-size: 36px; }
+.hub-center-name { font-size: 13px; font-weight: 800; color: white; margin-top: 4px; }
+.hub-spokes {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.hub-spokes.left  { align-items: flex-end;  margin-right: 28px; }
+.hub-spokes.right { align-items: flex-start; margin-left:  28px; }
+.hub-spoke {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 12px;
+  padding: 10px 16px;
+  min-width: 200px;
+}
+.hub-spokes.left  .hub-spoke { flex-direction: row-reverse; }
+.hub-spoke-icon { font-size: 20px; flex-shrink: 0; }
+.hub-spoke-text {}
+.hub-spoke-name { font-size: 13px; font-weight: 700; color: white; }
+.hub-spoke-desc { font-size: 11px; color: rgba(255,255,255,0.45); }
+.hub-line {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(129,140,248,0.4), transparent);
+  position: absolute;
+  top: 50%;
+  left: 0; right: 0;
+}
+
+/* ═══════════════════════════════════════════════
+   SLIDE 4 — FEATURES
+═══════════════════════════════════════════════ */
+.s4 { background: var(--gray-50); display: flex; flex-direction: column; padding: 44px 52px; }
+.feat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  gap: 14px;
+  flex: 1;
+}
+.feat-card {
+  background: white;
+  border: 1.5px solid var(--gray-200);
+  border-radius: 14px;
+  padding: 18px 18px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: transform 0.15s, box-shadow 0.15s;
+  position: relative;
+  overflow: hidden;
+}
+.feat-card::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 3px;
+  border-radius: 0 0 14px 14px;
+}
+.feat-card:nth-child(1)::after,.feat-card:nth-child(2)::after  { background: #4F46E5; }
+.feat-card:nth-child(3)::after,.feat-card:nth-child(4)::after  { background: #0D9488; }
+.feat-card:nth-child(5)::after,.feat-card:nth-child(6)::after  { background: #C2410C; }
+.feat-card:nth-child(7)::after,.feat-card:nth-child(8)::after  { background: #DB2777; }
+.feat-card:nth-child(9)::after,.feat-card:nth-child(10)::after { background: #065F46; }
+.feat-card:nth-child(11)::after,.feat-card:nth-child(12)::after{ background: #6D28D9; }
+.feat-icon  { font-size: 24px; }
+.feat-name  { font-size: 13.5px; font-weight: 700; color: var(--gray-800); line-height: 1.25; }
+.feat-desc  { font-size: 11.5px; color: var(--gray-400); line-height: 1.45; }
+
+/* ═══════════════════════════════════════════════
+   SLIDE 5 — AI POWER
+═══════════════════════════════════════════════ */
+.s5 {
+  background: linear-gradient(135deg, #0C0520 0%, #1E0B4B 50%, #2D1B6B 100%);
+  display: flex;
+  flex-direction: column;
+  padding: 52px 56px;
+}
+.s5-header { text-align: center; margin-bottom: 38px; }
+.s5-eyebrow { color: #A78BFA; font-size: 12px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 12px; }
+.s5-h2 { font-size: 36px; font-weight: 800; color: white; letter-spacing: -0.5px; margin-bottom: 10px; }
+.s5-h2 em { font-style: normal; background: linear-gradient(90deg, #A78BFA, #06B6D4); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+.s5-sub { font-size: 15px; color: rgba(255,255,255,0.5); }
+.s5-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; flex: 1; }
+.ai-card {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(167,139,250,0.2);
+  border-radius: 18px;
+  padding: 28px 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  position: relative;
+  overflow: hidden;
+}
+.ai-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: radial-gradient(circle at 50% 0%, rgba(167,139,250,0.12) 0%, transparent 60%);
+  pointer-events: none;
+}
+.ai-card-icon {
+  width: 54px; height: 54px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+}
+.ai-card:nth-child(1) .ai-card-icon { background: rgba(79,70,229,0.25); }
+.ai-card:nth-child(2) .ai-card-icon { background: rgba(6,182,212,0.2);  }
+.ai-card:nth-child(3) .ai-card-icon { background: rgba(16,185,129,0.2); }
+.ai-card-title { font-size: 18px; font-weight: 700; color: white; line-height: 1.2; }
+.ai-card-desc  { font-size: 13px; color: rgba(255,255,255,0.5); line-height: 1.6; flex: 1; }
+.ai-card-bullets { list-style: none; display: flex; flex-direction: column; gap: 7px; margin-top: 4px; }
+.ai-card-bullets li {
+  font-size: 12px;
+  color: rgba(255,255,255,0.6);
+  padding-left: 16px;
+  position: relative;
+  line-height: 1.4;
+}
+.ai-card-bullets li::before {
+  content: '▸';
+  position: absolute;
+  left: 0;
+  color: #A78BFA;
+}
+.ai-powered-by {
+  text-align: center;
+  margin-top: 24px;
+  color: rgba(255,255,255,0.3);
+  font-size: 12px;
+  letter-spacing: 0.5px;
+}
+.ai-powered-by strong { color: rgba(167,139,250,0.7); }
+
+/* ═══════════════════════════════════════════════
+   SLIDE 6 — FOR EVERY ROLE
+═══════════════════════════════════════════════ */
+.s6 { background: white; display: flex; flex-direction: column; padding: 50px 56px; }
+.role-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; flex: 1; align-items: stretch; }
+.role-card {
+  border-radius: 20px;
+  padding: 30px 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.role-card.rc1 { background: linear-gradient(145deg, #EEF2FF, #E0E7FF); }
+.role-card.rc2 { background: linear-gradient(145deg, #F0FDF4, #DCFCE7); }
+.role-card.rc3 { background: linear-gradient(145deg, #FFF7ED, #FEF3C7); }
+.role-avatar {
+  width: 52px; height: 52px; border-radius: 16px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 28px;
+}
+.rc1 .role-avatar { background: #C7D2FE; }
+.rc2 .role-avatar { background: #BBF7D0; }
+.rc3 .role-avatar { background: #FDE68A; }
+.role-title { font-size: 19px; font-weight: 800; color: var(--gray-800); }
+.role-sub   { font-size: 12px; font-weight: 600; letter-spacing: 0.5px; }
+.rc1 .role-sub { color: var(--indigo); }
+.rc2 .role-sub { color: #059669; }
+.rc3 .role-sub { color: #D97706; }
+.role-benefits { list-style: none; display: flex; flex-direction: column; gap: 10px; flex: 1; }
+.role-benefits li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--gray-600);
+  line-height: 1.45;
+}
+.role-check {
+  width: 20px; height: 20px; border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; flex-shrink: 0;
+  margin-top: 1px;
+}
+.rc1 .role-check { background: #C7D2FE; color: var(--indigo-d); }
+.rc2 .role-check { background: #BBF7D0; color: #065F46; }
+.rc3 .role-check { background: #FDE68A; color: #92400E; }
+
+/* ═══════════════════════════════════════════════
+   SLIDE 7 — TECH STACK
+═══════════════════════════════════════════════ */
+.s7 {
+  background: linear-gradient(160deg, #0A0820 0%, #111827 60%, #0C1322 100%);
+  display: flex;
+  flex-direction: column;
+  padding: 50px 56px;
+}
+.s7-layout { display: flex; gap: 40px; flex: 1; align-items: stretch; }
+.s7-left  { flex: 0 0 56%; display: flex; flex-direction: column; gap: 16px; }
+.s7-right { flex: 1; display: flex; flex-direction: column; gap: 14px; justify-content: center; }
+.tech-row {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 14px;
+  padding: 16px 20px;
+}
+.tech-icon-box {
+  width: 46px; height: 46px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 24px; flex-shrink: 0;
+}
+.tech-text {}
+.tech-name { font-size: 15px; font-weight: 700; color: white; margin-bottom: 3px; }
+.tech-desc { font-size: 12px; color: rgba(255,255,255,0.45); line-height: 1.4; }
+.tech-badge {
+  margin-left: auto;
+  background: rgba(79,70,229,0.2);
+  border: 1px solid rgba(129,140,248,0.3);
+  border-radius: 100px;
+  padding: 3px 10px;
+  font-size: 11px;
+  color: var(--indigo-l);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.metric-card {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 16px;
+  padding: 20px 22px;
+  text-align: center;
+}
+.metric-val { font-size: 32px; font-weight: 800; margin-bottom: 4px; }
+.metric-lbl { font-size: 12px; color: rgba(255,255,255,0.45); line-height: 1.4; }
+.mv-green  { color: #34D399; }
+.mv-indigo { color: var(--indigo-l); }
+.mv-cyan   { color: #67E8F9; }
+.mv-amber  { color: #FCD34D; }
+.s7-deploy {
+  margin-top: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  background: rgba(16,185,129,0.08);
+  border: 1px solid rgba(16,185,129,0.2);
+  border-radius: 12px;
+}
+.s7-deploy-icon { font-size: 22px; }
+.s7-deploy-text { font-size: 13px; color: rgba(255,255,255,0.65); line-height: 1.4; }
+.s7-deploy-text strong { color: #34D399; }
+
+/* ═══════════════════════════════════════════════
+   SLIDE 8 — CTA
+═══════════════════════════════════════════════ */
+.s8 {
+  background: linear-gradient(135deg, #06041A 0%, #1E1B4B 55%, #312E81 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 0;
+  position: relative;
+  overflow: hidden;
+}
+.s8-glow1 {
+  position: absolute;
+  width: 400px; height: 400px;
+  background: radial-gradient(circle, rgba(79,70,229,0.25) 0%, transparent 70%);
+  border-radius: 50%;
+  top: -100px; left: -100px;
+  pointer-events: none;
+}
+.s8-glow2 {
+  position: absolute;
+  width: 350px; height: 350px;
+  background: radial-gradient(circle, rgba(6,182,212,0.15) 0%, transparent 70%);
+  border-radius: 50%;
+  bottom: -80px; right: -80px;
+  pointer-events: none;
+}
+.s8-content { position: relative; z-index: 2; text-align: center; padding: 0 80px; }
+.s8-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(79,70,229,0.2);
+  border: 1px solid rgba(129,140,248,0.35);
+  border-radius: 100px;
+  padding: 6px 18px;
+  margin-bottom: 28px;
+}
+.s8-badge span { color: var(--indigo-xl); font-size: 12.5px; font-weight: 600; }
+.s8-h2 { font-size: 48px; font-weight: 800; color: white; letter-spacing: -1px; line-height: 1.1; margin-bottom: 18px; }
+.s8-h2 em { font-style: normal; background: linear-gradient(90deg, var(--indigo-l), var(--cyan)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+.s8-sub { font-size: 16px; color: rgba(255,255,255,0.55); max-width: 520px; margin: 0 auto 40px; line-height: 1.6; }
+.s8-actions { display: flex; align-items: center; justify-content: center; gap: 16px; margin-bottom: 44px; }
+.cta-btn-primary {
+  background: var(--indigo);
+  color: white;
+  padding: 14px 36px;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  box-shadow: 0 4px 20px rgba(79,70,229,0.45);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.cta-btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(79,70,229,0.5); }
+.cta-btn-secondary {
+  background: transparent;
+  color: rgba(255,255,255,0.75);
+  padding: 14px 28px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  border: 1.5px solid rgba(255,255,255,0.2);
+  cursor: pointer;
+  font-family: inherit;
+}
+.s8-contacts { display: flex; justify-content: center; gap: 32px; }
+.s8-contact-item { display: flex; align-items: center; gap: 8px; }
+.s8-contact-icon { font-size: 18px; opacity: 0.7; }
+.s8-contact-text { font-size: 13px; color: rgba(255,255,255,0.5); }
+.s8-contact-text strong { color: rgba(255,255,255,0.8); font-weight: 600; }
+
+/* Slide number */
+.slide-num {
+  position: absolute;
+  bottom: 18px;
+  right: 24px;
+  color: rgba(255,255,255,0.25);
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  z-index: 10;
+}
+.slide-num-dark {
+  position: absolute;
+  bottom: 18px;
+  right: 24px;
+  color: rgba(0,0,0,0.2);
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  z-index: 10;
+}
+
+/* ═══════════════════════════════════════════════
+   PRINT
+═══════════════════════════════════════════════ */
+@media print {
+  html { width: 297mm; }
+  body {
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    gap: 0 !important;
+    display: block !important;
+    min-height: unset !important;
+  }
+  .print-bar { display: none !important; }
+  .slide {
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    width: 297mm !important;
+    height: 210mm !important;
+    max-width: unset !important;
+    page-break-after: always;
+    page-break-inside: avoid;
+    break-after: page;
+    break-inside: avoid;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  @page { size: A4 landscape; margin: 0; }
+}
+</style>
+</head>
+<body>
+
+<!-- Print bar -->
+<div class="print-bar">
+  <button class="print-btn" onclick="window.print()">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="6 9 6 2 18 2 18 9"/>
+      <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+      <rect x="6" y="14" width="12" height="8"/>
+    </svg>
+    Xuất PDF (8 trang)
+  </button>
+  <span class="print-hint">Trong dialog in → <strong>Save as PDF</strong> · Khổ A4 Landscape · Tắt Header/Footer</span>
+  <span class="slide-counter">8 slides · Gambaru PMO Pitch Deck · 2025</span>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════
+     SLIDE 1 — COVER
+════════════════════════════════════════════════ -->
+<div class="slide s1">
+  <!-- Left: text -->
+  <div class="s1-left">
+    <div class="s1-badge">
+      <div class="s1-badge-dot"></div>
+      <span>Giải pháp PMO cho Doanh nghiệp</span>
+    </div>
+    <div class="s1-logo">
+      <div class="s1-logo-icon">G</div>
+      <span>Gambaru</span>
+    </div>
+    <h1 class="s1-h1">Nền tảng PMO<br><em>Thông minh</em><br>cho Doanh nghiệp</h1>
+    <p class="s1-sub">Quản lý toàn bộ vòng đời dự án — từ Portfolio đến Vận hành — trên một nền tảng duy nhất, được tăng cường bởi Claude AI.</p>
+    <div class="s1-tags">
+      <span class="s1-tag accent">✦ Claude AI</span>
+      <span class="s1-tag">Portfolio Management</span>
+      <span class="s1-tag">Gantt Timeline</span>
+      <span class="s1-tag">Resource Planning</span>
+      <span class="s1-tag">AI Reports</span>
+    </div>
+  </div>
+  <!-- Right: dashboard mockup -->
+  <div class="s1-right">
+    <div class="s1-glow"></div>
+    <div class="mockup">
+      <div class="mockup-bar">
+        <div class="mockup-dot" style="background:#F87171"></div>
+        <div class="mockup-dot" style="background:#FCD34D"></div>
+        <div class="mockup-dot" style="background:#34D399"></div>
+        <span class="mockup-title">PORTFOLIO DASHBOARD · GAMBARU</span>
+      </div>
+      <div class="kpi-row">
+        <div class="kpi-card green"><div class="kpi-val">87<span style="font-size:14px">%</span></div><div class="kpi-lbl">Health Score</div></div>
+        <div class="kpi-card amber"><div class="kpi-val">3</div><div class="kpi-lbl">At Risk</div></div>
+        <div class="kpi-card red"><div class="kpi-val">12</div><div class="kpi-lbl">Open Issues</div></div>
+      </div>
+      <div class="mock-section-title" style="margin-top:4px">Project Progress</div>
+      <div class="mock-bar-item"><span class="mock-bar-name">Alpha</span><div class="mock-bar-track"><div class="mock-bar-fill" style="width:78%;background:#818CF8"></div></div><span class="mock-bar-pct">78%</span></div>
+      <div class="mock-bar-item"><span class="mock-bar-name">Beta</span><div class="mock-bar-track"><div class="mock-bar-fill" style="width:45%;background:#FCD34D"></div></div><span class="mock-bar-pct">45%</span></div>
+      <div class="mock-bar-item"><span class="mock-bar-name">Gamma</span><div class="mock-bar-track"><div class="mock-bar-fill" style="width:92%;background:#34D399"></div></div><span class="mock-bar-pct">92%</span></div>
+      <div class="mock-bar-item"><span class="mock-bar-name">Delta</span><div class="mock-bar-track"><div class="mock-bar-fill" style="width:31%;background:#F87171"></div></div><span class="mock-bar-pct">31%</span></div>
+      <div class="mock-pills">
+        <span class="mock-pill g">✓ 6 On Track</span>
+        <span class="mock-pill a">⚠ 3 At Risk</span>
+        <span class="mock-pill r">✕ 1 Critical</span>
+      </div>
+    </div>
+  </div>
+  <div class="s1-year">Gambaru PMO · 2025</div>
+  <div class="slide-num">01 / 08</div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════
+     SLIDE 2 — PROBLEM
+════════════════════════════════════════════════ -->
+<div class="slide s2">
+  <div class="slide-header">
+    <div class="slide-eyebrow">Vấn đề</div>
+    <h2 class="slide-h2">PMO đang đối mặt với <span>những thách thức gì?</span></h2>
+  </div>
+  <div class="problem-grid">
+    <div class="prob-card c1">
+      <div class="prob-icon">📊</div>
+      <div class="prob-body">
+        <div class="prob-num">Pain Point 01</div>
+        <div class="prob-title">Dữ liệu phân tán</div>
+        <div class="prob-desc">Thông tin dự án rải rác trên Excel, email, Jira, Teams... Mỗi PM dùng một định dạng khác nhau, không có nguồn dữ liệu duy nhất để tin cậy.</div>
+      </div>
+    </div>
+    <div class="prob-card c2">
+      <div class="prob-icon">👁️</div>
+      <div class="prob-body">
+        <div class="prob-num">Pain Point 02</div>
+        <div class="prob-title">Thiếu Portfolio Visibility</div>
+        <div class="prob-desc">Không biết 10+ dự án đang ở trạng thái nào. Khi cần báo cáo lên Ban lãnh đạo, phải mất hàng giờ tổng hợp thủ công từ nhiều nguồn.</div>
+      </div>
+    </div>
+    <div class="prob-card c3">
+      <div class="prob-icon">📝</div>
+      <div class="prob-body">
+        <div class="prob-num">Pain Point 03</div>
+        <div class="prob-title">Báo cáo thủ công tốn kém</div>
+        <div class="prob-desc">Mỗi PM mất 3–5 giờ/tuần chỉ để tổng hợp status report. PMO Director mất thêm 2–3 giờ để xem lại và tổng hợp portfolio report.</div>
+      </div>
+    </div>
+    <div class="prob-card c4">
+      <div class="prob-icon">👥</div>
+      <div class="prob-body">
+        <div class="prob-num">Pain Point 04</div>
+        <div class="prob-title">Nguồn lực mù quáng</div>
+        <div class="prob-desc">Không biết ai đang overload, ai đang underutilized. Không có dữ liệu FTE thực tế để ra quyết định phân bổ nguồn lực chính xác.</div>
+      </div>
+    </div>
+  </div>
+  <div class="slide-num-dark">02 / 08</div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════
+     SLIDE 3 — SOLUTION
+════════════════════════════════════════════════ -->
+<div class="slide s3">
+  <div class="s3-top">
+    <div class="s3-eyebrow">Giải pháp</div>
+    <h2 class="s3-h2">Gambaru — <em>Một nền tảng. Toàn bộ vòng đời.</em></h2>
+    <p class="s3-sub">Từ lập kế hoạch portfolio đến theo dõi tiến độ, quản lý nguồn lực và báo cáo tự động bằng AI — tất cả trên một hệ thống duy nhất.</p>
+  </div>
+  <div class="s3-hub">
+    <!-- Left spokes -->
+    <div class="hub-spokes left">
+      <div class="hub-spoke">
+        <div class="hub-spoke-icon">🏢</div>
+        <div class="hub-spoke-text">
+          <div class="hub-spoke-name">Portfolio & Programs</div>
+          <div class="hub-spoke-desc">Dashboard, Health Score RAG</div>
+        </div>
+      </div>
+      <div class="hub-spoke">
+        <div class="hub-spoke-icon">👥</div>
+        <div class="hub-spoke-text">
+          <div class="hub-spoke-name">Resource Planning</div>
+          <div class="hub-spoke-desc">FTE, Capacity, Headcount</div>
+        </div>
+      </div>
+      <div class="hub-spoke">
+        <div class="hub-spoke-icon">💰</div>
+        <div class="hub-spoke-text">
+          <div class="hub-spoke-name">Budget Management</div>
+          <div class="hub-spoke-desc">CAPEX/OPEX, Tracking</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Center node -->
+    <div class="hub-center">
+      <div class="hub-center-icon">⚡</div>
+      <div class="hub-center-name">Gambaru</div>
+    </div>
+
+    <!-- Right spokes -->
+    <div class="hub-spokes right">
+      <div class="hub-spoke">
+        <div class="hub-spoke-icon">📅</div>
+        <div class="hub-spoke-text">
+          <div class="hub-spoke-name">Timeline & Milestones</div>
+          <div class="hub-spoke-desc">Gantt, Import, Delay Analysis</div>
+        </div>
+      </div>
+      <div class="hub-spoke">
+        <div class="hub-spoke-icon">⚠️</div>
+        <div class="hub-spoke-text">
+          <div class="hub-spoke-name">Risk & Issue Management</div>
+          <div class="hub-spoke-desc">Register, Mitigation, Tracking</div>
+        </div>
+      </div>
+      <div class="hub-spoke">
+        <div class="hub-spoke-icon">🤖</div>
+        <div class="hub-spoke-text">
+          <div class="hub-spoke-name">AI-Powered Reports</div>
+          <div class="hub-spoke-desc">Claude AI, Auto-insights</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="slide-num">03 / 08</div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════
+     SLIDE 4 — FEATURES
+════════════════════════════════════════════════ -->
+<div class="slide s4">
+  <div class="slide-header" style="margin-bottom:24px">
+    <div class="slide-eyebrow">Tính năng</div>
+    <h2 class="slide-h2">12 tính năng <span>cốt lõi</span> cho PMO hiện đại</h2>
+  </div>
+  <div class="feat-grid">
+    <div class="feat-card">
+      <div class="feat-icon">📊</div>
+      <div class="feat-name">Portfolio Dashboard</div>
+      <div class="feat-desc">Health Score RAG, KPI Cards, Activity Flow theo phase</div>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">🗺️</div>
+      <div class="feat-name">Programs & Roadmap</div>
+      <div class="feat-desc">Quản lý Programs, Roadmap toàn portfolio, Headcount Quota</div>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">📋</div>
+      <div class="feat-name">Quản lý Dự án</div>
+      <div class="feat-desc">Toàn bộ lifecycle: Initiation → Closing, Project Dashboard</div>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">📅</div>
+      <div class="feat-name">Timeline & Gantt</div>
+      <div class="feat-desc">Gantt chart, Import Excel/Jira, Export Word/Excel, Inline edit</div>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">🎯</div>
+      <div class="feat-name">Milestones & Phân tích</div>
+      <div class="feat-desc">Milestone tracking, Delay analysis, Phase progress, Overdue</div>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">👥</div>
+      <div class="feat-name">Quản lý Nguồn lực</div>
+      <div class="feat-desc">FTE Analytics, Capacity Planning, Internal & External members</div>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">⚠️</div>
+      <div class="feat-name">Rủi ro & Vấn đề</div>
+      <div class="feat-desc">Risk Register, Issue Log, Mitigation Plan, Priority tracking</div>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">💰</div>
+      <div class="feat-name">Ngân sách & Chi phí</div>
+      <div class="feat-desc">CAPEX/OPEX, Budget approval workflow, Cảnh báo vượt ngân sách</div>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">📄</div>
+      <div class="feat-name">Tài liệu & Xuất khẩu</div>
+      <div class="feat-desc">Charter, SOW, Closure report, Export Word/Excel/PowerPoint</div>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">⚙️</div>
+      <div class="feat-name">Vận hành (Operations)</div>
+      <div class="feat-desc">Quản lý hệ thống post-go-live, Incident, Expense tracking</div>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">🤖</div>
+      <div class="feat-name">AI Reports (Claude)</div>
+      <div class="feat-desc">Tự động tạo portfolio report, Weekly status, AI Insights</div>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">🔐</div>
+      <div class="feat-name">Multi-tenant & Admin</div>
+      <div class="feat-desc">Phân quyền theo công ty, Admin panel, User management</div>
+    </div>
+  </div>
+  <div class="slide-num-dark">04 / 08</div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════
+     SLIDE 5 — AI POWER
+════════════════════════════════════════════════ -->
+<div class="slide s5">
+  <div class="s5-header">
+    <div class="s5-eyebrow">✦ Powered by Claude AI</div>
+    <h2 class="s5-h2">Báo cáo thông minh bằng <em>Claude AI</em></h2>
+    <p class="s5-sub">Không còn mất hàng giờ viết báo cáo — Gambaru tự động phân tích và tạo insights từ dữ liệu thực tế của bạn.</p>
+  </div>
+  <div class="s5-cards">
+    <div class="ai-card">
+      <div class="ai-card-icon">📊</div>
+      <div class="ai-card-title">Portfolio Report tự động</div>
+      <div class="ai-card-desc">Mỗi lần nhấn nút, Claude AI đọc toàn bộ dữ liệu portfolio và tạo báo cáo executive đầy đủ.</div>
+      <ul class="ai-card-bullets">
+        <li>Tổng quan sức khỏe portfolio theo RAG</li>
+        <li>Top 10 rủi ro cần xử lý ngay</li>
+        <li>Phân tích FTE & bottleneck nguồn lực</li>
+        <li>Recommendations & action items cụ thể</li>
+      </ul>
+    </div>
+    <div class="ai-card">
+      <div class="ai-card-icon">📝</div>
+      <div class="ai-card-title">Weekly Status Report</div>
+      <div class="ai-card-desc">Tự động tổng hợp status hàng tuần cho từng dự án dựa trên dữ liệu timeline, milestone và risks.</div>
+      <ul class="ai-card-bullets">
+        <li>Tóm tắt tiến độ theo phase và activity</li>
+        <li>Các hoạt động trễ hạn và nguyên nhân</li>
+        <li>Milestone sắp tới cần lưu ý</li>
+        <li>Export Word / gửi email trực tiếp</li>
+      </ul>
+    </div>
+    <div class="ai-card">
+      <div class="ai-card-icon">💡</div>
+      <div class="ai-card-title">Insights & Khuyến nghị</div>
+      <div class="ai-card-desc">AI không chỉ tóm tắt mà còn phân tích xu hướng và đưa ra khuyến nghị chiến lược kịp thời.</div>
+      <ul class="ai-card-bullets">
+        <li>Dự báo các dự án có nguy cơ trễ</li>
+        <li>Nhận diện resource conflict sớm</li>
+        <li>Gợi ý phân bổ lại nguồn lực</li>
+        <li>Cảnh báo ngân sách vượt kế hoạch</li>
+      </ul>
+    </div>
+  </div>
+  <div class="ai-powered-by">Tích hợp trực tiếp với <strong>Claude API (Anthropic)</strong> — Không cần cấu hình thêm, sẵn sàng sử dụng ngay</div>
+  <div class="slide-num">05 / 08</div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════
+     SLIDE 6 — FOR EVERY ROLE
+════════════════════════════════════════════════ -->
+<div class="slide s6">
+  <div class="slide-header" style="margin-bottom:28px">
+    <div class="slide-eyebrow">Giá trị</div>
+    <h2 class="slide-h2">Gambaru phục vụ <span>mọi vai trò</span> trong PMO</h2>
+  </div>
+  <div class="role-grid">
+    <div class="role-card rc1">
+      <div class="role-avatar">👔</div>
+      <div>
+        <div class="role-title">PMO Director</div>
+        <div class="role-sub">Lãnh đạo chiến lược</div>
+      </div>
+      <ul class="role-benefits">
+        <li><span class="role-check">✓</span>Nhìn thấy toàn bộ portfolio health trong 30 giây</li>
+        <li><span class="role-check">✓</span>AI tự tạo portfolio report cho Ban lãnh đạo</li>
+        <li><span class="role-check">✓</span>Theo dõi FTE và headcount quota toàn khối</li>
+        <li><span class="role-check">✓</span>Phân bổ ngân sách portfolio theo program</li>
+        <li><span class="role-check">✓</span>Dashboard rủi ro tổng hợp toàn portfolio</li>
+      </ul>
+    </div>
+    <div class="role-card rc2">
+      <div class="role-avatar">💻</div>
+      <div>
+        <div class="role-title">Project Manager</div>
+        <div class="role-sub">Quản lý thực thi</div>
+      </div>
+      <ul class="role-benefits">
+        <li><span class="role-check">✓</span>Gantt chart tích hợp, import từ Excel & Jira</li>
+        <li><span class="role-check">✓</span>Quản lý rủi ro, vấn đề và hành động giảm thiểu</li>
+        <li><span class="role-check">✓</span>Weekly report tự động, không cần viết tay</li>
+        <li><span class="role-check">✓</span>Theo dõi ngân sách dự án thực tế vs kế hoạch</li>
+        <li><span class="role-check">✓</span>Export tài liệu Charter, SOW, Closure report</li>
+      </ul>
+    </div>
+    <div class="role-card rc3">
+      <div class="role-avatar">📈</div>
+      <div>
+        <div class="role-title">Executive / Sponsor</div>
+        <div class="role-sub">Ra quyết định chiến lược</div>
+      </div>
+      <ul class="role-benefits">
+        <li><span class="role-check">✓</span>Portfolio Roadmap visual cho steering committee</li>
+        <li><span class="role-check">✓</span>Báo cáo AI sẵn sàng trình bày bất kỳ lúc nào</li>
+        <li><span class="role-check">✓</span>Visibility ngân sách CAPEX/OPEX toàn danh mục</li>
+        <li><span class="role-check">✓</span>Escalation path rõ ràng cho từng dự án</li>
+        <li><span class="role-check">✓</span>Health score trực quan: Xanh / Vàng / Đỏ</li>
+      </ul>
+    </div>
+  </div>
+  <div class="slide-num-dark">06 / 08</div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════
+     SLIDE 7 — TECH STACK
+════════════════════════════════════════════════ -->
+<div class="slide s7">
+  <div class="slide-header" style="margin-bottom:28px">
+    <div class="slide-eyebrow" style="color:var(--indigo-l)">Công nghệ</div>
+    <h2 class="slide-h2" style="color:white">Nền tảng <span style="color:var(--indigo-l)">hiện đại</span>, triển khai <span style="color:#67E8F9">nhanh chóng</span></h2>
+  </div>
+  <div class="s7-layout">
+    <div class="s7-left">
+      <div class="tech-row">
+        <div class="tech-icon-box" style="background:rgba(0,0,0,0.3)">⚛️</div>
+        <div class="tech-text">
+          <div class="tech-name">Next.js (App Router)</div>
+          <div class="tech-desc">Frontend & Backend trên cùng framework. Server-side rendering, API routes tích hợp sẵn.</div>
+        </div>
+        <div class="tech-badge">Frontend + API</div>
+      </div>
+      <div class="tech-row">
+        <div class="tech-icon-box" style="background:rgba(0,0,0,0.3)">🐘</div>
+        <div class="tech-text">
+          <div class="tech-name">PostgreSQL</div>
+          <div class="tech-desc">18 bảng dữ liệu, connection pool, không ORM — raw SQL hiệu năng cao, dễ kiểm soát.</div>
+        </div>
+        <div class="tech-badge">Database</div>
+      </div>
+      <div class="tech-row">
+        <div class="tech-icon-box" style="background:rgba(0,0,0,0.3)">🤖</div>
+        <div class="tech-text">
+          <div class="tech-name">Claude AI (Anthropic)</div>
+          <div class="tech-desc">Tích hợp trực tiếp Claude API để tạo báo cáo thông minh, phân tích rủi ro và khuyến nghị.</div>
+        </div>
+        <div class="tech-badge">AI Engine</div>
+      </div>
+      <div class="tech-row">
+        <div class="tech-icon-box" style="background:rgba(0,0,0,0.3)">🚂</div>
+        <div class="tech-text">
+          <div class="tech-name">Railway Cloud</div>
+          <div class="tech-desc">Deploy tự động, PostgreSQL managed, zero-downtime deployment, uptime monitoring tích hợp.</div>
+        </div>
+        <div class="tech-badge">Cloud Deploy</div>
+      </div>
+    </div>
+    <div class="s7-right">
+      <div class="metric-card">
+        <div class="metric-val mv-green">18</div>
+        <div class="metric-lbl">Bảng dữ liệu<br>PostgreSQL</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-val mv-indigo">12</div>
+        <div class="metric-lbl">Module<br>tính năng chính</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-val mv-cyan">5</div>
+        <div class="metric-lbl">Định dạng<br>export (xlsx, pptx, docx…)</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-val mv-amber">∞</div>
+        <div class="metric-lbl">Projects &amp;<br>Users (Multi-tenant)</div>
+      </div>
+      <div class="s7-deploy">
+        <div class="s7-deploy-icon">✅</div>
+        <div class="s7-deploy-text"><strong>Sẵn sàng triển khai</strong> — Deploy lên Railway trong &lt;10 phút với PostgreSQL managed database và CI/CD tự động.</div>
+      </div>
+    </div>
+  </div>
+  <div class="slide-num">07 / 08</div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════
+     SLIDE 8 — CTA
+════════════════════════════════════════════════ -->
+<div class="slide s8">
+  <div class="s8-glow1"></div>
+  <div class="s8-glow2"></div>
+  <div class="s8-content">
+    <div class="s8-badge">
+      <span>✦ Sẵn sàng trải nghiệm Gambaru?</span>
+    </div>
+    <h2 class="s8-h2">Bắt đầu quản lý<br>portfolio <em>thông minh hơn</em></h2>
+    <p class="s8-sub">Không còn báo cáo thủ công. Không còn dữ liệu phân tán. Một nền tảng duy nhất cho toàn bộ PMO của bạn — được tăng cường bởi Claude AI.</p>
+    <div class="s8-actions">
+      <button class="cta-btn-primary">
+        <span style="font-size:18px">🚀</span>
+        Yêu cầu Demo
+      </button>
+      <button class="cta-btn-secondary">Tìm hiểu thêm →</button>
+    </div>
+    <div class="s8-contacts">
+      <div class="s8-contact-item">
+        <div class="s8-contact-icon">📧</div>
+        <div class="s8-contact-text"><strong>Email:</strong> hieunm1902@gmail.com</div>
+      </div>
+      <div class="s8-contact-item">
+        <div class="s8-contact-icon">🌐</div>
+        <div class="s8-contact-text"><strong>Platform:</strong> Gambaru PMO</div>
+      </div>
+      <div class="s8-contact-item">
+        <div class="s8-contact-icon">☁️</div>
+        <div class="s8-contact-text"><strong>Deploy:</strong> Railway Cloud</div>
+      </div>
+    </div>
+  </div>
+  <div class="slide-num">08 / 08</div>
+</div>
+
+</body>
+</html>

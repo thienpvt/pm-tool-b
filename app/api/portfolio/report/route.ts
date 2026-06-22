@@ -505,9 +505,17 @@ export async function GET(req: NextRequest) {
     const overheadProjectFte = membersFte
       .filter(m => m.member_category === 'overhead')
       .reduce((s, m) => s + (Number(m.current_month_fte) || 0), 0);
+    // Overhead FTE model (matches /resources + /portfolio/resources `overheadRemainingOf`):
+    // an overhead person is 1.0 FTE of overhead by default. The out-of-project overhead =
+    // explicit `overhead_remaining` if set (>0), else `max(0, 1 − in-project FTE)`. Using the
+    // raw column directly under-counted overhead to ~0% because it is usually left unset.
     const overheadRemainingFte = membersFte
       .filter(m => m.member_category === 'overhead')
-      .reduce((s, m) => s + (Number(m.overhead_remaining) || 0), 0);
+      .reduce((s, m) => {
+        const inProject = Number(m.current_month_fte) || 0;
+        const explicit = Number(m.overhead_remaining) || 0;
+        return s + (explicit > 0 ? explicit : Math.max(0, 1 - inProject));
+      }, 0);
     const totalUsedFte = deliveryFte + overheadProjectFte + overheadRemainingFte;
     const benchFte = Math.max(0, headcountQuota - totalUsedFte);
 
