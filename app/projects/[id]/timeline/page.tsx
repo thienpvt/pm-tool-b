@@ -250,13 +250,19 @@ function DateCell({ value, onChange, onBlur, warn, extraClass = '' }: {
 // ─── ActivityDetail (Jira-like popup) ────────────────────────────────────────
 function ActivityDetail({
   activity, teamMembers, projectId, onSave, onDelete, onClose, childActivities = [],
+  onCreateChild, onViewChild,
 }: {
   activity: Activity; teamMembers: TeamMember[]; projectId: string;
   onSave: (updated: Activity) => void; onDelete: (id: number) => void; onClose: () => void;
   childActivities?: Activity[];
+  onCreateChild?: (name: string) => Promise<Activity>;
+  onViewChild?: (child: Activity) => void;
 }) {
   const [form, setForm] = useState<Activity>(activity);
   const [saving, setSaving] = useState(false);
+  const [isAddingChild, setIsAddingChild] = useState(false);
+  const [newChildName, setNewChildName] = useState('');
+  const [addingChild, setAddingChild] = useState(false);
 
   const upd = (field: keyof Activity, value: string | number) =>
     setForm(f => ({ ...f, [field]: value }));
@@ -273,6 +279,19 @@ function ActivityDetail({
     onSave(form);
   };
 
+  const handleAddChild = async () => {
+    if (!newChildName.trim() || !onCreateChild) return;
+    setAddingChild(true);
+    try {
+      await onCreateChild(newChildName.trim());
+      setNewChildName('');
+      setIsAddingChild(false);
+    } finally {
+      setAddingChild(false);
+    }
+  };
+
+  const canAddChildren = !activity.parent_id;
   const fieldCls = 'w-full text-sm border border-slate-200 rounded-lg px-3 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400';
 
   return (
@@ -283,6 +302,11 @@ function ActivityDetail({
           <div className="flex flex-wrap items-center gap-2 mb-2">
             {form.jira_key && (
               <span className="text-xs font-mono bg-white border border-slate-200 px-2 py-0.5 rounded text-slate-600 shrink-0">{form.jira_key}</span>
+            )}
+            {activity.parent_id && (
+              <span className="flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 shrink-0">
+                <ChevronRight className="h-3 w-3 -mx-0.5" /> Sub-task
+              </span>
             )}
             <span className={`text-xs px-2 py-0.5 rounded-full font-semibold shrink-0 ${STATUS_COLOR[form.status] ?? 'bg-slate-100 text-slate-500'}`}>{form.status}</span>
             {form.project_status && (
@@ -318,24 +342,74 @@ function ActivityDetail({
             const barFill = STATUS_BAR_COLOR[form.status]?.fill ?? '#94a3b8';
             return (
               <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
-                  Progress {childActivities.length > 0 ? '— weighted from children' : '— by status'}
-                </label>
-                <div className="flex items-center gap-2 mb-2">
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                    Progress {childActivities.length > 0 ? '— weighted from children' : '— by status'}
+                  </label>
+                  {canAddChildren && onCreateChild && (
+                    <button
+                      onClick={() => setIsAddingChild(true)}
+                      className="flex items-center gap-1 text-[10px] font-semibold text-blue-600 hover:text-blue-800 hover:bg-blue-50 px-1.5 py-0.5 rounded transition-colors"
+                    >
+                      <Plus className="h-3 w-3" /> Add child
+                    </button>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 mb-3">
                   <div className="flex-1 bg-slate-200 rounded-full h-2.5 overflow-hidden">
                     <div className="h-2.5 rounded-full transition-all duration-300" style={{ width: `${pct}%`, background: barFill }} />
                   </div>
                   <span className="text-sm font-bold text-slate-600 tabular-nums w-10 text-right">{pct}%</span>
                 </div>
+
+                {/* Children list */}
                 {childActivities.length > 0 && (
-                  <div className="space-y-1">
+                  <div className="space-y-1 mb-2">
                     {childActivities.map(child => (
-                      <div key={child.id} className="flex items-center gap-2 py-1.5 px-3 rounded-lg bg-slate-50 border border-slate-100">
-                        {child.jira_key && <span className="text-[10px] font-mono text-slate-400 shrink-0">{child.jira_key}</span>}
-                        <span className="text-xs text-slate-700 flex-1 truncate">{child.activity || '—'}</span>
+                      <div
+                        key={child.id}
+                        className="flex items-center gap-2 py-1.5 px-3 rounded-lg bg-slate-50 border border-slate-100 cursor-pointer hover:bg-blue-50/60 hover:border-blue-200 transition-colors group/child"
+                        onClick={() => onViewChild?.(child)}
+                      >
+                        {child.jira_key && (
+                          <span className="text-[10px] font-mono text-slate-400 shrink-0 group-hover/child:text-blue-500">{child.jira_key}</span>
+                        )}
+                        <span className="text-xs text-slate-700 flex-1 truncate group-hover/child:text-blue-700">{child.activity || '—'}</span>
                         <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold shrink-0 ${STATUS_COLOR[child.status] ?? 'bg-slate-100 text-slate-500'}`}>{child.status}</span>
+                        <Eye className="h-3 w-3 text-slate-300 group-hover/child:text-blue-400 shrink-0 transition-colors" />
                       </div>
                     ))}
+                  </div>
+                )}
+
+                {/* Inline add child */}
+                {isAddingChild && (
+                  <div className="flex items-center gap-2 mt-1">
+                    <input
+                      autoFocus
+                      type="text"
+                      value={newChildName}
+                      onChange={e => setNewChildName(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') handleAddChild();
+                        if (e.key === 'Escape') { setIsAddingChild(false); setNewChildName(''); }
+                      }}
+                      placeholder="Child task name..."
+                      className="flex-1 h-8 text-sm border border-blue-300 rounded-lg px-3 focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
+                    />
+                    <button
+                      onClick={handleAddChild}
+                      disabled={addingChild || !newChildName.trim()}
+                      className="h-8 px-3 text-xs font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                    >
+                      {addingChild ? '…' : 'Add'}
+                    </button>
+                    <button
+                      onClick={() => { setIsAddingChild(false); setNewChildName(''); }}
+                      className="h-8 px-2 text-xs text-slate-400 hover:text-slate-600 transition-colors"
+                    >
+                      Cancel
+                    </button>
                   </div>
                 )}
               </div>
@@ -988,6 +1062,26 @@ export default function TimelinePage() {
     setCollapsedParents(prev => { const n = new Set(prev); n.delete(parentId); return n; });
     toast.success('Child task created');
   };
+
+  // Create child from within the ActivityDetail popup
+  const createChildFromDetail = useCallback(async (parentId: number, name: string): Promise<Activity> => {
+    const parent = activities.find(a => a.id === parentId);
+    const res = await fetch(`/api/projects/${id}/activities`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        phase: parent?.phase ?? DEFAULT_PHASES[0],
+        activity: name,
+        parent_id: parentId,
+        status: 'To-do',
+        jira_key: generateKey(),
+        project_status: project?.status ?? '',
+      }),
+    });
+    const row = await res.json();
+    setActivities(a => [...a, row]);
+    setCollapsedParents(prev => { const n = new Set(prev); n.delete(parentId); return n; });
+    return row;
+  }, [id, activities, generateKey, project]);
 
   // Duplicate an activity (no children duplication)
   const duplicateActivity = async (activity: Activity) => {
@@ -1659,6 +1753,8 @@ export default function TimelinePage() {
               teamMembers={teamMembers}
               projectId={id}
               childActivities={childrenByParent.get(detailActivity.id) ?? []}
+              onCreateChild={(name) => createChildFromDetail(detailActivity.id, name)}
+              onViewChild={(child) => setDetailActivity(child)}
               onSave={updated => {
                 setActivities(prev => prev.map(a => a.id === updated.id ? updated : a));
                 setDetailActivity(null);
