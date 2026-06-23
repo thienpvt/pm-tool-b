@@ -224,6 +224,15 @@ function statusBar(status: string) {
   return STATUS_BAR_COLOR[status] ?? { fill: '#94a3b8', ghost: '#f1f5f9', border: '#cbd5e1' };
 }
 
+function progressColor(pct: number): string {
+  if (pct >= 100) return '#10b981';
+  if (pct >= 75)  return '#22c55e';
+  if (pct >= 50)  return '#3b82f6';
+  if (pct >= 25)  return '#f59e0b';
+  if (pct > 0)    return '#f97316';
+  return '#94a3b8';
+}
+
 // ─── DateCell ─────────────────────────────────────────────────────────────────
 function DateCell({ value, onChange, onBlur, warn, extraClass = '' }: {
   value: string; onChange: (v: string) => void; onBlur: () => void; warn: string | null; extraClass?: string;
@@ -339,7 +348,7 @@ function ActivityDetail({
             const pct = childActivities.length > 0
               ? weightedProgress(childActivities.map(c => c.status))
               : statusPct(form.status);
-            const barFill = STATUS_BAR_COLOR[form.status]?.fill ?? '#94a3b8';
+            const barFill = progressColor(pct);
             return (
               <div>
                 <div className="flex items-center justify-between mb-1.5">
@@ -349,7 +358,8 @@ function ActivityDetail({
                   {canAddChildren && onCreateChild && (
                     <button
                       onClick={() => setIsAddingChild(true)}
-                      className="flex items-center gap-1 text-[10px] font-semibold text-blue-600 hover:text-blue-800 hover:bg-blue-50 px-1.5 py-0.5 rounded transition-colors"
+                      className="flex items-center gap-1 text-[10px] font-semibold text-white hover:opacity-90 px-2 py-0.5 rounded-full transition-opacity"
+                      style={{ background: 'linear-gradient(90deg, #6366f1, #3b82f6)' }}
                     >
                       <Plus className="h-3 w-3" /> Add child
                     </button>
@@ -359,7 +369,7 @@ function ActivityDetail({
                   <div className="flex-1 bg-slate-200 rounded-full h-2.5 overflow-hidden">
                     <div className="h-2.5 rounded-full transition-all duration-300" style={{ width: `${pct}%`, background: barFill }} />
                   </div>
-                  <span className="text-sm font-bold text-slate-600 tabular-nums w-10 text-right">{pct}%</span>
+                  <span className="text-sm font-bold tabular-nums w-10 text-right" style={{ color: barFill }}>{pct}%</span>
                 </div>
 
                 {/* Children list */}
@@ -514,6 +524,7 @@ function ActivityDetail({
 function RoadmapView({
   phaseGroups, innerRef, holidays, dateMode,
   collapsedPhases, onTogglePhase,
+  collapsedParents, onToggleParent,
   viewYear, viewPeriod,
 }: {
   phaseGroups: { phase: string; acts: Activity[] }[];
@@ -522,6 +533,8 @@ function RoadmapView({
   dateMode: DateMode;
   collapsedPhases: Set<string>;
   onTogglePhase: (phase: string) => void;
+  collapsedParents: Set<number>;
+  onToggleParent: (id: number) => void;
   viewYear: number | null;
   viewPeriod: string;
 }) {
@@ -658,8 +671,16 @@ function RoadmapView({
   const ROW   = dateMode === 'both' ? 58 : 50;
   const LEFT  = 268;
   const HDR   = (multiYear ? 22 : 0) + 26 + 22;
-  const totalBodyH = phaseGroups.reduce((h, { phase, acts }) =>
-    h + 30 + (collapsedPhases.has(phase) ? 0 : acts.length * ROW), 0);
+  const totalBodyH = phaseGroups.reduce((h, { phase, acts }) => {
+    if (collapsedPhases.has(phase)) return h + 30;
+    const parents = acts.filter(a => !a.parent_id);
+    let visRows = 0;
+    for (const p of parents) {
+      visRows++;
+      if (!collapsedParents.has(p.id)) visRows += acts.filter(c => c.parent_id === p.id).length;
+    }
+    return h + 30 + visRows * ROW;
+  }, 0);
 
   return (
     <div className="rounded-xl border bg-white overflow-hidden shadow-sm">
@@ -775,116 +796,164 @@ function RoadmapView({
                     </div>
                   </div>
 
-                  {/* Activity rows */}
-                  {!isCollapsed && acts.map((a, ri) => {
-                    const pb = pBar(a), ab = aBar(a);
-                    const lag     = calcLag(a.plan_end, a.actual_end, a.status);
-                    const overdue = lag > 0 && !DONE_STATUSES.has(a.status);
-                    const sb = statusBar(a.status);
-                    const fc = sb.fill;
+                  {/* Activity rows — with per-epic collapse */}
+                  {!isCollapsed && (() => {
+                    // Build local children map for this phase
+                    const localKids = new Map<number, Activity[]>();
+                    for (const a of acts) {
+                      if (a.parent_id) {
+                        if (!localKids.has(a.parent_id)) localKids.set(a.parent_id, []);
+                        localKids.get(a.parent_id)!.push(a);
+                      }
+                    }
+                    // Flatten rows: parents first, then visible children
+                    const parentActs = acts.filter(a => !a.parent_id);
+                    const flatRows: Activity[] = [];
+                    for (const p of parentActs) {
+                      flatRows.push(p);
+                      if (!collapsedParents.has(p.id)) flatRows.push(...(localKids.get(p.id) ?? []));
+                    }
+                    // Include orphan children (parent in a different phase)
+                    const parentIds = new Set(parentActs.map(p => p.id));
+                    acts.filter(a => a.parent_id && !parentIds.has(a.parent_id)).forEach(a => flatRows.push(a));
 
-                    const showPlan   = dateMode !== 'actual';
-                    const showActual = dateMode !== 'plan';
-                    const dualBar    = showPlan && showActual && !!ab;
-                    const planShift  = dualBar ? 'translateY(calc(-50% - 4px))' : 'translateY(-50%)';
-                    const actualEndLabel = a.actual_end ? fmtD(a.actual_end) : (a.actual_start ? 'now' : '—');
-                    const isChild = !!a.parent_id;
+                    return flatRows.map((a, ri) => {
+                      const pb = pBar(a), ab = aBar(a);
+                      const lag     = calcLag(a.plan_end, a.actual_end, a.status);
+                      const overdue = lag > 0 && !DONE_STATUSES.has(a.status);
+                      const sb = statusBar(a.status);
+                      const fc = sb.fill;
 
-                    const rowBg = overdue
-                      ? '!bg-red-50/50'
-                      : phaseEven
-                        ? (ri % 2 === 1 ? 'bg-slate-50/30' : 'bg-white')
-                        : (ri % 2 === 1 ? 'bg-indigo-50/20' : 'bg-slate-50/60');
+                      const showPlan   = dateMode !== 'actual';
+                      const showActual = dateMode !== 'plan';
+                      const dualBar    = showPlan && showActual && !!ab;
+                      const planShift  = dualBar ? 'translateY(calc(-50% - 4px))' : 'translateY(-50%)';
+                      const actualEndLabel = a.actual_end ? fmtD(a.actual_end) : (a.actual_start ? 'now' : '—');
+                      const isChild = !!a.parent_id;
+                      const kids = localKids.get(a.id) ?? [];
+                      const hasKids = kids.length > 0;
+                      const isEpicCollapsed = !isChild && collapsedParents.has(a.id);
+                      const epicPct = hasKids ? weightedProgress(kids.map(c => c.status)) : 0;
 
-                    return (
-                      <div key={a.id}
-                        className={`flex border-b transition-colors hover:bg-blue-50/20 ${rowBg}`}
-                        style={{ height: ROW, position: 'relative', zIndex: 1 }}>
+                      const rowBg = overdue
+                        ? '!bg-red-50/50'
+                        : !isChild && hasKids
+                          ? (phaseEven ? 'bg-slate-50/70' : 'bg-indigo-50/30')
+                          : phaseEven
+                            ? (ri % 2 === 1 ? 'bg-slate-50/30' : 'bg-white')
+                            : (ri % 2 === 1 ? 'bg-indigo-50/20' : 'bg-slate-50/60');
 
-                        {/* Left panel */}
-                        <div className="flex items-center border-r border-slate-100 shrink-0"
-                          style={{ width: LEFT, height: ROW, borderLeft: `3px solid ${pSt.hex}${isChild ? '30' : '50'}`, paddingLeft: isChild ? 24 : 12, paddingRight: 12 }}>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-1">
-                              {isChild && <span className="text-[9px] text-slate-400 shrink-0">↳</span>}
-                              <p className={`text-[11px] font-semibold text-slate-700 truncate leading-tight ${isChild ? 'text-slate-600' : ''}`}>{a.activity || '—'}</p>
-                            </div>
-                            <div className="flex items-center gap-1 mt-0.5">
-                              <span className={`text-[9px] px-1 py-px rounded font-bold shrink-0 ${STATUS_COLOR[a.status] ?? 'bg-slate-100 text-slate-500'}`}>{a.status}</span>
-                              {overdue && <span className="text-[9px] font-bold text-red-500 shrink-0">+{lag}d</span>}
-                              {a.accountable && <span className="text-[9px] text-slate-400 truncate hidden sm:block max-w-[60px]">{a.accountable}</span>}
-                              {a.completion_pct > 0 && (
-                                <span className="ml-auto text-[9px] font-bold text-slate-400 shrink-0 tabular-nums">{a.completion_pct}%</span>
+                      return (
+                        <div key={a.id}
+                          className={`flex border-b transition-colors hover:bg-blue-50/20 ${rowBg}`}
+                          style={{ height: ROW, position: 'relative', zIndex: 1 }}>
+
+                          {/* Left panel */}
+                          <div className="flex items-center border-r border-slate-100 shrink-0"
+                            style={{ width: LEFT, height: ROW, borderLeft: `3px solid ${isChild ? pSt.hex + '30' : pSt.hex + (hasKids ? 'cc' : '50')}`, paddingLeft: isChild ? 24 : 12, paddingRight: 8 }}>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-1">
+                                {!isChild && hasKids && (
+                                  <button
+                                    onClick={() => onToggleParent(a.id)}
+                                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '1px', display: 'flex', flexShrink: 0 }}
+                                  >
+                                    {isEpicCollapsed
+                                      ? <ChevronRight className="w-3 h-3 text-slate-400" />
+                                      : <ChevronDown  className="w-3 h-3 text-slate-400" />}
+                                  </button>
+                                )}
+                                {isChild && <span className="text-[9px] text-slate-400 shrink-0">↳</span>}
+                                <p className={`text-[11px] truncate leading-tight ${isChild ? 'text-slate-500 font-medium' : hasKids ? 'font-bold text-slate-800' : 'font-semibold text-slate-700'}`}>
+                                  {a.activity || '—'}
+                                </p>
+                              </div>
+                              {/* Epic mini progress bar */}
+                              {!isChild && hasKids && (
+                                <div className="flex items-center gap-1 mt-0.5">
+                                  <div style={{ flex: 1, height: 3, background: '#e2e8f0', borderRadius: 9999, overflow: 'hidden' }}>
+                                    <div style={{ height: 3, width: `${epicPct}%`, background: progressColor(epicPct), borderRadius: 9999, transition: 'width 0.3s' }} />
+                                  </div>
+                                  <span style={{ fontSize: 8, fontWeight: 700, color: progressColor(epicPct), whiteSpace: 'nowrap', minWidth: 22, textAlign: 'right' }}>{epicPct}%</span>
+                                </div>
                               )}
-                            </div>
-                            <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                              {showPlan && (a.plan_start || a.plan_end) && (
-                                <span className="text-[9px] text-blue-600 tabular-nums whitespace-nowrap leading-tight">
-                                  <span className="text-[8px] text-blue-400 font-bold">P </span>
-                                  {fmtD(a.plan_start)}→{fmtD(a.plan_end)}
-                                </span>
-                              )}
-                              {showActual && (a.actual_start || a.actual_end) && (
-                                <span className="text-[9px] text-slate-500 tabular-nums whitespace-nowrap leading-tight">
-                                  <span className="text-[8px] text-slate-400 font-bold">A </span>
-                                  {fmtD(a.actual_start)}→{actualEndLabel}
-                                </span>
-                              )}
+                              <div className="flex items-center gap-1 mt-0.5">
+                                <span className={`text-[9px] px-1 py-px rounded font-bold shrink-0 ${STATUS_COLOR[a.status] ?? 'bg-slate-100 text-slate-500'}`}>{a.status}</span>
+                                {overdue && <span className="text-[9px] font-bold text-red-500 shrink-0">+{lag}d</span>}
+                                {a.accountable && <span className="text-[9px] text-slate-400 truncate hidden sm:block max-w-[55px]">{a.accountable}</span>}
+                                {isEpicCollapsed && kids.length > 0 && (
+                                  <span className="text-[9px] text-slate-400 shrink-0 ml-0.5">({kids.length})</span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                                {showPlan && (a.plan_start || a.plan_end) && (
+                                  <span className="text-[9px] text-blue-600 tabular-nums whitespace-nowrap leading-tight">
+                                    <span className="text-[8px] text-blue-400 font-bold">P </span>
+                                    {fmtD(a.plan_start)}→{fmtD(a.plan_end)}
+                                  </span>
+                                )}
+                                {showActual && (a.actual_start || a.actual_end) && (
+                                  <span className="text-[9px] text-slate-500 tabular-nums whitespace-nowrap leading-tight">
+                                    <span className="text-[8px] text-slate-400 font-bold">A </span>
+                                    {fmtD(a.actual_start)}→{actualEndLabel}
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </div>
-                        </div>
 
-                        {/* Bar area */}
-                        <div className="relative flex-1" style={{ height: ROW }}>
-                          {months.map(m => m.weeks.map((wk, wi) => (
-                            <div key={`${m.label}-${wi}`} className="absolute inset-y-0"
-                              style={{ left: wk.sx, borderRight: wi === m.weeks.length - 1 ? '1.5px solid rgba(100,116,139,0.12)' : '1px solid rgba(100,116,139,0.06)' }} />
-                          )))}
-                          {showToday && (
-                            <div className="absolute inset-y-0 z-10" style={{ left: todayX }}>
-                              <div className="w-px h-full" style={{ background: '#f87171', opacity: 0.7 }} />
-                            </div>
-                          )}
-                          {showPlan && pb && (
-                            <div style={{
-                              position: 'absolute', left: pb.lx, width: pb.w, height: 18,
-                              top: '50%', transform: planShift,
-                              background: sb.ghost, border: `2px solid ${sb.border}`, borderRadius: 9999,
-                            }} />
-                          )}
-                          {showPlan && pb && a.completion_pct > 0 && (
-                            <div style={{
-                              position: 'absolute', left: pb.lx,
-                              width: Math.round(pb.w * a.completion_pct / 100), height: 18,
-                              top: '50%', transform: planShift,
-                              background: fc, opacity: 0.92, borderRadius: 9999,
-                            }} />
-                          )}
-                          {showPlan && pb && pb.w >= 38 && a.completion_pct > 0 && (
-                            <div style={{
-                              position: 'absolute', left: pb.lx + 5, top: '50%', transform: planShift,
-                              fontSize: 9, fontWeight: 700, color: a.completion_pct > 28 ? '#fff' : sb.fill,
-                              lineHeight: '18px', zIndex: 20, pointerEvents: 'none',
-                            }}>{a.completion_pct}%</div>
-                          )}
-                          {showActual && ab && (
-                            dateMode === 'actual'
-                              ? <div style={{
-                                  position: 'absolute', left: ab.lx, width: ab.w, height: 16,
-                                  top: '50%', transform: 'translateY(-50%)',
-                                  background: fc, opacity: 0.85,
-                                  border: `2px solid ${sb.border}`, borderRadius: 9999,
-                                }} />
-                              : <div style={{
-                                  position: 'absolute', left: ab.lx, width: ab.w, height: 6,
-                                  top: '50%', transform: 'translateY(5px)',
-                                  background: fc, opacity: 0.55, borderRadius: 9999,
-                                }} />
-                          )}
+                          {/* Bar area */}
+                          <div className="relative flex-1" style={{ height: ROW }}>
+                            {months.map(m => m.weeks.map((wk, wi) => (
+                              <div key={`${m.label}-${wi}`} className="absolute inset-y-0"
+                                style={{ left: wk.sx, borderRight: wi === m.weeks.length - 1 ? '1.5px solid rgba(100,116,139,0.12)' : '1px solid rgba(100,116,139,0.06)' }} />
+                            )))}
+                            {showToday && (
+                              <div className="absolute inset-y-0 z-10" style={{ left: todayX }}>
+                                <div className="w-px h-full" style={{ background: '#f87171', opacity: 0.7 }} />
+                              </div>
+                            )}
+                            {showPlan && pb && (
+                              <div style={{
+                                position: 'absolute', left: pb.lx, width: pb.w, height: 18,
+                                top: '50%', transform: planShift,
+                                background: sb.ghost, border: `2px solid ${sb.border}`, borderRadius: 9999,
+                              }} />
+                            )}
+                            {showPlan && pb && a.completion_pct > 0 && (
+                              <div style={{
+                                position: 'absolute', left: pb.lx,
+                                width: Math.round(pb.w * a.completion_pct / 100), height: 18,
+                                top: '50%', transform: planShift,
+                                background: progressColor(a.completion_pct), opacity: 0.92, borderRadius: 9999,
+                              }} />
+                            )}
+                            {showPlan && pb && pb.w >= 38 && a.completion_pct > 0 && (
+                              <div style={{
+                                position: 'absolute', left: pb.lx + 5, top: '50%', transform: planShift,
+                                fontSize: 9, fontWeight: 700, color: a.completion_pct > 28 ? '#fff' : sb.fill,
+                                lineHeight: '18px', zIndex: 20, pointerEvents: 'none',
+                              }}>{a.completion_pct}%</div>
+                            )}
+                            {showActual && ab && (
+                              dateMode === 'actual'
+                                ? <div style={{
+                                    position: 'absolute', left: ab.lx, width: ab.w, height: 16,
+                                    top: '50%', transform: 'translateY(-50%)',
+                                    background: fc, opacity: 0.85,
+                                    border: `2px solid ${sb.border}`, borderRadius: 9999,
+                                  }} />
+                                : <div style={{
+                                    position: 'absolute', left: ab.lx, width: ab.w, height: 6,
+                                    top: '50%', transform: 'translateY(5px)',
+                                    background: fc, opacity: 0.55, borderRadius: 9999,
+                                  }} />
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    });
+                  })()}
                 </React.Fragment>
               );
             })}
@@ -1351,9 +1420,9 @@ export default function TimelinePage() {
               <div className="ml-5 mt-1.5">
                 <div className="flex items-center gap-1.5">
                   <div className="flex-1 bg-slate-100 rounded-full h-1.5 overflow-hidden">
-                    <div className="h-1.5 rounded-full transition-all duration-300" style={{ width: `${progress}%`, background: '#3b82f6' }} />
+                    <div className="h-1.5 rounded-full transition-all duration-300" style={{ width: `${progress}%`, background: progressColor(progress) }} />
                   </div>
-                  <span className="text-[9px] font-semibold text-slate-400 tabular-nums w-7 text-right shrink-0">{progress}%</span>
+                  <span className="text-[9px] font-semibold tabular-nums w-7 text-right shrink-0" style={{ color: progressColor(progress) }}>{progress}%</span>
                 </div>
               </div>
             )}
@@ -1434,7 +1503,7 @@ export default function TimelinePage() {
               {phaseGroups.length > 1 && filterPhase === 'All' && (
                 <button
                   onClick={() => setCollapsedTablePhases(allTableCollapsed ? new Set() : new Set(phaseGroups.map(g => g.phase)))}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 h-9 text-xs font-medium rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 h-9 text-xs font-semibold rounded-lg transition-colors text-indigo-700 border border-indigo-200 bg-indigo-50 hover:bg-indigo-100">
                   <ChevronsUpDown className="h-3.5 w-3.5" />
                   {allTableCollapsed ? 'Expand Phases' : 'Collapse Phases'}
                 </button>
@@ -1442,7 +1511,7 @@ export default function TimelinePage() {
               {parentActivityIds.length > 0 && (
                 <button
                   onClick={() => setCollapsedParents(allParentsCollapsed ? new Set() : new Set(parentActivityIds))}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 h-9 text-xs font-medium rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 h-9 text-xs font-semibold rounded-lg transition-colors text-violet-700 border border-violet-200 bg-violet-50 hover:bg-violet-100">
                   <ChevronsUpDown className="h-3.5 w-3.5" />
                   {allParentsCollapsed ? 'Expand Epics' : 'Collapse Epics'}
                 </button>
@@ -1475,7 +1544,7 @@ export default function TimelinePage() {
 
               <button
                 onClick={() => setCollapsedPhases(allCollapsed ? new Set() : new Set(phaseGroups.map(g => g.phase)))}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 h-9 text-xs font-medium rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">
+                className="flex items-center gap-1.5 px-2.5 py-1.5 h-9 text-xs font-semibold rounded-lg transition-colors text-indigo-700 border border-indigo-200 bg-indigo-50 hover:bg-indigo-100">
                 <ChevronsUpDown className="h-3.5 w-3.5" />
                 {allCollapsed ? 'Expand All' : 'Collapse All'}
               </button>
@@ -1541,6 +1610,8 @@ export default function TimelinePage() {
             dateMode={dateMode}
             collapsedPhases={collapsedPhases}
             onTogglePhase={togglePhase}
+            collapsedParents={collapsedParents}
+            onToggleParent={toggleParent}
             viewYear={roadmapYear}
             viewPeriod={roadmapPeriod}
           />
