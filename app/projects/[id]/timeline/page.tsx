@@ -3,7 +3,6 @@ import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useParams } from 'next/navigation';
 import Sidebar from '@/components/layout/Sidebar';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
@@ -11,6 +10,7 @@ import { toast } from 'sonner';
 import { Plus, Trash2, Save, Download, Upload, FileDown, AlertCircle, GanttChart, LayoutList, CalendarX2, ChevronDown, ChevronRight, ChevronsUpDown, X, Tag, Copy, Eye, FolderPlus, RefreshCw } from 'lucide-react';
 import ImportMappingDialog from '@/components/timeline/ImportMappingDialog';
 import JiraSyncDialog from '@/components/jira/JiraSyncDialog';
+import { statusPct, weightedProgress } from '@/lib/status-weights';
 
 type Activity = {
   id: number; phase: string; no: string; activity: string; deliverable: string;
@@ -249,10 +249,11 @@ function DateCell({ value, onChange, onBlur, warn, extraClass = '' }: {
 
 // ─── ActivityDetail (Jira-like popup) ────────────────────────────────────────
 function ActivityDetail({
-  activity, teamMembers, projectId, onSave, onDelete, onClose,
+  activity, teamMembers, projectId, onSave, onDelete, onClose, childActivities = [],
 }: {
   activity: Activity; teamMembers: TeamMember[]; projectId: string;
   onSave: (updated: Activity) => void; onDelete: (id: number) => void; onClose: () => void;
+  childActivities?: Activity[];
 }) {
   const [form, setForm] = useState<Activity>(activity);
   const [saving, setSaving] = useState(false);
@@ -308,6 +309,39 @@ function ActivityDetail({
             <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Activity</label>
             <textarea className={`${fieldCls} min-h-[70px] resize-y py-2 leading-relaxed`} value={form.activity} onChange={e => upd('activity', e.target.value)} placeholder="Activity description..." />
           </div>
+
+          {/* Progress bar + children list */}
+          {(() => {
+            const pct = childActivities.length > 0
+              ? weightedProgress(childActivities.map(c => c.status))
+              : statusPct(form.status);
+            const barFill = STATUS_BAR_COLOR[form.status]?.fill ?? '#94a3b8';
+            return (
+              <div>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                  Progress {childActivities.length > 0 ? '— weighted from children' : '— by status'}
+                </label>
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="flex-1 bg-slate-200 rounded-full h-2.5 overflow-hidden">
+                    <div className="h-2.5 rounded-full transition-all duration-300" style={{ width: `${pct}%`, background: barFill }} />
+                  </div>
+                  <span className="text-sm font-bold text-slate-600 tabular-nums w-10 text-right">{pct}%</span>
+                </div>
+                {childActivities.length > 0 && (
+                  <div className="space-y-1">
+                    {childActivities.map(child => (
+                      <div key={child.id} className="flex items-center gap-2 py-1.5 px-3 rounded-lg bg-slate-50 border border-slate-100">
+                        {child.jira_key && <span className="text-[10px] font-mono text-slate-400 shrink-0">{child.jira_key}</span>}
+                        <span className="text-xs text-slate-700 flex-1 truncate">{child.activity || '—'}</span>
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold shrink-0 ${STATUS_COLOR[child.status] ?? 'bg-slate-100 text-slate-500'}`}>{child.status}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
           <div>
             <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Deliverable</label>
             <input type="text" className={`${fieldCls} h-9`} value={form.deliverable} onChange={e => upd('deliverable', e.target.value)} placeholder="Expected deliverable..." />
@@ -351,18 +385,6 @@ function ActivityDetail({
               <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
               <SelectContent>{STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
             </Select>
-          </div>
-          <div>
-            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Completion</label>
-            <div className="flex items-center gap-2">
-              <input type="number" min={0} max={100}
-                className="w-16 h-8 text-sm border border-slate-200 rounded px-2 text-center focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
-                value={form.completion_pct} onChange={e => upd('completion_pct', Math.max(0, Math.min(100, Number(e.target.value))))} />
-              <div className="flex-1 bg-slate-200 rounded-full h-2 overflow-hidden">
-                <div className="h-2 rounded-full transition-all" style={{ width: `${form.completion_pct}%`, background: STATUS_BAR_COLOR[form.status]?.fill ?? '#94a3b8' }} />
-              </div>
-              <span className="text-xs font-semibold text-slate-500 tabular-nums w-8 text-right">{form.completion_pct}%</span>
-            </div>
           </div>
           <div>
             <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Sprint</label>
@@ -866,6 +888,7 @@ export default function TimelinePage() {
 
   // Inline activity name editing
   const [editingActivityId, setEditingActivityId] = useState<number | null>(null);
+  const newActivityIdRef = useRef<number | null>(null);
 
   // Holidays
   const [holidays, setHolidays] = useState<Holiday[]>([]);
@@ -944,10 +967,12 @@ export default function TimelinePage() {
     const phase = project?.current_phase ?? activities[0]?.phase ?? DEFAULT_PHASES[0];
     const res = await fetch(`/api/projects/${id}/activities`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phase, activity: 'New Activity', jira_key: generateKey(), sprint: '', project_status: project?.status ?? '', parent_id: null }),
+      body: JSON.stringify({ phase, activity: '', jira_key: generateKey(), sprint: '', project_status: project?.status ?? '', parent_id: null }),
     });
     const row = await res.json();
     setActivities(a => [...a, row]);
+    newActivityIdRef.current = row.id;
+    setEditingActivityId(row.id);
   };
 
   // Create child activity under a parent
@@ -1120,6 +1145,7 @@ export default function TimelinePage() {
     const children = childrenByParent.get(row.id) ?? [];
     const hasChildren = children.length > 0;
     const isParentCollapsed = collapsedParents.has(row.id);
+    const progress = hasChildren ? weightedProgress(children.map(c => c.status)) : 0;
 
     return (
       <React.Fragment key={row.id}>
@@ -1132,7 +1158,7 @@ export default function TimelinePage() {
           }}
         >
           {/* Key */}
-          <td className="px-2 py-1.5 bg-teal-50/30" style={{ minWidth: '180px', paddingLeft: isChild ? 28 : undefined }}>
+          <td className="px-2 py-1.5 bg-teal-50/30" style={{ minWidth: '160px', paddingLeft: isChild ? 28 : undefined }}>
             {isChild && <span className="text-[9px] text-slate-300 mr-1">↳</span>}
             <input className="h-7 text-xs w-full border border-slate-200 rounded-md px-2 bg-white focus:outline-none focus:ring-1 focus:ring-teal-400 font-mono"
               value={row.jira_key ?? ''} onChange={e => updateField(row.id, 'jira_key', e.target.value)} onBlur={() => saveRow(row)} placeholder="KEY-1" />
@@ -1140,7 +1166,7 @@ export default function TimelinePage() {
           {/* Activity — click text → detail; click empty space → inline edit */}
           <td
             className="px-2 py-1.5 cursor-text"
-            style={{ minWidth: '240px' }}
+            style={{ minWidth: '280px' }}
             onClick={() => { if (editingActivityId !== row.id) setEditingActivityId(row.id); }}
           >
             <div className="flex items-center gap-1.5">
@@ -1165,12 +1191,25 @@ export default function TimelinePage() {
                       const cur = activities.find(a => a.id === row.id);
                       if (cur) saveRow(cur);
                       setEditingActivityId(null);
+                      if (newActivityIdRef.current === row.id) {
+                        newActivityIdRef.current = null;
+                        setDetailActivity(cur ?? row);
+                      }
                     }}
                     onKeyDown={e => {
-                      if (e.key === 'Enter' || e.key === 'Escape') {
+                      if (e.key === 'Enter') {
                         const cur = activities.find(a => a.id === row.id);
                         if (cur) saveRow(cur);
                         setEditingActivityId(null);
+                        if (newActivityIdRef.current === row.id) {
+                          newActivityIdRef.current = null;
+                          setDetailActivity(cur ?? row);
+                        }
+                      } else if (e.key === 'Escape') {
+                        const cur = activities.find(a => a.id === row.id);
+                        if (cur) saveRow(cur);
+                        setEditingActivityId(null);
+                        newActivityIdRef.current = null;
                       }
                     }}
                     onClick={e => e.stopPropagation()}
@@ -1202,42 +1241,28 @@ export default function TimelinePage() {
                 </span>
               )}
             </div>
+            {/* Weighted progress bar — shown only for parent rows with children */}
+            {!isChild && hasChildren && (
+              <div className="ml-5 mt-1.5">
+                <div className="flex items-center gap-1.5">
+                  <div className="flex-1 bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                    <div className="h-1.5 rounded-full transition-all duration-300" style={{ width: `${progress}%`, background: '#3b82f6' }} />
+                  </div>
+                  <span className="text-[9px] font-semibold text-slate-400 tabular-nums w-7 text-right shrink-0">{progress}%</span>
+                </div>
+              </div>
+            )}
           </td>
-          <td className="px-2 py-1.5">
+          {/* Accountable */}
+          <td className="px-2 py-1.5 w-36">
             <input list={`team-${id}`} className="h-7 text-xs w-full border border-slate-200 rounded-md px-2 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400" value={row.accountable} onChange={e => updateField(row.id, 'accountable', e.target.value)} onBlur={() => saveRow(row)} placeholder="Chọn..." />
           </td>
-          <td className="px-2 py-1.5">
-            <input list={`team-${id}`} className="h-7 text-xs w-full border border-slate-200 rounded-md px-2 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400" value={row.responsible} onChange={e => updateField(row.id, 'responsible', e.target.value)} onBlur={() => saveRow(row)} placeholder="Chọn..." />
-          </td>
-          <td className="px-2 py-1.5">
-            <DateCell value={row.plan_start} warn={getDateWarn(row.plan_start)} onChange={v => updateField(row.id, 'plan_start', v)} onBlur={() => saveRow(row)} />
-          </td>
-          <td className="px-2 py-1.5">
-            <DateCell value={row.plan_end} warn={getDateWarn(row.plan_end)} onChange={v => updateField(row.id, 'plan_end', v)} onBlur={() => saveRow(row)} extraClass={isOverdue ? 'border-red-300' : ''} />
-          </td>
-          <td className="px-2 py-1.5">
-            <DateCell value={row.actual_start} warn={getDateWarn(row.actual_start)} onChange={v => updateField(row.id, 'actual_start', v)} onBlur={() => saveRow(row)} />
-          </td>
-          <td className="px-2 py-1.5">
-            <DateCell value={row.actual_end} warn={getDateWarn(row.actual_end)} onChange={v => updateField(row.id, 'actual_end', v)} onBlur={() => saveRow(row)} />
-          </td>
-          <td className="px-2 py-1.5">
+          {/* Status */}
+          <td className="px-2 py-1.5 w-36">
             <Select value={row.status} onValueChange={v => { const val = v ?? ''; updateField(row.id, 'status', val); saveRow({ ...row, status: val }); }}>
               <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
               <SelectContent>{STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
             </Select>
-          </td>
-          <td className="px-2 py-1.5 text-center">
-            <Input className="h-7 text-xs w-12 px-1 text-center mx-auto" type="number" min={0} max={100} value={row.completion_pct} onChange={e => updateField(row.id, 'completion_pct', Number(e.target.value))} onBlur={() => saveRow(row)} />
-          </td>
-          <td className="px-2 py-1.5 bg-teal-50/30" style={{ minWidth: '160px' }}>
-            <Input className="h-7 text-xs bg-white" value={row.sprint ?? ''} onChange={e => updateField(row.id, 'sprint', e.target.value)} onBlur={() => saveRow(row)} placeholder="Sprint..." />
-          </td>
-          <td className="px-2 py-1.5">
-            <div className="flex items-center gap-1">
-              {saving === row.id && <Save className="h-3 w-3 text-blue-400 animate-pulse" />}
-              <LagBadge lag={lag} />
-            </div>
           </td>
         </tr>
         {/* Render children if parent not collapsed */}
@@ -1412,26 +1437,18 @@ export default function TimelinePage() {
         {viewMode === 'table' && (
           <div className="rounded-xl border bg-white shadow-sm overflow-hidden flex flex-col" style={{ height: 'calc(100vh - 200px)', minHeight: '400px' }}>
             <div className="overflow-auto flex-1 min-h-0">
-              <table className="w-full text-xs" style={{ minWidth: '1100px' }}>
+              <table className="w-full text-xs" style={{ minWidth: '700px' }}>
                 <thead className="sticky top-0 z-10">
                   <tr className="bg-[#1e293b] text-white">
-                    <th className="px-2 py-3 text-left bg-teal-900/40" style={{ minWidth: '180px' }}>Key</th>
-                    <th className="px-2 py-3 text-left" style={{ minWidth: '260px' }}>Activity</th>
-                    <th className="px-2 py-3 text-left w-28">Accountable</th>
-                    <th className="px-2 py-3 text-left w-28">Responsible</th>
-                    <th className="px-2 py-3 text-left w-24">Plan Start</th>
-                    <th className="px-2 py-3 text-left w-24">Plan End</th>
-                    <th className="px-2 py-3 text-left w-24">Actual Start</th>
-                    <th className="px-2 py-3 text-left w-24">Actual End</th>
-                    <th className="px-2 py-3 text-left w-28">Status</th>
-                    <th className="px-2 py-3 text-center w-10">%</th>
-                    <th className="px-2 py-3 text-left bg-teal-900/40" style={{ minWidth: '160px' }}>Sprint</th>
-                    <th className="px-2 py-3 w-20">Lag</th>
+                    <th className="px-2 py-3 text-left bg-teal-900/40" style={{ minWidth: '160px' }}>Key</th>
+                    <th className="px-2 py-3 text-left" style={{ minWidth: '300px' }}>Activity</th>
+                    <th className="px-2 py-3 text-left w-36">Accountable</th>
+                    <th className="px-2 py-3 text-left w-36">Status</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredActivities.length === 0 && (
-                    <tr><td colSpan={12} className="text-center py-16 text-slate-400">
+                    <tr><td colSpan={4} className="text-center py-16 text-slate-400">
                       <div className="flex flex-col items-center gap-3">
                         <p>Chưa có activity nào.</p>
                         <div className="flex gap-2">
@@ -1457,7 +1474,7 @@ export default function TimelinePage() {
                         {/* Phase header */}
                         {filterPhase === 'All' && (
                           <tr className={`border-t-2 border-slate-200 ${style.bg}`}>
-                            <td colSpan={12} className={`px-3 py-2 ${style.text}`} style={{ borderLeft: `3px solid ${style.hex}80` }}>
+                            <td colSpan={4} className={`px-3 py-2 ${style.text}`} style={{ borderLeft: `3px solid ${style.hex}80` }}>
                               <div className="flex items-center gap-2">
                                 <button onClick={() => toggleTablePhase(phase)}
                                   className="flex items-center justify-center w-5 h-5 rounded hover:bg-black/10 transition-colors shrink-0">
@@ -1641,6 +1658,7 @@ export default function TimelinePage() {
               activity={detailActivity}
               teamMembers={teamMembers}
               projectId={id}
+              childActivities={childrenByParent.get(detailActivity.id) ?? []}
               onSave={updated => {
                 setActivities(prev => prev.map(a => a.id === updated.id ? updated : a));
                 setDetailActivity(null);
