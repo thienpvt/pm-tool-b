@@ -2,23 +2,51 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
 import { getSessionFromRequest } from '@/lib/auth';
 
-export async function GET(req: NextRequest) {
+type Cfg = { base_url_var: string; email_var: string; token_var: string };
+
+/**
+ * Resolve which env-var names to test:
+ *  - Admin can pass a body with companyId and/or the var names being edited in the
+ *    config dialog → test those, even before they're saved.
+ *  - Otherwise fall back to the logged-in user's own company config (saved in DB).
+ */
+async function resolveCfg(req: NextRequest): Promise<
+  | { ok: true; cfg: Cfg }
+  | { ok: false; status: number; error: string }
+> {
   const user = await getSessionFromRequest(req);
-  if (!user) return NextResponse.json({ ok: false, error: 'Chưa đăng nhập' }, { status: 401 });
-  if (!user.company_id) return NextResponse.json({ ok: false, error: 'Tài khoản chưa thuộc công ty nào' }, { status: 400 });
+  if (!user) return { ok: false, status: 401, error: 'Chưa đăng nhập' };
+
+  // POST → admin testing a specific company / un-saved form values.
+  let body: Partial<Cfg> & { companyId?: number } = {};
+  if (req.method === 'POST') {
+    try { body = await req.json(); } catch { /* empty body is fine */ }
+  }
+
+  // If admin supplied the form var names directly, use them as-is.
+  if (user.is_admin && body.base_url_var && body.email_var && body.token_var) {
+    return { ok: true, cfg: { base_url_var: body.base_url_var, email_var: body.email_var, token_var: body.token_var } };
+  }
+
+  // Otherwise read saved config for the target company.
+  const companyId = (user.is_admin && body.companyId) ? Number(body.companyId) : user.company_id;
+  if (!companyId) return { ok: false, status: 400, error: 'Tài khoản chưa thuộc công ty nào' };
 
   const db = await getDb();
-  const cfg = await db.get<{ base_url_var: string; email_var: string; token_var: string }>(
+  const cfg = await db.get<Cfg>(
     'SELECT base_url_var, email_var, token_var FROM company_jira_config WHERE company_id = ?',
-    user.company_id,
+    companyId,
   );
-
   if (!cfg?.base_url_var || !cfg?.email_var || !cfg?.token_var) {
-    return NextResponse.json({
-      ok: false,
-      error: 'Công ty chưa được cấu hình Jira. Admin vào Quản trị → Companies → Cấu hình Jira.',
-    }, { status: 503 });
+    return { ok: false, status: 503, error: 'Công ty chưa được cấu hình Jira. Admin vào Quản trị → Companies → Cấu hình Jira.' };
   }
+  return { ok: true, cfg };
+}
+
+async function handle(req: NextRequest) {
+  const resolved = await resolveCfg(req);
+  if (!resolved.ok) return NextResponse.json({ ok: false, error: resolved.error }, { status: resolved.status });
+  const { cfg } = resolved;
 
   const baseUrl = process.env[cfg.base_url_var]?.replace(/\/$/, '');
   const email   = process.env[cfg.email_var];
@@ -64,3 +92,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: false, error: `Lỗi kết nối: ${msg}` }, { status: 500 });
   }
 }
+
+// GET: test the logged-in user's own (saved) company config.
+export const GET = handle;
+// POST: admin tests a specific company / un-saved form values.
+export const POST = handle;

@@ -123,7 +123,11 @@ export default function AdminPage() {
     setJiraTesting(true);
     setJiraTestResult(null);
     try {
-      const res = await fetch('/api/jira/test');
+      const res = await fetch('/api/jira/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ companyId: jiraCompany?.id, ...jiraForm }),
+      });
       const data = await res.json();
       if (data.ok) {
         setJiraTestResult({ ok: true, message: `Kết nối thành công — ${data.displayName} (${data.email})` });
