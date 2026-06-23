@@ -460,12 +460,6 @@ function ActivityDetail({
               <SelectContent>{STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
             </Select>
           </div>
-          <div>
-            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Sprint</label>
-            <input type="text" className="w-full h-9 text-sm border border-slate-200 rounded-lg px-3 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
-              value={form.sprint ?? ''} onChange={e => upd('sprint', e.target.value)} placeholder="Sprint name..." />
-          </div>
-
           {/* Schedule */}
           <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
             <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Schedule</p>
@@ -1202,6 +1196,23 @@ export default function TimelinePage() {
   const allCollapsed = collapsedPhases.size === phaseGroups.length && phaseGroups.length > 0;
   const allTableCollapsed = collapsedTablePhases.size === phaseGroups.length && phaseGroups.length > 0;
 
+  // ─── allParentsCollapsed ──────────────────────────────────────────────────
+  const parentActivityIds = useMemo(() =>
+    activities.filter(a => !a.parent_id && activities.some(c => c.parent_id === a.id)).map(a => a.id),
+  [activities]);
+
+  const allParentsCollapsed = parentActivityIds.length > 0 && parentActivityIds.every(pid => collapsedParents.has(pid));
+
+  // Default: collapse all phases and all epics on first load
+  const initializedRef = useRef(false);
+  useEffect(() => {
+    if (activities.length > 0 && !initializedRef.current) {
+      initializedRef.current = true;
+      setCollapsedTablePhases(new Set(phaseGroups.map(g => g.phase)));
+      setCollapsedParents(new Set(parentActivityIds));
+    }
+  }, [activities.length]); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => { setCurrentPage(1); }, [filterPhase, rowsPerPage]);
 
   // ─── Children lookup map ──────────────────────────────────────────────────
@@ -1425,7 +1436,15 @@ export default function TimelinePage() {
                   onClick={() => setCollapsedTablePhases(allTableCollapsed ? new Set() : new Set(phaseGroups.map(g => g.phase)))}
                   className="flex items-center gap-1.5 px-2.5 py-1.5 h-9 text-xs font-medium rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">
                   <ChevronsUpDown className="h-3.5 w-3.5" />
-                  {allTableCollapsed ? 'Expand All' : 'Collapse All'}
+                  {allTableCollapsed ? 'Expand Phases' : 'Collapse Phases'}
+                </button>
+              )}
+              {parentActivityIds.length > 0 && (
+                <button
+                  onClick={() => setCollapsedParents(allParentsCollapsed ? new Set() : new Set(parentActivityIds))}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 h-9 text-xs font-medium rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">
+                  <ChevronsUpDown className="h-3.5 w-3.5" />
+                  {allParentsCollapsed ? 'Expand Epics' : 'Collapse Epics'}
                 </button>
               )}
               <Button variant="outline" size="sm" onClick={handleDownloadTemplate} className="gap-1.5 h-9">
@@ -1745,7 +1764,7 @@ export default function TimelinePage() {
 
       {/* Activity Detail Dialog (Jira-like) */}
       <Dialog open={!!detailActivity} onOpenChange={o => { if (!o) setDetailActivity(null); }}>
-        <DialogContent showCloseButton={false} className="sm:max-w-5xl p-0 gap-0 overflow-hidden" style={{ maxWidth: 'min(95vw, 1100px)', maxHeight: '90vh' }}>
+        <DialogContent showCloseButton={false} className="sm:max-w-7xl p-0 gap-0 overflow-hidden" style={{ maxWidth: 'min(98vw, 1400px)', maxHeight: '94vh' }}>
           {detailActivity && (
             <ActivityDetail
               key={detailActivity.id}
