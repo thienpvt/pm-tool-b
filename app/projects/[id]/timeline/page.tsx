@@ -1063,26 +1063,6 @@ export default function TimelinePage() {
     toast.success('Child task created');
   };
 
-  // Create child from within the ActivityDetail popup
-  const createChildFromDetail = useCallback(async (parentId: number, name: string): Promise<Activity> => {
-    const parent = activities.find(a => a.id === parentId);
-    const res = await fetch(`/api/projects/${id}/activities`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        phase: parent?.phase ?? DEFAULT_PHASES[0],
-        activity: name,
-        parent_id: parentId,
-        status: 'To-do',
-        jira_key: generateKey(),
-        project_status: project?.status ?? '',
-      }),
-    });
-    const row = await res.json();
-    setActivities(a => [...a, row]);
-    setCollapsedParents(prev => { const n = new Set(prev); n.delete(parentId); return n; });
-    return row;
-  }, [id, activities, generateKey, project]);
-
   // Duplicate an activity (no children duplication)
   const duplicateActivity = async (activity: Activity) => {
     const { id: _id, order_idx: _order, ...fields } = activity;
@@ -1158,6 +1138,26 @@ export default function TimelinePage() {
     }, 0);
     return `${prefix}-${String(maxNum + 1).padStart(2, '0')}`;
   }, [project, activities]);
+
+  // Create child from within the ActivityDetail popup
+  const createChildFromDetail = useCallback(async (parentId: number, name: string): Promise<Activity> => {
+    const parent = activities.find(a => a.id === parentId);
+    const res = await fetch(`/api/projects/${id}/activities`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        phase: parent?.phase ?? DEFAULT_PHASES[0],
+        activity: name,
+        parent_id: parentId,
+        status: 'To-do',
+        jira_key: generateKey(),
+        project_status: project?.status ?? '',
+      }),
+    });
+    const row = await res.json();
+    setActivities(a => [...a, row]);
+    setCollapsedParents(prev => { const n = new Set(prev); n.delete(parentId); return n; });
+    return row;
+  }, [id, activities, generateKey, project]);
 
   // ─── Phase groups (used by both table and roadmap) ────────────────────────
   const filteredActivities = filterPhase === 'All' ? activities : activities.filter(a => a.phase === filterPhase);
