@@ -848,11 +848,12 @@ function RoadmapView({
                           className={`flex border-b transition-colors hover:bg-blue-50/20 ${rowBg}`}
                           style={{ height: ROW, position: 'relative', zIndex: 1 }}>
 
-                          {/* Left panel */}
+                          {/* Left panel — Key · Activity · Status only */}
                           <div className="flex items-center border-r border-slate-100 shrink-0"
-                            style={{ width: LEFT, height: ROW, borderLeft: `3px solid ${isChild ? pSt.hex + '30' : pSt.hex + (hasKids ? 'cc' : '50')}`, paddingLeft: isChild ? 24 : 12, paddingRight: 8 }}>
+                            style={{ width: LEFT, height: ROW, borderLeft: `3px solid ${isChild ? pSt.hex + '30' : pSt.hex + (hasKids ? 'cc' : '50')}`, paddingLeft: isChild ? 28 : 8, paddingRight: 8 }}>
                             <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-1">
+                              {/* Line 1: toggle + key + name */}
+                              <div className="flex items-center gap-1 min-w-0">
                                 {!isChild && hasKids && (
                                   <button
                                     onClick={() => onToggleParent(a.id)}
@@ -863,40 +864,27 @@ function RoadmapView({
                                       : <ChevronDown  className="w-3 h-3 text-slate-400" />}
                                   </button>
                                 )}
-                                {isChild && <span className="text-[9px] text-slate-400 shrink-0">↳</span>}
+                                {a.jira_key && (
+                                  <span className="text-[9px] font-mono text-slate-400 shrink-0">{a.jira_key}</span>
+                                )}
                                 <p className={`text-[11px] truncate leading-tight ${isChild ? 'text-slate-500 font-medium' : hasKids ? 'font-bold text-slate-800' : 'font-semibold text-slate-700'}`}>
                                   {a.activity || '—'}
                                 </p>
                               </div>
-                              {/* Epic mini progress bar */}
-                              {!isChild && hasKids && (
-                                <div className="flex items-center gap-1 mt-0.5">
-                                  <div style={{ flex: 1, height: 3, background: '#e2e8f0', borderRadius: 9999, overflow: 'hidden' }}>
-                                    <div style={{ height: 3, width: `${epicPct}%`, background: progressColor(epicPct), borderRadius: 9999, transition: 'width 0.3s' }} />
-                                  </div>
-                                  <span style={{ fontSize: 8, fontWeight: 700, color: progressColor(epicPct), whiteSpace: 'nowrap', minWidth: 22, textAlign: 'right' }}>{epicPct}%</span>
-                                </div>
-                              )}
-                              <div className="flex items-center gap-1 mt-0.5">
+                              {/* Line 2: status + mini progress (epics) + collapsed count */}
+                              <div className="flex items-center gap-1 mt-0.5 min-w-0">
                                 <span className={`text-[9px] px-1 py-px rounded font-bold shrink-0 ${STATUS_COLOR[a.status] ?? 'bg-slate-100 text-slate-500'}`}>{a.status}</span>
                                 {overdue && <span className="text-[9px] font-bold text-red-500 shrink-0">+{lag}d</span>}
-                                {a.accountable && <span className="text-[9px] text-slate-400 truncate hidden sm:block max-w-[55px]">{a.accountable}</span>}
                                 {isEpicCollapsed && kids.length > 0 && (
-                                  <span className="text-[9px] text-slate-400 shrink-0 ml-0.5">({kids.length})</span>
+                                  <span className="text-[9px] text-slate-400 shrink-0">({kids.length})</span>
                                 )}
-                              </div>
-                              <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                                {showPlan && (a.plan_start || a.plan_end) && (
-                                  <span className="text-[9px] text-blue-600 tabular-nums whitespace-nowrap leading-tight">
-                                    <span className="text-[8px] text-blue-400 font-bold">P </span>
-                                    {fmtD(a.plan_start)}→{fmtD(a.plan_end)}
-                                  </span>
-                                )}
-                                {showActual && (a.actual_start || a.actual_end) && (
-                                  <span className="text-[9px] text-slate-500 tabular-nums whitespace-nowrap leading-tight">
-                                    <span className="text-[8px] text-slate-400 font-bold">A </span>
-                                    {fmtD(a.actual_start)}→{actualEndLabel}
-                                  </span>
+                                {!isChild && hasKids && !isEpicCollapsed && (
+                                  <div className="flex items-center gap-1 min-w-0 flex-1">
+                                    <div style={{ flex: 1, height: 3, background: '#e2e8f0', borderRadius: 9999, overflow: 'hidden', minWidth: 20 }}>
+                                      <div style={{ height: 3, width: `${epicPct}%`, background: progressColor(epicPct), borderRadius: 9999, transition: 'width 0.3s' }} />
+                                    </div>
+                                    <span style={{ fontSize: 8, fontWeight: 700, color: progressColor(epicPct), whiteSpace: 'nowrap', minWidth: 20, textAlign: 'right', flexShrink: 0 }}>{epicPct}%</span>
+                                  </div>
                                 )}
                               </div>
                             </div>
