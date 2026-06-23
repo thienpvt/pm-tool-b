@@ -525,6 +525,7 @@ function RoadmapView({
   phaseGroups, innerRef, holidays, dateMode,
   collapsedPhases, onTogglePhase,
   collapsedParents, onToggleParent,
+  onOpenDetail,
   viewYear, viewPeriod,
 }: {
   phaseGroups: { phase: string; acts: Activity[] }[];
@@ -535,6 +536,7 @@ function RoadmapView({
   onTogglePhase: (phase: string) => void;
   collapsedParents: Set<number>;
   onToggleParent: (id: number) => void;
+  onOpenDetail: (a: Activity) => void;
   viewYear: number | null;
   viewPeriod: string;
 }) {
@@ -845,8 +847,9 @@ function RoadmapView({
 
                       return (
                         <div key={a.id}
-                          className={`flex border-b transition-colors hover:bg-blue-50/20 ${rowBg}`}
-                          style={{ height: ROW, position: 'relative', zIndex: 1 }}>
+                          className={`flex border-b transition-colors hover:bg-blue-50/30 cursor-pointer ${rowBg}`}
+                          style={{ height: ROW, position: 'relative', zIndex: 1 }}
+                          onClick={() => onOpenDetail(a)}>
 
                           {/* Left panel — Key · Activity · Status only */}
                           <div className="flex items-center border-r border-slate-100 shrink-0"
@@ -856,7 +859,7 @@ function RoadmapView({
                               <div className="flex items-center gap-1 min-w-0">
                                 {!isChild && hasKids && (
                                   <button
-                                    onClick={() => onToggleParent(a.id)}
+                                    onClick={e => { e.stopPropagation(); onToggleParent(a.id); }}
                                     style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '1px', display: 'flex', flexShrink: 0 }}
                                   >
                                     {isEpicCollapsed
@@ -1600,6 +1603,7 @@ export default function TimelinePage() {
             onTogglePhase={togglePhase}
             collapsedParents={collapsedParents}
             onToggleParent={toggleParent}
+            onOpenDetail={setDetailActivity}
             viewYear={roadmapYear}
             viewPeriod={roadmapPeriod}
           />
