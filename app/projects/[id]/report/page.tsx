@@ -182,7 +182,7 @@ function buildProjectHtmlReport(data: ProjectReportData, language: string, compa
   const today = new Date().toLocaleDateString(isVN ? 'vi-VN' : 'en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
   const rag = project.rag;
   const ragColor = rag === 'red' ? '#DC2626' : rag === 'amber' ? '#D97706' : '#16A34A';
-  const ragLabel = isVN ? (rag === 'red' ? 'ĐỎ' : rag === 'amber' ? 'VÀNG' : 'XANH') : (rag === 'red' ? 'RED' : rag === 'amber' ? 'AMBER' : 'GREEN');
+  const ragLabel = rag === 'red' ? 'RED' : rag === 'amber' ? 'AMBER' : 'GREEN';
   const ragBg = rag === 'red' ? '#FEF2F2' : rag === 'amber' ? '#FFFBEB' : '#F0FDF4';
 
   // Donut 1: overall progress (done/inprog/notstarted)
@@ -513,8 +513,50 @@ function buildProjectHtmlReport(data: ProjectReportData, language: string, compa
       </table>
     </div>` : ''}
 
+    <!-- Legend / Methodology -->
+    <div style="margin-top:28px;border-top:2px solid #E5E7EB;padding-top:18px;">
+      <div style="font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase;letter-spacing:.8px;margin-bottom:14px;display:flex;align-items:center;gap:7px;">
+        <span style="width:18px;height:18px;border-radius:50%;background:#6B7280;color:#fff;font-size:10px;display:inline-flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;">?</span>
+        ${isVN?'Chú thích & Phương pháp tính':'Legend & Methodology'}
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+        <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;padding:14px;">
+          <div style="font-size:11px;font-weight:700;color:#374151;margin-bottom:8px;">${isVN?'Chỉ số sức khỏe RAG':'RAG Health Indicator'}</div>
+          <div style="font-size:10px;color:#6B7280;background:#fff;border:1px solid #E2E8F0;border-radius:4px;padding:5px 7px;margin-bottom:9px;line-height:1.6;">${isVN?'<strong>SPI</strong> = Tiến độ thực tế ÷ Tiến độ kỳ vọng theo thời gian đã trôi qua':'<strong>SPI</strong> = Actual progress ÷ Expected progress based on elapsed time'}</div>
+          <div style="display:flex;flex-direction:column;gap:7px;font-size:11px;">
+            <div style="display:flex;align-items:flex-start;gap:7px;"><span style="margin-top:2px;width:9px;height:9px;border-radius:50%;background:#DC2626;flex-shrink:0;display:inline-block;"></span><div><strong style="color:#DC2626;">RED</strong> — <span style="color:#6B7280;">${isVN?'SPI < 0.6 HOẶC deadline quá hạn HOẶC ≥3 risks mở':'SPI < 0.6 OR past deadline OR ≥3 open risks'}</span></div></div>
+            <div style="display:flex;align-items:flex-start;gap:7px;"><span style="margin-top:2px;width:9px;height:9px;border-radius:50%;background:#D97706;flex-shrink:0;display:inline-block;"></span><div><strong style="color:#D97706;">AMBER</strong> — <span style="color:#6B7280;">${isVN?'SPI < 0.8 HOẶC deadline ≤14 ngày HOẶC ≥1 risk/issue mở':'SPI < 0.8 OR deadline ≤14 days OR ≥1 open risk/issue'}</span></div></div>
+            <div style="display:flex;align-items:flex-start;gap:7px;"><span style="margin-top:2px;width:9px;height:9px;border-radius:50%;background:#16A34A;flex-shrink:0;display:inline-block;"></span><div><strong style="color:#16A34A;">GREEN</strong> — <span style="color:#6B7280;">${isVN?'Không có điều kiện nào ở trên. Phase Closing → luôn GREEN.':'None of the above. Phase Closing → always GREEN.'}</span></div></div>
+          </div>
+        </div>
+        <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;padding:14px;">
+          <div style="font-size:11px;font-weight:700;color:#374151;margin-bottom:8px;">${isVN?'Cách tính tiến độ (weighted)':'Progress Calculation (weighted)'}</div>
+          <div style="font-size:11px;color:#6B7280;line-height:1.7;">
+            <div style="margin-bottom:6px;">${isVN?'Tiến độ = Σ(trọng số trạng thái) / Tổng activity':'Progress = Σ(status weight) / Total activities'}</div>
+            <div style="display:flex;flex-direction:column;gap:2px;">
+              <div style="display:flex;justify-content:space-between;"><span>Done / Deployed / UAT</span><strong style="color:#16A34A;">1.0</strong></div>
+              <div style="display:flex;justify-content:space-between;"><span>Re-Open / QC Done</span><strong style="color:#16A34A;">0.7 – 1.0</strong></div>
+              <div style="display:flex;justify-content:space-between;"><span>In Testing / PENDING</span><strong style="color:#3B82F6;">0.5 – 0.6</strong></div>
+              <div style="display:flex;justify-content:space-between;"><span>In Dev / Ready For Dev</span><strong style="color:#D97706;">0.2</strong></div>
+              <div style="display:flex;justify-content:space-between;"><span>To Do / REFINEMENT</span><strong style="color:#9CA3AF;">0.1</strong></div>
+              <div style="display:flex;justify-content:space-between;"><span>New / Blocked</span><strong style="color:#DC2626;">0.0</strong></div>
+            </div>
+          </div>
+        </div>
+        <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;padding:14px;">
+          <div style="font-size:11px;font-weight:700;color:#374151;margin-bottom:8px;">${isVN?'Trạng thái Epic / Phase':'Epic / Phase Status'}</div>
+          <div style="font-size:11px;color:#6B7280;line-height:1.7;">
+            <div style="display:flex;align-items:center;gap:7px;margin-bottom:5px;"><div style="width:9px;height:9px;border-radius:2px;background:#16A34A;flex-shrink:0;"></div><span>${isVN?'Hoàn thành: tiến độ epic = 100%':'Done: epic progress = 100%'}</span></div>
+            <div style="display:flex;align-items:center;gap:7px;margin-bottom:5px;"><div style="width:9px;height:9px;border-radius:2px;background:#3B82F6;flex-shrink:0;"></div><span>${isVN?'Đang triển khai: 1% – 99%':'In Progress: 1% – 99%'}</span></div>
+            <div style="display:flex;align-items:center;gap:7px;margin-bottom:10px;"><div style="width:9px;height:9px;border-radius:2px;background:#D1D5DB;border:1px solid #9CA3AF;flex-shrink:0;"></div><span>${isVN?'Chưa bắt đầu: tiến độ epic = 0%':'Not Started: epic progress = 0%'}</span></div>
+            <div style="font-size:10px;color:#9CA3AF;border-top:1px solid #E5E7EB;padding-top:7px;">${isVN?'Ngày: ưu tiên actual, fallback về plan. Hiển thị N/A nếu chưa có dữ liệu.':'Dates: actual preferred, fallback to planned. N/A if no data.'}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Footer -->
-    <div style="margin-top:28px;padding-top:14px;border-top:1px solid #E5E7EB;display:flex;justify-content:space-between;align-items:center;font-size:10px;color:#94A3B8;">
+    <div style="margin-top:20px;padding-top:14px;border-top:1px solid #E5E7EB;display:flex;justify-content:space-between;align-items:center;font-size:10px;color:#94A3B8;">
       <span>${project.name}${companyName ? ' · ' + companyName : ''}</span>
       <span>${isVN?'Tài liệu bảo mật — Nội bộ':'Confidential — Internal Only'} · ${today}</span>
     </div>
