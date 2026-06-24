@@ -3,18 +3,26 @@ import { getDb } from '@/lib/db';
 
 const MAX_PRESETS = 10;
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const context = req.nextUrl.searchParams.get('context') ?? '';
   const db = await getDb();
-  const rows = await db.all('SELECT * FROM jira_jql_presets ORDER BY created_at DESC');
+  const rows = await db.all(
+    'SELECT * FROM jira_jql_presets WHERE context = ? ORDER BY created_at DESC',
+    context,
+  );
   return NextResponse.json(rows);
 }
 
 export async function POST(req: NextRequest) {
-  const { name, jql } = await req.json();
+  const { name, jql, context } = await req.json();
   if (!name || !jql) return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
 
+  const ctx = context ?? '';
   const db = await getDb();
-  const existing = await db.all<{ id: number }>('SELECT id FROM jira_jql_presets ORDER BY created_at DESC');
+  const existing = await db.all<{ id: number }>(
+    'SELECT id FROM jira_jql_presets WHERE context = ? ORDER BY created_at DESC',
+    ctx,
+  );
 
   if (existing.length >= MAX_PRESETS) {
     const oldest = existing[existing.length - 1];
@@ -22,9 +30,10 @@ export async function POST(req: NextRequest) {
   }
 
   const r = await db.run(
-    'INSERT INTO jira_jql_presets (name, jql) VALUES (?, ?)',
+    'INSERT INTO jira_jql_presets (name, jql, context) VALUES (?, ?, ?)',
     name,
     jql,
+    ctx,
   );
   const row = await db.get('SELECT * FROM jira_jql_presets WHERE id = ?', r.lastInsertRowid);
   return NextResponse.json(row, { status: 201 });

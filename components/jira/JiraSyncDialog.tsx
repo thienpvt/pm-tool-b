@@ -279,7 +279,7 @@ export default function JiraSyncDialog({
 
   useEffect(() => {
     if (open) {
-      fetch('/api/jira/jql-presets').then(r => r.json()).then(setPresets).catch(() => {});
+      fetch(`/api/jira/jql-presets?context=${mode}`).then(r => r.json()).then(setPresets).catch(() => {});
       fetch('/api/jira/fields')
         .then(r => r.json())
         .then((fields: Array<{ id: string; name: string }>) => {
@@ -308,7 +308,7 @@ export default function JiraSyncDialog({
       const res = await fetch('/api/jira/jql-presets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: presetName.trim(), jql: jql.trim() }),
+        body: JSON.stringify({ name: presetName.trim(), jql: jql.trim(), context: mode }),
       });
       const saved = await res.json();
       setPresets(p => [saved, ...p.slice(0, 9)]);
