@@ -40,6 +40,7 @@ type ProjectReportData = {
     total: number; currentMonth: string; fullTime: number; partTime: number;
     overloaded: { name: string; domain: string; role: string; capacity: number }[];
     byDomain: { domain: string; members: { name: string; role: string; capacity: number }[] }[];
+    allocationList: { name: string; role: string; domain: string; avgCapacity: number }[];
   } | null;
 };
 type SavedPrompt = { id: string; name: string; text: string };
@@ -414,7 +415,7 @@ function buildProjectHtmlReport(data: ProjectReportData, language: string, compa
     ${teamStats ? `
     <div class="card" style="margin-bottom:28px;">
       <div class="sec-h">${isVN ? 'Nguồn lực dự án' : 'Project Resources'}</div>
-      <div style="font-size:11px;color:#94A3B8;margin-bottom:12px;">${isVN ? `Tháng hiện tại: ${teamStats.currentMonth}` : `Current month: ${teamStats.currentMonth}`}</div>
+      <div style="font-size:11px;color:#94A3B8;margin-bottom:12px;">${isVN ? `Kỳ báo cáo: ${fmtDate(periodStart)} → ${fmtDate(periodEnd)}` : `Period: ${fmtDate(periodStart)} → ${fmtDate(periodEnd)}`}</div>
 
       <!-- KPI row -->
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:18px;">
@@ -432,45 +433,36 @@ function buildProjectHtmlReport(data: ProjectReportData, language: string, compa
         </div>
       </div>
 
-      <!-- Domain groups -->
-      ${teamStats.byDomain.map(d => `
-      <div style="margin-bottom:14px;">
-        <div style="font-size:10px;font-weight:700;color:#64748B;text-transform:uppercase;letter-spacing:.8px;padding:4px 10px;background:#F8FAFC;border-radius:4px;margin-bottom:6px;">${d.domain}</div>
-        <table style="width:100%;border-collapse:collapse;font-size:12px;">
-          <thead>
-            <tr>
-              <th style="text-align:left;padding:4px 8px;color:#9CA3AF;font-size:10px;border-bottom:1px solid #E5E7EB;">${isVN?'Tên':'Name'}</th>
-              <th style="text-align:left;padding:4px 8px;color:#9CA3AF;font-size:10px;border-bottom:1px solid #E5E7EB;">${isVN?'Vai trò':'Role'}</th>
-              <th style="text-align:center;padding:4px 8px;color:#9CA3AF;font-size:10px;border-bottom:1px solid #E5E7EB;width:70px;">${isVN?'Phân bổ':'Alloc.'}</th>
-              <th style="text-align:left;padding:4px 8px;color:#9CA3AF;font-size:10px;border-bottom:1px solid #E5E7EB;width:140px;">${isVN?'Tháng này':'This month'}</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${d.members.map((m, i) => {
-              const capPct = Math.round(m.capacity * 100);
-              const capColor = m.capacity > 1.0 ? '#DC2626' : m.capacity >= 0.8 ? '#16A34A' : m.capacity > 0 ? '#D97706' : '#9CA3AF';
-              const barW = Math.min(100, Math.round(m.capacity * 100));
-              const rowBg = i % 2 === 1 ? 'background:#FAFAFA;' : '';
-              return `<tr style="${rowBg}border-bottom:1px solid #F3F4F6;">
-                <td style="padding:5px 8px;font-weight:500;color:#111827;">${m.name}</td>
-                <td style="padding:5px 8px;color:#6B7280;">${m.role}</td>
-                <td style="padding:5px 8px;text-align:center;"><span style="background:${capColor}22;color:${capColor};border-radius:4px;padding:2px 8px;font-size:11px;font-weight:600;">${m.capacity > 0 ? capPct + '%' : '—'}</span></td>
-                <td style="padding:5px 8px;">${m.capacity > 0
-                  ? `<div style="background:#E5E7EB;border-radius:3px;height:5px;overflow:hidden;"><div style="width:${barW}%;height:100%;background:${capColor};border-radius:3px;"></div></div>`
-                  : `<span style="font-size:10px;color:#9CA3AF;">${isVN?'Không có dữ liệu':'No data'}</span>`
-                }</td>
-              </tr>`;
-            }).join('')}
-          </tbody>
-        </table>
+      <!-- Sorted allocation list -->
+      <div style="font-size:10px;font-weight:600;color:#64748B;text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px;">${isVN ? 'Phân bổ công việc (trung bình kỳ báo cáo)' : 'Work allocation (avg. over period)'}</div>
+      ${(teamStats.allocationList ?? []).length > 0 ? `
+      <div>
+        ${(teamStats.allocationList ?? []).map((m, i) => {
+          const capPct = Math.round(m.avgCapacity * 100);
+          const capColor = m.avgCapacity > 1.0 ? '#DC2626' : m.avgCapacity >= 0.8 ? '#16A34A' : m.avgCapacity > 0 ? '#D97706' : '#9CA3AF';
+          const barW = Math.min(100, capPct);
+          return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #F3F4F6;">
+            <span style="font-size:10px;color:#9CA3AF;min-width:18px;text-align:right;flex-shrink:0;">${i + 1}.</span>
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:12px;font-weight:500;color:#111827;">${m.name}</div>
+              <div style="font-size:10px;color:#6B7280;">${m.role}${m.domain && m.domain !== 'General' ? ' · ' + m.domain : ''}</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;min-width:150px;flex-shrink:0;">
+              <div style="flex:1;background:#E5E7EB;border-radius:3px;height:5px;overflow:hidden;">
+                <div style="width:${barW}%;height:100%;background:${capColor};border-radius:3px;"></div>
+              </div>
+              <span style="background:${capColor}22;color:${capColor};border-radius:4px;padding:2px 8px;font-size:11px;font-weight:600;min-width:36px;text-align:center;">${capPct > 0 ? capPct + '%' : '—'}</span>
+            </div>
+          </div>`;
+        }).join('')}
       </div>
-      `).join('')}
+      ` : `<p style="font-size:12px;color:#94A3B8;">${isVN ? 'Không có dữ liệu nhân sự.' : 'No team member data.'}</p>`}
 
       ${teamStats.overloaded.length > 0 ? `
-      <div style="margin-top:8px;padding:8px 12px;background:#FEF2F2;border-radius:6px;font-size:11px;color:#DC2626;">
+      <div style="margin-top:10px;padding:8px 12px;background:#FEF2F2;border-radius:6px;font-size:11px;color:#DC2626;">
         [!] ${isVN
-          ? `${teamStats.overloaded.length} thành viên đang bị quá tải — cần rà soát phân bổ để đảm bảo chất lượng và tiến độ.`
-          : `${teamStats.overloaded.length} team member(s) overloaded — review allocations to protect delivery quality.`}
+          ? `${teamStats.overloaded.length} thành viên đang bị quá tải trong kỳ — cần rà soát phân bổ để đảm bảo chất lượng và tiến độ.`
+          : `${teamStats.overloaded.length} team member(s) overloaded this period — review allocations to protect delivery quality.`}
       </div>` : ''}
     </div>
     ` : ''}
