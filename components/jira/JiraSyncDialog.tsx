@@ -1,15 +1,16 @@
 'use client';
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import {
   RefreshCw, ChevronRight, ChevronLeft, Loader2,
   AlertCircle, CheckCircle2, Database, Check,
-  Save, Trash2, BookOpen,
+  Save, Trash2, BookOpen, Tag,
 } from 'lucide-react';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
@@ -51,6 +52,12 @@ interface JqlPreset {
   created_at: string;
 }
 
+interface JiraSyncMapping {
+  id: number;
+  mappings_json: string;
+  created_at: string;
+}
+
 // ─── Constants ─────────────────────────────────────────────────────────────────
 const TYPE_COLORS: Record<string, string> = {
   Epic:       'bg-purple-100 text-purple-700',
@@ -59,6 +66,43 @@ const TYPE_COLORS: Record<string, string> = {
   Bug:        'bg-red-100 text-red-700',
   'Sub-task': 'bg-orange-100 text-orange-700',
 };
+
+const JIRA_VIRTUAL_COLS = [
+  { id: 'summary',    label: 'Summary' },
+  { id: 'status',     label: 'Status' },
+  { id: 'assignee',   label: 'Assignee' },
+  { id: 'reporter',   label: 'Reporter' },
+  { id: 'priority',   label: 'Priority' },
+  { id: 'component1', label: 'Component (1st)' },
+  { id: 'label1',     label: 'Label (1st)' },
+  { id: 'duedate',    label: 'Due Date' },
+  { id: 'created',    label: 'Created Date' },
+  { id: 'sprint',     label: 'Sprint' },
+  { id: 'parentKey',  label: 'Parent Key' },
+];
+
+const TIMELINE_JIRA_FIELDS = [
+  { key: 'activity',    label: 'Activity',      required: true },
+  { key: 'phase',       label: 'Phase' },
+  { key: 'status',      label: 'Status' },
+  { key: 'accountable', label: 'Accountable' },
+  { key: 'responsible', label: 'Responsible' },
+  { key: 'plan_end',    label: 'Plan End' },
+  { key: 'sprint',      label: 'Sprint' },
+  { key: 'notes',       label: 'Notes' },
+  { key: 'deliverable', label: 'Deliverable' },
+];
+
+const DEFAULT_JIRA_FIELD_MAPPING: Record<string, string> = {
+  activity:    'summary',
+  phase:       'component1',
+  status:      'status',
+  accountable: 'assignee',
+  sprint:      'sprint',
+  plan_end:    'duedate',
+};
+
+const SKIP = '__skip__';
 
 // ─── Field Mapping helpers ─────────────────────────────────────────────────────
 function isoToDate(raw: string | null | undefined): string {
@@ -102,7 +146,6 @@ function normalizeBugStatus(raw: string): string {
   return raw;
 }
 
-// Handles Jira custom field responses: Option object {value}, plain string, or null
 function extractOptionValue(field: unknown): string {
   if (!field) return '';
   if (typeof field === 'string') return field;
@@ -123,21 +166,49 @@ function normalizePriority(raw: string): string {
   return raw;
 }
 
+function extractJiraValue(issue: JiraIssue, colId: string): string {
+  const f = issue.fields;
+  switch (colId) {
+    case SKIP:         return '';
+    case 'summary':    return f.summary ?? '';
+    case 'status':     return f.status?.name ?? '';
+    case 'assignee':   return f.assignee?.displayName ?? '';
+    case 'reporter':   return f.reporter?.displayName ?? '';
+    case 'priority':   return f.priority?.name ?? '';
+    case 'component1': return f.components?.[0]?.name ?? '';
+    case 'label1':     return f.labels?.[0] ?? '';
+    case 'duedate':    return isoToDate(f.duedate);
+    case 'created':    return isoToDate(f.created);
+    case 'sprint':     return sprintName(f.customfield_10020);
+    case 'parentKey':  return f.parent?.key ?? f.customfield_10014 ?? '';
+    default:           return extractOptionValue(f[colId]) || String(f[colId] ?? '');
+  }
+}
 
-function mapToActivities(issues: JiraIssue[]) {
+function mapToActivitiesWithMapping(issues: JiraIssue[], fieldMapping: Record<string, string>) {
   return issues.map(issue => {
     const f = issue.fields;
     const isEpic = f.issuetype.name.toLowerCase() === 'epic';
     const parentKey = f.parent?.key ?? f.customfield_10014 ?? '';
+
+    const get = (key: string): string => {
+      const col = fieldMapping[key];
+      if (!col || col === SKIP) return '';
+      return extractJiraValue(issue, col);
+    };
+
     return {
       jira_key:        issue.key,
-      activity:        f.summary,
+      activity:        get('activity') || f.summary,
       no:              isEpic ? 'EPIC' : '',
-      phase:           f.components?.[0]?.name ?? '',
-      status:          normalizeTimelineStatus(f.status.name),
-      accountable:     f.assignee?.displayName ?? '',
-      sprint:          sprintName(f.customfield_10020),
-      plan_end:        isoToDate(f.duedate),
+      phase:           get('phase'),
+      status:          normalizeTimelineStatus(get('status') || f.status.name),
+      accountable:     get('accountable'),
+      responsible:     get('responsible'),
+      plan_end:        isoToDate(get('plan_end')),
+      sprint:          get('sprint'),
+      notes:           get('notes'),
+      deliverable:     get('deliverable'),
       parent_jira_key: isEpic ? '' : parentKey,
     };
   });
@@ -166,7 +237,8 @@ function mapToBugs(issues: JiraIssue[], severityFieldId: string) {
 export default function JiraSyncDialog({
   open, onOpenChange, projectId, mode, onSynced,
 }: JiraSyncDialogProps) {
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  // step: 1=JQL, 2=Preview, 3=MapCột(timeline only), 4=Confirm
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
 
@@ -182,11 +254,16 @@ export default function JiraSyncDialog({
   const [nextPageToken, setNextPageToken] = useState<string | null>(null);
   const PAGE = 100;
 
+  // Mapping state (timeline mode only)
+  const [jiraFieldMapping, setJiraFieldMapping] = useState<Record<string, string>>(DEFAULT_JIRA_FIELD_MAPPING);
+  const [savedSyncMappings, setSavedSyncMappings] = useState<JiraSyncMapping[]>([]);
+
   const reset = useCallback(() => {
     setStep(1);
     setIssues([]);
     setTotal(0);
     setNextPageToken(null);
+    setJiraFieldMapping(DEFAULT_JIRA_FIELD_MAPPING);
   }, []);
 
   const handleOpenChange = (o: boolean) => {
@@ -197,7 +274,6 @@ export default function JiraSyncDialog({
   useEffect(() => {
     if (open) {
       fetch('/api/jira/jql-presets').then(r => r.json()).then(setPresets).catch(() => {});
-      // Auto-detect severity custom field ID from Jira
       fetch('/api/jira/fields')
         .then(r => r.json())
         .then((fields: Array<{ id: string; name: string }>) => {
@@ -205,14 +281,18 @@ export default function JiraSyncDialog({
           const candidates = fields.filter(f => f.name.toLowerCase().includes('severity'));
           if (candidates.length === 0) return;
           setSeverityFieldOptions(candidates);
-          // Prefer "migrated" variant, otherwise first match
           const best = candidates.find(f => f.name.toLowerCase().includes('migrated')) ?? candidates[0];
           setSeverityFieldId(best.id);
-          console.log('[JiraSyncDialog] severity candidates:', candidates.map(f => `${f.id}:${f.name}`).join(', '));
         })
         .catch(() => {});
+      if (mode === 'timeline') {
+        fetch('/api/jira/sync-mappings')
+          .then(r => r.json())
+          .then(setSavedSyncMappings)
+          .catch(() => {});
+      }
     }
-  }, [open]);
+  }, [open, mode]);
 
   const handleSavePreset = async () => {
     if (!presetName.trim()) { toast.error('Nhập tên để lưu'); return; }
@@ -284,7 +364,7 @@ export default function JiraSyncDialog({
     setSyncing(true);
     try {
       if (mode === 'timeline') {
-        const activities = mapToActivities(issues);
+        const activities = mapToActivitiesWithMapping(issues, jiraFieldMapping);
         const res = await fetch(`/api/projects/${projectId}/activities/import`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -292,6 +372,12 @@ export default function JiraSyncDialog({
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error ?? 'Lỗi sync');
+        // Auto-save the mapping used (keep last 5)
+        fetch('/api/jira/sync-mappings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mappings_json: jiraFieldMapping }),
+        }).catch(() => {});
         toast.success(`Sync thành công: ${data.inserted} mới, ${data.updated} cập nhật`);
       } else {
         const today = new Date().toISOString().split('T')[0];
@@ -315,7 +401,33 @@ export default function JiraSyncDialog({
     }
   };
 
-  const STEP_LABELS = ['Câu JQL', 'Xem trước', 'Xác nhận'];
+  // Step labels and navigation differ by mode
+  const STEP_LABELS = mode === 'timeline'
+    ? ['Câu JQL', 'Xem trước', 'Map cột', 'Xác nhận']
+    : ['Câu JQL', 'Xem trước', 'Xác nhận'];
+
+  // In bug mode, step 3 maps to visual position 3 (skip step 3 in model = mapping step)
+  const visibleStep = mode === 'bug' && step === 4 ? 3 : step;
+
+  const handleNext = () => {
+    if (step === 2) {
+      if (mode === 'timeline') setStep(3);
+      else setStep(4);
+    } else {
+      setStep(s => Math.min(s + 1, 4) as 1 | 2 | 3 | 4);
+    }
+  };
+
+  const handleBack = () => {
+    if (step === 4 && mode === 'bug') setStep(2);
+    else setStep(s => Math.max(s - 1, 1) as 1 | 2 | 3 | 4);
+  };
+
+  // Sample values from first issue for the mapping preview
+  const sampleIssue = issues[0] ?? null;
+
+  // Compute which Jira cols are currently mapped (for left panel highlighting)
+  const mappedJiraCols = useMemo(() => new Set(Object.values(jiraFieldMapping).filter(v => v && v !== SKIP)), [jiraFieldMapping]);
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -330,8 +442,8 @@ export default function JiraSyncDialog({
           <div className="flex items-center gap-1 pt-2">
             {STEP_LABELS.map((label, i) => {
               const n = i + 1;
-              const done = step > n;
-              const active = step === n;
+              const done = visibleStep > n;
+              const active = visibleStep === n;
               return (
                 <React.Fragment key={n}>
                   <div className={`flex items-center gap-1.5 text-xs font-medium transition-colors ${active ? 'text-blue-600' : done ? 'text-blue-500' : 'text-slate-400'}`}>
@@ -344,7 +456,7 @@ export default function JiraSyncDialog({
                     </span>
                     {label}
                   </div>
-                  {i < 2 && <div className={`flex-1 h-px mx-1 ${done ? 'bg-blue-400' : 'bg-slate-200'}`} />}
+                  {i < STEP_LABELS.length - 1 && <div className={`flex-1 h-px mx-1 ${done ? 'bg-blue-400' : 'bg-slate-200'}`} />}
                 </React.Fragment>
               );
             })}
@@ -474,10 +586,12 @@ export default function JiraSyncDialog({
                         <th className="text-left px-3 py-2 w-28">Status</th>
                         <th className="text-left px-3 py-2 w-28">Assignee</th>
                         <th className="text-left px-3 py-2 w-20">Priority</th>
-                        <th className="text-left px-3 py-2 w-20">
-                          Severity
-                          <span className="block text-[9px] font-normal text-slate-400 leading-tight">{severityFieldId}</span>
-                        </th>
+                        {mode === 'bug' && (
+                          <th className="text-left px-3 py-2 w-20">
+                            Severity
+                            <span className="block text-[9px] font-normal text-slate-400 leading-tight">{severityFieldId}</span>
+                          </th>
+                        )}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -497,25 +611,27 @@ export default function JiraSyncDialog({
                           Lowest:   'bg-slate-100 text-slate-500',
                         };
                         return (
-                        <tr key={issue.key} className="hover:bg-slate-50/70">
-                          <td className="px-3 py-2 font-mono text-blue-600 font-medium">{issue.key}</td>
-                          <td className="px-3 py-2">
-                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${TYPE_COLORS[issue.fields.issuetype.name] ?? 'bg-gray-100 text-gray-600'}`}>
-                              {issue.fields.issuetype.name}
-                            </span>
-                          </td>
-                          <td className="px-3 py-2 text-slate-700 max-w-0">
-                            <div className="truncate" title={issue.fields.summary}>{issue.fields.summary}</div>
-                          </td>
-                          <td className="px-3 py-2 text-slate-500">{issue.fields.status.name}</td>
-                          <td className="px-3 py-2 text-slate-500 truncate">{issue.fields.assignee?.displayName ?? '—'}</td>
-                          <td className="px-3 py-2 text-slate-500">{issue.fields.priority?.name ?? '—'}</td>
-                          <td className="px-3 py-2">
-                            {severity
-                              ? <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${SEVERITY_BADGE[severity] ?? 'bg-slate-100 text-slate-600'}`}>{severity}</span>
-                              : <span className="text-slate-300">—</span>}
-                          </td>
-                        </tr>
+                          <tr key={issue.key} className="hover:bg-slate-50/70">
+                            <td className="px-3 py-2 font-mono text-blue-600 font-medium">{issue.key}</td>
+                            <td className="px-3 py-2">
+                              <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${TYPE_COLORS[issue.fields.issuetype.name] ?? 'bg-gray-100 text-gray-600'}`}>
+                                {issue.fields.issuetype.name}
+                              </span>
+                            </td>
+                            <td className="px-3 py-2 text-slate-700 max-w-0">
+                              <div className="truncate" title={issue.fields.summary}>{issue.fields.summary}</div>
+                            </td>
+                            <td className="px-3 py-2 text-slate-500">{issue.fields.status.name}</td>
+                            <td className="px-3 py-2 text-slate-500 truncate">{issue.fields.assignee?.displayName ?? '—'}</td>
+                            <td className="px-3 py-2 text-slate-500">{issue.fields.priority?.name ?? '—'}</td>
+                            {mode === 'bug' && (
+                              <td className="px-3 py-2">
+                                {severity
+                                  ? <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${SEVERITY_BADGE[severity] ?? 'bg-slate-100 text-slate-600'}`}>{severity}</span>
+                                  : <span className="text-slate-300">—</span>}
+                              </td>
+                            )}
+                          </tr>
                         );
                       })}
                     </tbody>
@@ -537,8 +653,152 @@ export default function JiraSyncDialog({
             </div>
           )}
 
-          {/* ── Step 3: Confirm ── */}
-          {step === 3 && (
+          {/* ── Step 3: Map cột (timeline mode only) ── */}
+          {step === 3 && mode === 'timeline' && (
+            <div className="flex flex-col gap-4 h-full">
+
+              {/* Last 5 saved mappings */}
+              {savedSyncMappings.length > 0 && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
+                    <BookOpen className="w-3.5 h-3.5" />
+                    5 mapping gần nhất — click để áp dụng
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {savedSyncMappings.map(m => {
+                      const d = new Date(m.created_at);
+                      const label = d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })
+                        + ' ' + d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+                      return (
+                        <button
+                          key={m.id}
+                          onClick={() => {
+                            try {
+                              const parsed = JSON.parse(m.mappings_json) as Record<string, string>;
+                              setJiraFieldMapping(parsed);
+                              toast.success(`Đã áp dụng mapping ${label}`);
+                            } catch { toast.error('Mapping không hợp lệ'); }
+                          }}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg hover:border-blue-400 hover:bg-blue-50 transition-colors text-slate-600"
+                        >
+                          <Tag className="w-3 h-3 text-blue-400" />
+                          {label}
+                        </button>
+                      );
+                    })}
+                    <button
+                      onClick={() => { setJiraFieldMapping(DEFAULT_JIRA_FIELD_MAPPING); toast.success('Đã reset về mặc định'); }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg hover:border-slate-400 hover:bg-slate-50 transition-colors text-slate-400"
+                    >
+                      Reset mặc định
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Two-panel mapping */}
+              <div className="grid grid-cols-2 gap-4 flex-1 min-h-0 overflow-hidden">
+
+                {/* LEFT: Jira fields with sample values */}
+                <div className="flex flex-col border rounded-xl overflow-hidden shadow-sm">
+                  <div className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white text-sm font-semibold shrink-0">
+                    <RefreshCw className="h-4 w-4" />
+                    <span>Trường Jira</span>
+                    <span className="ml-auto text-blue-200 text-xs font-normal">
+                      {sampleIssue ? `Mẫu: ${sampleIssue.key}` : 'Không có dữ liệu'}
+                    </span>
+                  </div>
+                  <div className="overflow-y-auto flex-1 divide-y divide-slate-100 bg-white">
+                    {JIRA_VIRTUAL_COLS.map(col => {
+                      const sample = sampleIssue ? extractJiraValue(sampleIssue, col.id) : '';
+                      const isMapped = mappedJiraCols.has(col.id);
+                      return (
+                        <div key={col.id} className={`flex items-start gap-3 px-3 py-2.5 transition-colors
+                          ${isMapped ? 'bg-green-50 hover:bg-green-100/70' : 'hover:bg-slate-50'}`}>
+                          <div className="flex-1 min-w-0">
+                            <p className={`text-xs font-semibold truncate ${isMapped ? 'text-slate-800' : 'text-slate-600'}`}>{col.label}</p>
+                            <p className="text-[11px] font-mono text-slate-400 truncate mt-0.5 italic">{sample || '—'}</p>
+                          </div>
+                          {isMapped && (
+                            <span className="shrink-0 text-[10px] bg-green-500 text-white px-1.5 py-0.5 rounded font-medium whitespace-nowrap">
+                              đang dùng
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* RIGHT: Timeline fields → Jira field dropdowns */}
+                <div className="flex flex-col border rounded-xl overflow-hidden shadow-sm">
+                  <div className="flex items-center gap-2 px-4 py-2.5 bg-slate-700 text-white text-sm font-semibold shrink-0">
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    </svg>
+                    <span>Trường Timeline</span>
+                    <span className="ml-auto text-slate-400 text-xs font-normal">
+                      {Object.values(jiraFieldMapping).filter(v => v && v !== SKIP).length}/{TIMELINE_JIRA_FIELDS.length} đã map
+                    </span>
+                  </div>
+                  <div className="overflow-y-auto flex-1 bg-white divide-y divide-slate-100">
+                    {TIMELINE_JIRA_FIELDS.map(field => {
+                      const currentCol = jiraFieldMapping[field.key] ?? SKIP;
+                      const isMapped = !!(currentCol && currentCol !== SKIP);
+                      const sampleVal = sampleIssue && isMapped ? extractJiraValue(sampleIssue, currentCol) : '';
+                      return (
+                        <div key={field.key} className={`px-3 py-2.5 transition-colors ${isMapped ? 'bg-green-50/40' : ''}`}>
+                          <div className="flex items-center gap-1.5 mb-1.5">
+                            <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${isMapped ? 'bg-green-500' : 'bg-slate-300'}`} />
+                            <span className={`text-[11px] leading-tight flex-1 ${field.required ? 'font-semibold text-slate-800' : 'text-slate-500'}`}>
+                              {field.label}
+                              {field.required && <span className="text-red-500 ml-0.5">*</span>}
+                            </span>
+                            {isMapped && <Check className="h-3 w-3 shrink-0 text-green-500" />}
+                          </div>
+                          <Select
+                            value={currentCol}
+                            onValueChange={(val: string) => setJiraFieldMapping(m => ({ ...m, [field.key]: val }))}
+                          >
+                            <SelectTrigger className={`h-7 text-xs w-full ${
+                              isMapped ? 'border-green-300 bg-white text-green-800 font-medium' : 'text-slate-400'
+                            }`}>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value={SKIP}>— Bỏ qua —</SelectItem>
+                              {JIRA_VIRTUAL_COLS.map(col => (
+                                <SelectItem key={col.id} value={col.id}>
+                                  {col.label}
+                                  {sampleIssue && (() => {
+                                    const sv = extractJiraValue(sampleIssue, col.id);
+                                    return sv ? ` · ${sv.length > 18 ? sv.substring(0, 18) + '…' : sv}` : '';
+                                  })()}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          {isMapped && (
+                            <div className="mt-1 px-1 text-[10px] text-slate-400 italic truncate">
+                              {sampleVal || 'không có dữ liệu mẫu'}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                    <div className="px-3 py-2.5 bg-slate-50">
+                      <p className="text-[10px] text-slate-400 italic">
+                        * Jira Key và Parent Key được tự động xác định. No được tự suy từ Issue Type.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── Step 4: Confirm ── */}
+          {step === 4 && (
             <div className="space-y-4">
               <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 space-y-3">
                 <h3 className="font-semibold text-blue-800 flex items-center gap-2">
@@ -554,6 +814,27 @@ export default function JiraSyncDialog({
                   }</p>
                 </div>
               </div>
+
+              {mode === 'timeline' && (
+                <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-1.5">
+                  <p className="text-xs font-semibold text-slate-600 flex items-center gap-1.5">
+                    <Tag className="w-3.5 h-3.5 text-blue-500" /> Mapping đang dùng
+                  </p>
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-0.5">
+                    {TIMELINE_JIRA_FIELDS.map(f => {
+                      const col = jiraFieldMapping[f.key];
+                      if (!col || col === SKIP) return null;
+                      const colLabel = JIRA_VIRTUAL_COLS.find(c => c.id === col)?.label ?? col;
+                      return (
+                        <div key={f.key} className="flex items-center gap-1 text-xs text-slate-600">
+                          <span className="text-slate-400">{f.label}:</span>
+                          <span className="font-medium text-blue-700">{colLabel}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {mode === 'bug' && (
                 <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex gap-2 text-sm text-amber-700">
@@ -591,8 +872,7 @@ export default function JiraSyncDialog({
         <DialogFooter className="px-6 py-4 border-t shrink-0 flex items-center justify-between">
           <div>
             {step > 1 && (
-              <Button variant="outline" onClick={() => setStep(s => (s - 1) as 1 | 2 | 3)}
-                disabled={loading || syncing}>
+              <Button variant="outline" onClick={handleBack} disabled={loading || syncing}>
                 <ChevronLeft className="w-4 h-4 mr-1" /> Quay lại
               </Button>
             )}
@@ -610,11 +890,16 @@ export default function JiraSyncDialog({
               </Button>
             )}
             {step === 2 && (
-              <Button onClick={() => setStep(3)} disabled={issues.length === 0}>
+              <Button onClick={handleNext} disabled={issues.length === 0}>
+                {mode === 'timeline' ? 'Map cột' : 'Tiến hành Sync'} <ChevronRight className="w-4 h-4 ml-1" />
+              </Button>
+            )}
+            {step === 3 && mode === 'timeline' && (
+              <Button onClick={() => setStep(4)} disabled={!jiraFieldMapping['activity'] || jiraFieldMapping['activity'] === SKIP}>
                 Tiến hành Sync <ChevronRight className="w-4 h-4 ml-1" />
               </Button>
             )}
-            {step === 3 && (
+            {step === 4 && (
               <Button onClick={handleSync} disabled={syncing}
                 className="bg-blue-600 hover:bg-blue-700 text-white">
                 {syncing

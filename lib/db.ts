@@ -461,6 +461,7 @@ async function migratePostgresSchema(pool: Pool) {
     `ALTER TABLE bugs ADD COLUMN IF NOT EXISTS severity TEXT DEFAULT ''`,
     `CREATE TABLE IF NOT EXISTS jira_jql_presets (id SERIAL PRIMARY KEY, name TEXT NOT NULL, jql TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
     `ALTER TABLE team_members ADD COLUMN IF NOT EXISTS email TEXT DEFAULT ''`,
+    `CREATE TABLE IF NOT EXISTS jira_sync_mappings (id SERIAL PRIMARY KEY, mappings_json TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
     // Fix existing Jira-imported activities: set parent_id for children whose phase matches an Epic's phase.
     // Only runs when there is exactly one Epic in the phase (safe, idempotent — parent_id IS NULL guard).
     `UPDATE activities a
