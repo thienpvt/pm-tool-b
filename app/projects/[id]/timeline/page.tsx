@@ -337,12 +337,12 @@ function ActivityDetail({
             )}
             <span className="text-xs text-slate-400 shrink-0">{form.phase}</span>
           </div>
-          <div className="flex items-start gap-3">
-            <h2 className="text-lg font-bold text-slate-800 leading-snug flex-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h2 className="text-lg font-bold text-slate-800 leading-snug">
               {form.activity || <span className="italic text-slate-400 font-normal">Untitled Activity</span>}
             </h2>
             <Select value={form.priority || 'Medium'} onValueChange={v => upd('priority', v ?? 'Medium')}>
-              <SelectTrigger className={`h-7 w-28 text-xs shrink-0 border font-semibold ${PRIORITY_COLOR[form.priority] ?? PRIORITY_COLOR['Medium']}`}>
+              <SelectTrigger className={`h-6 w-24 text-[11px] shrink-0 border font-semibold rounded-full px-2 ${PRIORITY_COLOR[form.priority] ?? PRIORITY_COLOR['Medium']}`}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -1436,23 +1436,16 @@ export default function TimelinePage() {
                   />
                 ) : (
                   <div className="min-h-[28px] py-0.5">
-                    <div className="flex items-start justify-between gap-1">
-                      <button
-                        onClick={e => { e.stopPropagation(); setDetailActivity(row); }}
-                        className="text-left inline group/detail flex-1 min-w-0"
-                      >
-                        <span className={`text-xs font-medium leading-snug transition-colors
-                          group-hover/detail:text-blue-600 group-hover/detail:underline
-                          ${isChild ? 'text-slate-600' : 'text-slate-700'}`}>
-                          {row.activity || <span className="italic text-slate-400 no-underline">New Activity</span>}
-                        </span>
-                      </button>
-                      {row.priority && row.priority !== 'Medium' && (
-                        <span className={`shrink-0 text-[9px] px-1.5 py-px rounded font-bold border ${PRIORITY_COLOR[row.priority] ?? 'bg-slate-100 text-slate-400 border-slate-200'}`}>
-                          {row.priority}
-                        </span>
-                      )}
-                    </div>
+                    <button
+                      onClick={e => { e.stopPropagation(); setDetailActivity(row); }}
+                      className="text-left inline group/detail w-full min-w-0"
+                    >
+                      <span className={`text-xs font-medium leading-snug transition-colors
+                        group-hover/detail:text-blue-600 group-hover/detail:underline
+                        ${isChild ? 'text-slate-600' : 'text-slate-700'}`}>
+                        {row.activity || <span className="italic text-slate-400 no-underline">New Activity</span>}
+                      </span>
+                    </button>
                     {row.project_status && (
                       <span className="flex items-center gap-0.5 text-[9px] px-1.5 py-px rounded-full bg-indigo-50 border border-indigo-100 text-indigo-600 font-medium mt-0.5 w-fit">
                         <Tag className="h-2 w-2 shrink-0" />{row.project_status}
@@ -1479,6 +1472,13 @@ export default function TimelinePage() {
                 </div>
               </div>
             )}
+          </td>
+          {/* Priority */}
+          <td className="px-2 py-1.5 w-28">
+            <Select value={row.priority || 'Medium'} onValueChange={v => { const val = v ?? 'Medium'; updateField(row.id, 'priority', val); saveRow({ ...row, priority: val }); }}>
+              <SelectTrigger className={`h-7 text-[11px] font-semibold border ${PRIORITY_COLOR[row.priority] ?? PRIORITY_COLOR['Medium']}`}><SelectValue /></SelectTrigger>
+              <SelectContent>{PRIORITIES.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent>
+            </Select>
           </td>
           {/* Accountable */}
           <td className="px-2 py-1.5 w-36">
@@ -1728,13 +1728,14 @@ export default function TimelinePage() {
                   <tr className="bg-[#1e293b] text-white">
                     <th className="px-2 py-3 text-left bg-teal-900/40" style={{ minWidth: '160px' }}>Key</th>
                     <th className="px-2 py-3 text-left" style={{ minWidth: '300px' }}>Activity</th>
+                    <th className="px-2 py-3 text-left w-28">Priority</th>
                     <th className="px-2 py-3 text-left w-36">Accountable</th>
                     <th className="px-2 py-3 text-left w-36">Status</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredActivities.length === 0 && (
-                    <tr><td colSpan={4} className="text-center py-16 text-slate-400">
+                    <tr><td colSpan={5} className="text-center py-16 text-slate-400">
                       <div className="flex flex-col items-center gap-3">
                         <p>Chưa có activity nào.</p>
                         <div className="flex gap-2">
@@ -1760,7 +1761,7 @@ export default function TimelinePage() {
                         {/* Phase header */}
                         {filterPhase === 'All' && (
                           <tr className={`border-t-2 border-slate-200 ${style.bg}`}>
-                            <td colSpan={4} className={`px-3 py-2 ${style.text}`} style={{ borderLeft: `3px solid ${style.hex}80` }}>
+                            <td colSpan={5} className={`px-3 py-2 ${style.text}`} style={{ borderLeft: `3px solid ${style.hex}80` }}>
                               <div className="flex items-center gap-2">
                                 <button onClick={() => toggleTablePhase(phase)}
                                   className="flex items-center justify-center w-5 h-5 rounded hover:bg-black/10 transition-colors shrink-0">
