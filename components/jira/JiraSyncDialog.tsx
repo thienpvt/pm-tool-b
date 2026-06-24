@@ -36,6 +36,7 @@ interface JiraIssue {
     components: { name: string }[];
     parent?: { key: string };
     customfield_10014?: string;
+    customfield_10015?: string | null; // Start date (Jira Cloud)
     customfield_10016?: number;
     customfield_10020?: Array<{ name: string; state: string }> | string;
     resolution?: { name: string } | null;
@@ -75,6 +76,7 @@ const JIRA_VIRTUAL_COLS = [
   { id: 'priority',   label: 'Priority' },
   { id: 'component1', label: 'Component (1st)' },
   { id: 'label1',     label: 'Label (1st)' },
+  { id: 'startdate',  label: 'Start Date' },
   { id: 'duedate',    label: 'Due Date' },
   { id: 'created',    label: 'Created Date' },
   { id: 'sprint',     label: 'Sprint' },
@@ -87,6 +89,7 @@ const TIMELINE_JIRA_FIELDS = [
   { key: 'status',      label: 'Status' },
   { key: 'accountable', label: 'Accountable' },
   { key: 'responsible', label: 'Responsible' },
+  { key: 'plan_start',  label: 'Plan Start' },
   { key: 'plan_end',    label: 'Plan End' },
   { key: 'sprint',      label: 'Sprint' },
   { key: 'notes',       label: 'Notes' },
@@ -99,6 +102,7 @@ const DEFAULT_JIRA_FIELD_MAPPING: Record<string, string> = {
   status:      'status',
   accountable: 'assignee',
   sprint:      'sprint',
+  plan_start:  'startdate',
   plan_end:    'duedate',
 };
 
@@ -177,6 +181,7 @@ function extractJiraValue(issue: JiraIssue, colId: string): string {
     case 'priority':   return f.priority?.name ?? '';
     case 'component1': return f.components?.[0]?.name ?? '';
     case 'label1':     return f.labels?.[0] ?? '';
+    case 'startdate':  return isoToDate(f.customfield_10015);
     case 'duedate':    return isoToDate(f.duedate);
     case 'created':    return isoToDate(f.created);
     case 'sprint':     return sprintName(f.customfield_10020);
@@ -205,6 +210,7 @@ function mapToActivitiesWithMapping(issues: JiraIssue[], fieldMapping: Record<st
       status:          normalizeTimelineStatus(get('status') || f.status.name),
       accountable:     get('accountable'),
       responsible:     get('responsible'),
+      plan_start:      isoToDate(get('plan_start')),
       plan_end:        isoToDate(get('plan_end')),
       sprint:          get('sprint'),
       notes:           get('notes'),
@@ -585,6 +591,12 @@ export default function JiraSyncDialog({
                         <th className="text-left px-3 py-2">Summary</th>
                         <th className="text-left px-3 py-2 w-28">Status</th>
                         <th className="text-left px-3 py-2 w-28">Assignee</th>
+                        {mode === 'timeline' && (
+                          <>
+                            <th className="text-left px-3 py-2 w-24">Start Date</th>
+                            <th className="text-left px-3 py-2 w-24">Due Date</th>
+                          </>
+                        )}
                         <th className="text-left px-3 py-2 w-20">Priority</th>
                         {mode === 'bug' && (
                           <th className="text-left px-3 py-2 w-20">
@@ -623,6 +635,12 @@ export default function JiraSyncDialog({
                             </td>
                             <td className="px-3 py-2 text-slate-500">{issue.fields.status.name}</td>
                             <td className="px-3 py-2 text-slate-500 truncate">{issue.fields.assignee?.displayName ?? '—'}</td>
+                            {mode === 'timeline' && (
+                              <>
+                                <td className="px-3 py-2 text-slate-500 font-mono text-[11px]">{isoToDate(issue.fields.customfield_10015) || '—'}</td>
+                                <td className="px-3 py-2 text-slate-500 font-mono text-[11px]">{isoToDate(issue.fields.duedate) || '—'}</td>
+                              </>
+                            )}
                             <td className="px-3 py-2 text-slate-500">{issue.fields.priority?.name ?? '—'}</td>
                             {mode === 'bug' && (
                               <td className="px-3 py-2">

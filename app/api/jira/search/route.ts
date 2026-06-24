@@ -30,6 +30,7 @@ const FIELDS = [
   'priority', 'created', 'duedate', 'labels', 'components', 'parent',
   'customfield_10014', // Epic Link (classic)
   'customfield_10008', // Epic Name
+  'customfield_10015', // Start date (Jira Cloud)
   'customfield_10016', // Story Points
   'resolution',
   'customfield_10020', // Sprint (next-gen / team-managed)
