@@ -90,6 +90,18 @@ async function initPostgresSchema(db: DbClient) {
       email_var TEXT NOT NULL DEFAULT '',
       token_var TEXT NOT NULL DEFAULT ''
     );
+    CREATE TABLE IF NOT EXISTS company_rag_config (
+      company_id INTEGER PRIMARY KEY REFERENCES companies(id) ON DELETE CASCADE,
+      spi_red_threshold    FLOAT   NOT NULL DEFAULT 0.6,
+      spi_amber_threshold  FLOAT   NOT NULL DEFAULT 0.8,
+      deadline_red_days    INTEGER NOT NULL DEFAULT 0,
+      deadline_amber_days  INTEGER NOT NULL DEFAULT 14,
+      risks_red            INTEGER NOT NULL DEFAULT 3,
+      risks_amber          INTEGER NOT NULL DEFAULT 1,
+      issues_amber         INTEGER NOT NULL DEFAULT 1,
+      low_progress_amber   FLOAT   NOT NULL DEFAULT 30,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
     CREATE TABLE IF NOT EXISTS customers (
       id SERIAL PRIMARY KEY,
       name TEXT NOT NULL,

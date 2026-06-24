@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { Plus, Pencil, Trash2, KeyRound, Building2, Users, ShieldCheck, ClipboardList, CheckCircle2, Clock, XCircle, Phone, Mail, MessageSquare, Link2, CheckCircle, Loader2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, KeyRound, Building2, Users, ShieldCheck, ClipboardList, CheckCircle2, Clock, XCircle, Phone, Mail, MessageSquare, Link2, CheckCircle, Loader2, Gauge } from 'lucide-react';
 
 type Company = { id: number; name: string; user_count: number };
 type User = { id: number; username: string; display_name: string; company_id: number | null; company_name: string | null; is_admin: number };
@@ -55,6 +55,13 @@ export default function AdminPage() {
   const [jiraForm, setJiraForm] = useState({ base_url_var: '', email_var: '', token_var: '' });
   const [jiraTesting, setJiraTesting] = useState(false);
   const [jiraTestResult, setJiraTestResult] = useState<{ ok: boolean; message: string } | null>(null);
+
+  // RAG config dialog
+  const DEFAULT_RAG = { spi_red_threshold: 0.6, spi_amber_threshold: 0.8, deadline_red_days: 0, deadline_amber_days: 14, risks_red: 3, risks_amber: 1, issues_amber: 1, low_progress_amber: 30 };
+  type RagForm = typeof DEFAULT_RAG;
+  const [ragOpen, setRagOpen] = useState(false);
+  const [ragCompany, setRagCompany] = useState<Company | null>(null);
+  const [ragForm, setRagForm] = useState<RagForm>(DEFAULT_RAG);
 
   const loadCompanies = useCallback(() =>
     fetch('/api/admin/companies').then(r => r.json()).then(setCompanies), []);
@@ -139,6 +146,27 @@ export default function AdminPage() {
     } finally {
       setJiraTesting(false);
     }
+  };
+
+  // ── RAG Config ─────────────────────────────────────────────────────────────
+  const openRagConfig = async (c: Company) => {
+    setRagCompany(c);
+    const res = await fetch(`/api/admin/rag-config/${c.id}`);
+    const data = await res.json();
+    setRagForm({ ...DEFAULT_RAG, ...data });
+    setRagOpen(true);
+  };
+
+  const saveRagConfig = async () => {
+    if (!ragCompany) return;
+    const res = await fetch(`/api/admin/rag-config/${ragCompany.id}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(ragForm),
+    });
+    if (!res.ok) { toast.error('Lưu thất bại'); return; }
+    toast.success(`Đã lưu cấu hình RAG cho ${ragCompany.name}`);
+    setRagOpen(false);
   };
 
   // ── Users ──────────────────────────────────────────────────────────────────
@@ -368,6 +396,9 @@ export default function AdminPage() {
                         <button onClick={() => openJiraConfig(c)} className="text-slate-400 hover:text-violet-600 transition-colors" title="Cấu hình Jira">
                           <Link2 className="h-4 w-4" />
                         </button>
+                        <button onClick={() => openRagConfig(c)} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Cấu hình RAG">
+                          <Gauge className="h-4 w-4" />
+                        </button>
                         <button onClick={() => deleteCompany(c)} className="text-slate-400 hover:text-red-500 transition-colors" title="Delete">
                           <Trash2 className="h-4 w-4" />
                         </button>
@@ -572,6 +603,55 @@ export default function AdminPage() {
                 disabled={!jiraForm.base_url_var || !jiraForm.email_var || !jiraForm.token_var}>
                 Lưu cấu hình
               </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── RAG Config Dialog ──────────────────────────────────────────────── */}
+      <Dialog open={ragOpen} onOpenChange={setRagOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Gauge className="h-4 w-4 text-emerald-600" />
+              Cấu hình RAG — {ragCompany?.name}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <p className="text-xs text-slate-500 bg-slate-50 rounded-lg p-3 leading-relaxed">
+              Điều chỉnh ngưỡng tính chỉ số sức khỏe RAG cho công ty này. <strong>SPI</strong> (Schedule Performance Index) = tiến độ thực tế / tiến độ kỳ vọng theo thời gian.
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              {([
+                { key: 'spi_red_threshold',   label: 'SPI → RED',           hint: 'VD: 0.6 = tiến độ < 60% kỳ vọng', step: '0.05', min: '0.1', max: '0.99' },
+                { key: 'spi_amber_threshold', label: 'SPI → AMBER',         hint: 'VD: 0.8 = tiến độ < 80% kỳ vọng', step: '0.05', min: '0.1', max: '0.99' },
+                { key: 'deadline_red_days',   label: 'Deadline RED (ngày)',  hint: '0 = đã quá hạn',                  step: '1',    min: '-365', max: '30' },
+                { key: 'deadline_amber_days', label: 'Deadline AMBER (ngày)',hint: 'Còn ≤ X ngày thì AMBER',          step: '1',    min: '1',   max: '90' },
+                { key: 'risks_red',           label: 'Risks → RED',         hint: '≥ X risk mở',                     step: '1',    min: '1',   max: '20' },
+                { key: 'risks_amber',         label: 'Risks → AMBER',       hint: '≥ X risk mở',                     step: '1',    min: '1',   max: '10' },
+                { key: 'issues_amber',        label: 'Issues → AMBER',      hint: '≥ X issue mở',                    step: '1',    min: '1',   max: '10' },
+                { key: 'low_progress_amber',  label: 'Tiến độ thấp → AMBER',hint: '< X% khi SPI không tính được',    step: '5',    min: '0',   max: '80' },
+              ] as const).map(({ key, label, hint, step, min, max }) => (
+                <div key={key}>
+                  <Label className="text-xs">{label}</Label>
+                  <Input
+                    type="number" step={step} min={min} max={max}
+                    className="mt-1 h-8 text-sm"
+                    value={ragForm[key]}
+                    onChange={(e: { target: { value: string } }) => setRagForm((f: RagForm) => ({ ...f, [key]: parseFloat(e.target.value) }))}
+                  />
+                  <p className="text-[10px] text-slate-400 mt-0.5">{hint}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+          <DialogFooter className="flex justify-between items-center">
+            <Button variant="outline" onClick={() => setRagForm(DEFAULT_RAG)} className="text-xs text-slate-500">
+              Reset mặc định
+            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setRagOpen(false)}>Huỷ</Button>
+              <Button onClick={saveRagConfig} className="bg-emerald-600 hover:bg-emerald-700">Lưu cấu hình</Button>
             </div>
           </DialogFooter>
         </DialogContent>

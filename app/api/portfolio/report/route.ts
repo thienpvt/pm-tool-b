@@ -3,6 +3,7 @@ import { getDb } from '@/lib/db';
 import { getSessionFromRequest } from '@/lib/auth';
 import Anthropic from '@anthropic-ai/sdk';
 import { statusWeight, DONE_STATUSES } from '@/lib/status-weights';
+import { calculateRAG, DEFAULT_RAG_CONFIG } from '@/lib/rag';
 
 // ─── GET: Full portfolio report data ─────────────────────────────────────────
 export async function GET(req: NextRequest) {
@@ -33,7 +34,7 @@ export async function GET(req: NextRequest) {
   const milestoneIdsParam = searchParams.get('milestone_ids'); // "1,2,3"
   const milestoneProjectIds = new Set<number>();
   let milestoneEpicIds: Set<number> = new Set();
-  type MilestoneInfoItem = { id: number; name: string; project_name: string; program_name: string; start_date: string; end_date: string };
+  type MilestoneInfoItem = { id: number; project_id: number; name: string; project_name: string; program_name: string; start_date: string; end_date: string };
   const selectedMilestones: MilestoneInfoItem[] = [];
   let milestoneMonth: string | null = null;
 
@@ -57,7 +58,7 @@ export async function GET(req: NextRequest) {
         const cust = await db.get<{ name: string }>('SELECT name FROM customers WHERE id = ?', proj.customer_id);
         programName = cust?.name ?? '';
       }
-      selectedMilestones.push({ id: ms.id, name: ms.name, project_name: proj?.name ?? '', program_name: programName, start_date: ms.start_date, end_date: ms.end_date });
+      selectedMilestones.push({ id: ms.id, project_id: ms.project_id, name: ms.name, project_name: proj?.name ?? '', program_name: programName, start_date: ms.start_date, end_date: ms.end_date });
 
       const epicRows = await db.all<{ activity_id: number }>(
         'SELECT activity_id FROM milestone_epics WHERE milestone_id = ?', ms.id
@@ -205,6 +206,36 @@ export async function GET(req: NextRequest) {
   const nowMs = Date.now();
   const donePlaceholders = DONE_STATUSES.map(() => '?').join(',');
 
+  // RAG: build milestone date map for milestone mode
+  const milestoneDateByProject: Record<number, { start: string | null; end: string | null }> = {};
+  if (milestoneIdsParam) {
+    for (const ms of selectedMilestones) {
+      milestoneDateByProject[ms.project_id] = { start: ms.start_date ?? null, end: ms.end_date ?? null };
+    }
+  }
+
+  // RAG: batch query milestone date ranges as fallback for projects missing own dates (date range mode)
+  let msFallbackMap: Record<number, { min_s: string; max_e: string }> = {};
+  if (!milestoneIdsParam) {
+    const projectsMissingDates = projects.filter((p: any) => !p.start_date || !p.end_date);
+    if (projectsMissingDates.length > 0) {
+      const ids = projectsMissingDates.map((p: any) => p.id);
+      const rows = await db.all<{ project_id: number; min_s: string; max_e: string }>(
+        `SELECT project_id, MIN(start_date) as min_s, MAX(end_date) as max_e
+         FROM milestones
+         WHERE project_id IN (${ids.map(() => '?').join(',')}) AND start_date IS NOT NULL AND end_date IS NOT NULL
+         GROUP BY project_id`,
+        ...ids
+      );
+      msFallbackMap = Object.fromEntries(rows.map(r => [r.project_id, r]));
+    }
+  }
+
+  // RAG: load company config once for all projects
+  const ragCfg = (user.company_id
+    ? await db.get<Record<string, unknown>>('SELECT * FROM company_rag_config WHERE company_id = ?', user.company_id)
+    : null) ?? DEFAULT_RAG_CONFIG;
+
   const projectsForReport = milestoneProjectIds.size > 0
     ? projects.filter((p: any) => milestoneProjectIds.has(p.id))
     : projects;
@@ -228,21 +259,24 @@ export async function GET(req: NextRequest) {
       }))
       .sort((a, b) => a.phase.localeCompare(b.phase));
 
-    const endMs = p.end_date ? new Date(p.end_date + 'T23:59:59').getTime() : null;
-    const days_until_deadline = endMs ? Math.ceil((endMs - nowMs) / 86400000) : null;
+    const effectiveStart = milestoneIdsParam
+      ? milestoneDateByProject[p.id]?.start ?? null
+      : p.start_date ?? msFallbackMap[p.id]?.min_s ?? null;
+    const effectiveEnd = milestoneIdsParam
+      ? milestoneDateByProject[p.id]?.end ?? null
+      : p.end_date ?? msFallbackMap[p.id]?.max_e ?? null;
 
-    let rag: 'red' | 'amber' | 'green' = 'green';
-    if (p.current_phase !== 'Closing') {
-      if ((days_until_deadline !== null && days_until_deadline < 0) || open_risks >= 3) {
-        rag = 'red';
-      } else if (
-        (days_until_deadline !== null && days_until_deadline <= 14) ||
-        open_risks >= 1 || open_issues >= 1 ||
-        (completion_pct < 30 && total_activities > 0)
-      ) {
-        rag = 'amber';
-      }
-    }
+    const { rag, days_until_deadline } = calculateRAG({
+      current_phase: p.current_phase,
+      effective_start: effectiveStart,
+      effective_end: effectiveEnd,
+      completion_pct,
+      total_activities,
+      open_risks,
+      open_issues,
+      nowMs,
+      config: ragCfg as any,
+    });
 
     return {
       ...p,

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
 import Anthropic from '@anthropic-ai/sdk';
+import { calculateRAG, DEFAULT_RAG_CONFIG } from '@/lib/rag';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -180,20 +181,26 @@ export async function GET(req: NextRequest, { params }: Params) {
 
   // RAG
   const nowMs = Date.now();
-  const endDateMs = project.end_date ? new Date(project.end_date + 'T23:59:59').getTime() : null;
-  const days_until_deadline = endDateMs ? Math.ceil((endDateMs - nowMs) / 86400000) : null;
-  let rag: 'red' | 'amber' | 'green' = 'green';
-  if (project.current_phase !== 'Closing') {
-    if ((days_until_deadline !== null && days_until_deadline < 0) || openRisks.length >= 3) {
-      rag = 'red';
-    } else if (
-      (days_until_deadline !== null && days_until_deadline <= 14) ||
-      openRisks.length >= 1 || openIssues.length >= 1 ||
-      (completion_pct < 30 && total > 0)
-    ) {
-      rag = 'amber';
-    }
-  }
+  const effectiveStart = milestoneIdParam
+    ? selectedMilestone?.start_date ?? null
+    : project.start_date ?? null;
+  const effectiveEnd = milestoneIdParam
+    ? selectedMilestone?.end_date ?? null
+    : project.end_date ?? null;
+  const ragCfg = await db.get<Record<string, unknown>>(
+    'SELECT * FROM company_rag_config WHERE company_id = ?', project.company_id
+  ) ?? DEFAULT_RAG_CONFIG;
+  const { rag, spi: _spi, days_until_deadline } = calculateRAG({
+    current_phase: project.current_phase,
+    effective_start: effectiveStart,
+    effective_end: effectiveEnd,
+    completion_pct,
+    total_activities: total,
+    open_risks: openRisks.length,
+    open_issues: openIssues.length,
+    nowMs,
+    config: ragCfg as any,
+  });
 
   // Team members
   const teamRows = await db.all(
