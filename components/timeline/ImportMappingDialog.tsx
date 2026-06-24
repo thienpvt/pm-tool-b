@@ -29,6 +29,7 @@ export const ACTIVITY_FIELDS: { key: string; label: string; required?: boolean; 
   { key: 'delay_owner',    label: 'Delay Owner' },
   { key: 'delay_reason',   label: 'Delay Reason' },
   { key: 'notes',          label: 'Notes' },
+  { key: 'priority',        label: 'Priority' },
   { key: 'jira_key',       label: 'Jira Key' },
   { key: 'sprint',         label: 'Sprint' },
   { key: '_issue_type',    label: 'Issue Type (EPIC / Story)', virtual: true },
@@ -53,6 +54,7 @@ const FIELD_ALIASES: Record<string, string[]> = {
   delay_owner:    ['delay owner', 'owner delay', 'responsible for delay'],
   delay_reason:   ['delay reason', 'reason', 'ly do', 'cause'],
   notes:          ['notes', 'note', 'remark', 'ghi chu', 'comment', 'observation'],
+  priority:       ['priority', 'uu tien', 'muc do uu tien', 'severity', 'urgency'],
   jira_key:       ['key', 'jira key', 'issue key', 'ticket', 'ticket id'],
   sprint:         ['sprint', 'sprint name', 'iteration'],
   _issue_type:    ['issue type', 'issuetype', 'type', 'loai van de'],
@@ -93,7 +95,7 @@ const FIELD_GROUPS: { label: string; icon: React.ComponentType<{ className?: str
   { label: 'Thông tin cơ bản', icon: Info,          keys: ['no', 'phase', 'activity', 'deliverable', 'sign_off_doc'], color: 'blue'   },
   { label: 'Phân công',        icon: Users,          keys: ['accountable', 'responsible', 'support'],                  color: 'purple' },
   { label: 'Ngày tháng',       icon: Calendar,       keys: ['plan_start', 'plan_end', 'actual_start', 'actual_end'],   color: 'orange' },
-  { label: 'Tiến độ',          icon: BarChart2,      keys: ['status', 'completion_pct'],                               color: 'green'  },
+  { label: 'Tiến độ',          icon: BarChart2,      keys: ['status', 'completion_pct', 'priority'],                  color: 'green'  },
   { label: 'Vấn đề trễ',       icon: AlertTriangle,  keys: ['delay_owner', 'delay_reason'],                            color: 'red'    },
   { label: 'Ghi chú',          icon: FileText,       keys: ['notes'],                                                  color: 'gray'   },
   { label: 'Jira Integration', icon: Tag,            keys: ['jira_key', 'sprint', '_issue_type', '_parent'],           color: 'teal'   },
@@ -196,6 +198,22 @@ function fuzzyDelayOwner(raw: string): string {
   return DELAY_MAP[n] ?? DELAY_MAP[Object.keys(DELAY_MAP).find(k => n.startsWith(k) || k.startsWith(n)) ?? ''] ?? 'N/A';
 }
 
+const PRIORITY_IMPORT_MAP: Record<string, string> = {
+  blocker: 'Blocker', p0: 'Blocker', urgent: 'Blocker',
+  critical: 'Critical', highest: 'Critical',
+  major: 'Major', high: 'Major',
+  medium: 'Medium', normal: 'Medium', moderate: 'Medium',
+  minor: 'Minor', low: 'Minor', lowest: 'Minor',
+  trivial: 'Trivial', negligible: 'Trivial',
+};
+const PRIORITIES_IMPORT = ['Blocker', 'Critical', 'Major', 'Medium', 'Minor', 'Trivial'];
+function fuzzyPriority(raw: string): string {
+  if (!raw) return 'Medium';
+  if (PRIORITIES_IMPORT.includes(raw)) return raw;
+  const n = norm(raw);
+  return PRIORITY_IMPORT_MAP[n] ?? PRIORITY_IMPORT_MAP[Object.keys(PRIORITY_IMPORT_MAP).find(k => n.startsWith(k) || k.startsWith(n)) ?? ''] ?? 'Medium';
+}
+
 function resolveField(field: string, raw: string, statusOverrides?: Record<string, string>): string {
   switch (field) {
     case 'plan_start': case 'plan_end': case 'actual_start': case 'actual_end':
@@ -203,6 +221,7 @@ function resolveField(field: string, raw: string, statusOverrides?: Record<strin
     case 'status':
       return (statusOverrides?.[raw]) ?? fuzzyStatus(raw);
     case 'delay_owner': return fuzzyDelayOwner(raw);
+    case 'priority': return fuzzyPriority(raw);
     default: return raw;
   }
 }

@@ -20,6 +20,7 @@ type Activity = {
   delay_owner: string; delay_reason: string;
   jira_key: string; sprint: string; project_status: string;
   parent_id: number | null;
+  priority: string;
 };
 
 type TeamMember = { id: number; name: string; role: string; domain: string; };
@@ -33,6 +34,17 @@ type ContextMenuState = {
 
 const DEFAULT_PHASES = ['Initializing', 'Architecture & Design', 'Setup & Infra', 'Development', 'Testing', 'UAT', 'Deployment', 'Closing'];
 const DELAY_OWNERS = ['N/A', 'Client', 'Vendor', 'Both', 'External'];
+
+const PRIORITIES = ['Blocker', 'Critical', 'Major', 'Medium', 'Minor', 'Trivial'];
+
+const PRIORITY_COLOR: Record<string, string> = {
+  'Blocker':  'bg-purple-100 text-purple-700 border-purple-200',
+  'Critical': 'bg-red-100 text-red-700 border-red-200',
+  'Major':    'bg-orange-100 text-orange-700 border-orange-200',
+  'Medium':   'bg-yellow-100 text-yellow-700 border-yellow-200',
+  'Minor':    'bg-blue-100 text-blue-700 border-blue-200',
+  'Trivial':  'bg-slate-100 text-slate-500 border-slate-200',
+};
 
 const STATUSES = [
   'New', 'To Do', 'To-do', 'REFINEMENT',
@@ -325,9 +337,23 @@ function ActivityDetail({
             )}
             <span className="text-xs text-slate-400 shrink-0">{form.phase}</span>
           </div>
-          <h2 className="text-lg font-bold text-slate-800 leading-snug">
-            {form.activity || <span className="italic text-slate-400 font-normal">Untitled Activity</span>}
-          </h2>
+          <div className="flex items-start gap-3">
+            <h2 className="text-lg font-bold text-slate-800 leading-snug flex-1">
+              {form.activity || <span className="italic text-slate-400 font-normal">Untitled Activity</span>}
+            </h2>
+            <Select value={form.priority || 'Medium'} onValueChange={v => upd('priority', v ?? 'Medium')}>
+              <SelectTrigger className={`h-7 w-28 text-xs shrink-0 border font-semibold ${PRIORITY_COLOR[form.priority] ?? PRIORITY_COLOR['Medium']}`}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PRIORITIES.map(p => (
+                  <SelectItem key={p} value={p}>
+                    <span className={`px-1.5 py-0.5 rounded text-[11px] font-semibold border ${PRIORITY_COLOR[p] ?? ''}`}>{p}</span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
         <button onClick={onClose} className="shrink-0 p-1 rounded hover:bg-slate-200 text-slate-400 hover:text-slate-600 transition-colors">
           <X className="h-5 w-5" />
@@ -874,9 +900,12 @@ function RoadmapView({
                                   {a.activity || '—'}
                                 </p>
                               </div>
-                              {/* Line 2: status + mini progress (epics) + collapsed count */}
+                              {/* Line 2: status + priority + mini progress (epics) + collapsed count */}
                               <div className="flex items-center gap-1 mt-0.5 min-w-0">
                                 <span className={`text-[9px] px-1 py-px rounded font-bold shrink-0 ${STATUS_COLOR[a.status] ?? 'bg-slate-100 text-slate-500'}`}>{a.status}</span>
+                                {a.priority && a.priority !== 'Medium' && (
+                                  <span className={`text-[8px] px-1 py-px rounded font-bold shrink-0 border ${PRIORITY_COLOR[a.priority] ?? 'bg-slate-100 text-slate-400 border-slate-200'}`}>{a.priority}</span>
+                                )}
                                 {overdue && <span className="text-[9px] font-bold text-red-500 shrink-0">+{lag}d</span>}
                                 {isEpicCollapsed && kids.length > 0 && (
                                   <span className="text-[9px] text-slate-400 shrink-0">({kids.length})</span>
@@ -1407,16 +1436,23 @@ export default function TimelinePage() {
                   />
                 ) : (
                   <div className="min-h-[28px] py-0.5">
-                    <button
-                      onClick={e => { e.stopPropagation(); setDetailActivity(row); }}
-                      className="text-left inline group/detail"
-                    >
-                      <span className={`text-xs font-medium leading-snug transition-colors
-                        group-hover/detail:text-blue-600 group-hover/detail:underline
-                        ${isChild ? 'text-slate-600' : 'text-slate-700'}`}>
-                        {row.activity || <span className="italic text-slate-400 no-underline">New Activity</span>}
-                      </span>
-                    </button>
+                    <div className="flex items-start justify-between gap-1">
+                      <button
+                        onClick={e => { e.stopPropagation(); setDetailActivity(row); }}
+                        className="text-left inline group/detail flex-1 min-w-0"
+                      >
+                        <span className={`text-xs font-medium leading-snug transition-colors
+                          group-hover/detail:text-blue-600 group-hover/detail:underline
+                          ${isChild ? 'text-slate-600' : 'text-slate-700'}`}>
+                          {row.activity || <span className="italic text-slate-400 no-underline">New Activity</span>}
+                        </span>
+                      </button>
+                      {row.priority && row.priority !== 'Medium' && (
+                        <span className={`shrink-0 text-[9px] px-1.5 py-px rounded font-bold border ${PRIORITY_COLOR[row.priority] ?? 'bg-slate-100 text-slate-400 border-slate-200'}`}>
+                          {row.priority}
+                        </span>
+                      )}
+                    </div>
                     {row.project_status && (
                       <span className="flex items-center gap-0.5 text-[9px] px-1.5 py-px rounded-full bg-indigo-50 border border-indigo-100 text-indigo-600 font-medium mt-0.5 w-fit">
                         <Tag className="h-2 w-2 shrink-0" />{row.project_status}

@@ -9,6 +9,7 @@ type ActivityInput = {
   plan_start?: string; plan_end?: string; actual_start?: string; actual_end?: string;
   status?: string; completion_pct?: number; notes?: string;
   delay_owner?: string; delay_reason?: string; jira_key?: string; sprint?: string;
+  priority?: string;
   parent_jira_key?: string; // jira key of parent Epic (Jira mode)
 };
 
@@ -55,7 +56,7 @@ export async function POST(req: NextRequest, { params }: Params) {
             accountable = ?, responsible = ?, support = ?,
             plan_start = ?, plan_end = ?, actual_start = ?, actual_end = ?,
             status = ?, completion_pct = ?, notes = ?,
-            delay_owner = ?, delay_reason = ?, sprint = ?, parent_id = ?
+            delay_owner = ?, delay_reason = ?, sprint = ?, parent_id = ?, priority = ?
           WHERE id = ? AND project_id = ?`,
           act.phase ?? 'General', act.no ?? '', act.activity,
           act.deliverable ?? '', act.sign_off_doc ?? '',
@@ -64,7 +65,7 @@ export async function POST(req: NextRequest, { params }: Params) {
           act.actual_start ?? '', act.actual_end ?? '',
           act.status ?? 'To-do', act.completion_pct ?? 0, act.notes ?? '',
           act.delay_owner ?? 'N/A', act.delay_reason ?? '', act.sprint ?? '',
-          parentId,
+          parentId, act.priority ?? 'Medium',
           existingId, id,
         );
         updated++;
@@ -76,8 +77,8 @@ export async function POST(req: NextRequest, { params }: Params) {
              accountable, responsible, support,
              plan_start, plan_end, actual_start, actual_end,
              status, completion_pct, notes, order_idx,
-             delay_owner, delay_reason, jira_key, sprint, parent_id)
-           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+             delay_owner, delay_reason, jira_key, sprint, parent_id, priority)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
           id, act.phase ?? 'General', act.no ?? '', act.activity,
           act.deliverable ?? '', act.sign_off_doc ?? '',
           act.accountable ?? '', act.responsible ?? '', act.support ?? '',
@@ -85,7 +86,7 @@ export async function POST(req: NextRequest, { params }: Params) {
           act.actual_start ?? '', act.actual_end ?? '',
           act.status ?? 'To-do', act.completion_pct ?? 0, act.notes ?? '',
           maxOrder, act.delay_owner ?? 'N/A', act.delay_reason ?? '',
-          key, act.sprint ?? '', parentId,
+          key, act.sprint ?? '', parentId, act.priority ?? 'Medium',
         );
         inserted++;
         // Track newly inserted key so children later in this batch can resolve parent_id

@@ -19,9 +19,9 @@ export async function POST(req: NextRequest, { params }: Params) {
   const project = await db.get('SELECT status FROM projects WHERE id = ?', id) as { status: string } | undefined;
   const projectStatus = body.project_status ?? project?.status ?? '';
   const r = await db.run(`
-    INSERT INTO activities (project_id, phase, no, activity, deliverable, sign_off_doc, accountable, responsible, support, plan_start, plan_end, actual_start, actual_end, status, completion_pct, notes, order_idx, delay_owner, delay_reason, jira_key, sprint, project_status, parent_id)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-  `, id, body.phase ?? 'General', body.no ?? '', body.activity ?? '', body.deliverable ?? '', body.sign_off_doc ?? '', body.accountable ?? '', body.responsible ?? '', body.support ?? '', body.plan_start ?? '', body.plan_end ?? '', body.actual_start ?? '', body.actual_end ?? '', body.status ?? 'To-do', body.completion_pct ?? 0, body.notes ?? '', maxOrder + 1, body.delay_owner ?? 'N/A', body.delay_reason ?? '', body.jira_key ?? '', body.sprint ?? '', projectStatus, body.parent_id ?? null);
+    INSERT INTO activities (project_id, phase, no, activity, deliverable, sign_off_doc, accountable, responsible, support, plan_start, plan_end, actual_start, actual_end, status, completion_pct, notes, order_idx, delay_owner, delay_reason, jira_key, sprint, project_status, parent_id, priority)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+  `, id, body.phase ?? 'General', body.no ?? '', body.activity ?? '', body.deliverable ?? '', body.sign_off_doc ?? '', body.accountable ?? '', body.responsible ?? '', body.support ?? '', body.plan_start ?? '', body.plan_end ?? '', body.actual_start ?? '', body.actual_end ?? '', body.status ?? 'To-do', body.completion_pct ?? 0, body.notes ?? '', maxOrder + 1, body.delay_owner ?? 'N/A', body.delay_reason ?? '', body.jira_key ?? '', body.sprint ?? '', projectStatus, body.parent_id ?? null, body.priority ?? 'Medium');
   return NextResponse.json(await db.get('SELECT * FROM activities WHERE id = ?', r.lastInsertRowid), { status: 201 });
 }
 

@@ -143,7 +143,8 @@ async function initPostgresSchema(db: DbClient) {
       delay_owner TEXT DEFAULT 'N/A',
       delay_reason TEXT DEFAULT '',
       jira_key TEXT DEFAULT '',
-      sprint TEXT DEFAULT ''
+      sprint TEXT DEFAULT '',
+      priority TEXT DEFAULT 'Medium'
     );
     CREATE TABLE IF NOT EXISTS team_members (
       id SERIAL PRIMARY KEY,
@@ -463,6 +464,7 @@ async function migratePostgresSchema(pool: Pool) {
     `ALTER TABLE team_members ADD COLUMN IF NOT EXISTS email TEXT DEFAULT ''`,
     `CREATE TABLE IF NOT EXISTS jira_sync_mappings (id SERIAL PRIMARY KEY, mappings_json TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
     `ALTER TABLE jira_jql_presets ADD COLUMN IF NOT EXISTS context TEXT DEFAULT ''`,
+    `ALTER TABLE activities ADD COLUMN IF NOT EXISTS priority TEXT DEFAULT 'Medium'`,
     // Fix existing Jira-imported activities: set parent_id for children whose phase matches an Epic's phase.
     // Only runs when there is exactly one Epic in the phase (safe, idempotent — parent_id IS NULL guard).
     `UPDATE activities a
