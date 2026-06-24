@@ -758,7 +758,7 @@ export default function JiraSyncDialog({
                           </div>
                           <Select
                             value={currentCol}
-                            onValueChange={(val: string) => setJiraFieldMapping(m => ({ ...m, [field.key]: val }))}
+                            onValueChange={(val: string | null) => setJiraFieldMapping(m => ({ ...m, [field.key]: val ?? SKIP }))}
                           >
                             <SelectTrigger className={`h-7 text-xs w-full ${
                               isMapped ? 'border-green-300 bg-white text-green-800 font-medium' : 'text-slate-400'
