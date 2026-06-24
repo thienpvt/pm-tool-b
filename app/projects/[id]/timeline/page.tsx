@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Plus, Trash2, Save, Download, Upload, FileDown, AlertCircle, GanttChart, LayoutList, CalendarX2, ChevronDown, ChevronRight, ChevronsUpDown, X, Tag, Copy, Eye, FolderPlus, RefreshCw } from 'lucide-react';
+import { Plus, Trash2, Save, Download, Upload, FileDown, AlertCircle, GanttChart, LayoutList, CalendarX2, ChevronDown, ChevronRight, ChevronsUpDown, X, Tag, Copy, Eye, FolderPlus, RefreshCw, Filter } from 'lucide-react';
 import ImportMappingDialog from '@/components/timeline/ImportMappingDialog';
 import JiraSyncDialog from '@/components/jira/JiraSyncDialog';
 import { statusPct, weightedProgress } from '@/lib/status-weights';
@@ -1000,6 +1000,11 @@ export default function TimelinePage() {
   const [dateMode, setDateMode] = useState<DateMode>('both');
   const roadmapRef = useRef<HTMLDivElement>(null);
 
+  // Status multi-filter
+  const [filterStatuses, setFilterStatuses] = useState<Set<string>>(new Set());
+  const [statusFilterOpen, setStatusFilterOpen] = useState(false);
+  const statusFilterRef = useRef<HTMLDivElement>(null);
+
   // Roadmap navigation state
   const [collapsedPhases, setCollapsedPhases] = useState<Set<string>>(new Set());
   const [roadmapYear,   setRoadmapYear]   = useState<number | null>(null);
@@ -1036,6 +1041,17 @@ export default function TimelinePage() {
       document.removeEventListener('contextmenu', handler);
     };
   }, [contextMenu]);
+
+  // Close status filter on outside click
+  useEffect(() => {
+    if (!statusFilterOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (statusFilterRef.current && !statusFilterRef.current.contains(e.target as Node))
+        setStatusFilterOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [statusFilterOpen]);
 
   const getDateWarn = useCallback((dateStr: string | null | undefined): string | null => {
     if (!dateStr) return null;
@@ -1147,10 +1163,9 @@ export default function TimelinePage() {
   };
 
   const handleExport = () => {
-    const list = filterPhase === 'All' ? activities : activities.filter(a => a.phase === filterPhase);
-    if (!list.length) { toast.error('No activities to export'); return; }
-    downloadCSV(activitiesToCSV(list), 'project-timeline.csv');
-    toast.success(`Exported ${list.length} activities`);
+    if (!filteredActivities.length) { toast.error('No activities to export'); return; }
+    downloadCSV(activitiesToCSV(filteredActivities), 'project-timeline.csv');
+    toast.success(`Exported ${filteredActivities.length} activities`);
   };
 
   const handleDownloadTemplate = () => {
@@ -1214,7 +1229,18 @@ export default function TimelinePage() {
   }, [id, activities, generateKey, project]);
 
   // ─── Phase groups (used by both table and roadmap) ────────────────────────
-  const filteredActivities = filterPhase === 'All' ? activities : activities.filter(a => a.phase === filterPhase);
+  const filteredActivities = useMemo(() => {
+    let list = filterPhase === 'All' ? activities : activities.filter(a => a.phase === filterPhase);
+    if (filterStatuses.size > 0) list = list.filter(a => filterStatuses.has(a.status));
+    return list;
+  }, [activities, filterPhase, filterStatuses]);
+
+  const availableStatuses = useMemo(() => {
+    const base = filterPhase === 'All' ? activities : activities.filter(a => a.phase === filterPhase);
+    const seen = new Set<string>();
+    for (const a of base) if (a.status) seen.add(a.status);
+    return STATUSES.filter(s => seen.has(s));
+  }, [activities, filterPhase]);
 
   const phaseGroups = useMemo((): { phase: string; acts: Activity[] }[] => {
     const seenPhases = new Set<string>();
@@ -1273,7 +1299,7 @@ export default function TimelinePage() {
     }
   }, [activities.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => { setCurrentPage(1); }, [filterPhase, rowsPerPage]);
+  useEffect(() => { setCurrentPage(1); }, [filterPhase, filterStatuses, rowsPerPage]);
 
   // ─── Children lookup map ──────────────────────────────────────────────────
   const childrenByParent = useMemo(() => {
@@ -1476,7 +1502,7 @@ export default function TimelinePage() {
               </button>
             </div>
 
-            <Select value={filterPhase} onValueChange={v => setFilterPhase(v ?? 'All')}>
+            <Select value={filterPhase} onValueChange={v => { setFilterPhase(v ?? 'All'); setFilterStatuses(new Set()); }}>
               <SelectTrigger className="w-44 h-9"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="All">All Phases</SelectItem>
@@ -1485,6 +1511,54 @@ export default function TimelinePage() {
                 ))}
               </SelectContent>
             </Select>
+
+            {/* Multi-select status filter */}
+            <div className="relative" ref={statusFilterRef}>
+              <button
+                onClick={() => setStatusFilterOpen(o => !o)}
+                className={`flex items-center gap-1.5 h-9 px-3 text-xs font-medium border rounded-lg transition-colors
+                  ${filterStatuses.size > 0
+                    ? 'border-blue-400 bg-blue-50 text-blue-700'
+                    : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}
+              >
+                <Filter className="h-3.5 w-3.5" />
+                {filterStatuses.size > 0 ? `Status (${filterStatuses.size})` : 'Status'}
+                <ChevronDown className="h-3 w-3 opacity-60" />
+              </button>
+              {statusFilterOpen && (
+                <div className="absolute left-0 top-full mt-1 z-50 bg-white border border-slate-200 rounded-xl shadow-xl py-2 min-w-[200px]">
+                  <div className="flex items-center justify-between px-3 pb-2 border-b border-slate-100 mb-1">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Filter by Status</span>
+                    {filterStatuses.size > 0 && (
+                      <button
+                        onClick={() => setFilterStatuses(new Set())}
+                        className="text-[10px] text-blue-600 hover:underline font-medium"
+                      >Clear all</button>
+                    )}
+                  </div>
+                  <div className="max-h-64 overflow-y-auto">
+                    {availableStatuses.length === 0
+                      ? <p className="text-xs text-slate-400 text-center py-4 px-3">No statuses in current view</p>
+                      : availableStatuses.map(s => (
+                        <label key={s} className="flex items-center gap-2.5 px-3 py-1.5 cursor-pointer hover:bg-slate-50 transition-colors">
+                          <input
+                            type="checkbox"
+                            checked={filterStatuses.has(s)}
+                            onChange={() => setFilterStatuses(prev => {
+                              const next = new Set(prev);
+                              if (next.has(s)) next.delete(s); else next.add(s);
+                              return next;
+                            })}
+                            className="w-3.5 h-3.5 rounded accent-blue-600 shrink-0"
+                          />
+                          <span className={`text-[11px] px-1.5 py-px rounded font-semibold ${STATUS_COLOR[s] ?? 'bg-slate-100 text-slate-500'}`}>{s}</span>
+                        </label>
+                      ))
+                    }
+                  </div>
+                </div>
+              )}
+            </div>
 
             <Button variant="outline" size="sm" onClick={() => setJiraSyncOpen(true)} className="gap-1.5 h-9">
               <RefreshCw className="h-3.5 w-3.5" /> Sync Jira
