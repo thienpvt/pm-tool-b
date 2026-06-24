@@ -40,7 +40,8 @@ type ProjectReportData = {
     total: number; currentMonth: string; fullTime: number; partTime: number;
     overloaded: { name: string; domain: string; role: string; capacity: number }[];
     byDomain: { domain: string; members: { name: string; role: string; capacity: number }[] }[];
-    allocationList: { name: string; role: string; domain: string; avgCapacity: number }[];
+    taskAllocation: { name: string; count: number; pct: number; role: string; domain: string }[];
+    totalPeriodTasks: number;
   } | null;
 };
 type SavedPrompt = { id: string; name: string; text: string };
@@ -415,55 +416,31 @@ function buildProjectHtmlReport(data: ProjectReportData, language: string, compa
     ${teamStats ? `
     <div class="card" style="margin-bottom:28px;">
       <div class="sec-h">${isVN ? 'Nguồn lực dự án' : 'Project Resources'}</div>
-      <div style="font-size:11px;color:#94A3B8;margin-bottom:12px;">${isVN ? `Kỳ báo cáo: ${fmtDate(periodStart)} → ${fmtDate(periodEnd)}` : `Period: ${fmtDate(periodStart)} → ${fmtDate(periodEnd)}`}</div>
+      <div style="font-size:11px;color:#94A3B8;margin-bottom:14px;">${isVN ? `Kỳ báo cáo: ${fmtDate(periodStart)} → ${fmtDate(periodEnd)} · Tổng: ${teamStats.totalPeriodTasks} task` : `Period: ${fmtDate(periodStart)} → ${fmtDate(periodEnd)} · Total: ${teamStats.totalPeriodTasks} tasks`}</div>
 
-      <!-- KPI row -->
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:18px;">
-        <div style="background:#EFF6FF;border-radius:8px;padding:10px;text-align:center;">
-          <div style="font-size:22px;font-weight:700;color:#2563EB;line-height:1;">${teamStats.total}</div>
-          <div style="font-size:10px;color:#6B7280;margin-top:3px;">${isVN ? 'Tổng thành viên' : 'Total Members'}</div>
-        </div>
-        <div style="background:#F0FDF4;border-radius:8px;padding:10px;text-align:center;">
-          <div style="font-size:22px;font-weight:700;color:#16A34A;line-height:1;">${teamStats.fullTime}</div>
-          <div style="font-size:10px;color:#6B7280;margin-top:3px;">Full-time ≥80%</div>
-        </div>
-        <div style="background:${teamStats.overloaded.length > 0 ? '#FEF2F2' : '#F0FDF4'};border-radius:8px;padding:10px;text-align:center;">
-          <div style="font-size:22px;font-weight:700;color:${teamStats.overloaded.length > 0 ? '#DC2626' : '#16A34A'};line-height:1;">${teamStats.overloaded.length}</div>
-          <div style="font-size:10px;color:#6B7280;margin-top:3px;">${isVN ? 'Quá tải >100%' : 'Overloaded >100%'}</div>
-        </div>
-      </div>
-
-      <!-- Sorted allocation list -->
-      <div style="font-size:10px;font-weight:600;color:#64748B;text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px;">${isVN ? 'Phân bổ công việc (trung bình kỳ báo cáo)' : 'Work allocation (avg. over period)'}</div>
-      ${(teamStats.allocationList ?? []).length > 0 ? `
+      <!-- Task allocation list: sorted most → least -->
+      ${teamStats.taskAllocation.length > 0 ? `
       <div>
-        ${(teamStats.allocationList ?? []).map((m, i) => {
-          const capPct = Math.round(m.avgCapacity * 100);
-          const capColor = m.avgCapacity > 1.0 ? '#DC2626' : m.avgCapacity >= 0.8 ? '#16A34A' : m.avgCapacity > 0 ? '#D97706' : '#9CA3AF';
-          const barW = Math.min(100, capPct);
+        ${teamStats.taskAllocation.map((m, i) => {
+          const barW = Math.min(100, m.pct);
+          const barColor = m.pct >= 30 ? '#3B82F6' : m.pct >= 15 ? '#8B5CF6' : '#94A3B8';
           return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #F3F4F6;">
             <span style="font-size:10px;color:#9CA3AF;min-width:18px;text-align:right;flex-shrink:0;">${i + 1}.</span>
             <div style="flex:1;min-width:0;">
               <div style="font-size:12px;font-weight:500;color:#111827;">${m.name}</div>
-              <div style="font-size:10px;color:#6B7280;">${m.role}${m.domain && m.domain !== 'General' ? ' · ' + m.domain : ''}</div>
+              <div style="font-size:10px;color:#6B7280;">${m.role !== '—' ? m.role : ''}${m.role !== '—' && m.domain !== '—' && m.domain !== 'General' ? ' · ' + m.domain : (m.domain !== '—' && m.domain !== 'General' ? m.domain : '')}</div>
             </div>
-            <div style="display:flex;align-items:center;gap:8px;min-width:150px;flex-shrink:0;">
+            <div style="display:flex;align-items:center;gap:8px;min-width:160px;flex-shrink:0;">
               <div style="flex:1;background:#E5E7EB;border-radius:3px;height:5px;overflow:hidden;">
-                <div style="width:${barW}%;height:100%;background:${capColor};border-radius:3px;"></div>
+                <div style="width:${barW}%;height:100%;background:${barColor};border-radius:3px;"></div>
               </div>
-              <span style="background:${capColor}22;color:${capColor};border-radius:4px;padding:2px 8px;font-size:11px;font-weight:600;min-width:36px;text-align:center;">${capPct > 0 ? capPct + '%' : '—'}</span>
+              <span style="color:#374151;font-size:11px;font-weight:600;min-width:24px;text-align:right;">${m.count}</span>
+              <span style="background:${barColor}20;color:${barColor};border-radius:4px;padding:2px 7px;font-size:10px;font-weight:600;min-width:38px;text-align:center;">${m.pct}%</span>
             </div>
           </div>`;
         }).join('')}
       </div>
-      ` : `<p style="font-size:12px;color:#94A3B8;">${isVN ? 'Không có dữ liệu nhân sự.' : 'No team member data.'}</p>`}
-
-      ${teamStats.overloaded.length > 0 ? `
-      <div style="margin-top:10px;padding:8px 12px;background:#FEF2F2;border-radius:6px;font-size:11px;color:#DC2626;">
-        [!] ${isVN
-          ? `${teamStats.overloaded.length} thành viên đang bị quá tải trong kỳ — cần rà soát phân bổ để đảm bảo chất lượng và tiến độ.`
-          : `${teamStats.overloaded.length} team member(s) overloaded this period — review allocations to protect delivery quality.`}
-      </div>` : ''}
+      ` : `<p style="font-size:12px;color:#94A3B8;">${isVN ? 'Không có dữ liệu phân bổ (chưa điền Người phụ trách trong timeline).' : 'No allocation data — fill in Accountable in timeline activities.'}</p>`}
     </div>
     ` : ''}
 

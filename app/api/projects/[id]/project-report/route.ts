@@ -4,18 +4,6 @@ import Anthropic from '@anthropic-ai/sdk';
 
 type Params = { params: Promise<{ id: string }> };
 
-function getMonthsInRange(start: string, end: string): string[] {
-  const months: string[] = [];
-  const s = new Date((start || '').slice(0, 7) + '-01T00:00:00');
-  const e = new Date((end || '').slice(0, 7) + '-01T00:00:00');
-  if (isNaN(s.getTime()) || isNaN(e.getTime())) return [];
-  while (s <= e) {
-    months.push(s.toISOString().slice(0, 7));
-    s.setMonth(s.getMonth() + 1);
-  }
-  return months;
-}
-
 const STATUS_WEIGHTS: Record<string, number> = {
   'ANBM': 1, 'STAGING-READY4TEST': 0.6, 'Deployed': 1, 'Done': 1,
   'In Dev': 0.2, 'In development': 0.2, 'In Progress': 0.3, 'In Review': 0.5,
@@ -76,7 +64,7 @@ export async function GET(req: NextRequest, { params }: Params) {
   // All activities for this project
   const allActivities = await db.all(
     `SELECT id, activity, deliverable, status, phase, plan_start, plan_end,
-            actual_start, actual_end, no, parent_id
+            actual_start, actual_end, no, parent_id, accountable
      FROM activities WHERE project_id = ? ORDER BY plan_start, id`,
     id
   ) as any[];
@@ -207,32 +195,52 @@ export async function GET(req: NextRequest, { params }: Params) {
     }
   }
 
-  // Team members with current-month capacity
+  // Team members
   const teamRows = await db.all(
     'SELECT id, domain, role, name, capacity_json FROM team_members WHERE project_id = ? ORDER BY domain, name',
     id
   ) as { id: number; domain: string; role: string; name: string; capacity_json: string }[];
 
-  // Use milestone end month for capacity if in milestone mode, otherwise current month
   const currentMonth = (milestoneIdParam ? endParam : todayStr).slice(0, 7);
-  const periodMonths = getMonthsInRange(startParam, endParam);
-
-  type TM = { name: string; domain: string; role: string; capacity: number; avgCapacity: number };
+  type TM = { name: string; domain: string; role: string; capacity: number };
   const teamData: TM[] = teamRows.map(m => {
     let cap = 0;
-    let avgCap = 0;
-    try {
-      const c = JSON.parse(m.capacity_json || '{}');
-      cap = parseFloat(c[currentMonth] ?? 0) || 0;
-      if (periodMonths.length > 0) {
-        const periodCaps = periodMonths.map(mo => parseFloat(c[mo] ?? 0) || 0);
-        avgCap = periodCaps.reduce((a, b) => a + b, 0) / periodCaps.length;
-      } else {
-        avgCap = cap;
-      }
-    } catch {}
-    return { name: m.name || '—', domain: m.domain || 'General', role: m.role || '—', capacity: cap, avgCapacity: avgCap };
+    try { const c = JSON.parse(m.capacity_json || '{}'); cap = parseFloat(c[currentMonth] ?? 0) || 0; } catch {}
+    return { name: m.name || '—', domain: m.domain || 'General', role: m.role || '—', capacity: cap };
   });
+
+  // Task allocation by accountable person (child activities only = no EPIC rows)
+  // Scope: milestone activities if milestone mode; else activities overlapping the date range
+  const periodTaskActivities = milestoneActivityIds !== null
+    ? nonEpic
+    : nonEpic.filter(a => {
+        const ps = a.plan_start ?? a.actual_start ?? '';
+        const pe = a.plan_end ?? a.actual_end ?? '';
+        if (!ps && !pe) return true;
+        return (!ps || ps <= endParam) && (!pe || pe >= startParam);
+      });
+
+  const taskCountByName: Record<string, number> = {};
+  for (const a of periodTaskActivities) {
+    const name = (a.accountable ?? '').trim();
+    if (name) taskCountByName[name] = (taskCountByName[name] ?? 0) + 1;
+  }
+  const totalPeriodTasks = periodTaskActivities.length;
+
+  const tmNameMap: Record<string, { role: string; domain: string }> = {};
+  for (const m of teamRows) {
+    if (m.name?.trim()) tmNameMap[m.name.trim()] = { role: m.role || '—', domain: m.domain || '—' };
+  }
+
+  const taskAllocation = Object.entries(taskCountByName)
+    .map(([name, count]) => ({
+      name,
+      count,
+      pct: totalPeriodTasks > 0 ? Math.round((count / totalPeriodTasks) * 100) : 0,
+      role: tmNameMap[name]?.role ?? '—',
+      domain: tmNameMap[name]?.domain ?? '—',
+    }))
+    .sort((a, b) => b.count - a.count);
 
   const domainMap: Record<string, TM[]> = {};
   for (const m of teamData) {
@@ -240,18 +248,15 @@ export async function GET(req: NextRequest, { params }: Params) {
     domainMap[m.domain].push(m);
   }
 
-  const allocationList = [...teamData]
-    .sort((a, b) => b.avgCapacity - a.avgCapacity)
-    .map(m => ({ name: m.name, role: m.role, domain: m.domain, avgCapacity: m.avgCapacity }));
-
-  const teamStats = teamData.length > 0 ? {
+  const teamStats = (teamData.length > 0 || taskAllocation.length > 0) ? {
     total: teamData.length,
     currentMonth,
-    fullTime: teamData.filter(m => m.avgCapacity >= 0.8).length,
-    partTime: teamData.filter(m => m.avgCapacity > 0 && m.avgCapacity < 0.8).length,
-    overloaded: teamData.filter(m => m.avgCapacity > 1.0).map(m => ({ name: m.name, domain: m.domain, role: m.role, capacity: m.avgCapacity })),
+    fullTime: teamData.filter(m => m.capacity >= 0.8).length,
+    partTime: teamData.filter(m => m.capacity > 0 && m.capacity < 0.8).length,
+    overloaded: teamData.filter(m => m.capacity > 1.0),
     byDomain: Object.entries(domainMap).map(([domain, members]) => ({ domain, members })),
-    allocationList,
+    taskAllocation,
+    totalPeriodTasks,
   } : null;
 
   return NextResponse.json({
