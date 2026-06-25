@@ -16,6 +16,7 @@ import {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Milestone = { id: number; name: string; start_date: string; end_date: string };
+type MilestoneStat = { id: number; name: string; start_date: string | null; end_date: string | null; total: number; done: number; pct: number };
 type EpicStat = { phase: string; total: number; done: number; pct: number; plan_start?: string | null; plan_end?: string | null };
 type RiskIssue = { id: number; description: string; priority: string; status: string; mitigation?: string; owner?: string };
 type ActivityRow = { id: number; activity: string; deliverable?: string; plan_end?: string; actual_end?: string; status: string };
@@ -43,6 +44,7 @@ type ProjectReportData = {
     taskAllocation: { name: string; count: number; pct: number; role: string; domain: string }[];
     totalPeriodTasks: number;
   } | null;
+  milestoneStats?: MilestoneStat[];
 };
 type SavedPrompt = { id: string; name: string; text: string };
 const SAVED_PROMPTS_KEY = 'project_report_saved_prompts';
@@ -178,7 +180,7 @@ function svgDonut(segs: {val:number,color:string}[], size=140, r=58, inner=36, c
 // ─── HTML Report Builder ──────────────────────────────────────────────────────
 function buildProjectHtmlReport(data: ProjectReportData, language: string, companyName = ''): string {
   const isVN = language === 'Vietnamese';
-  const { project, stats, epicStats, completedInPeriod, upcomingActivities, openRisks, openIssues, bugStats, periodStart, periodEnd, teamStats } = data;
+  const { project, stats, epicStats, completedInPeriod, upcomingActivities, openRisks, openIssues, bugStats, periodStart, periodEnd, teamStats, milestoneStats, selectedMilestone } = data;
   const today = new Date().toLocaleDateString(isVN ? 'vi-VN' : 'en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
   const rag = project.rag;
   const ragColor = rag === 'red' ? '#DC2626' : rag === 'amber' ? '#D97706' : '#16A34A';
@@ -554,6 +556,44 @@ function buildProjectHtmlReport(data: ProjectReportData, language: string, compa
         </div>
       </div>
     </div>
+
+    <!-- Milestone overview — date range mode only -->
+    ${!selectedMilestone && milestoneStats && milestoneStats.length > 0 ? `
+    <div class="card" style="margin-bottom:28px;">
+      <div class="sec-h">${isVN ? 'Tổng quan Milestone' : 'Milestone Overview'}</div>
+      <table style="width:100%;border-collapse:collapse;font-size:12px;">
+        <thead>
+          <tr style="background:#F8FAFC;">
+            <th style="text-align:left;padding:8px 10px;font-weight:600;color:#374151;border-bottom:2px solid #E2E8F0;">${isVN?'Milestone':'Milestone'}</th>
+            <th style="text-align:center;padding:8px 10px;font-weight:600;color:#374151;border-bottom:2px solid #E2E8F0;white-space:nowrap;">${isVN?'Bắt đầu':'Start'}</th>
+            <th style="text-align:center;padding:8px 10px;font-weight:600;color:#374151;border-bottom:2px solid #E2E8F0;white-space:nowrap;">${isVN?'Kết thúc':'End'}</th>
+            <th style="text-align:right;padding:8px 10px;font-weight:600;color:#374151;border-bottom:2px solid #E2E8F0;">${isVN?'Xong':'Done'}</th>
+            <th style="text-align:right;padding:8px 10px;font-weight:600;color:#374151;border-bottom:2px solid #E2E8F0;">${isVN?'Tổng':'Total'}</th>
+            <th style="text-align:left;padding:8px 10px;font-weight:600;color:#374151;border-bottom:2px solid #E2E8F0;width:35%;">${isVN?'Tiến độ':'Progress'}</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${milestoneStats.map(ms => {
+            const barColor = ms.pct >= 80 ? '#16A34A' : ms.pct >= 40 ? '#3B82F6' : '#F97316';
+            const today2 = new Date().toISOString().slice(0, 10);
+            const isOverdue = ms.end_date && ms.end_date < today2 && ms.pct < 100;
+            return `<tr style="border-bottom:1px solid #F1F5F9;">
+              <td style="padding:8px 10px;color:#1E293B;font-weight:500;">${ms.name}${isOverdue ? ` <span style="background:#FEF2F2;color:#DC2626;font-size:9px;padding:1px 5px;border-radius:3px;font-weight:600;">OVERDUE</span>` : ''}</td>
+              <td style="padding:8px 10px;text-align:center;color:#64748B;font-size:11px;white-space:nowrap;">${fmtDate(ms.start_date)}</td>
+              <td style="padding:8px 10px;text-align:center;color:#64748B;font-size:11px;white-space:nowrap;">${fmtDate(ms.end_date)}</td>
+              <td style="padding:8px 10px;text-align:right;color:#374151;">${ms.done}</td>
+              <td style="padding:8px 10px;text-align:right;color:#374151;">${ms.total}</td>
+              <td style="padding:8px 10px;">
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <div class="prog-bar-bg" style="flex:1;"><div class="prog-bar-fill" style="width:${ms.pct}%;background:${barColor};"></div></div>
+                  <span style="font-size:11px;font-weight:600;color:${barColor};min-width:32px;">${ms.pct}%</span>
+                </div>
+              </td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>` : ''}
 
     <!-- Footer -->
     <div style="margin-top:20px;padding-top:14px;border-top:1px solid #E5E7EB;display:flex;justify-content:space-between;align-items:center;font-size:10px;color:#94A3B8;">

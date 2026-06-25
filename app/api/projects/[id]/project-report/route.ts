@@ -82,6 +82,12 @@ export async function GET(req: NextRequest, { params }: Params) {
     if (a.no === 'EPIC') epicById[a.id] = { name: a.activity || a.phase || `Epic ${a.id}` };
   }
 
+  // Parent date map: for activities without own dates, fall back to parent's plan dates
+  const parentDateMap: Record<number, { plan_start: string | null; plan_end: string | null }> = {};
+  for (const a of allActivities) {
+    if (a.no === 'EPIC') parentDateMap[a.id] = { plan_start: a.plan_start ?? null, plan_end: a.plan_end ?? null };
+  }
+
   const nonEpic = scopedActivities.filter(a => a.no !== 'EPIC');
 
   // Overall stats
@@ -121,12 +127,21 @@ export async function GET(req: NextRequest, { params }: Params) {
     plan_end: v.pe,
   })).sort((a, b) => a.phase.localeCompare(b.phase));
 
-  // Completed in period
+  // Completed in period (date range = report period label, not an activity filter)
+  // Priority: own actual/plan end → parent plan end/start → no date (excluded from section, still in overall %)
   const completedInPeriod = nonEpic.filter(a => {
     if (statusWeight(a.status) < 1) return false;
     const ae = a.actual_end ?? a.plan_end;
-    if (!ae) return false;
-    return ae >= startParam && ae <= endParam;
+    if (ae) return ae >= startParam && ae <= endParam;
+    // Fallback: parent dates
+    if (a.parent_id != null) {
+      const pd = parentDateMap[a.parent_id];
+      if (pd) {
+        const pDate = pd.plan_end ?? pd.plan_start;
+        if (pDate) return pDate >= startParam && pDate <= endParam;
+      }
+    }
+    return false;
   });
 
   // Upcoming (not done, plan_end in next 30 days from today)
@@ -216,16 +231,9 @@ export async function GET(req: NextRequest, { params }: Params) {
     return { name: m.name || '—', domain: m.domain || 'General', role: m.role || '—', capacity: cap };
   });
 
-  // Task allocation by accountable person (child activities only = no EPIC rows)
-  // Scope: milestone activities if milestone mode; else activities overlapping the date range
-  const periodTaskActivities = milestoneActivityIds !== null
-    ? nonEpic
-    : nonEpic.filter(a => {
-        const ps = a.plan_start ?? a.actual_start ?? '';
-        const pe = a.plan_end ?? a.actual_end ?? '';
-        if (!ps && !pe) return true;
-        return (!ps || ps <= endParam) && (!pe || pe >= startParam);
-      });
+  // Task allocation: count ALL child activities (date range = report label, not a filter)
+  // In milestone mode: nonEpic is already scoped to milestone activities
+  const periodTaskActivities = nonEpic;
 
   const taskCountByName: Record<string, number> = {};
   for (const a of periodTaskActivities) {
@@ -266,6 +274,34 @@ export async function GET(req: NextRequest, { params }: Params) {
     totalPeriodTasks,
   } : null;
 
+  // Milestone stats (progress per milestone) — only computed in date range mode
+  type MilestoneStat = { id: number; name: string; start_date: string | null; end_date: string | null; total: number; done: number; pct: number };
+  const milestoneStats: MilestoneStat[] = [];
+  if (!milestoneIdParam && milestones.length > 0) {
+    for (const ms of milestones) {
+      const msActRows = await db.all<{ activity_id: number }>(
+        'SELECT activity_id FROM milestone_epics WHERE milestone_id = ?', ms.id
+      );
+      const msIds = new Set(msActRows.map(r => r.activity_id));
+      const msActs = allActivities.filter(a => msIds.has(a.id) && a.no !== 'EPIC');
+      let msTotalWs = 0, msDone = 0;
+      for (const a of msActs) {
+        const w = statusWeight(a.status);
+        msTotalWs += w;
+        if (w >= 1) msDone++;
+      }
+      milestoneStats.push({
+        id: ms.id,
+        name: ms.name,
+        start_date: ms.start_date ?? null,
+        end_date: ms.end_date ?? null,
+        total: msActs.length,
+        done: msDone,
+        pct: msActs.length > 0 ? Math.round((msTotalWs / msActs.length) * 100) : 0,
+      });
+    }
+  }
+
   return NextResponse.json({
     project: { ...project, rag, days_until_deadline },
     milestones,
@@ -280,6 +316,7 @@ export async function GET(req: NextRequest, { params }: Params) {
     openIssues,
     bugStats: bugTotal > 0 ? { total: bugTotal, byStatus: bugByStatus, byPriority: bugByPriority, snapshotDate: bugSnapshotDate } : null,
     teamStats,
+    milestoneStats,
   });
 }
 
