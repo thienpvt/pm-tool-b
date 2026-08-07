@@ -1,0 +1,105 @@
+warning: in the working copy of 'app/api/projects/[id]/activities/import/route.ts', LF will be replaced by CRLF the next time Git touches it
+diff --git a/app/api/projects/[id]/activities/import/route.ts b/app/api/projects/[id]/activities/import/route.ts
+index 154a911..1871178 100644
+--- a/app/api/projects/[id]/activities/import/route.ts
++++ b/app/api/projects/[id]/activities/import/route.ts
+@@ -1,5 +1,11 @@
+ import { NextRequest, NextResponse } from 'next/server';
+-import { getDb } from '@/lib/db';
++import {
++  insertImportedActivity,
++  listJiraKeyed,
++  listJiraKeys,
++  maxOrderIdx,
++  updateImportedActivity,
++} from '@/lib/repositories/activities.repo';
+ 
+ type Params = { params: Promise<{ id: string }> };
+ 
+@@ -16,20 +22,13 @@ type ActivityInput = {
+ export async function POST(req: NextRequest, { params }: Params) {
+   const { id } = await params;
+   const { activities } = await req.json() as { activities: ActivityInput[] };
+-  const db = await getDb();
+ 
+   // Fetch existing jira_keys for this project
+-  const existing = await db.all<{ id: number; jira_key: string }>(
+-    "SELECT id, jira_key FROM activities WHERE project_id = ? AND jira_key IS NOT NULL AND jira_key != ''",
+-    id,
+-  );
++  const existing = await listJiraKeyed(id);
+   // localKeyToId grows as we insert new rows — enables resolving parent refs in the same batch
+   const localKeyToId = new Map(existing.map(r => [r.jira_key, r.id]));
+ 
+-  const maxOrderRow = await db.get<{ m: number | null }>(
+-    'SELECT MAX(order_idx) as m FROM activities WHERE project_id = ?', id,
+-  );
+-  let maxOrder = maxOrderRow?.m ?? 0;
++  let maxOrder = await maxOrderIdx(id);
+ 
+   let inserted = 0, updated = 0;
+   const errors: string[] = [];
+@@ -49,48 +48,14 @@ export async function POST(req: NextRequest, { params }: Params) {
+       const parentId = parentKey ? (localKeyToId.get(parentKey) ?? null) : null;
+ 
+       if (key && localKeyToId.has(key)) {
+-        const existingId = localKeyToId.get(key)!;
+-        await db.run(
+-          `UPDATE activities SET
+-            phase = ?, no = ?, activity = ?, deliverable = ?, sign_off_doc = ?,
+-            accountable = ?, responsible = ?, support = ?,
+-            plan_start = ?, plan_end = ?, actual_start = ?, actual_end = ?,
+-            status = ?, completion_pct = ?, notes = ?,
+-            delay_owner = ?, delay_reason = ?, sprint = ?, parent_id = ?, priority = ?
+-          WHERE id = ? AND project_id = ?`,
+-          act.phase ?? 'General', act.no ?? '', act.activity,
+-          act.deliverable ?? '', act.sign_off_doc ?? '',
+-          act.accountable ?? '', act.responsible ?? '', act.support ?? '',
+-          act.plan_start ?? '', act.plan_end ?? '',
+-          act.actual_start ?? '', act.actual_end ?? '',
+-          act.status ?? 'To-do', act.completion_pct ?? 0, act.notes ?? '',
+-          act.delay_owner ?? 'N/A', act.delay_reason ?? '', act.sprint ?? '',
+-          parentId, act.priority ?? 'Medium',
+-          existingId, id,
+-        );
++        await updateImportedActivity(id, localKeyToId.get(key)!, act, parentId);
+         updated++;
+       } else {
+         maxOrder++;
+-        const result = await db.run(
+-          `INSERT INTO activities
+-            (project_id, phase, no, activity, deliverable, sign_off_doc,
+-             accountable, responsible, support,
+-             plan_start, plan_end, actual_start, actual_end,
+-             status, completion_pct, notes, order_idx,
+-             delay_owner, delay_reason, jira_key, sprint, parent_id, priority)
+-           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+-          id, act.phase ?? 'General', act.no ?? '', act.activity,
+-          act.deliverable ?? '', act.sign_off_doc ?? '',
+-          act.accountable ?? '', act.responsible ?? '', act.support ?? '',
+-          act.plan_start ?? '', act.plan_end ?? '',
+-          act.actual_start ?? '', act.actual_end ?? '',
+-          act.status ?? 'To-do', act.completion_pct ?? 0, act.notes ?? '',
+-          maxOrder, act.delay_owner ?? 'N/A', act.delay_reason ?? '',
+-          key, act.sprint ?? '', parentId, act.priority ?? 'Medium',
+-        );
++        const newId = await insertImportedActivity(id, act, maxOrder, parentId, key);
+         inserted++;
+         // Track newly inserted key so children later in this batch can resolve parent_id
+-        if (key) localKeyToId.set(key, Number(result.lastInsertRowid));
++        if (key) localKeyToId.set(key, newId);
+       }
+     } catch {
+       errors.push(act.jira_key || act.activity || `row-${inserted + updated + errors.length + 1}`);
+@@ -103,10 +68,5 @@ export async function POST(req: NextRequest, { params }: Params) {
+ // Return existing jira_keys so frontend can compute overwrite counts
+ export async function GET(_req: NextRequest, { params }: Params) {
+   const { id } = await params;
+-  const db = await getDb();
+-  const rows = await db.all<{ jira_key: string }>(
+-    "SELECT jira_key FROM activities WHERE project_id = ? AND jira_key IS NOT NULL AND jira_key != ''",
+-    id,
+-  );
+-  return NextResponse.json(rows.map(r => r.jira_key));
++  return NextResponse.json(await listJiraKeys(id));
+ }

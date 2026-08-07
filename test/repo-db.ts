@@ -38,9 +38,18 @@ class TestDbClient implements DbClient {
     return rows as T[];
   }
 
+  /**
+   * `lib/db.ts` skips `RETURNING id` for tables with no serial `id` column. Mirror that
+   * exact exclusion list here — otherwise a write to `settings` fails only in tests.
+   */
+  private needsReturningId(sql: string): boolean {
+    const table = /INSERT\s+(?:OR\s+\w+\s+)?INTO\s+(\w+)/i.exec(sql)?.[1]?.toLowerCase();
+    return !!table && !['settings', 'company_jira_config', 'company_rag_config'].includes(table);
+  }
+
   async run(sql: string, ...params: unknown[]): Promise<{ lastInsertRowid: number | bigint; changes: number }> {
     let pgSql = this.toPositional(sql);
-    if (/^\s*INSERT\s/i.test(sql)) pgSql += ' RETURNING id';
+    if (/^\s*INSERT\s/i.test(sql) && this.needsReturningId(sql)) pgSql += ' RETURNING id';
     const result = await this.pool.query(pgSql, params.length ? params : undefined);
     return { lastInsertRowid: result.rows[0]?.id ?? 0, changes: result.rowCount ?? 0 };
   }
@@ -131,6 +140,41 @@ CREATE TABLE IF NOT EXISTS documents (
   id SERIAL PRIMARY KEY, project_id INTEGER NOT NULL,
   type TEXT NOT NULL, title TEXT, content_json TEXT DEFAULT '{}',
   created_at TIMESTAMP DEFAULT now(), updated_at TIMESTAMP DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS budget_items (
+  id SERIAL PRIMARY KEY, project_id INTEGER NOT NULL,
+  type TEXT NOT NULL DEFAULT 'CAPEX', group_name TEXT NOT NULL DEFAULT '',
+  name TEXT NOT NULL,
+  planned_amount NUMERIC(15,2) NOT NULL DEFAULT 0,
+  actual_amount NUMERIC(15,2) NOT NULL DEFAULT 0,
+  approved_amount NUMERIC(15,2) DEFAULT 0,
+  unit TEXT NOT NULL DEFAULT 'USD', notes TEXT DEFAULT '',
+  created_at TIMESTAMP DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS budget_expenses (
+  id SERIAL PRIMARY KEY,
+  budget_item_id INTEGER NOT NULL REFERENCES budget_items(id) ON DELETE CASCADE,
+  project_id INTEGER NOT NULL,
+  expense_date DATE NOT NULL DEFAULT CURRENT_DATE,
+  description TEXT NOT NULL DEFAULT '',
+  amount NUMERIC(15,2) NOT NULL DEFAULT 0,
+  reference TEXT DEFAULT '',
+  created_at TIMESTAMP DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS settings (
+  key TEXT PRIMARY KEY, value TEXT NOT NULL DEFAULT ''
+);
+CREATE TABLE IF NOT EXISTS company_rag_config (
+  company_id INTEGER PRIMARY KEY,
+  spi_red_threshold FLOAT NOT NULL DEFAULT 0.6,
+  spi_amber_threshold FLOAT NOT NULL DEFAULT 0.8,
+  deadline_red_days INTEGER NOT NULL DEFAULT 0,
+  deadline_amber_days INTEGER NOT NULL DEFAULT 14,
+  risks_red INTEGER NOT NULL DEFAULT 3,
+  risks_amber INTEGER NOT NULL DEFAULT 1,
+  issues_amber INTEGER NOT NULL DEFAULT 1,
+  low_progress_amber FLOAT NOT NULL DEFAULT 30,
+  updated_at TIMESTAMP DEFAULT now()
 );
 `;
 
