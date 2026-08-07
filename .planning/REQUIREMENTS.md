@@ -9,11 +9,11 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 ### Test Harness
 
-- [ ] **TEST-01**: `npm test` runs a Vitest suite from a committed `vitest.config.ts` with Node as the default environment
-- [ ] **TEST-02**: Developer can write a component test that renders a React 19 client component in a `jsdom` environment
-- [ ] **TEST-03**: Developer can test an App Router route handler by constructing a `NextRequest` and calling the exported handler directly, with no running server
-- [ ] **TEST-04**: Repository tests run against a real PostgreSQL test database with a documented setup command
-- [ ] **TEST-05**: `npm test` runs in CI on push and fails the build on a failing test
+- [x] **TEST-01**: `npm test` runs a Vitest suite from a committed `vitest.config.ts` with Node as the default environment
+- [x] **TEST-02**: Developer can write a component test that renders a React 19 client component in a `jsdom` environment
+- [x] **TEST-03**: Developer can test an App Router route handler by constructing a `NextRequest` and calling the exported handler directly, with no running server
+- [x] **TEST-04**: Repository tests run against a real PostgreSQL test database with a documented setup command
+- [x] **TEST-05**: `npm test` runs in CI on push and fails the build on a failing test
 
 ### Repository Layer
 
@@ -120,11 +120,11 @@ Deferred. Tracked but not in this milestone's roadmap.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| TEST-01 | Phase 1 | Pending |
-| TEST-02 | Phase 1 | Pending |
-| TEST-03 | Phase 1 | Pending |
-| TEST-04 | Phase 1 | Pending |
-| TEST-05 | Phase 1 | Pending |
+| TEST-01 | Phase 1 | Complete |
+| TEST-02 | Phase 1 | Complete |
+| TEST-03 | Phase 1 | Complete |
+| TEST-04 | Phase 1 | Complete |
+| TEST-05 | Phase 1 | Complete |
 | REPO-01 | Phase 2 | Pending |
 | REPO-02 | Phase 2 | Pending |
 | REPO-03 | Phase 2 | Pending |
@@ -176,6 +176,7 @@ Deferred. Tracked but not in this milestone's roadmap.
 | HYG-03 | All phases | Pending |
 
 **Coverage:**
+
 - v1 requirements: 52 total
 - Mapped to phases: 52
 - Unmapped: 0 ✓

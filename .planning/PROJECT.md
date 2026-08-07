@@ -44,7 +44,7 @@ Every project-scoped request is tenant-isolated and every layer has one job — 
 
 **Tests (alongside each layer, not after):**
 
-- [ ] Stand up a test runner (none exists today — zero coverage)
+- ✓ Stand up a test runner — Phase 1 (Vitest 4: node + jsdom + route-handler + Postgres repo patterns; CI gate)
 - [ ] Repository/service tests per layer as it is moved
 - [ ] Route-level authorization tests proving 403 on cross-company `project_id`
 - [ ] Integration client tests with mocked Jira/Anthropic/Resend responses
@@ -94,7 +94,7 @@ The mess, concretely:
 | Full stack incl. UI, not backend-only | God pages are as much of the mess as the routes; stopping at the backend leaves half the problem | — Pending |
 | Layer-by-layer sweep over per-feature incremental | Fewer coexisting old/new shapes; the codebase is already inconsistent enough | — Pending |
 | Security first among concerns | IDOR + mass-assignment SQL are live tenant-isolation holes; migrations and perf are not | — Pending |
-| Tests alongside reorg, not a pre-built safety net | Contract snapshots over endpoints that are about to move by design would mostly re-encode the mess | — Pending |
+| Tests alongside reorg, not a pre-built safety net | Contract snapshots over endpoints that are about to move by design would mostly re-encode the mess | Vitest 4 harness shipped in Phase 1 — node unit, jsdom component, route-handler (no server), Postgres repo, CI gate all proven |
 | Refactor + opportunistic fixes, not pure freeze | Moving code surfaces real bugs; leaving them in place to preserve a bug-for-bug freeze wastes the pass | — Pending |
 | Migrations-out-of-`getDb()` deferred | Real problem, but cold-start slowness is not a correctness or isolation risk | — Pending |
 
@@ -116,4 +116,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-08-07 after project initialization*
+*Last updated: 2026-08-07 after Phase 1 (Test Harness)*
