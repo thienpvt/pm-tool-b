@@ -46,3 +46,12 @@ export async function listForReport(projectId: number | string) {
     projectId,
   );
 }
+
+/** All columns, ordered by domain then id — the shape the resource-plan export renders. */
+export async function listForExport(projectId: number | string) {
+  const db = await getDb();
+  return db.all<Record<string, string>>(
+    'SELECT * FROM team_members WHERE project_id = ? ORDER BY domain, id',
+    projectId,
+  );
+}

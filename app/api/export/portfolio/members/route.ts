@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import ExcelJS from 'exceljs';
-import { getDb } from '@/lib/db';
 import { getSessionFromRequest } from '@/lib/auth';
+import { companyNameAndQuota, listPortfolioMembers } from '@/lib/repositories/portfolio.repo';
 
 const NAVY     = 'FF1E293B';
 const WHITE    = 'FFFFFFFF';
@@ -107,14 +107,8 @@ export async function GET(req: NextRequest) {
   const user = await getSessionFromRequest(req);
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const db = await getDb();
-  const members = await db.all<Member>(
-    'SELECT * FROM portfolio_members WHERE company_id = ? ORDER BY member_type, name',
-    user.company_id
-  );
-  const company = await db.get<{ name: string; headcount_quota: number }>(
-    'SELECT name, headcount_quota FROM companies WHERE id = ?', user.company_id
-  );
+  const members = await listPortfolioMembers(user.company_id) as Member[];
+  const company = await companyNameAndQuota(user.company_id);
 
   const internal = members.filter(m => m.member_type !== 'external');
   const external = members.filter(m => m.member_type === 'external');
