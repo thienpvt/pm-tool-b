@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { findUserByUsername } from '@/lib/repositories/auth.repo';
 import { verifyPassword, createSession, SESSION_COOKIE_NAME } from '@/lib/auth';
 
 export async function POST(req: NextRequest) {
@@ -8,8 +8,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Username and password required' }, { status: 400 });
   }
 
-  const db = await getDb();
-  const user = await db.get<any>('SELECT * FROM users WHERE username = ?', String(username).trim());
+  const user = await findUserByUsername(String(username).trim());
   if (!user || !verifyPassword(String(password), user.password_hash)) {
     return NextResponse.json({ error: 'Invalid username or password' }, { status: 401 });
   }

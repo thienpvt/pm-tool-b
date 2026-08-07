@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { listSettings, setSetting } from '@/lib/repositories/settings.repo';
 
 export async function GET() {
-  const db = await getDb();
-  const rows = await db.all('SELECT key, value FROM settings') as { key: string; value: string }[];
+  const rows = await listSettings();
   const config = Object.fromEntries(rows.map(r => [r.key, r.value]));
   // Mask the API key — only return whether it's set
   if (config.anthropic_api_key) {
@@ -20,12 +19,8 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const db = await getDb();
   for (const [key, value] of Object.entries(body)) {
-    await db.run(
-      'INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value',
-      key, String(value)
-    );
+    await setSetting(key, String(value));
   }
   return NextResponse.json({ ok: true });
 }
