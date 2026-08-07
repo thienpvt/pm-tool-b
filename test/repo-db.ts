@@ -14,9 +14,18 @@ import { testPool } from './db';
 class TestDbClient implements DbClient {
   constructor(private pool: Pool) {}
 
+  /**
+   * Same two rewrites `lib/db.ts` performs: `INSERT OR IGNORE` → `ON CONFLICT DO
+   * NOTHING`, then `?` → `$n`. Without the first, any repository using the SQLite-dialect
+   * upsert (milestone_epics) fails here while working in production — a test-only
+   * failure that would look like a repository bug.
+   */
   private toPositional(sql: string): string {
+    const hadOrIgnore = /\bINSERT\s+OR\s+IGNORE\b/i.test(sql);
+    let result = sql.replace(/\bINSERT\s+OR\s+IGNORE\s+INTO\b/gi, 'INSERT INTO');
+    if (hadOrIgnore) result = result.replace(/\s*;?\s*$/, ' ON CONFLICT DO NOTHING');
     let i = 0;
-    return sql.replace(/\?/g, () => `$${++i}`);
+    return result.replace(/\?/g, () => `$${++i}`);
   }
 
   async get<T>(sql: string, ...params: unknown[]): Promise<T | undefined> {
@@ -94,6 +103,21 @@ CREATE TABLE IF NOT EXISTS team_members (
 CREATE TABLE IF NOT EXISTS escalation_levels (
   id SERIAL PRIMARY KEY, project_id INTEGER, level INTEGER, level_name TEXT,
   channel TEXT, participants TEXT, input TEXT, output TEXT
+);
+CREATE TABLE IF NOT EXISTS milestones (
+  id SERIAL PRIMARY KEY, project_id INTEGER, name TEXT, start_date TEXT, end_date TEXT
+);
+-- Mirrors lib/db.ts: SERIAL id plus a UNIQUE pair, NOT a composite primary key.
+-- The id column is load-bearing here: lib/db.ts appends RETURNING id to every
+-- INSERT except settings/company_jira_config, so an id-less table would fail on
+-- linkEpic in a way production never does.
+CREATE TABLE IF NOT EXISTS milestone_epics (
+  id SERIAL PRIMARY KEY,
+  milestone_id INTEGER, activity_id INTEGER,
+  UNIQUE (milestone_id, activity_id)
+);
+CREATE TABLE IF NOT EXISTS project_holidays (
+  id SERIAL PRIMARY KEY, project_id INTEGER, date TEXT, name TEXT
 );
 `;
 
