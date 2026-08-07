@@ -576,11 +576,16 @@ export async function getDb(): Promise<DbClient> {
     throw new Error('DATABASE_URL environment variable is required. Set it to your PostgreSQL connection string.');
   }
 
+  const dbUrl = process.env.DATABASE_URL;
+  // Private/LAN + sslmode=disable → no TLS. Public hosts keep soft SSL.
+  const noSsl =
+    /sslmode=(disable|false)/i.test(dbUrl) ||
+    dbUrl.includes('railway.internal') ||
+    /@(localhost|127\.0\.0\.1|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(dbUrl);
+
   const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: process.env.DATABASE_URL.includes('railway.internal')
-      ? false
-      : { rejectUnauthorized: false },
+    connectionString: dbUrl,
+    ssl: noSsl ? false : { rejectUnauthorized: false },
   });
   const client = new PostgresClient(pool);
   await initPostgresSchema(client);
