@@ -1,5 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { listForProjectReport } from '@/lib/repositories/activities.repo';
+import {
+  countsBySnapshot,
+  maxSnapshotDate,
+  snapshotDateOnOrBefore,
+} from '@/lib/repositories/bugs.repo';
+import { listNotClosedByPriority as issuesNotClosed } from '@/lib/repositories/issues.repo';
+import { listEpicActivityIds, listMilestones } from '@/lib/repositories/milestones.repo';
+import { getProjectForReport } from '@/lib/repositories/projects.repo';
+import { companyRagConfig } from '@/lib/repositories/rag-config.repo';
+import { listNotClosedByPriority as risksNotClosed } from '@/lib/repositories/risks.repo';
+import { getSetting } from '@/lib/repositories/settings.repo';
+import { listForReport as teamForReport } from '@/lib/repositories/team.repo';
 import Anthropic from '@anthropic-ai/sdk';
 import { calculateRAG, DEFAULT_RAG_CONFIG } from '@/lib/rag';
 
@@ -19,19 +31,10 @@ const DONE_STATUSES = Object.entries(STATUS_WEIGHTS).filter(([, w]) => w >= 1).m
 export async function GET(req: NextRequest, { params }: Params) {
   const { id } = await params;
   const { searchParams } = new URL(req.url);
-  const db = await getDb();
-
-  const project = await db.get(`
-    SELECT p.*, c.name as customer_name, c.name as program_name
-    FROM projects p
-    LEFT JOIN customers c ON p.customer_id = c.id
-    WHERE p.id = ?
-  `, id) as any;
+  const project = await getProjectForReport(id) as any;
   if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  const milestones = await db.all(
-    'SELECT * FROM milestones WHERE project_id = ? ORDER BY start_date, id', id
-  ) as any[];
+  const milestones = await listMilestones(id) as any[];
 
   const today = new Date();
   const todayStr = today.toISOString().slice(0, 10);
@@ -50,9 +53,7 @@ export async function GET(req: NextRequest, { params }: Params) {
       if (ms.end_date) endParam = ms.end_date;
 
       // Fetch activity IDs that belong to this milestone
-      const meRows = await db.all<{ activity_id: number }>(
-        'SELECT activity_id FROM milestone_epics WHERE milestone_id = ?', milestoneIdParam
-      );
+      const meRows = await listEpicActivityIds(milestoneIdParam);
       milestoneActivityIds = new Set(meRows.map(r => r.activity_id));
     }
   }
@@ -63,12 +64,7 @@ export async function GET(req: NextRequest, { params }: Params) {
   }
 
   // All activities for this project
-  const allActivities = await db.all(
-    `SELECT id, activity, deliverable, status, phase, plan_start, plan_end,
-            actual_start, actual_end, no, parent_id, accountable
-     FROM activities WHERE project_id = ? ORDER BY plan_start, id`,
-    id
-  ) as any[];
+  const allActivities = await listForProjectReport(id) as any[];
 
   // In milestone mode: scope to only activities in milestone_epics (direct match, no expansion needed
   // because the milestone page already stores both EPIC rows and their children)
@@ -151,28 +147,14 @@ export async function GET(req: NextRequest, { params }: Params) {
     .slice(0, 15);
 
   // Risks & Issues not Closed
-  const openRisks = await db.all(
-    `SELECT * FROM risks WHERE project_id = ? AND status != 'Closed'
-     ORDER BY CASE priority WHEN 'Critical' THEN 1 WHEN 'High' THEN 2 WHEN 'Medium' THEN 3 ELSE 4 END, id`,
-    id
-  ) as any[];
+  const openRisks = await risksNotClosed(id) as any[];
 
-  const openIssues = await db.all(
-    `SELECT * FROM issues WHERE project_id = ? AND status != 'Closed'
-     ORDER BY CASE priority WHEN 'Critical' THEN 1 WHEN 'High' THEN 2 WHEN 'Medium' THEN 3 ELSE 4 END, id`,
-    id
-  ) as any[];
+  const openIssues = await issuesNotClosed(id) as any[];
 
   // Bug snapshot — in milestone mode use closest snapshot <= milestone end date; else use latest
   const bugSnapshotRow = milestoneIdParam
-    ? await db.get<{ snapshot_date: string }>(
-        `SELECT snapshot_date FROM bugs WHERE project_id = ? AND snapshot_date != '' AND snapshot_date <= ? ORDER BY snapshot_date DESC LIMIT 1`,
-        id, endParam
-      )
-    : await db.get<{ snapshot_date: string }>(
-        `SELECT MAX(snapshot_date) as snapshot_date FROM bugs WHERE project_id = ? AND snapshot_date != ''`,
-        id
-      );
+    ? await snapshotDateOnOrBefore(id, endParam)
+    : await maxSnapshotDate(id);
   const bugSnapshotDate = bugSnapshotRow?.snapshot_date ?? null;
 
   let bugTotal = 0;
@@ -180,12 +162,7 @@ export async function GET(req: NextRequest, { params }: Params) {
   const bugByPriority: Record<string, number> = {};
 
   if (bugSnapshotDate) {
-    const bugRows = await db.all<{ status: string; priority: string; cnt: number }>(
-      `SELECT status, priority, COUNT(*) as cnt FROM bugs
-       WHERE project_id = ? AND snapshot_date = ?
-       GROUP BY status, priority`,
-      id, bugSnapshotDate
-    );
+    const bugRows = await countsBySnapshot(id, bugSnapshotDate);
     for (const r of bugRows) {
       const cnt = Number(r.cnt);
       bugByStatus[r.status] = (bugByStatus[r.status] ?? 0) + cnt;
@@ -202,9 +179,7 @@ export async function GET(req: NextRequest, { params }: Params) {
   const effectiveEnd = milestoneIdParam
     ? selectedMilestone?.end_date ?? null
     : project.end_date ?? null;
-  const ragCfg = await db.get<Record<string, unknown>>(
-    'SELECT * FROM company_rag_config WHERE company_id = ?', project.company_id
-  ) ?? DEFAULT_RAG_CONFIG;
+  const ragCfg = await companyRagConfig(project.company_id) ?? DEFAULT_RAG_CONFIG;
   const { rag, spi: _spi, days_until_deadline } = calculateRAG({
     current_phase: project.current_phase,
     effective_start: effectiveStart,
@@ -218,10 +193,7 @@ export async function GET(req: NextRequest, { params }: Params) {
   });
 
   // Team members
-  const teamRows = await db.all(
-    'SELECT id, domain, role, name, capacity_json FROM team_members WHERE project_id = ? ORDER BY domain, name',
-    id
-  ) as { id: number; domain: string; role: string; name: string; capacity_json: string }[];
+  const teamRows = await teamForReport(id);
 
   const currentMonth = (milestoneIdParam ? endParam : todayStr).slice(0, 7);
   type TM = { name: string; domain: string; role: string; capacity: number };
@@ -279,9 +251,7 @@ export async function GET(req: NextRequest, { params }: Params) {
   const milestoneStats: MilestoneStat[] = [];
   if (!milestoneIdParam && milestones.length > 0) {
     for (const ms of milestones) {
-      const msActRows = await db.all<{ activity_id: number }>(
-        'SELECT activity_id FROM milestone_epics WHERE milestone_id = ?', ms.id
-      );
+      const msActRows = await listEpicActivityIds(ms.id as number);
       const msIds = new Set(msActRows.map(r => r.activity_id));
       const msActs = allActivities.filter(a => msIds.has(a.id) && a.no !== 'EPIC');
       let msTotalWs = 0, msDone = 0;
@@ -324,8 +294,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   const { id } = await params;
   void id;
 
-  const db = await getDb();
-  const dbKey = (await db.get("SELECT value FROM settings WHERE key='anthropic_api_key'") as any)?.value;
+  const dbKey = await getSetting('anthropic_api_key');
   const apiKey = process.env.ANTHROPIC_API_KEY || dbKey;
   if (!apiKey) return NextResponse.json({ error: 'NO_API_KEY' }, { status: 503 });
 

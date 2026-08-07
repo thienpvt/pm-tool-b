@@ -1,56 +1,41 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
 import { getSessionFromRequest } from '@/lib/auth';
+import { repoErrorResponse } from '@/lib/api-errors';
+import { deleteBudgetItem, updateBudgetItem } from '@/lib/repositories/budget.repo';
+import { projectAccessRow } from '@/lib/repositories/projects.repo';
 
 type Ctx = { params: Promise<{ id: string; itemId: string }> };
 
 async function authorize(req: NextRequest, projectId: string) {
   const user = await getSessionFromRequest(req);
   if (!user) return null;
-  const db = await getDb();
-  const project = await db.get<{ id: number; company_id: number }>(
-    'SELECT id, company_id FROM projects WHERE id = ?', projectId
-  );
+  if (user.is_admin) return user;
+  const project = await projectAccessRow(projectId);
   if (!project) return null;
-  if (!user.is_admin && project.company_id !== user.company_id) return null;
-  return { user, db };
+  if (project.company_id !== user.company_id && project.customer_company_id !== user.company_id) return null;
+  return user;
 }
 
 export async function PUT(req: NextRequest, { params }: Ctx) {
   const { id, itemId } = await params;
-  const ctx = await authorize(req, id);
-  if (!ctx) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-  const body = await req.json();
-  const { type, group_name, name, planned_amount, approved_amount, actual_amount, unit, notes } = body;
-
-  if (!name?.trim()) return NextResponse.json({ error: 'Name is required' }, { status: 400 });
-  if (!['CAPEX', 'OPEX'].includes(type)) return NextResponse.json({ error: 'Invalid type' }, { status: 400 });
-
-  await ctx.db.run(
-    `UPDATE budget_items SET type=?, group_name=?, name=?, planned_amount=?, approved_amount=?, actual_amount=?, unit=?, notes=?
-     WHERE id=? AND project_id=?`,
-    type,
-    group_name?.trim() ?? '',
-    name.trim(),
-    Number(planned_amount) || 0,
-    Number(approved_amount) || 0,
-    Number(actual_amount) || 0,
-    unit?.trim() || 'USD',
-    notes?.trim() ?? '',
-    itemId,
-    id
-  );
-
-  const item = await ctx.db.get('SELECT * FROM budget_items WHERE id = ?', itemId);
-  return NextResponse.json(item);
+  if (!await authorize(req, id)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  try {
+    const body = await req.json();
+    if (!body.name?.trim()) return NextResponse.json({ error: 'Name is required' }, { status: 400 });
+    if (!['CAPEX', 'OPEX'].includes(body.type)) return NextResponse.json({ error: 'Invalid type' }, { status: 400 });
+    return NextResponse.json(await updateBudgetItem(id, itemId, body));
+  } catch (e) {
+    return repoErrorResponse(e);
+  }
 }
 
 export async function DELETE(req: NextRequest, { params }: Ctx) {
   const { id, itemId } = await params;
-  const ctx = await authorize(req, id);
-  if (!ctx) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-  await ctx.db.run('DELETE FROM budget_items WHERE id = ? AND project_id = ?', itemId, id);
-  return NextResponse.json({ ok: true });
+  if (!await authorize(req, id)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  try {
+    await deleteBudgetItem(id, itemId);
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    return repoErrorResponse(e);
+  }
 }

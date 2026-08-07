@@ -50,3 +50,22 @@ export async function deleteIssue(projectId: number | string, rowId: number | st
   const db = await getDb();
   return db.run('DELETE FROM issues WHERE id = ? AND project_id = ?', rowId, projectId);
 }
+
+/** Open issues for the weekly report: status Open or In Progress, ordered by priority text. */
+export async function listOpenIssues(projectId: number | string) {
+  const db = await getDb();
+  return db.all(
+    "SELECT * FROM issues WHERE project_id = ? AND (status='Open' OR status='In Progress') ORDER BY priority",
+    projectId,
+  );
+}
+
+/** Everything not Closed, ordered by priority severity — matches the project-report page. */
+export async function listNotClosedByPriority(projectId: number | string) {
+  const db = await getDb();
+  return db.all(
+    `SELECT * FROM issues WHERE project_id = ? AND status != 'Closed'
+     ORDER BY CASE priority WHEN 'Critical' THEN 1 WHEN 'High' THEN 2 WHEN 'Medium' THEN 3 ELSE 4 END, id`,
+    projectId,
+  );
+}

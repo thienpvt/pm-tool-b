@@ -119,6 +119,19 @@ CREATE TABLE IF NOT EXISTS milestone_epics (
 CREATE TABLE IF NOT EXISTS project_holidays (
   id SERIAL PRIMARY KEY, project_id INTEGER, date TEXT, name TEXT
 );
+CREATE TABLE IF NOT EXISTS bugs (
+  id SERIAL PRIMARY KEY, project_id INTEGER,
+  issue_type TEXT DEFAULT '', issue_key TEXT DEFAULT '', issue_id TEXT DEFAULT '',
+  summary TEXT NOT NULL DEFAULT '', assignee TEXT DEFAULT '', reporter TEXT DEFAULT '',
+  priority TEXT DEFAULT 'Medium', severity TEXT DEFAULT '', status TEXT DEFAULT 'To Do',
+  resolution TEXT DEFAULT '', created TEXT DEFAULT '', snapshot_date TEXT DEFAULT '',
+  created_at TIMESTAMP DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS documents (
+  id SERIAL PRIMARY KEY, project_id INTEGER NOT NULL,
+  type TEXT NOT NULL, title TEXT, content_json TEXT DEFAULT '{}',
+  created_at TIMESTAMP DEFAULT now(), updated_at TIMESTAMP DEFAULT now()
+);
 `;
 
 /**

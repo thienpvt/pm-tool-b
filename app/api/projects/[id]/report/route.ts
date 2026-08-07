@@ -1,5 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import {
+  listByStatuses,
+  listDoneBetween,
+  listPlannedBetweenExcludingStatuses,
+  listStatusAndPhase,
+} from '@/lib/repositories/activities.repo';
+import { listOpenIssues } from '@/lib/repositories/issues.repo';
+import { getProjectWithCustomer } from '@/lib/repositories/projects.repo';
+import { listOpenRisks } from '@/lib/repositories/risks.repo';
+import { getSetting } from '@/lib/repositories/settings.repo';
 import Anthropic from '@anthropic-ai/sdk';
 
 type Params = { params: Promise<{ id: string }> };
@@ -48,7 +57,6 @@ export async function GET(req: NextRequest, { params }: Params) {
   const endParam = searchParams.get('end');
   const weekStart = searchParams.get('week') ?? undefined;
 
-  const db = await getDb();
   let startStr: string, endStr: string;
   if (startParam && endParam) {
     startStr = startParam;
@@ -59,55 +67,26 @@ export async function GET(req: NextRequest, { params }: Params) {
     endStr = fmt(end);
   }
 
-  const project = await db.get(`
-    SELECT p.*, c.name as customer_name
-    FROM projects p LEFT JOIN customers c ON p.customer_id = c.id
-    WHERE p.id = ?
-  `, id) as any;
+  const project = await getProjectWithCustomer(id) as any;
   if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  const donePlaceholders = DONE_STATUSES.map(() => '?').join(',');
-  const doneThisWeek = await db.all(
-    `SELECT * FROM activities WHERE project_id = ?
-     AND actual_end >= ? AND actual_end <= ?
-     AND status IN (${donePlaceholders})
-     ORDER BY actual_end`,
-    id, startStr, endStr, ...DONE_STATUSES
-  ) as any[];
+  const doneThisWeek = await listDoneBetween(id, startStr, endStr, DONE_STATUSES) as any[];
 
-  const inProgressPlaceholders = IN_PROGRESS_STATUSES.map(() => '?').join(',');
-  const inProgress = await db.all(
-    `SELECT * FROM activities WHERE project_id = ?
-     AND status IN (${inProgressPlaceholders})
-     ORDER BY plan_end`,
-    id, ...IN_PROGRESS_STATUSES
-  ) as any[];
+  const inProgress = await listByStatuses(id, IN_PROGRESS_STATUSES) as any[];
 
   const endDate = new Date(endStr + 'T23:59:59');
   const nextStart = fmt(new Date(endDate.getTime() + 1));
   const nextEnd = fmt(new Date(endDate.getTime() + 7 * 86400000));
-  const nextWeekPlan = await db.all(
-    `SELECT * FROM activities WHERE project_id = ?
-     AND plan_start >= ? AND plan_start <= ?
-     AND status NOT IN (${donePlaceholders})
-     ORDER BY plan_start`,
-    id, nextStart, nextEnd, ...DONE_STATUSES
+  const nextWeekPlan = await listPlannedBetweenExcludingStatuses(
+    id, nextStart, nextEnd, DONE_STATUSES,
   ) as any[];
 
-  const openRisks = await db.all(
-    `SELECT * FROM risks WHERE project_id = ? AND (status='Open' OR status='In Progress') ORDER BY priority`,
-    id
-  ) as any[];
+  const openRisks = await listOpenRisks(id) as any[];
 
-  const openIssues = await db.all(
-    `SELECT * FROM issues WHERE project_id = ? AND (status='Open' OR status='In Progress') ORDER BY priority`,
-    id
-  ) as any[];
+  const openIssues = await listOpenIssues(id) as any[];
 
   // Weighted stats from all US activities
-  const allActivities = await db.all(
-    `SELECT status, phase FROM activities WHERE project_id = ?`, id
-  ) as { status: string; phase: string }[];
+  const allActivities = await listStatusAndPhase(id);
 
   const total = allActivities.length;
   let weightedSum = 0;
@@ -166,9 +145,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   void id;
   const body = await req.json();
 
-  const db2 = await getDb();
-  const dbKey = (await db2.get("SELECT value FROM settings WHERE key='anthropic_api_key'") as any)?.value;
-  const apiKey = process.env.ANTHROPIC_API_KEY || dbKey;
+  const apiKey = process.env.ANTHROPIC_API_KEY || (await getSetting('anthropic_api_key'));
   if (!apiKey) {
     return NextResponse.json(
       { error: 'NO_API_KEY' },

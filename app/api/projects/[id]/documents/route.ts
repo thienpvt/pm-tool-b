@@ -1,56 +1,73 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { repoErrorResponse } from '@/lib/api-errors';
+import {
+  createDocument,
+  deleteDocument,
+  findDocumentByType,
+  findDocumentInProject,
+  getDocument,
+  listDocuments,
+  updateDocumentContent,
+} from '@/lib/repositories/documents.repo';
 
 type Params = { params: Promise<{ id: string }> };
 
 export async function GET(_req: NextRequest, { params }: Params) {
   const { id } = await params;
-  const db = await getDb();
-  return NextResponse.json(await db.all('SELECT * FROM documents WHERE project_id = ? ORDER BY created_at DESC', id));
+  try {
+    return NextResponse.json(await listDocuments(id));
+  } catch (e) {
+    return repoErrorResponse(e);
+  }
 }
 
 export async function POST(req: NextRequest, { params }: Params) {
   const { id } = await params;
-  const body = await req.json();
-  const db = await getDb();
+  try {
+    const body = await req.json();
 
-  // Weekly reports always create a new row (diary style — no upsert)
-  if (body.type === 'status_report') {
-    const r = await db.run('INSERT INTO documents (project_id, type, title, content_json) VALUES (?,?,?,?)',
-      id, 'status_report', body.title ?? 'Weekly Report', JSON.stringify(body.content ?? {}));
-    return NextResponse.json(await db.get('SELECT * FROM documents WHERE id = ?', r.lastInsertRowid), { status: 201 });
-  }
+    // Weekly reports always create a new row (diary style — no upsert)
+    if (body.type === 'status_report') {
+      const created = await createDocument(id, 'status_report', body.title ?? 'Weekly Report', JSON.stringify(body.content ?? {}));
+      return NextResponse.json(created, { status: 201 });
+    }
 
-  // All other types: upsert (one per type per project)
-  const existing = await db.get('SELECT id FROM documents WHERE project_id = ? AND type = ?', id, body.type);
-  if (existing) {
-    await db.run("UPDATE documents SET content_json = ?, title = ?, updated_at = NOW() WHERE id = ?",
-      JSON.stringify(body.content), body.title ?? body.type, (existing as { id: number }).id);
-    return NextResponse.json(await db.get('SELECT * FROM documents WHERE id = ?', (existing as { id: number }).id));
+    // All other types: upsert (one per type per project)
+    const existing = await findDocumentByType(id, body.type);
+    if (existing) {
+      const updated = await updateDocumentContent(existing.id, body.title ?? body.type, JSON.stringify(body.content));
+      return NextResponse.json(updated);
+    }
+    const created = await createDocument(id, body.type, body.title ?? body.type, JSON.stringify(body.content ?? {}));
+    return NextResponse.json(created, { status: 201 });
+  } catch (e) {
+    return repoErrorResponse(e);
   }
-  const r = await db.run('INSERT INTO documents (project_id, type, title, content_json) VALUES (?,?,?,?)',
-    id, body.type, body.title ?? body.type, JSON.stringify(body.content ?? {}));
-  return NextResponse.json(await db.get('SELECT * FROM documents WHERE id = ?', r.lastInsertRowid), { status: 201 });
 }
 
 export async function PUT(req: NextRequest, { params }: Params) {
   const { id } = await params;
-  const body = await req.json();
-  const db = await getDb();
-  const doc = await db.get('SELECT id FROM documents WHERE id = ? AND project_id = ?', body.id, id);
-  if (!doc) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  await db.run("UPDATE documents SET content_json = ?, title = ?, updated_at = NOW() WHERE id = ?",
-    JSON.stringify(body.content), body.title, body.id);
-  return NextResponse.json(await db.get('SELECT * FROM documents WHERE id = ?', body.id));
+  try {
+    const body = await req.json();
+    const doc = await findDocumentInProject(id, body.id);
+    if (!doc) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    await updateDocumentContent(body.id, body.title, JSON.stringify(body.content));
+    return NextResponse.json(await getDocument(body.id));
+  } catch (e) {
+    return repoErrorResponse(e);
+  }
 }
 
 export async function DELETE(req: NextRequest, { params }: Params) {
   const { id } = await params;
   const docId = new URL(req.url).searchParams.get('docId');
   if (!docId) return NextResponse.json({ error: 'Missing docId' }, { status: 400 });
-  const db = await getDb();
-  const doc = await db.get('SELECT id FROM documents WHERE id = ? AND project_id = ?', docId, id);
-  if (!doc) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  await db.run('DELETE FROM documents WHERE id = ?', docId);
-  return NextResponse.json({ ok: true });
+  try {
+    const doc = await findDocumentInProject(id, docId);
+    if (!doc) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    await deleteDocument(docId);
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    return repoErrorResponse(e);
+  }
 }

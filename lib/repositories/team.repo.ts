@@ -37,3 +37,12 @@ export async function deleteTeamMember(projectId: number | string, rowId: number
   const db = await getDb();
   return db.run('DELETE FROM team_members WHERE id = ? AND project_id = ?', rowId, projectId);
 }
+
+/** Fields the project report needs; capacity_json is parsed by the caller. */
+export async function listForReport(projectId: number | string) {
+  const db = await getDb();
+  return db.all<{ id: number; domain: string; role: string; name: string; capacity_json: string }>(
+    'SELECT id, domain, role, name, capacity_json FROM team_members WHERE project_id = ? ORDER BY domain, name',
+    projectId,
+  );
+}

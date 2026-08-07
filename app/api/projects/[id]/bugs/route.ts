@@ -1,105 +1,51 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { repoErrorResponse } from '@/lib/api-errors';
+import {
+  deleteAllBugs,
+  deleteSnapshot,
+  listBugs,
+  listSnapshotDates,
+  replaceSnapshot,
+} from '@/lib/repositories/bugs.repo';
 
 type Params = { params: Promise<{ id: string }> };
 
 export async function GET(req: NextRequest, { params }: Params) {
   const { id } = await params;
-  const db = await getDb();
   const url = new URL(req.url);
-
-  // Return list of available snapshot dates
-  if (url.searchParams.get('list_dates') === '1') {
-    const dates = await db.all<{ snapshot_date: string; count: number }>(
-      `SELECT snapshot_date, COUNT(*) as count FROM bugs
-       WHERE project_id = ? AND snapshot_date != ''
-       GROUP BY snapshot_date ORDER BY snapshot_date DESC`,
-      id,
-    );
-    return NextResponse.json(dates);
-  }
-
-  const date = url.searchParams.get('date');
-  let bugs;
-
-  const BUG_COLS = 'id, issue_type, issue_key, issue_id, summary, assignee, reporter, priority, severity, status, resolution, created, snapshot_date, created_at';
-
-  if (date) {
-    bugs = await db.all(
-      `SELECT ${BUG_COLS} FROM bugs WHERE project_id = ? AND snapshot_date = ? ORDER BY created_at`,
-      id, date,
-    );
-  } else {
-    // Fall back to latest snapshot, or all rows if no snapshots exist
-    const latest = await db.get<{ snapshot_date: string }>(
-      `SELECT snapshot_date FROM bugs WHERE project_id = ? AND snapshot_date != ''
-       ORDER BY snapshot_date DESC LIMIT 1`,
-      id,
-    );
-    if (latest) {
-      bugs = await db.all(
-        `SELECT ${BUG_COLS} FROM bugs WHERE project_id = ? AND snapshot_date = ? ORDER BY created_at`,
-        id, latest.snapshot_date,
-      );
-    } else {
-      bugs = await db.all(
-        `SELECT ${BUG_COLS} FROM bugs WHERE project_id = ? ORDER BY created_at`,
-        id,
-      );
+  try {
+    // Return list of available snapshot dates
+    if (url.searchParams.get('list_dates') === '1') {
+      return NextResponse.json(await listSnapshotDates(id));
     }
+    return NextResponse.json(await listBugs(id, url.searchParams.get('date')));
+  } catch (e) {
+    return repoErrorResponse(e);
   }
-
-  return NextResponse.json(bugs);
 }
 
 export async function POST(req: NextRequest, { params }: Params) {
   const { id } = await params;
-  const { bugs, snapshot_date } = await req.json();
-  if (!Array.isArray(bugs)) return NextResponse.json({ error: 'bugs must be array' }, { status: 400 });
+  try {
+    const { bugs, snapshot_date } = await req.json();
+    if (!Array.isArray(bugs)) return NextResponse.json({ error: 'bugs must be array' }, { status: 400 });
 
-  const db = await getDb();
-  const date = snapshot_date || new Date().toISOString().split('T')[0];
-
-  // Replace only the data for this specific snapshot date
-  await db.run('DELETE FROM bugs WHERE project_id = ? AND snapshot_date = ?', id, date);
-
-  let inserted = 0;
-  for (const bug of bugs) {
-    await db.run(
-      `INSERT INTO bugs
-         (project_id, issue_type, issue_key, issue_id, summary, assignee, reporter,
-          priority, severity, status, resolution, created, snapshot_date)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      id,
-      bug.issue_type ?? '',
-      bug.issue_key ?? '',
-      bug.issue_id ?? '',
-      bug.summary ?? '',
-      bug.assignee ?? '',
-      bug.reporter ?? '',
-      bug.priority ?? 'Medium',
-      bug.severity ?? '',
-      bug.status ?? 'To Do',
-      bug.resolution ?? '',
-      bug.created ?? '',
-      date,
-    );
-    inserted++;
+    const date = snapshot_date || new Date().toISOString().split('T')[0];
+    const inserted = await replaceSnapshot(id, bugs, date);
+    return NextResponse.json({ inserted, snapshot_date: date });
+  } catch (e) {
+    return repoErrorResponse(e);
   }
-
-  return NextResponse.json({ inserted, snapshot_date: date });
 }
 
 export async function DELETE(req: NextRequest, { params }: Params) {
   const { id } = await params;
-  const db = await getDb();
-  const url = new URL(req.url);
-  const date = url.searchParams.get('date');
-
-  if (date) {
-    await db.run('DELETE FROM bugs WHERE project_id = ? AND snapshot_date = ?', id, date);
-  } else {
-    await db.run('DELETE FROM bugs WHERE project_id = ?', id);
+  const date = new URL(req.url).searchParams.get('date');
+  try {
+    if (date) await deleteSnapshot(id, date);
+    else await deleteAllBugs(id);
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    return repoErrorResponse(e);
   }
-  return NextResponse.json({ ok: true });
 }

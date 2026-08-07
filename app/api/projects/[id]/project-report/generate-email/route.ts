@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { getSetting } from '@/lib/repositories/settings.repo';
 import { getSessionFromRequest } from '@/lib/auth';
 import Anthropic from '@anthropic-ai/sdk';
 
@@ -38,9 +38,10 @@ export async function POST(req: NextRequest, { params }: Params) {
 
   let apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
-    const db = await getDb();
-    const row = await db.get<{ value: string }>('SELECT value FROM settings WHERE key = ?', ['anthropic_api_key']);
-    if (row?.value) apiKey = row.value;
+    // NOTE: the previous inline call passed `['anthropic_api_key']` as a single param, so
+    // pg received a Postgres array literal and the lookup never matched. Routing through
+    // getSetting passes the key as text, which fixes that latent bug — see 02-02-SUMMARY.md.
+    apiKey = await getSetting('anthropic_api_key');
   }
   if (!apiKey) return NextResponse.json({ error: 'NO_API_KEY' }, { status: 503 });
 

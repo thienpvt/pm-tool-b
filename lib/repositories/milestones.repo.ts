@@ -72,3 +72,15 @@ export async function unlinkEpic(milestoneId: number | string, activityId: numbe
     milestoneId, activityId,
   );
 }
+
+/**
+ * Activity ids linked to a milestone. The report uses this to scope its activity set;
+ * `listEpics` returns full rows, which is a different shape for a different caller.
+ */
+export async function listEpicActivityIds(milestoneId: number | string) {
+  const db = await getDb();
+  return db.all<{ activity_id: number }>(
+    'SELECT activity_id FROM milestone_epics WHERE milestone_id = ?',
+    milestoneId,
+  );
+}
