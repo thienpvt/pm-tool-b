@@ -20,6 +20,37 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Testing
+
+```bash
+npm test           # run everything once
+npm run test:watch # watch mode
+```
+
+Vitest runs two projects from `vitest.config.ts`:
+
+| Project | Files | Environment |
+|---------|-------|-------------|
+| `node`  | `{lib,app}/**/*.test.ts`  | node — unit tests, route-handler tests |
+| `jsdom` | `{components,app}/**/*.test.tsx` | jsdom — React component tests |
+
+Route handlers are tested by importing the exported handler and calling it with a
+constructed `NextRequest` — no dev server required.
+
+### Repository tests (real Postgres)
+
+Repository tests skip unless `TEST_DATABASE_URL` is set. To run them locally:
+
+```bash
+docker run -d --name pm-tool-test-db -p 5433:5432 \
+  -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=pm_tool_test postgres:17
+
+TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5433/pm_tool_test npm test
+```
+
+The database name **must** end in `_test` — `test/db.ts` refuses to connect otherwise,
+so a stray production URL cannot be truncated by a test run.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:
