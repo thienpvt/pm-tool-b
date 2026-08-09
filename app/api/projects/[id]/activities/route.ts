@@ -33,7 +33,9 @@ export async function PUT(req: NextRequest, { params }: Params) {
   try {
     const body = await req.json(); // expects { id, ...fields }
     const { id: rowId, ...fields } = body;
-    return NextResponse.json(await updateActivity(id, rowId, fields));
+    const updated = await updateActivity(id, rowId, fields);
+    if (!updated) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    return NextResponse.json(updated);
   } catch (e) {
     return repoErrorResponse(e);
   }

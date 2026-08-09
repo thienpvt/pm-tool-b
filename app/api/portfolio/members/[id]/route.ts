@@ -14,6 +14,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
   const row = await updatePortfolioMember(user.company_id, id, {
     role, name: name.trim(), email, note, member_type, member_category, overhead_remaining,
   });
+  if (!row) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   return NextResponse.json(row);
 }
 

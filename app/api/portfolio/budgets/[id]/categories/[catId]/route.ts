@@ -20,6 +20,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
   const { category, ceiling_amount, notes } = body;
 
   const updated = await updatePortfolioBudgetCategory(id, catId, { category, ceiling_amount, notes });
+  if (!updated) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   return NextResponse.json(updated);
 }
 

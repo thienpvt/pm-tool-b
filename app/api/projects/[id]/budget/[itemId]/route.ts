@@ -23,7 +23,9 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
     const body = await req.json();
     if (!body.name?.trim()) return NextResponse.json({ error: 'Name is required' }, { status: 400 });
     if (!['CAPEX', 'OPEX'].includes(body.type)) return NextResponse.json({ error: 'Invalid type' }, { status: 400 });
-    return NextResponse.json(await updateBudgetItem(id, itemId, body));
+    const updated = await updateBudgetItem(id, itemId, body);
+    if (!updated) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    return NextResponse.json(updated);
   } catch (e) {
     return repoErrorResponse(e);
   }

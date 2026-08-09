@@ -42,8 +42,10 @@ export async function updateIssue(
 ) {
   const { sql, values } = buildUpdate('issues', ISSUE_COLUMNS, fields);
   const db = await getDb();
-  await db.run(`UPDATE issues SET ${sql} WHERE id = ? AND project_id = ?`, ...values, rowId, projectId);
-  return db.get('SELECT * FROM issues WHERE id = ?', rowId);
+  return db.get(
+    `UPDATE issues SET ${sql} WHERE id = ? AND project_id = ? RETURNING *`,
+    ...values, rowId, projectId,
+  );
 }
 
 export async function deleteIssue(projectId: number | string, rowId: number | string) {

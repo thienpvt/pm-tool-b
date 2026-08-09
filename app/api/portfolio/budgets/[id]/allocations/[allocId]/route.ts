@@ -22,6 +22,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
   const updated = await updatePortfolioBudgetAllocation(id, allocId, {
     project_id, allocated_amount, notes,
   });
+  if (!updated) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   return NextResponse.json(updated);
 }
 

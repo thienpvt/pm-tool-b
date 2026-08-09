@@ -113,14 +113,13 @@ export async function updateOperationsBudgetItem(
   body: Record<string, unknown>,
 ) {
   const db = await getDb();
-  await db.run(
+  return db.get(
     `UPDATE operations_budget_items
      SET category=?, name=?, planned_amount=?, actual_amount=?, unit=?, period_label=?, notes=?
-     WHERE id=? AND operations_system_id=?`,
+     WHERE id=? AND operations_system_id=? RETURNING *`,
     body.category, body.name, body.planned_amount, body.actual_amount, body.unit,
     body.period_label, body.notes, itemId, systemId,
   );
-  return db.get('SELECT * FROM operations_budget_items WHERE id = ?', itemId);
 }
 
 export async function deleteOperationsBudgetItem(systemId: number | string, itemId: number | string) {
@@ -186,14 +185,13 @@ export async function updateOperationsIncident(
   body: Record<string, unknown>,
 ) {
   const db = await getDb();
-  await db.run(
+  return db.get(
     `UPDATE operations_incidents
      SET title=?, severity=?, description=?, reported_at=?, resolved_at=?, cost_impact=?, status=?
-     WHERE id=? AND operations_system_id=?`,
+     WHERE id=? AND operations_system_id=? RETURNING *`,
     body.title, body.severity, body.description, body.reported_at, body.resolved_at || null,
     body.cost_impact, body.status, incidentId, systemId,
   );
-  return db.get('SELECT * FROM operations_incidents WHERE id = ?', incidentId);
 }
 
 export async function deleteOperationsIncident(systemId: number | string, incidentId: number | string) {

@@ -43,8 +43,10 @@ export async function updateRisk(
 ) {
   const { sql, values } = buildUpdate('risks', RISK_COLUMNS, fields);
   const db = await getDb();
-  await db.run(`UPDATE risks SET ${sql} WHERE id = ? AND project_id = ?`, ...values, rowId, projectId);
-  return db.get('SELECT * FROM risks WHERE id = ?', rowId);
+  return db.get(
+    `UPDATE risks SET ${sql} WHERE id = ? AND project_id = ? RETURNING *`,
+    ...values, rowId, projectId,
+  );
 }
 
 export async function deleteRisk(projectId: number | string, rowId: number | string) {

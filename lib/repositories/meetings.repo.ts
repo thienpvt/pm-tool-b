@@ -29,8 +29,10 @@ export async function updateMeeting(
 ) {
   const { sql, values } = buildUpdate('meetings', MEETING_COLUMNS, fields);
   const db = await getDb();
-  await db.run(`UPDATE meetings SET ${sql} WHERE id = ? AND project_id = ?`, ...values, rowId, projectId);
-  return db.get('SELECT * FROM meetings WHERE id = ?', rowId);
+  return db.get(
+    `UPDATE meetings SET ${sql} WHERE id = ? AND project_id = ? RETURNING *`,
+    ...values, rowId, projectId,
+  );
 }
 
 export async function deleteMeeting(projectId: number | string, rowId: number | string) {

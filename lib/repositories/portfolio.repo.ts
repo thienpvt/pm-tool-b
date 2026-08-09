@@ -166,14 +166,13 @@ export async function updatePortfolioMember(
   body: Record<string, unknown>,
 ) {
   const db = await getDb();
-  await db.run(
+  return db.get(
     `UPDATE portfolio_members SET role = ?, name = ?, email = ?, note = ?,
        member_type = ?, member_category = ?, overhead_remaining = ?
-     WHERE id = ? AND company_id = ?`,
+     WHERE id = ? AND company_id = ? RETURNING *`,
     body.role ?? '', body.name, body.email ?? '', body.note ?? '', body.member_type ?? 'internal',
     body.member_category ?? 'delivery', Number(body.overhead_remaining) || 0, memberId, companyId,
   );
-  return db.get('SELECT * FROM portfolio_members WHERE id = ?', memberId);
 }
 
 export async function deletePortfolioMember(companyId: number | null, memberId: number | string) {
@@ -333,15 +332,14 @@ export async function updatePortfolioBudgetAllocation(
   body: Record<string, unknown>,
 ) {
   const db = await getDb();
-  await db.run(
-    `UPDATE portfolio_budget_allocations SET project_id=?, allocated_amount=?, notes=?
-     WHERE id=? AND portfolio_budget_id=?`,
-    body.project_id || null, body.allocated_amount, body.notes, allocationId, budgetId,
-  );
   return db.get(
-    `SELECT pba.*, p.name AS project_name FROM portfolio_budget_allocations pba
-     LEFT JOIN projects p ON p.id = pba.project_id WHERE pba.id = ?`,
-    allocationId,
+    `WITH updated AS (
+       UPDATE portfolio_budget_allocations SET project_id=?, allocated_amount=?, notes=?
+       WHERE id=? AND portfolio_budget_id=? RETURNING *
+     )
+     SELECT updated.*, p.name AS project_name FROM updated
+     LEFT JOIN projects p ON p.id = updated.project_id`,
+    body.project_id || null, body.allocated_amount, body.notes, allocationId, budgetId,
   );
 }
 
@@ -372,12 +370,11 @@ export async function updatePortfolioBudgetCategory(
   body: Record<string, unknown>,
 ) {
   const db = await getDb();
-  await db.run(
+  return db.get(
     `UPDATE portfolio_budget_categories SET category=?, ceiling_amount=?, notes=?
-     WHERE id=? AND portfolio_budget_id=?`,
+     WHERE id=? AND portfolio_budget_id=? RETURNING *`,
     body.category, body.ceiling_amount, body.notes, categoryId, budgetId,
   );
-  return db.get('SELECT * FROM portfolio_budget_categories WHERE id = ?', categoryId);
 }
 
 export async function deletePortfolioBudgetCategory(

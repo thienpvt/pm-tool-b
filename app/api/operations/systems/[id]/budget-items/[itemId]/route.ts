@@ -22,6 +22,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
   const updated = await updateOperationsBudgetItem(id, itemId, {
     category, name, planned_amount, actual_amount, unit, period_label, notes,
   });
+  if (!updated) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   return NextResponse.json(updated);
 }
 

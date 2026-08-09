@@ -66,9 +66,9 @@ export async function updateBudgetItem(
   },
 ) {
   const db = await getDb();
-  await db.run(
+  return db.get(
     `UPDATE budget_items SET type=?, group_name=?, name=?, planned_amount=?, approved_amount=?, actual_amount=?, unit=?, notes=?
-     WHERE id=? AND project_id=?`,
+     WHERE id=? AND project_id=? RETURNING *`,
     body.type,
     body.group_name?.trim() ?? '',
     body.name.trim(),
@@ -80,7 +80,6 @@ export async function updateBudgetItem(
     itemId,
     projectId,
   );
-  return db.get('SELECT * FROM budget_items WHERE id = ?', itemId);
 }
 
 export async function deleteBudgetItem(projectId: number | string, itemId: number | string) {

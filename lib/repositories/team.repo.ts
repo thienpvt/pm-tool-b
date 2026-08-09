@@ -29,8 +29,10 @@ export async function updateTeamMember(
 ) {
   const { sql, values } = buildUpdate('team_members', TEAM_COLUMNS, fields);
   const db = await getDb();
-  await db.run(`UPDATE team_members SET ${sql} WHERE id = ? AND project_id = ?`, ...values, rowId, projectId);
-  return db.get('SELECT * FROM team_members WHERE id = ?', rowId);
+  return db.get(
+    `UPDATE team_members SET ${sql} WHERE id = ? AND project_id = ? RETURNING *`,
+    ...values, rowId, projectId,
+  );
 }
 
 export async function deleteTeamMember(projectId: number | string, rowId: number | string) {

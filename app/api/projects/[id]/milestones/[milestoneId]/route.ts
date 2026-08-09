@@ -8,7 +8,9 @@ export async function PUT(req: NextRequest, { params }: Params) {
   const { id, milestoneId } = await params;
   try {
     const body = await req.json();
-    return NextResponse.json(await updateMilestone(id, milestoneId, body));
+    const updated = await updateMilestone(id, milestoneId, body);
+    if (!updated) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    return NextResponse.json(updated);
   } catch (e) {
     return repoErrorResponse(e);
   }

@@ -62,8 +62,10 @@ export async function updateActivity(
 ) {
   const { sql, values } = buildUpdate('activities', ACTIVITY_COLUMNS, fields);
   const db = await getDb();
-  await db.run(`UPDATE activities SET ${sql} WHERE id = ? AND project_id = ?`, ...values, rowId, projectId);
-  return db.get('SELECT * FROM activities WHERE id = ?', rowId);
+  return db.get(
+    `UPDATE activities SET ${sql} WHERE id = ? AND project_id = ? RETURNING *`,
+    ...values, rowId, projectId,
+  );
 }
 
 export async function deleteActivity(projectId: number | string, rowId: number | string) {

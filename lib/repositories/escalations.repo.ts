@@ -31,6 +31,8 @@ export async function updateEscalation(
 ) {
   const { sql, values } = buildUpdate('escalation_levels', ESCALATION_COLUMNS, fields);
   const db = await getDb();
-  await db.run(`UPDATE escalation_levels SET ${sql} WHERE id = ? AND project_id = ?`, ...values, rowId, projectId);
-  return db.get('SELECT * FROM escalation_levels WHERE id = ?', rowId);
+  return db.get(
+    `UPDATE escalation_levels SET ${sql} WHERE id = ? AND project_id = ? RETURNING *`,
+    ...values, rowId, projectId,
+  );
 }

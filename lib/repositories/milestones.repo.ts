@@ -32,11 +32,10 @@ export async function updateMilestone(
   body: Record<string, unknown>,
 ) {
   const db = await getDb();
-  await db.run(
-    'UPDATE milestones SET name = ?, start_date = ?, end_date = ? WHERE id = ? AND project_id = ?',
+  return db.get(
+    'UPDATE milestones SET name = ?, start_date = ?, end_date = ? WHERE id = ? AND project_id = ? RETURNING *',
     body.name ?? '', body.start_date ?? null, body.end_date ?? null, milestoneId, projectId,
   );
-  return db.get('SELECT * FROM milestones WHERE id = ?', milestoneId);
 }
 
 export async function deleteMilestone(projectId: number | string, milestoneId: number | string) {

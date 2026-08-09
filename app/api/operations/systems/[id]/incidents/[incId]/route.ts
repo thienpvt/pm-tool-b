@@ -22,6 +22,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
   const updated = await updateOperationsIncident(id, incId, {
     title, severity, description, reported_at, resolved_at, cost_impact, status,
   });
+  if (!updated) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   return NextResponse.json(updated);
 }
 
