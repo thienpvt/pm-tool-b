@@ -480,8 +480,13 @@ export type PortfolioMilestoneInfo = {
 };
 
 /** Resolve selected milestones, their projects, and exactly-linked activities. */
-export async function portfolioMilestoneSelection(ids: readonly number[]) {
+export async function portfolioMilestoneSelection(
+  ids: readonly number[],
+  companyId: number | null,
+  isAdmin: boolean,
+) {
   const db = await getDb();
+  const company = reportCompanyScope(companyId, isAdmin);
   const milestones: PortfolioMilestoneInfo[] = [];
   const projectIds = new Set<number>();
   const activityIds = new Set<number>();
@@ -493,17 +498,21 @@ export async function portfolioMilestoneSelection(ids: readonly number[]) {
       `SELECT m.id, m.project_id, m.name, m.start_date, m.end_date,
          COALESCE(p.name, '') AS project_name, COALESCE(c.name, '') AS program_name
        FROM milestones m
-       LEFT JOIN projects p ON p.id = m.project_id
+       JOIN projects p ON p.id = m.project_id
        LEFT JOIN customers c ON c.id = p.customer_id
-       WHERE m.id = ?`,
+       WHERE m.id = ? ${company.sql}`,
       milestoneId,
+      ...company.params,
     );
     if (!row) continue;
     milestones.push(row);
     projectIds.add(row.project_id);
     const epics = await db.all<{ activity_id: number }>(
-      'SELECT activity_id FROM milestone_epics WHERE milestone_id = ?',
+      `SELECT me.activity_id FROM milestone_epics me
+       JOIN activities a ON a.id = me.activity_id
+       WHERE me.milestone_id = ? AND a.project_id = ?`,
       milestoneId,
+      row.project_id,
     );
     for (const epic of epics) activityIds.add(epic.activity_id);
     if (row.start_date && (periodMin === null || row.start_date < periodMin)) periodMin = row.start_date;

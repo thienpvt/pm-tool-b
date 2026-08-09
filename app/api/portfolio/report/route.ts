@@ -57,7 +57,11 @@ export async function GET(req: NextRequest) {
 
   if (milestoneIdsParam) {
     const ids = milestoneIdsParam.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
-    const selection = await portfolioMilestoneSelection(ids);
+    const selection = await portfolioMilestoneSelection(
+      ids,
+      user.company_id,
+      Boolean(user.is_admin),
+    );
     for (const projectId of selection.projectIds) milestoneProjectIds.add(projectId);
     milestoneEpicIds = new Set(selection.activityIds);
     selectedMilestones.push(...selection.milestones);
