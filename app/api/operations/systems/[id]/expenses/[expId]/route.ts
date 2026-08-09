@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
 import { getSessionFromRequest } from '@/lib/auth';
+import { deleteOperationsExpense, findOperationsSystem } from '@/lib/repositories/operations.repo';
 
 type Params = { params: Promise<{ id: string; expId: string }> };
 
@@ -9,11 +9,9 @@ export async function DELETE(req: NextRequest, { params }: Params) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { id, expId } = await params;
-  const db = await getDb();
-
-  const sys = await db.get('SELECT id FROM operations_systems WHERE id = ? AND company_id = ?', id, user.company_id);
+  const sys = await findOperationsSystem(id, user.company_id, Boolean(user.is_admin));
   if (!sys) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  await db.run('DELETE FROM operations_expenses WHERE id = ? AND operations_system_id = ?', expId, id);
+  await deleteOperationsExpense(id, expId);
   return NextResponse.json({ ok: true });
 }

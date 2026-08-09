@@ -1,16 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
 import { getSessionFromRequest } from '@/lib/auth';
+import { companyJiraConfig } from '@/lib/repositories/jira-config.repo';
 
 async function getJiraCredentials(req: NextRequest) {
   const user = await getSessionFromRequest(req);
   if (!user?.company_id) return null;
 
-  const db = await getDb();
-  const cfg = await db.get<{ base_url_var: string; email_var: string; token_var: string }>(
-    'SELECT base_url_var, email_var, token_var FROM company_jira_config WHERE company_id = ?',
-    user.company_id,
-  );
+  const cfg = await companyJiraConfig(user.company_id);
   if (!cfg?.base_url_var || !cfg?.email_var || !cfg?.token_var) return null;
 
   const baseUrl = process.env[cfg.base_url_var]?.replace(/\/$/, '');

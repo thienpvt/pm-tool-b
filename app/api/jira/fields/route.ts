@@ -1,16 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
 import { getSessionFromRequest } from '@/lib/auth';
+import { companyJiraConfig } from '@/lib/repositories/jira-config.repo';
 
 export async function GET(req: NextRequest) {
   const user = await getSessionFromRequest(req);
   if (!user?.company_id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const db = await getDb();
-  const cfg = await db.get<{ base_url_var: string; email_var: string; token_var: string }>(
-    'SELECT base_url_var, email_var, token_var FROM company_jira_config WHERE company_id = ?',
-    user.company_id,
-  );
+  const cfg = await companyJiraConfig(user.company_id);
   if (!cfg?.base_url_var) return NextResponse.json({ error: 'Jira chưa cấu hình' }, { status: 503 });
 
   const baseUrl = process.env[cfg.base_url_var]?.replace(/\/$/, '');

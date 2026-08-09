@@ -4,7 +4,7 @@ import { getDb } from '@/lib/db';
  * The `settings` key/value table.
  *
  * `lib/db.ts` excludes this table from its automatic `RETURNING id` because it has no
- * serial `id` column — so a write here must not read `lastInsertRowid`.
+ * serial `id` column, so writes do not return a generated key.
  */
 export async function getSetting(key: string): Promise<string | undefined> {
   const db = await getDb();
@@ -20,7 +20,7 @@ export async function listSettings() {
 
 /**
  * Upsert one key. No `RETURNING id` is available on this table (see above), so this
- * returns nothing meaningful — callers must not read `lastInsertRowid`.
+ * returns nothing meaningful — callers must not expect a generated key.
  */
 export async function setSetting(key: string, value: string): Promise<void> {
   const db = await getDb();

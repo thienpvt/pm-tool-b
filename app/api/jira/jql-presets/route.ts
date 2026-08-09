@@ -1,15 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { createJqlPreset, listJqlPresets } from '@/lib/repositories/jira-config.repo';
 
 const MAX_PRESETS = 10;
 
 export async function GET(req: NextRequest) {
   const context = req.nextUrl.searchParams.get('context') ?? '';
-  const db = await getDb();
-  const rows = await db.all(
-    'SELECT * FROM jira_jql_presets WHERE context = ? ORDER BY created_at DESC',
-    context,
-  );
+  const rows = await listJqlPresets(context);
   return NextResponse.json(rows);
 }
 
@@ -18,23 +14,6 @@ export async function POST(req: NextRequest) {
   if (!name || !jql) return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
 
   const ctx = context ?? '';
-  const db = await getDb();
-  const existing = await db.all<{ id: number }>(
-    'SELECT id FROM jira_jql_presets WHERE context = ? ORDER BY created_at DESC',
-    ctx,
-  );
-
-  if (existing.length >= MAX_PRESETS) {
-    const oldest = existing[existing.length - 1];
-    await db.run('DELETE FROM jira_jql_presets WHERE id = ?', oldest.id);
-  }
-
-  const r = await db.run(
-    'INSERT INTO jira_jql_presets (name, jql, context) VALUES (?, ?, ?)',
-    name,
-    jql,
-    ctx,
-  );
-  const row = await db.get('SELECT * FROM jira_jql_presets WHERE id = ?', r.lastInsertRowid);
+  const row = await createJqlPreset(name, jql, ctx, MAX_PRESETS);
   return NextResponse.json(row, { status: 201 });
 }

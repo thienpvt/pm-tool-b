@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
 import { getSessionFromRequest } from '@/lib/auth';
+import { companyJiraConfig } from '@/lib/repositories/jira-config.repo';
 
 type Cfg = { base_url_var: string; email_var: string; token_var: string };
 
@@ -32,11 +32,7 @@ async function resolveCfg(req: NextRequest): Promise<
   const companyId = (user.is_admin && body.companyId) ? Number(body.companyId) : user.company_id;
   if (!companyId) return { ok: false, status: 400, error: 'Tài khoản chưa thuộc công ty nào' };
 
-  const db = await getDb();
-  const cfg = await db.get<Cfg>(
-    'SELECT base_url_var, email_var, token_var FROM company_jira_config WHERE company_id = ?',
-    companyId,
-  );
+  const cfg = await companyJiraConfig(companyId);
   if (!cfg?.base_url_var || !cfg?.email_var || !cfg?.token_var) {
     return { ok: false, status: 503, error: 'Công ty chưa được cấu hình Jira. Admin vào Quản trị → Companies → Cấu hình Jira.' };
   }
