@@ -66,7 +66,7 @@ export function testDb(): DbClient {
 }
 
 /**
- * Minimal DDL for the tables Phase 2 plan 01 touches. Column sets match
+ * Minimal DDL for the tables Phase 2 repository tests touch. Column sets match
  * `lib/repositories/ALLOWLIST-DIFF.md`, including the migration-added columns
  * (`activities.project_status`, `activities.parent_id`, `team_members.email`,
  * and the `priority`/`impact`/`affected_activity_id` trio on risks and issues)
@@ -81,7 +81,24 @@ CREATE TABLE IF NOT EXISTS projects (
   customer_id INTEGER, company_id INTEGER, created_at TIMESTAMPTZ DEFAULT now()
 );
 CREATE TABLE IF NOT EXISTS customers (
-  id SERIAL PRIMARY KEY, name TEXT, company_id INTEGER
+  id SERIAL PRIMARY KEY, name TEXT, industry TEXT, contact_name TEXT,
+  contact_email TEXT, contact_phone TEXT, website TEXT, notes TEXT,
+  company_id INTEGER, created_at TIMESTAMPTZ DEFAULT now()
+);
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS industry TEXT;
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS contact_name TEXT;
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS contact_email TEXT;
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS contact_phone TEXT;
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS website TEXT;
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS notes TEXT;
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT now();
+CREATE TABLE IF NOT EXISTS companies (
+  id SERIAL PRIMARY KEY, name TEXT NOT NULL, headcount_quota INTEGER DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS users (
+  id SERIAL PRIMARY KEY, username TEXT, password_hash TEXT, display_name TEXT,
+  company_id INTEGER, is_admin INTEGER DEFAULT 0, created_at TIMESTAMPTZ DEFAULT now()
 );
 CREATE TABLE IF NOT EXISTS activities (
   id SERIAL PRIMARY KEY, project_id INTEGER, phase TEXT, no TEXT, activity TEXT,
@@ -176,6 +193,21 @@ CREATE TABLE IF NOT EXISTS company_rag_config (
   low_progress_amber FLOAT NOT NULL DEFAULT 30,
   updated_at TIMESTAMP DEFAULT now()
 );
+CREATE TABLE IF NOT EXISTS operations_systems (
+  id SERIAL PRIMARY KEY, company_id INTEGER, project_id INTEGER, name TEXT NOT NULL,
+  description TEXT DEFAULT '', go_live_date DATE, status TEXT DEFAULT 'active',
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS operations_budget_items (
+  id SERIAL PRIMARY KEY, operations_system_id INTEGER, category TEXT, name TEXT,
+  planned_amount NUMERIC DEFAULT 0, actual_amount NUMERIC DEFAULT 0,
+  unit TEXT, period_label TEXT, notes TEXT
+);
+CREATE TABLE IF NOT EXISTS operations_incidents (
+  id SERIAL PRIMARY KEY, operations_system_id INTEGER, title TEXT, severity TEXT,
+  description TEXT, reported_at DATE, resolved_at DATE, cost_impact NUMERIC DEFAULT 0,
+  status TEXT DEFAULT 'Open'
+);
 `;
 
 /**
@@ -187,6 +219,12 @@ CREATE TABLE IF NOT EXISTS company_rag_config (
  */
 export async function setupRepoTables(): Promise<void> {
   await testDb().exec(DDL);
+}
+
+/** Insert a company and return its id for company-scoped repository suites. */
+export async function seedCompany(name = 'Test Company'): Promise<number> {
+  const result = await testDb().run('INSERT INTO companies (name) VALUES (?)', name);
+  return Number(result.lastInsertRowid);
 }
 
 /** Insert a project and return its id, giving the calling suite a private scope. */
