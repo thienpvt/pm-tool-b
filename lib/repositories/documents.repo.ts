@@ -35,6 +35,19 @@ export async function findDocumentByType(projectId: number | string, type: strin
   return db.get<{ id: number }>('SELECT id FROM documents WHERE project_id = ? AND type = ?', projectId, type);
 }
 
+/** Document shape consumed by Word export, optionally pinned to a specific report row. */
+export async function getDocumentForExport(
+  projectId: number | string,
+  type: string,
+  documentId?: number | string,
+) {
+  const db = await getDb();
+  if (documentId != null) {
+    return db.get('SELECT * FROM documents WHERE id = ? AND project_id = ?', documentId, projectId);
+  }
+  return db.get('SELECT * FROM documents WHERE project_id = ? AND type = ?', projectId, type);
+}
+
 export async function createDocument(
   projectId: number | string,
   type: string,

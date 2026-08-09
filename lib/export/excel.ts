@@ -1,5 +1,11 @@
 import ExcelJS from 'exceljs';
-import { getDb } from '@/lib/db';
+import { listActivities } from '@/lib/repositories/activities.repo';
+import { listEscalationsForExport } from '@/lib/repositories/escalations.repo';
+import { listIssues } from '@/lib/repositories/issues.repo';
+import { listMeetings } from '@/lib/repositories/meetings.repo';
+import { getProject } from '@/lib/repositories/projects.repo';
+import { listRisks } from '@/lib/repositories/risks.repo';
+import { listTeam } from '@/lib/repositories/team.repo';
 
 // ─── Color palette matching the original Bank Platform template ───────────────
 const NAV_COLOR    = '1E293B';   // dark navy header
@@ -95,17 +101,17 @@ function getMonths(start: string, end: string): string[] {
 // ─── Main export function ─────────────────────────────────────────────────────
 
 export async function generateProjectPlan(projectId: number): Promise<Buffer> {
-  const db = await getDb();
-
-  const project    = await db.get('SELECT * FROM projects WHERE id = ?', projectId) as Record<string, string> | undefined;
+  const project = await getProject(projectId) as Record<string, string> | undefined;
   if (!project) throw new Error('Project not found');
 
-  const activities  = await db.all('SELECT * FROM activities WHERE project_id = ? ORDER BY order_idx, id', projectId) as Record<string, string | number>[];
-  const teamMembers = await db.all('SELECT * FROM team_members WHERE project_id = ? ORDER BY domain, id', projectId) as Record<string, string>[];
-  const meetings    = await db.all('SELECT * FROM meetings WHERE project_id = ? ORDER BY id', projectId) as Record<string, string>[];
-  const escalations = await db.all('SELECT * FROM escalation_levels WHERE project_id = ? ORDER BY level', projectId) as Record<string, string | number>[];
-  const risks       = await db.all('SELECT * FROM risks WHERE project_id = ? ORDER BY id', projectId) as Record<string, string>[];
-  const issues      = await db.all('SELECT * FROM issues WHERE project_id = ? ORDER BY id', projectId) as Record<string, string>[];
+  const [activities, teamMembers, meetings, escalations, risks, issues] = await Promise.all([
+    listActivities(projectId) as Promise<Record<string, string | number>[]>,
+    listTeam(projectId) as Promise<Record<string, string>[]>,
+    listMeetings(projectId) as Promise<Record<string, string>[]>,
+    listEscalationsForExport(projectId) as Promise<Record<string, string | number>[]>,
+    listRisks(projectId) as Promise<Record<string, string>[]>,
+    listIssues(projectId) as Promise<Record<string, string>[]>,
+  ]);
 
   const wb = new ExcelJS.Workbook();
   wb.creator = 'PM Tool';

@@ -17,6 +17,12 @@ export async function listEscalations(projectId: number | string) {
   return db.all('SELECT * FROM escalation_levels WHERE project_id = ? ORDER BY level DESC', projectId);
 }
 
+/** Ascending level order used by the project-plan export workbook. */
+export async function listEscalationsForExport(projectId: number | string) {
+  const db = await getDb();
+  return db.all('SELECT * FROM escalation_levels WHERE project_id = ? ORDER BY level', projectId);
+}
+
 /** @throws UnknownColumnError when `fields` names a column outside ESCALATION_COLUMNS. */
 export async function updateEscalation(
   projectId: number | string,
