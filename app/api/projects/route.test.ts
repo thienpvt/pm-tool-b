@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
 vi.mock('@/lib/db', () => ({ getDb: vi.fn() }));
@@ -24,6 +24,10 @@ function req(url = 'http://localhost/api/projects') {
 beforeEach(() => {
   vi.mocked(getSessionFromRequest).mockReset();
   vi.mocked(getDb).mockReset();
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 describe('GET /api/projects', () => {
@@ -67,10 +71,12 @@ describe('GET /api/projects', () => {
   it('returns 500 when the db layer throws', async () => {
     vi.mocked(getSessionFromRequest).mockResolvedValue(session as never);
     vi.mocked(getDb).mockRejectedValue(new Error('boom'));
+    const errorLog = vi.spyOn(console, 'error').mockImplementation(() => undefined);
 
     const res = await GET(req());
 
     expect(res.status).toBe(500);
-    await expect(res.json()).resolves.toEqual({ error: 'Error: boom' });
+    await expect(res.json()).resolves.toEqual({ error: 'Internal server error' });
+    expect(errorLog).toHaveBeenCalledWith('Unexpected repository error', expect.any(Error));
   });
 });
