@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
 import { getSessionFromRequest } from '@/lib/auth';
 import { statusPct, weightedProgress } from '@/lib/status-weights';
+import { roadmapEpicRows } from '@/lib/repositories/portfolio.repo';
 
 // Trả về cây epic → children theo phase cho một project, kèm tiến độ weighted-by-status.
 // Dùng cho: expand phase trong Portfolio Roadmap + dialog chi tiết Epic.
@@ -13,13 +13,7 @@ export async function GET(req: NextRequest) {
   const projectId = searchParams.get('project_id');
   if (!projectId) return NextResponse.json({ error: 'project_id required' }, { status: 400 });
 
-  const db = await getDb();
-
-  const rows = await db.all(
-    `SELECT id, phase, no, activity, status, plan_start, plan_end, jira_key, parent_id, order_idx
-     FROM activities WHERE project_id = ? ORDER BY order_idx, id`,
-    projectId
-  ) as any[];
+  const rows = await roadmapEpicRows(projectId) as any[];
 
   const childrenByParent: Record<number, any[]> = {};
   for (const r of rows) {

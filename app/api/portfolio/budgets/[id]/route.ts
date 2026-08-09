@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
 import { getSessionFromRequest } from '@/lib/auth';
+import {
+  deletePortfolioBudget,
+  findPortfolioBudget,
+  portfolioBudgetAllocations,
+  portfolioBudgetCategories,
+  spendByCategory,
+  updatePortfolioBudget,
+} from '@/lib/repositories/portfolio.repo';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -9,32 +16,12 @@ export async function GET(req: NextRequest, { params }: Params) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { id } = await params;
-  const db = await getDb();
-
-  const budget = await db.get(
-    'SELECT * FROM portfolio_budgets WHERE id = ? AND company_id = ?',
-    id, user.company_id
-  );
+  const budget = await findPortfolioBudget(user.company_id, id);
   if (!budget) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  const categories = await db.all(
-    'SELECT * FROM portfolio_budget_categories WHERE portfolio_budget_id = ? ORDER BY category',
-    id
-  );
-
-  const allocations = await db.all(
-    `SELECT pba.*, p.name AS project_name,
-            COALESCE(SUM(bi.planned_amount), 0) AS total_estimate,
-            COALESCE(SUM(bi.approved_amount), 0) AS total_approved,
-            COALESCE(SUM(bi.actual_amount), 0) AS total_actual
-     FROM portfolio_budget_allocations pba
-     LEFT JOIN projects p ON p.id = pba.project_id
-     LEFT JOIN budget_items bi ON bi.project_id = pba.project_id
-     WHERE pba.portfolio_budget_id = ?
-     GROUP BY pba.id, p.name
-     ORDER BY p.name`,
-    id
-  );
+  const [categories, allocations] = await Promise.all([
+    portfolioBudgetCategories(id), portfolioBudgetAllocations(id),
+  ]);
 
   // Warning: total allocated vs total_amount
   const totalAllocated = (allocations as Array<{ allocated_amount: number }>)
@@ -43,13 +30,7 @@ export async function GET(req: NextRequest, { params }: Params) {
   // Warning per category: sum of budget_items.planned_amount for allocated projects
   const categoryWarnings: Record<string, { ceiling: number; used: number }> = {};
   for (const cat of categories as Array<{ category: string; ceiling_amount: number }>) {
-    const row = await db.get<{ used: number }>(
-      `SELECT COALESCE(SUM(bi.planned_amount), 0) AS used
-       FROM budget_items bi
-       JOIN portfolio_budget_allocations pba ON pba.project_id = bi.project_id
-       WHERE pba.portfolio_budget_id = ? AND bi.type = ?`,
-      id, cat.category
-    );
+    const row = await spendByCategory(id, cat.category);
     categoryWarnings[cat.category] = {
       ceiling: Number(cat.ceiling_amount),
       used: Number(row?.used ?? 0),
@@ -73,23 +54,15 @@ export async function PUT(req: NextRequest, { params }: Params) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { id } = await params;
-  const db = await getDb();
-  const existing = await db.get(
-    'SELECT id FROM portfolio_budgets WHERE id = ? AND company_id = ?',
-    id, user.company_id
-  );
+  const existing = await findPortfolioBudget(user.company_id, id);
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
   const body = await req.json();
   const { period_type, period_label, start_date, end_date, total_amount, currency, status, notes } = body;
 
-  await db.run(
-    `UPDATE portfolio_budgets SET period_type=?, period_label=?, start_date=?, end_date=?,
-     total_amount=?, currency=?, status=?, notes=? WHERE id=?`,
-    period_type, period_label, start_date, end_date,
-    total_amount, currency, status, notes, id
-  );
-  const updated = await db.get('SELECT * FROM portfolio_budgets WHERE id = ?', id);
+  const updated = await updatePortfolioBudget(id, {
+    period_type, period_label, start_date, end_date, total_amount, currency, status, notes,
+  });
   return NextResponse.json(updated);
 }
 
@@ -98,10 +71,6 @@ export async function DELETE(req: NextRequest, { params }: Params) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { id } = await params;
-  const db = await getDb();
-  await db.run(
-    'DELETE FROM portfolio_budgets WHERE id = ? AND company_id = ?',
-    id, user.company_id
-  );
+  await deletePortfolioBudget(user.company_id, id);
   return NextResponse.json({ ok: true });
 }

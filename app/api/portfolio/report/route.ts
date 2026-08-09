@@ -1,16 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
 import { getSessionFromRequest } from '@/lib/auth';
 import Anthropic from '@anthropic-ai/sdk';
 import { statusWeight, DONE_STATUSES } from '@/lib/status-weights';
 import { calculateRAG, DEFAULT_RAG_CONFIG } from '@/lib/rag';
+import { companyRagConfig } from '@/lib/repositories/rag-config.repo';
+import { getSetting } from '@/lib/repositories/settings.repo';
+import { listCompanyPrograms } from '@/lib/repositories/programs.repo';
+import {
+  completedPortfolioActivitiesBetween,
+  internalPortfolioMembers as listInternalPortfolioMembers,
+  issueCountsByProject,
+  listPortfolioReportActivities,
+  listPortfolioReportProjects,
+  milestoneDateRanges,
+  portfolioBugCounts,
+  portfolioMemberFte,
+  portfolioMilestoneSelection,
+  portfolioProgramFillRates,
+  portfolioReportMilestones,
+  portfolioTeamMembers,
+  recentlyCompletedPortfolioActivities,
+  riskCountsByProject,
+  topPortfolioIssues,
+  topPortfolioRisks,
+  upcomingPortfolioActivities,
+  companyNameAndQuota,
+} from '@/lib/repositories/portfolio.repo';
 
 // ─── GET: Full portfolio report data ─────────────────────────────────────────
 export async function GET(req: NextRequest) {
   const user = await getSessionFromRequest(req);
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const db = await getDb();
   const { searchParams } = new URL(req.url);
 
   // Default to current Mon–Sun week
@@ -26,10 +47,6 @@ export async function GET(req: NextRequest) {
   let startParam = searchParams.get('start') ?? monday.toISOString().slice(0, 10);
   let endParam   = searchParams.get('end')   ?? sunday.toISOString().slice(0, 10);
 
-  // Company scoping: admin sees all, regular user sees only their company
-  const cc = user.is_admin ? '' : 'AND p.company_id = ?';
-  const cp = user.is_admin ? [] : [user.company_id];
-
   // ─── Milestone mode (multi-select) ────────────────────────────────────────
   const milestoneIdsParam = searchParams.get('milestone_ids'); // "1,2,3"
   const milestoneProjectIds = new Set<number>();
@@ -40,73 +57,29 @@ export async function GET(req: NextRequest) {
 
   if (milestoneIdsParam) {
     const ids = milestoneIdsParam.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
-    let periodMin: string | null = null;
-    let periodMax: string | null = null;
+    const selection = await portfolioMilestoneSelection(ids);
+    for (const projectId of selection.projectIds) milestoneProjectIds.add(projectId);
+    milestoneEpicIds = new Set(selection.activityIds);
+    selectedMilestones.push(...selection.milestones);
 
-    for (const msId of ids) {
-      const ms = await db.get<{ id: number; project_id: number; name: string; start_date: string; end_date: string }>(
-        'SELECT id, project_id, name, start_date, end_date FROM milestones WHERE id = ?', msId
-      );
-      if (!ms) continue;
-
-      milestoneProjectIds.add(ms.project_id);
-      const proj = await db.get<{ name: string; customer_id: number | null }>(
-        'SELECT name, customer_id FROM projects WHERE id = ?', ms.project_id
-      );
-      let programName = '';
-      if (proj?.customer_id) {
-        const cust = await db.get<{ name: string }>('SELECT name FROM customers WHERE id = ?', proj.customer_id);
-        programName = cust?.name ?? '';
-      }
-      selectedMilestones.push({ id: ms.id, project_id: ms.project_id, name: ms.name, project_name: proj?.name ?? '', program_name: programName, start_date: ms.start_date, end_date: ms.end_date });
-
-      const epicRows = await db.all<{ activity_id: number }>(
-        'SELECT activity_id FROM milestone_epics WHERE milestone_id = ?', ms.id
-      );
-      for (const r of epicRows) milestoneEpicIds.add(r.activity_id);
-
-      if (ms.start_date && (periodMin === null || ms.start_date < periodMin)) periodMin = ms.start_date;
-      if (ms.end_date   && (periodMax === null || ms.end_date   > periodMax)) periodMax = ms.end_date;
-    }
-
-    if (periodMin) startParam = periodMin;
-    if (periodMax) {
-      endParam = periodMax;
-      milestoneMonth = periodMax.slice(0, 7);
+    if (selection.periodMin) startParam = selection.periodMin;
+    if (selection.periodMax) {
+      endParam = selection.periodMax;
+      milestoneMonth = selection.periodMax.slice(0, 7);
     }
   }
 
   const milestoneInfo = selectedMilestones.length > 0 ? selectedMilestones : null;
 
-  // Milestone-project filter for SQL queries
   const _projIdList = [...milestoneProjectIds];
   const _epicIdList = [...milestoneEpicIds];
-  const mpWhere  = _projIdList.length === 1 ? `AND p.id = ${_projIdList[0]}`          : _projIdList.length > 1 ? `AND p.id IN (${_projIdList.join(',')})` : '';
-  const mpWhereR = _projIdList.length === 1 ? `AND r.project_id = ${_projIdList[0]}`  : _projIdList.length > 1 ? `AND r.project_id IN (${_projIdList.join(',')})` : '';
-  const mpWhereI = _projIdList.length === 1 ? `AND i.project_id = ${_projIdList[0]}`  : _projIdList.length > 1 ? `AND i.project_id IN (${_projIdList.join(',')})` : '';
-  const mpWhereA = _projIdList.length === 1 ? `AND a.project_id = ${_projIdList[0]}`  : _projIdList.length > 1 ? `AND a.project_id IN (${_projIdList.join(',')})` : '';
-  // In milestone mode: filter SQL queries to only activities directly stored in milestone_epics
-  const mpWhereAEpics = _epicIdList.length > 0 ? `AND a.id IN (${_epicIdList.join(',')})` : '';
-
-  const projects = await db.all(`
-    SELECT p.*, c.name as program_name, c.industry as program_industry
-    FROM projects p
-    LEFT JOIN customers c ON p.customer_id = c.id
-    WHERE 1=1 ${cc}
-    ORDER BY p.created_at DESC
-  `, ...cp) as any[];
-
-  const programs = user.is_admin
-    ? await db.all('SELECT * FROM customers ORDER BY name') as any[]
-    : await db.all('SELECT * FROM customers WHERE company_id = ? ORDER BY name', user.company_id) as any[];
-
-  const riskCounts = await db.all(`SELECT project_id, COUNT(*) as total, SUM(CASE WHEN status='Open' OR status='In Progress' THEN 1 ELSE 0 END) as open FROM risks GROUP BY project_id`) as any[];
-  const issueCounts = await db.all(`SELECT project_id, COUNT(*) as total, SUM(CASE WHEN status='Open' OR status='In Progress' THEN 1 ELSE 0 END) as open FROM issues GROUP BY project_id`) as any[];
-
-  // Fetch all activity statuses for weighted completion calculation
-  const allActivityRows = await db.all(
-    'SELECT id, project_id, no, parent_id, activity as epic_name, status, phase, plan_start, plan_end, actual_start, actual_end FROM activities'
-  ) as { id: number; project_id: number; no: string; parent_id: number | null; epic_name: string; status: string; phase: string; plan_start?: string; plan_end?: string; actual_start?: string; actual_end?: string }[];
+  const [projects, programs, riskCounts, issueCounts, allActivityRows] = await Promise.all([
+    listPortfolioReportProjects(user.company_id, Boolean(user.is_admin)) as Promise<any[]>,
+    listCompanyPrograms(user.company_id, Boolean(user.is_admin)) as Promise<any[]>,
+    riskCountsByProject() as Promise<any[]>,
+    issueCountsByProject() as Promise<any[]>,
+    listPortfolioReportActivities(),
+  ]);
 
   // In milestone mode: only include activities explicitly stored in milestone_epics (direct match).
   // Do NOT expand EPICs to all their children — milestone_epics already stores exactly what was added.
@@ -204,8 +177,6 @@ export async function GET(req: NextRequest) {
   const issueMap = Object.fromEntries(issueCounts.map((r: any) => [r.project_id, r]));
 
   const nowMs = Date.now();
-  const donePlaceholders = DONE_STATUSES.map(() => '?').join(',');
-
   // RAG: build milestone date map for milestone mode
   const milestoneDateByProject: Record<number, { start: string | null; end: string | null }> = {};
   if (milestoneIdsParam) {
@@ -220,20 +191,14 @@ export async function GET(req: NextRequest) {
     const projectsMissingDates = projects.filter((p: any) => !p.start_date || !p.end_date);
     if (projectsMissingDates.length > 0) {
       const ids = projectsMissingDates.map((p: any) => p.id);
-      const rows = await db.all<{ project_id: number; min_s: string; max_e: string }>(
-        `SELECT project_id, MIN(start_date) as min_s, MAX(end_date) as max_e
-         FROM milestones
-         WHERE project_id IN (${ids.map(() => '?').join(',')}) AND start_date IS NOT NULL AND end_date IS NOT NULL
-         GROUP BY project_id`,
-        ...ids
-      );
+      const rows = await milestoneDateRanges(ids);
       msFallbackMap = Object.fromEntries(rows.map(r => [r.project_id, r]));
     }
   }
 
   // RAG: load company config once for all projects
   const ragCfg = (user.company_id
-    ? await db.get<Record<string, unknown>>('SELECT * FROM company_rag_config WHERE company_id = ?', user.company_id)
+    ? await companyRagConfig(user.company_id)
     : null) ?? DEFAULT_RAG_CONFIG;
 
   const projectsForReport = milestoneProjectIds.size > 0
@@ -313,25 +278,10 @@ export async function GET(req: NextRequest) {
     : 0;
 
   // ─── Additional report data ────────────────────────────────────────────────
-  const topRisks = await db.all(`
-    SELECT r.*, p.name as project_name, c.name as program_name
-    FROM risks r
-    JOIN projects p ON r.project_id = p.id
-    LEFT JOIN customers c ON p.customer_id = c.id
-    WHERE (r.status='Open' OR r.status='In Progress') ${cc} ${mpWhereR}
-    ORDER BY CASE r.priority WHEN 'Critical' THEN 1 WHEN 'High' THEN 2 WHEN 'Medium' THEN 3 ELSE 4 END, r.id DESC
-    LIMIT 12
-  `, ...cp) as any[];
-
-  const topIssues = await db.all(`
-    SELECT i.*, p.name as project_name, c.name as program_name
-    FROM issues i
-    JOIN projects p ON i.project_id = p.id
-    LEFT JOIN customers c ON p.customer_id = c.id
-    WHERE (i.status='Open' OR i.status='In Progress') ${cc} ${mpWhereI}
-    ORDER BY CASE i.priority WHEN 'Critical' THEN 1 WHEN 'High' THEN 2 WHEN 'Medium' THEN 3 ELSE 4 END, i.id DESC
-    LIMIT 12
-  `, ...cp) as any[];
+  const [topRisks, topIssues] = await Promise.all([
+    topPortfolioRisks(user.company_id, Boolean(user.is_admin), _projIdList) as Promise<any[]>,
+    topPortfolioIssues(user.company_id, Boolean(user.is_admin), _projIdList) as Promise<any[]>,
+  ]);
 
   const now = new Date();
   const todayStr = now.toISOString().slice(0, 10);
@@ -339,43 +289,22 @@ export async function GET(req: NextRequest) {
   const minus14 = new Date(now.getTime() - 14 * 86400000).toISOString().slice(0, 10);
 
   // Upcoming milestones: not in any done status
-  const upcomingMilestones = await db.all(`
-    SELECT a.*, p.name as project_name, c.name as program_name
-    FROM activities a
-    JOIN projects p ON a.project_id = p.id
-    LEFT JOIN customers c ON p.customer_id = c.id
-    WHERE a.plan_end BETWEEN ? AND ?
-      AND a.status NOT IN (${donePlaceholders})
-      AND (a.no IS NULL OR a.no != 'EPIC') ${cc} ${mpWhereA} ${mpWhereAEpics}
-    ORDER BY a.plan_end ASC
-    LIMIT 15
-  `, todayStr, plus30, ...DONE_STATUSES, ...cp) as any[];
+  const upcomingMilestones = await upcomingPortfolioActivities(
+    user.company_id, Boolean(user.is_admin), _projIdList, _epicIdList,
+    todayStr, plus30, DONE_STATUSES,
+  ) as any[];
 
   // Recently completed: any done status, using actual_end
-  const recentlyCompleted = await db.all(`
-    SELECT a.*, p.name as project_name, c.name as program_name
-    FROM activities a
-    JOIN projects p ON a.project_id = p.id
-    LEFT JOIN customers c ON p.customer_id = c.id
-    WHERE a.status IN (${donePlaceholders})
-      AND a.actual_end >= ?
-      AND (a.no IS NULL OR a.no != 'EPIC') ${cc} ${mpWhereA} ${mpWhereAEpics}
-    ORDER BY a.actual_end DESC
-    LIMIT 10
-  `, ...DONE_STATUSES, minus14, ...cp) as any[];
+  const recentlyCompleted = await recentlyCompletedPortfolioActivities(
+    user.company_id, Boolean(user.is_admin), _projIdList, _epicIdList,
+    minus14, DONE_STATUSES,
+  ) as any[];
 
   // Completed in selected date range: any done status + actual_end in range
-  const completedInRange = await db.all(`
-    SELECT a.*, p.name as project_name, p.current_phase, c.name as program_name
-    FROM activities a
-    JOIN projects p ON a.project_id = p.id
-    LEFT JOIN customers c ON p.customer_id = c.id
-    WHERE a.status IN (${donePlaceholders})
-      AND a.actual_end >= ?
-      AND a.actual_end <= ?
-      AND (a.no IS NULL OR a.no != 'EPIC') ${cc} ${mpWhereA} ${mpWhereAEpics}
-    ORDER BY a.project_id, a.actual_end
-  `, ...DONE_STATUSES, startParam, endParam, ...cp) as any[];
+  const completedInRange = await completedPortfolioActivitiesBetween(
+    user.company_id, Boolean(user.is_admin), _projIdList, _epicIdList,
+    startParam, endParam, DONE_STATUSES,
+  ) as any[];
 
   // Group by project_id
   const completedByProject: Record<number, { project_name: string; program_name: string; current_phase: string; activities: any[] }> = {};
@@ -393,34 +322,9 @@ export async function GET(req: NextRequest) {
 
   // ─── Bug Report stats ─────────────────────────────────────────────────────
   // In milestone mode: pick the latest snapshot within the milestone's end-date month
-  const bugRows = milestoneMonth
-    ? await db.all(`
-        SELECT b.project_id, p.name as project_name, b.status, b.priority, b.severity, COUNT(*) as cnt
-        FROM bugs b
-        JOIN projects p ON b.project_id = p.id
-        WHERE b.snapshot_date = (
-          SELECT MAX(b2.snapshot_date) FROM bugs b2
-          WHERE b2.project_id = b.project_id
-          AND b2.snapshot_date LIKE '${milestoneMonth}%'
-          AND b2.snapshot_date != ''
-        )
-        AND b.snapshot_date LIKE '${milestoneMonth}%'
-        AND b.snapshot_date != ''
-        ${cc} ${mpWhere}
-        GROUP BY b.project_id, p.name, b.status, b.priority, b.severity
-      `, ...cp) as { project_id: number; project_name: string; status: string; priority: string; severity: string; cnt: number }[]
-    : await db.all(`
-        SELECT b.project_id, p.name as project_name, b.status, b.priority, b.severity, COUNT(*) as cnt
-        FROM bugs b
-        JOIN projects p ON b.project_id = p.id
-        WHERE b.snapshot_date = (
-          SELECT MAX(b2.snapshot_date) FROM bugs b2
-          WHERE b2.project_id = b.project_id AND b2.snapshot_date != ''
-        )
-        AND (b.snapshot_date IS NOT NULL AND b.snapshot_date != '')
-        ${cc}
-        GROUP BY b.project_id, p.name, b.status, b.priority, b.severity
-      `, ...cp) as { project_id: number; project_name: string; status: string; priority: string; severity: string; cnt: number }[];
+  const bugRows = await portfolioBugCounts(
+    user.company_id, Boolean(user.is_admin), _projIdList, milestoneMonth,
+  ) as { project_id: number; project_name: string; status: string; priority: string; severity: string; cnt: number }[];
 
   // Build bug stats
   type BugProjectSummary = { projectId: number; projectName: string; total: number; byStatus: Record<string, number>; byPriority: Record<string, number>; bySeverity: Record<string, number> };
@@ -455,20 +359,10 @@ export async function GET(req: NextRequest) {
   };
 
   // ─── Personnel stats ──────────────────────────────────────────────────────
-  const pmWhere = user.is_admin ? '' : ' AND company_id = ?';
-  const pmArgs: any[] = user.is_admin ? [] : [user.company_id];
-
-  const internalPortfolioMembers = await db.all(
-    `SELECT name, role FROM portfolio_members WHERE member_type = 'internal'${pmWhere}`,
-    ...pmArgs
-  ) as { name: string; role: string }[];
-
-  const allTeamMembersForPersonnel = await db.all(`
-    SELECT tm.name, p.name as project_name
-    FROM team_members tm
-    JOIN projects p ON tm.project_id = p.id
-    WHERE 1=1 ${cc}
-  `, ...cp) as { name: string; project_name: string }[];
+  const [internalPortfolioMembers, allTeamMembersForPersonnel] = await Promise.all([
+    listInternalPortfolioMembers(user.company_id, Boolean(user.is_admin)),
+    portfolioTeamMembers(user.company_id, Boolean(user.is_admin)),
+  ]);
 
   const internalNameSet = new Set(internalPortfolioMembers.map((m: { name: string }) => m.name.toLowerCase().trim()));
   const internalTeamSlots = allTeamMembersForPersonnel.filter((tm: { name: string }) =>
@@ -508,30 +402,10 @@ export async function GET(req: NextRequest) {
   // ─── FTE-based resource stats ─────────────────────────────────────────────
   let fteStats = null;
   if (user.company_id) {
-    const companyRow = await db.get<{ headcount_quota: number }>(
-      'SELECT headcount_quota FROM companies WHERE id = ?', user.company_id
-    );
+    const companyRow = await companyNameAndQuota(user.company_id);
     const headcountQuota = Number(companyRow?.headcount_quota ?? 0);
 
-    const membersFte = await db.all(`
-      SELECT
-        pm.member_category,
-        pm.overhead_remaining,
-        COALESCE((
-          SELECT SUM(
-            CASE WHEN tm.capacity_json IS NOT NULL AND length(trim(tm.capacity_json)) > 2
-                 THEN CAST((tm.capacity_json::jsonb ->> TO_CHAR(CURRENT_DATE, 'YYYY-MM')) AS FLOAT)
-                 ELSE 0
-            END
-          )
-          FROM team_members tm
-          JOIN projects p ON p.id = tm.project_id
-          WHERE LOWER(TRIM(tm.name)) = LOWER(TRIM(pm.name))
-            AND p.company_id = pm.company_id
-        ), 0) AS current_month_fte
-      FROM portfolio_members pm
-      WHERE pm.member_type = 'internal' AND pm.company_id = ?
-    `, user.company_id) as { member_category: string; overhead_remaining: number; current_month_fte: number }[];
+    const membersFte = await portfolioMemberFte(user.company_id);
 
     const deliveryFte = membersFte
       .filter(m => m.member_category !== 'overhead')
@@ -553,28 +427,7 @@ export async function GET(req: NextRequest) {
     const totalUsedFte = deliveryFte + overheadProjectFte + overheadRemainingFte;
     const benchFte = Math.max(0, headcountQuota - totalUsedFte);
 
-    const programAllocRows = await db.all(`
-      SELECT
-        c.name AS program_name,
-        COALESCE(ppa.allocated_headcount, 0) AS allocated,
-        COALESCE((
-          SELECT ROUND(CAST(SUM(
-            COALESCE(
-              CASE WHEN tm.capacity_json IS NOT NULL AND length(trim(tm.capacity_json)) > 2
-                   THEN CAST((tm.capacity_json::jsonb ->> TO_CHAR(CURRENT_DATE, 'YYYY-MM')) AS FLOAT)
-                   ELSE NULL
-              END, 0
-            )
-          ) AS NUMERIC), 1)
-          FROM team_members tm
-          JOIN projects p ON p.id = tm.project_id
-          WHERE p.customer_id = c.id AND p.company_id = ?
-        ), 0) AS actual
-      FROM customers c
-      LEFT JOIN portfolio_program_allocations ppa ON ppa.program_id = c.id AND ppa.company_id = ?
-      WHERE c.company_id = ?
-      ORDER BY c.name
-    `, user.company_id, user.company_id, user.company_id) as { program_name: string; allocated: number; actual: number }[];
+    const programAllocRows = await portfolioProgramFillRates(user.company_id);
 
     const programFillRates = programAllocRows
       .map(r => ({
@@ -607,15 +460,9 @@ export async function GET(req: NextRequest) {
   }
 
   // Portfolio milestones list for mode selector dropdown
-  const portfolioMilestones = await db.all(`
-    SELECT m.id, m.project_id, m.name, m.start_date, m.end_date,
-           p.name as project_name, COALESCE(c.name, '') as program_name
-    FROM milestones m
-    JOIN projects p ON m.project_id = p.id
-    LEFT JOIN customers c ON p.customer_id = c.id
-    WHERE 1=1 ${cc}
-    ORDER BY m.start_date DESC, m.name
-  `, ...cp) as { id: number; project_id: number; name: string; start_date: string; end_date: string; project_name: string; program_name: string }[];
+  const portfolioMilestones = await portfolioReportMilestones(
+    user.company_id, Boolean(user.is_admin),
+  ) as { id: number; project_id: number; name: string; start_date: string; end_date: string; project_name: string; program_name: string }[];
 
   return NextResponse.json({
     projects: enrichedProjects,
@@ -681,8 +528,7 @@ export async function POST(req: NextRequest) {
   const { portfolioData } = body;
   const lang = (portfolioData.language ?? body.language ?? 'Vietnamese') === 'English' ? 'English' : 'Vietnamese';
 
-  const db = await getDb();
-  const dbKey = (await db.get("SELECT value FROM settings WHERE key='anthropic_api_key'") as any)?.value;
+  const dbKey = await getSetting('anthropic_api_key');
   const apiKey = process.env.ANTHROPIC_API_KEY || dbKey;
   if (!apiKey) return NextResponse.json({ error: 'NO_API_KEY' }, { status: 503 });
 

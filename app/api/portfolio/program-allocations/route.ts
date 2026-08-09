@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
 import { getSessionFromRequest } from '@/lib/auth';
+import {
+  programFteAllocations,
+  upsertPortfolioProgramAllocation,
+} from '@/lib/repositories/portfolio.repo';
 
 // GET: ALL programs for this company with their allocation + actual FTE
 export async function GET(req: NextRequest) {
@@ -8,36 +11,7 @@ export async function GET(req: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   if (!user.company_id) return NextResponse.json([]);
 
-  const db = await getDb();
-  const rows = await db.all<{
-    program_id: number; program_name: string; allocated_headcount: number; actual_fte: number;
-  }>(
-    `SELECT
-       c.id AS program_id,
-       c.name AS program_name,
-       COALESCE(ppa.allocated_headcount, 0) AS allocated_headcount,
-       COALESCE((
-         SELECT ROUND(CAST(SUM(
-           COALESCE(
-             CASE WHEN tm.capacity_json IS NOT NULL AND length(trim(tm.capacity_json)) > 2
-                  THEN CAST((tm.capacity_json::jsonb ->> TO_CHAR(CURRENT_DATE, 'YYYY-MM')) AS FLOAT)
-                  ELSE NULL
-             END,
-             0
-           )
-         ) AS NUMERIC), 1)
-         FROM team_members tm
-         JOIN projects p ON p.id = tm.project_id
-         WHERE p.customer_id = c.id
-           AND p.company_id = ?
-       ), 0) AS actual_fte
-     FROM customers c
-     LEFT JOIN portfolio_program_allocations ppa
-       ON ppa.program_id = c.id AND ppa.company_id = ?
-     WHERE c.company_id = ?
-     ORDER BY c.name`,
-    user.company_id, user.company_id, user.company_id
-  );
+  const rows = await programFteAllocations(user.company_id);
   return NextResponse.json(rows);
 }
 
@@ -49,18 +23,8 @@ export async function POST(req: NextRequest) {
   if (!program_id) return NextResponse.json({ error: 'program_id required' }, { status: 400 });
   const headcount = Math.max(0, Number(allocated_headcount) || 0);
   const pid = Number(program_id);
-  const db = await getDb();
   try {
-    const upd = await db.run(
-      'UPDATE portfolio_program_allocations SET allocated_headcount = ? WHERE company_id = ? AND program_id = ?',
-      headcount, user.company_id, pid
-    );
-    if (upd.changes === 0) {
-      await db.run(
-        'INSERT INTO portfolio_program_allocations (company_id, program_id, allocated_headcount) VALUES (?, ?, ?)',
-        user.company_id, pid, headcount
-      );
-    }
+    await upsertPortfolioProgramAllocation(user.company_id, pid, headcount);
     return NextResponse.json({ program_id: pid, allocated_headcount: headcount });
   } catch (e) {
     console.error('program-allocations POST error:', e);

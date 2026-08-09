@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
 import { getSessionFromRequest } from '@/lib/auth';
 import Anthropic from '@anthropic-ai/sdk';
+import { getSetting } from '@/lib/repositories/settings.repo';
 
 const SYSTEM_PROMPT = `Bạn là Giám đốc PMO (Project Management Office) cấp Senior với 15+ năm kinh nghiệm quản lý danh mục dự án quy mô doanh nghiệp. Bạn đang soạn email báo cáo chính thức gửi Ban Lãnh đạo cấp cao (C-level).
 
@@ -36,9 +36,7 @@ export async function POST(req: NextRequest) {
   // Resolve API key: env var takes priority, fallback to DB settings
   let apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
-    const db = await getDb();
-    const row = await db.get<{ value: string }>('SELECT value FROM settings WHERE key = ?', ['anthropic_api_key']);
-    if (row?.value) apiKey = row.value;
+    apiKey = await getSetting('anthropic_api_key');
   }
   if (!apiKey) return NextResponse.json({ error: 'NO_API_KEY' }, { status: 503 });
 

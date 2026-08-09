@@ -1,31 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import {
+  deleteProgram,
+  getProgram,
+  listProgramProjects,
+  updateProgram,
+} from '@/lib/repositories/programs.repo';
 
 type Params = { params: Promise<{ id: string }> };
 
 export async function GET(_req: NextRequest, { params }: Params) {
   const { id } = await params;
-  const db = await getDb();
-  const program = await db.get('SELECT * FROM customers WHERE id = ?', id);
+  const program = await getProgram(id);
   if (!program) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  const projects = await db.all('SELECT * FROM projects WHERE customer_id = ? ORDER BY created_at DESC', id);
+  const projects = await listProgramProjects(id);
   return NextResponse.json({ program, projects });
 }
 
 export async function PUT(req: NextRequest, { params }: Params) {
   const { id } = await params;
   const body = await req.json();
-  const db = await getDb();
-  await db.run(
-    'UPDATE customers SET name=?, industry=?, contact_name=?, contact_email=?, contact_phone=?, website=?, notes=? WHERE id=?',
-    body.name, body.industry ?? '', body.contact_name ?? '', body.contact_email ?? '', body.contact_phone ?? '', body.website ?? '', body.notes ?? '', id
-  );
-  return NextResponse.json(await db.get('SELECT * FROM customers WHERE id = ?', id));
+  return NextResponse.json(await updateProgram(id, body));
 }
 
 export async function DELETE(_req: NextRequest, { params }: Params) {
   const { id } = await params;
-  const db = await getDb();
-  await db.run('DELETE FROM customers WHERE id = ?', id);
+  await deleteProgram(id);
   return NextResponse.json({ ok: true });
 }
