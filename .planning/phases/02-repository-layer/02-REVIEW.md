@@ -1,7 +1,8 @@
 ---
 phase: 02-repository-layer
-reviewed: 2026-08-09T07:36:55Z
+reviewed: 2026-08-09T08:18:03Z
 depth: standard
+reviewer: "generic-agent fallback (gsd-code-reviewer contract)"
 files_reviewed: 126
 files_reviewed_list:
   - 'app/api/admin/companies/route.ts'
@@ -131,113 +132,52 @@ files_reviewed_list:
   - 'lib/repositories/team.repo.ts'
   - 'test/repo-db.ts'
 findings:
-  critical: 3
-  warning: 3
+  critical: 0
+  warning: 0
   info: 0
-  total: 6
-status: issues_found
+  total: 0
+status: clean
 ---
 
 # Phase 02: Repository Layer Code Review
 
-**Reviewed:** 2026-08-09T07:36:55Z  
-**Depth:** standard  
-**Files Reviewed:** 126  
-**Status:** issues_found
+**Reviewed:** 2026-08-09T08:18:03Z
+**Depth:** standard
+**Files Reviewed:** 126
+**Status:** clean
 
 ## Narrative Findings (AI reviewer)
 
-The SQL extraction and repository-boundary invariants are structurally in place, but the new boundary still exposes several tenant-scoping holes and response regressions. The allowlist implementation itself is sound: unknown update columns are rejected atomically, tenancy columns are excluded, export generators contain no SQL, repositories do not inspect sessions, id-less settings/Jira writes do not use `lastInsertRowid`, and `lib/auth.ts` is unchanged.
+The re-review found no remaining Critical, Warning, or Info findings in the 126-file scope. The six findings from the prior review are resolved, and the repository extraction still satisfies the phase boundary and allowlist invariants.
 
-## Critical Issues
+## Resolution Check
 
-### CR-01: Null-company branches expose projects assigned to real tenants
+| Prior finding | Resolution verified |
+|---|---|
+| CR-01 | All five null-company query paths now require both direct project ownership and customer ownership to be unassigned. |
+| CR-02 | All 13 affected update functions use scoped `RETURNING *`/CTE behavior, and their direct route callers return `404` when no scoped row matches. |
+| CR-03 | Portfolio milestone selection accepts `companyId`/`isAdmin`, scopes through the selected project, and limits linked activities to that project. |
+| WR-01 | `repoErrorResponse` logs unexpected failures server-side and returns the generic `Internal server error` response. |
+| WR-02 | RAG config reads project only the eight public response fields. |
+| WR-03 | Five non-skippable repository unit suites cover the previously untested modules; the default run now executes 61 tests. |
 
-**Severity:** BLOCKER (Critical)  
-**Files:** `lib/repositories/projects.repo.ts:74`, `lib/repositories/resources.repo.ts:35`, `lib/repositories/portfolio.repo.ts:36`, `lib/repositories/portfolio.repo.ts:233`, `lib/repositories/programs.repo.ts:42`
-
-**Issue:** The non-admin `companyId === null` branches use `(p.company_id IS NULL OR c.company_id IS NULL)`. Because `c` is a `LEFT JOIN`, `c.company_id` is null whenever a project has no customer. An unassigned user therefore receives any customer-less project even when `p.company_id` belongs to another tenant. The inverse also leaks a project with no direct company when its customer belongs to a tenant. These functions back `/api/projects`, `/api/resources`, `/api/portfolio`, portfolio milestones, and program project counts.
-
-**Fix:** Require both ownership paths to be unassigned. The repository already uses the safer shape at `lib/repositories/portfolio.repo.ts:217`:
-
-```sql
-WHERE p.company_id IS NULL
-  AND (p.customer_id IS NULL OR c.company_id IS NULL)
-```
-
-Apply the equivalent `AND` predicate to every null-company branch and add fixtures for (1) tenant project with no customer, (2) unassigned project with tenant customer, and (3) fully unassigned project.
-
-### CR-02: Scoped updates return foreign child rows after a zero-row update
-
-**Severity:** BLOCKER (Critical)  
-**Files:** `lib/repositories/budget.repo.ts:83`, `lib/repositories/activities.repo.ts:66`, `lib/repositories/milestones.repo.ts:39`, `lib/repositories/operations.repo.ts:123`, `lib/repositories/operations.repo.ts:196`, `lib/repositories/portfolio.repo.ts:175`, `lib/repositories/portfolio.repo.ts:378`
-
-**Issue:** These functions correctly scope the `UPDATE` by both child id and parent/project id, but then fetch the response with `SELECT * WHERE id = ?` only. If a caller authorized for project/system/budget A supplies a child id belonging to B, the update changes zero rows and the follow-up query returns B's row. For example, `app/api/projects/[id]/budget/[itemId]/route.ts:26` returns that repository value directly, creating a cross-tenant read even though the mutation guard worked. The same pattern also exists in risks, issues, meetings, team members, escalations, operations incidents, and portfolio allocations/categories. Existing foreign-update tests only assert that the foreign row was not modified; they do not assert that the returned value is absent.
-
-**Fix:** Make the update and read one scoped statement, or scope the follow-up read identically:
-
-```sql
-UPDATE budget_items
-SET ...
-WHERE id = ? AND project_id = ?
-RETURNING *
-```
-
-Use `db.get(...)` for the `UPDATE ... RETURNING *`, return `undefined` when no row matched, and have routes return `404`. Add a regression assertion that a foreign child id yields no row/body, not the foreign record.
-
-### CR-03: Portfolio milestone selection ignores company scope and admin bypass
-
-**Severity:** BLOCKER (Critical)  
-**Files:** `lib/repositories/portfolio.repo.ts:484`, `lib/repositories/portfolio.repo.ts:499`, `app/api/portfolio/report/route.ts:60`, `app/api/portfolio/report/route.ts:490`
-
-**Issue:** `portfolioMilestoneSelection(ids)` accepts only milestone ids and loads milestone, project, program, and linked activity data without `companyId` or `isAdmin`. The report route calls it for caller-controlled `milestone_ids` and later returns `milestoneInfo`, so any authenticated user who can guess an id can retrieve another tenant's milestone name, project/program name, dates, and activity links. This also violates the phase contract that company-scoped repositories receive explicit authorization primitives.
-
-**Fix:** Pass `companyId` and `isAdmin` into `portfolioMilestoneSelection`. Scope the milestone query through `projects` using the report's existing `p.company_id` rule with an explicit admin bypass, and only load epic links after the milestone row passes that scope. Verify linked activities belong to the selected milestone's project. Add non-admin cross-company and admin-bypass tests.
-
-## Warnings
-
-### WR-01: Repository error mapping exposes raw database errors to clients
-
-**Severity:** WARNING  
-**File:** `lib/api-errors.ts:18`
-
-**Issue:** `repoErrorResponse` returns `String(e)` for every non-allowlist failure. CodeGraph shows 30 route handlers now call this helper. Several migrated handlers previously let Next.js produce a generic 500, so database constraint names, SQL fragments, connection details, and driver messages can now be returned to clients.
-
-**Fix:** Keep the explicit `UnknownColumnError` 400 response, but log unexpected errors server-side and return a stable generic body such as `{ error: 'Internal server error' }`. Add a route-level test that injects a repository failure and asserts the internal message is not present in the response.
-
-### WR-02: RAG config GET changed its public response shape
-
-**Severity:** WARNING  
-**Files:** `lib/repositories/rag-config.repo.ts:11`, `app/api/admin/rag-config/[companyId]/route.ts:21`
-
-**Issue:** Before extraction, the route selected only the eight `RagConfig` fields. `companyRagConfig` now uses `SELECT *`, so a stored row includes `company_id` and `updated_at`, while the no-row fallback still returns only `DEFAULT_RAG_CONFIG`. The endpoint therefore has two different shapes and exposes database metadata that was not part of the API contract.
-
-**Fix:** Restore the explicit eight-column projection and type the result as `RagConfig`. Add a response-shape test for both stored and fallback cases.
-
-### WR-03: Most repository integration coverage is not executable in the default test run
-
-**Severity:** WARNING  
-**Files:** `test/db.ts:6`, `lib/repositories/resources.repo.ts:18`, `lib/repositories/jira-config.repo.ts:9`, `lib/repositories/auth.repo.ts:23`, `lib/repositories/import-mapping.repo.ts:14`, `lib/repositories/demo-requests.repo.ts:4`
-
-**Issue:** With `TEST_DATABASE_URL` unset, `npm test -- --run` executes only 23 tests and skips 109. Five new repository modules have no companion test suite at all. Consequently, the null-company branch, milestone selection, foreign-update return value, Jira id-less writes, RAG response shape, and several extracted auth/import flows can regress while CI remains green.
-
-**Fix:** Configure a guarded `*_test` Postgres database in CI so the integration suites run, and add focused non-skippable unit tests with a mocked `DbClient` for query shape/error propagation. At minimum, add suites for `resources`, `jira-config`, `auth`, `import-mapping`, and `demo-requests`, plus the three critical isolation cases above.
+Documented route-authorization work deferred to Phases 5 and 6 was not reclassified as a Phase 02 defect because the extraction did not introduce or change that behavior.
 
 ## Verification
 
 - `npx tsc --noEmit`: pass
 - `npx next build`: pass
-- `npm test -- --run`: pass, but only 23 tests executed; 109 skipped across 20 files
-- `git diff --check <base>..HEAD -- . ':!.planning/'`: pass
+- `npm test -- --run`: pass; 15 files passed, 20 skipped; 61 tests passed, 109 skipped
+- `git diff --check 926bf71..HEAD -- . ':!.planning/'`: pass
 - No `db.get`/`db.all`/`db.run`, SQL literals, `getDb()`, or direct `pg` use remains in application/export source outside the repository/database boundary
 - No repository imports `next/server`, `@/lib/auth`, request/session types, or session helpers
 - `lib/export/{excel,ppt,word}.ts` contains no SQL
 - `lib/repositories/settings.repo.ts` and `lib/repositories/jira-config.repo.ts` contain no `lastInsertRowid`
 - `lib/auth.ts` has no diff from `1cd4921864fa3f713c9914a622693547c4a8cdd4^..HEAD`
-- The pre-existing missing admin check in `app/api/config/route.ts` was not counted, per the Phase 5/6 deferral
+- CodeGraph caller checks confirm each scoped update and milestone-selection function is wired through the reviewed routes
 
 ---
 
-_Reviewed: 2026-08-09T07:36:55Z_  
-_Reviewer: generic-agent fallback (gsd-code-reviewer contract)_  
+_Reviewed: 2026-08-09T08:18:03Z_
+_Reviewer: generic-agent fallback (gsd-code-reviewer contract)_
 _Depth: standard_
