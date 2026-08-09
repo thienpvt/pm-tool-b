@@ -39,7 +39,7 @@ export async function projectCountsByProgram(companyId: number | null, isAdmin: 
   return db.all<{ customer_id: number; count: number }>(
     `SELECT p.customer_id, COUNT(*) as count
      FROM projects p LEFT JOIN customers c ON p.customer_id = c.id
-     WHERE p.customer_id IS NOT NULL AND (p.company_id IS NULL OR c.company_id IS NULL)
+     WHERE p.customer_id IS NOT NULL AND p.company_id IS NULL AND c.company_id IS NULL
      GROUP BY p.customer_id`,
   );
 }

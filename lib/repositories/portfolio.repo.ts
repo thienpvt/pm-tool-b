@@ -33,7 +33,8 @@ export async function listPortfolioProjects(companyId: number | null, isAdmin: b
   }
   return db.all(
     `${PROJECTS_WITH_PROGRAM}
-     WHERE (p.company_id IS NULL OR c.company_id IS NULL) ORDER BY p.created_at DESC`,
+     WHERE p.company_id IS NULL
+       AND (p.customer_id IS NULL OR c.company_id IS NULL) ORDER BY p.created_at DESC`,
   );
 }
 
@@ -230,7 +231,8 @@ export async function listPortfolioMilestones(companyId: number | null, isAdmin:
       companyId, companyId,
     );
   }
-  return db.all(`${base} WHERE (p.company_id IS NULL OR c.company_id IS NULL) ORDER BY p.name, m.start_date, m.id`);
+  return db.all(`${base} WHERE p.company_id IS NULL
+    AND (p.customer_id IS NULL OR c.company_id IS NULL) ORDER BY p.name, m.start_date, m.id`);
 }
 
 export async function listPortfolioBudgets(companyId: number | null) {

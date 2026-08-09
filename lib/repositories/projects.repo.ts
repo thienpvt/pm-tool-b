@@ -71,7 +71,8 @@ export async function listProjects(companyId: number | null, isAdmin: boolean) {
     );
   }
   return db.all(
-    `${LIST_SELECT} WHERE (p.company_id IS NULL OR c.company_id IS NULL) ORDER BY p.created_at DESC`,
+    `${LIST_SELECT} WHERE p.company_id IS NULL
+     AND (p.customer_id IS NULL OR c.company_id IS NULL) ORDER BY p.created_at DESC`,
   );
 }
 

@@ -32,7 +32,8 @@ export async function listResourceMembers(companyId: number | null, isAdmin: boo
   return db.all(
     `${SELECT}
         LEFT JOIN customers c ON p.customer_id = c.id
-        WHERE (p.company_id IS NULL OR c.company_id IS NULL)
+        WHERE p.company_id IS NULL
+          AND (p.customer_id IS NULL OR c.company_id IS NULL)
         ${ORDER}`,
   );
 }
