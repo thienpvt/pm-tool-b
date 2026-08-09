@@ -8,7 +8,12 @@ import type { RagConfig } from '@/lib/rag';
  */
 export async function companyRagConfig(companyId: number | null) {
   const db = await getDb();
-  return db.get<Record<string, unknown>>('SELECT * FROM company_rag_config WHERE company_id = ?', companyId);
+  return db.get<RagConfig>(
+    `SELECT spi_red_threshold, spi_amber_threshold, deadline_red_days, deadline_amber_days,
+       risks_red, risks_amber, issues_amber, low_progress_amber
+     FROM company_rag_config WHERE company_id = ?`,
+    companyId,
+  );
 }
 
 export async function setCompanyRagConfig(companyId: number, config: RagConfig): Promise<void> {
