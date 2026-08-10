@@ -1,8 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionFromRequest } from '@/lib/auth';
+import { companyJiraConfig } from '@/lib/repositories/jira-config.repo';
 import { integrationErrorResponse } from '@/lib/api-errors';
 import { resolveJiraCredentials } from '@/lib/integrations/credentials';
 import { searchIssues } from '@/lib/integrations/jira/client';
+
+// INTG-08 / HYG-01: the old inline credential path is kept here as DEAD code
+// (unreachable — POST resolves via resolveJiraCredentials below) so the cutover
+// bisects to a dedicated deletion commit after scripts/verify-credential-cutover.ts
+// reports every configured company matching. Delete this block in that commit.
+// Gate blocked at execution time: no reachable DATABASE_URL, evidence outstanding.
+async function getJiraCredentials(req: NextRequest) {
+  const user = await getSessionFromRequest(req);
+  if (!user?.company_id) return null;
+
+  const cfg = await companyJiraConfig(user.company_id);
+  if (!cfg?.base_url_var || !cfg?.email_var || !cfg?.token_var) return null;
+
+  const baseUrl = process.env[cfg.base_url_var]?.replace(/\/$/, '');
+  const email   = process.env[cfg.email_var];
+  const token   = process.env[cfg.token_var];
+  if (!baseUrl || !email || !token) return null;
+
+  return { baseUrl, email, token };
+}
 
 export async function POST(req: NextRequest) {
   const user = await getSessionFromRequest(req);

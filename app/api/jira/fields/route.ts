@@ -25,3 +25,19 @@ export async function GET(req: NextRequest) {
     return integrationErrorResponse(err);
   }
 }
+
+// INTG-08 / HYG-01: old inline credential path kept as DEAD code (unreachable —
+// GET resolves via resolveJiraCredentials above) so the cutover bisects to a
+// dedicated deletion commit after scripts/verify-credential-cutover.ts reports
+// every configured company matching. Delete this block in that commit.
+// Gate blocked at execution time: no reachable DATABASE_URL, evidence outstanding.
+async function oldInlineCredentialBlock(_user: { company_id: number | null }) {
+  const cfg = await companyJiraConfig(_user.company_id);
+  if (!cfg?.base_url_var) return null;
+  const baseUrl = process.env[cfg.base_url_var]?.replace(/\/$/, '');
+  const email = process.env[cfg.email_var];
+  const token = process.env[cfg.token_var];
+  if (!baseUrl || !email || !token) return null;
+  const auth = 'Basic ' + Buffer.from(`${email}:${token}`).toString('base64');
+  return { baseUrl, email, token, auth };
+}
