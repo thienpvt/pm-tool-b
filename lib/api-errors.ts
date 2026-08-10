@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { IntegrationError } from '@/lib/integrations/errors';
 import { UnknownColumnError } from '@/lib/repositories/_helpers';
 
 /**
@@ -17,4 +18,38 @@ export function repoErrorResponse(e: unknown) {
   }
   console.error('Unexpected repository error', e);
   return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+}
+
+/** Maps normalized integration failures without exposing raw upstream bodies. */
+export function integrationErrorResponse(e: unknown) {
+  if (!(e instanceof IntegrationError)) {
+    console.error('Unexpected integration error', e);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+
+  if (e.service !== 'resend') {
+    console.error('Unexpected integration error', e);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 502 });
+  }
+
+  if (e.kind === 'upstream') {
+    const data = e.cause as { message?: unknown; name?: unknown } | undefined;
+    const error = typeof data?.message === 'string'
+      ? data.message
+      : typeof data?.name === 'string'
+        ? data.name
+        : 'Resend API error';
+    return NextResponse.json({ error }, { status: e.status ?? 502 });
+  }
+
+  if (e.kind === 'network' || e.kind === 'timeout') {
+    return NextResponse.json({ error: e.message }, { status: 502 });
+  }
+
+  if (e.kind === 'validation') {
+    return NextResponse.json({ error: 'Resend API error' }, { status: 502 });
+  }
+
+  console.error('Unexpected integration error', e);
+  return NextResponse.json({ error: 'Internal server error' }, { status: 502 });
 }
