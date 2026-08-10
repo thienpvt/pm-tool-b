@@ -85,6 +85,12 @@ async function handle(req: NextRequest) {
     // Route-level handling wins here: the test route's response shapes and the
     // `Lỗi kết nối: ...` 500 prefix differ from the search route's mapper
     // output, so the upstream/network cases are rendered with the test prefix.
+    // WR-04: the upstream `e.message` is the raw Jira error body echoed to the
+    // operator. Deliberate — behavior freeze (the old route echoed `j.message`
+    // verbatim) and the test route is an operator diagnostic where the upstream
+    // reason is the point. The network/timeout branch only ever sees the
+    // client's generated message ('IntegrationError[jira:network]'), never raw
+    // upstream text.
     const upstreamMsg = typeof e.message === 'string' ? e.message : 'Lỗi kết nối Jira';
     if (e.kind === 'upstream') {
       return NextResponse.json({ ok: false, error: upstreamMsg }, { status: e.status ?? 500 });

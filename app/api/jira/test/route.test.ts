@@ -151,4 +151,43 @@ describe('GET/POST /api/jira/test', () => {
     expect(res.status).toBe(401);
     await expect(res.json()).resolves.toEqual({ ok: false, error: 'Unauthorized' });
   });
+
+  it('echoes the raw upstream error body on upstream failure (WR-04, deliberate leak)', async () => {
+    vi.mocked(getSessionFromRequest).mockResolvedValue(session as never);
+    vi.mocked(companyJiraConfig).mockResolvedValue({
+      base_url_var: 'JIRA_BASE', email_var: 'JIRA_EMAIL', token_var: 'JIRA_TOKEN',
+    });
+    vi.stubEnv('JIRA_BASE', 'https://pm.atlassian.net');
+    vi.stubEnv('JIRA_EMAIL', 'e@x');
+    vi.stubEnv('JIRA_TOKEN', 'tok');
+    vi.mocked(testConnection).mockRejectedValue(new IntegrationError({
+      kind: 'upstream', service: 'jira', status: 400, message: 'com.atlassian.jira: Field \'customfield_10014\' does not exist',
+    }));
+
+    const res = await GET(getReq());
+
+    expect(res.status).toBe(400);
+    await expect(res.json()).resolves.toEqual({
+      ok: false,
+      error: 'com.atlassian.jira: Field \'customfield_10014\' does not exist',
+    });
+  });
+
+  it('maps a network failure to 500 with the Lỗi kết nối prefix and never raw upstream text', async () => {
+    vi.mocked(getSessionFromRequest).mockResolvedValue(session as never);
+    vi.mocked(companyJiraConfig).mockResolvedValue({
+      base_url_var: 'JIRA_BASE', email_var: 'JIRA_EMAIL', token_var: 'JIRA_TOKEN',
+    });
+    vi.stubEnv('JIRA_BASE', 'https://pm.atlassian.net');
+    vi.stubEnv('JIRA_EMAIL', 'e@x');
+    vi.stubEnv('JIRA_TOKEN', 'tok');
+    vi.mocked(testConnection).mockRejectedValue(new IntegrationError({
+      kind: 'network', service: 'jira',
+    }));
+
+    const res = await GET(getReq());
+
+    expect(res.status).toBe(500);
+    await expect(res.json()).resolves.toEqual({ ok: false, error: 'Lỗi kết nối: IntegrationError[jira:network]' });
+  });
 });
