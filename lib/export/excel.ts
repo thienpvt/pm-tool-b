@@ -92,7 +92,7 @@ function displayMonth(ym: string) {
 function getMonths(start: string, end: string): string[] {
   if (!start || !end) return [];
   const months: string[] = [];
-  let d = new Date(start.substring(0, 7) + '-01');
+  const d = new Date(start.substring(0, 7) + '-01');
   const e = new Date(end.substring(0, 7) + '-01');
   while (d <= e) {
     months.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
