@@ -51,6 +51,8 @@ describe('PUT /api/projects/[id]/budget/[itemId]', () => {
     expect(response.status).toBe(500);
     expect(body).toEqual({ error: 'Internal server error' });
     expect(JSON.stringify(body)).not.toContain(internalMessage);
-    expect(errorLog).toHaveBeenCalledWith('Unexpected repository error', expect.any(Error));
+    // Route now goes through budget-items.service.ts (serviceErrorResponse), not the
+    // repository-level repoErrorResponse, so the log tag changed with it (04-05-02).
+    expect(errorLog).toHaveBeenCalledWith('Unexpected service error', expect.any(Error));
   });
 });

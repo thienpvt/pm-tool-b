@@ -110,6 +110,19 @@ export async function getBudgetItemInProject(projectId: number | string, itemId:
   return db.get<{ id: number }>('SELECT id FROM budget_items WHERE id = ? AND project_id = ?', itemId, projectId);
 }
 
+/** Scoping guard for a single expense: exists only if it belongs to both the item and the project. */
+export async function getExpenseInItem(
+  projectId: number | string,
+  itemId: number | string,
+  expId: number | string,
+) {
+  const db = await getDb();
+  return db.get<{ id: number }>(
+    'SELECT id FROM budget_expenses WHERE id = ? AND budget_item_id = ? AND project_id = ?',
+    expId, itemId, projectId,
+  );
+}
+
 /** Create an expense and sync `actual_amount` on the parent item. */
 export async function createExpense(
   projectId: number | string,
