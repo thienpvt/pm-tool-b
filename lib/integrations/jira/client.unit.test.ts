@@ -63,6 +63,82 @@ describe('searchIssues', () => {
     expect(sent).toEqual({ jql: 'project = K', maxResults: 100, fields: expect.arrayContaining(['key', 'summary', 'customfield_1185']) });
   });
 
+  it('accepts null custom fields that Jira returns for unset values (CR-01)', async () => {
+    fetchMock.mockResolvedValue(jsonResponse(200, {
+      issues: [{
+        key: 'K-2',
+        id: '2',
+        fields: {
+          summary: 'S',
+          issuetype: { name: 'Bug' },
+          status: { name: 'Open' },
+          assignee: { displayName: 'A' },
+          reporter: { displayName: 'R' },
+          priority: { name: 'High' },
+          labels: [],
+          components: [],
+          created: '2026-01-01',
+          customfield_10014: null,
+          customfield_10016: null,
+          customfield_10020: null,
+        },
+      }],
+      total: 1,
+      nextPageToken: null,
+    }));
+
+    const assertion = expect(searchIssues(creds, { jql: 'project = K' })).resolves.toMatchObject({
+      total: 1,
+      issues: [{ key: 'K-2' }],
+    });
+    await vi.advanceTimersByTimeAsync(1);
+    await assertion;
+  });
+
+  it('accepts a null epic-link string among otherwise populated custom fields', async () => {
+    fetchMock.mockResolvedValue(jsonResponse(200, {
+      issues: [{
+        key: 'K-3',
+        id: '3',
+        fields: {
+          summary: 'S',
+          issuetype: { name: 'Bug' },
+          status: { name: 'Open' },
+          assignee: { displayName: 'A' },
+          reporter: { displayName: 'R' },
+          priority: { name: 'High' },
+          labels: [],
+          components: [],
+          created: '2026-01-01',
+          customfield_10014: null,
+          customfield_10016: 5,
+          customfield_10020: [{ name: 'S1', state: 'active' }],
+        },
+      }],
+      total: 1,
+      nextPageToken: null,
+    }));
+
+    const assertion = expect(searchIssues(creds, { jql: 'project = K' })).resolves.toMatchObject({
+      total: 1,
+      issues: [{ key: 'K-3' }],
+    });
+    await vi.advanceTimersByTimeAsync(1);
+    await assertion;
+  });
+
+  it('resolves an empty result set with total 0 and no issues (WR-02)', async () => {
+    fetchMock.mockResolvedValue(jsonResponse(200, { issues: [], total: 0, nextPageToken: null }));
+
+    const assertion = expect(searchIssues(creds, { jql: 'project = NONE' })).resolves.toEqual({
+      issues: [],
+      total: 0,
+      nextPageToken: null,
+    });
+    await vi.advanceTimersByTimeAsync(1);
+    await assertion;
+  });
+
   it('rejects kind upstream with the parsed errorMessages on a 400', async () => {
     fetchMock.mockResolvedValue(jsonResponse(400, { errorMessages: ['jql error'] }));
 

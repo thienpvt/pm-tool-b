@@ -22,10 +22,10 @@ const jiraIssueSchema = z.object({
     labels: z.array(z.string()),
     components: z.array(z.object({ name: z.string() })),
     parent: z.object({ key: z.string() }).optional(),
-    customfield_10014: z.string().optional(),            // Epic Link (classic)
+    customfield_10014: z.string().nullable().optional(),            // Epic Link (classic)
     customfield_10015: z.string().nullable().optional(), // Start date (Jira Cloud)
-    customfield_10016: z.number().optional(),            // Story Points
-    customfield_10020: z.array(z.object({ name: z.string(), state: z.string() })).or(z.string()).optional(), // Sprint
+    customfield_10016: z.number().nullable().optional(),            // Story Points
+    customfield_10020: z.array(z.object({ name: z.string(), state: z.string() })).or(z.string()).nullable().optional(), // Sprint
     resolution: z.object({ name: z.string() }).nullable().optional(),
     created: z.string(),
     duedate: z.string().nullable().optional(),
