@@ -1,11 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getSessionFromRequest } from '@/lib/auth';
+import { serviceErrorResponse } from '@/lib/api-errors';
 import { generateKickoffPPT } from '@/lib/export/ppt';
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const user = await getSessionFromRequest(req);
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   try {
     const { id } = await params;
     const body = await req.json().catch(() => ({}));
-    const buf = await generateKickoffPPT(Number(id), body);
+    const buf = await generateKickoffPPT(Number(id), {
+      company_id: user.company_id,
+      is_admin: user.is_admin,
+    }, body);
 
     return new NextResponse(buf as unknown as BodyInit, {
       headers: {
@@ -14,6 +21,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       },
     });
   } catch (e) {
-    return NextResponse.json({ error: String(e) }, { status: 500 });
+    return serviceErrorResponse(e);
   }
 }
