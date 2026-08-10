@@ -123,3 +123,9 @@ None. No hardcoded empty values, placeholder text, or unwired components introdu
 - [x] lib/integrations/credentials.unit.test.ts exists (10 tests pass)
 - [x] scripts/verify-credential-cutover.ts exists
 - [x] Commits present: 5498855, 5257c29, 9c6c8f7, b9ef78e
+
+## Execution Notes
+
+- Commit `5257c29` carries both TDD gates (RED `test(...)` amended into GREEN `feat(...)`) per single-commit-per-task protocol.
+- Old inline credential blocks remain in the routes by design — deleted in plan 03-04 only after running the cutover script against the real DB shows per-company matches.
+- Run the cutover evidence check before 03-04: `npx tsx scripts/verify-credential-cutover.ts` (requires `DATABASE_URL`).

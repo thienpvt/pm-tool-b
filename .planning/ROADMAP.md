@@ -82,7 +82,7 @@ Three requirements apply to every phase's execution rather than to a specific la
 
 **Plans**: 4 plans
 
-- [ ] 03-01-PLAN.md — Integration foundation: zod, error type, unified credential resolver, INTG-08 cutover script
+- [x] 03-01-PLAN.md — Integration foundation: zod, error type, unified credential resolver, INTG-08 cutover script
 - [ ] 03-02-PLAN.md — Resend client + integrationErrorResponse + send-email route
 - [ ] 03-03-PLAN.md — Anthropic client + 5 route rewires (500/502 split preserved)
 - [ ] 03-04-PLAN.md — Jira client + 3 route rewires + credential cutover + boundary greps
@@ -154,7 +154,7 @@ Three requirements apply to every phase's execution rather than to a specific la
 |-------|----------------|--------|-----------|
 | 1. Test Harness | 1/1 | Complete    | 2026-08-07 |
 | 2. Repository Layer | 3/3 | In Progress|  |
-| 3. Integration Clients | 0/TBD | Not started | - |
+| 3. Integration Clients | 1/4 | In Progress|  |
 | 4. Service Layer | 0/TBD | Not started | - |
 | 5. Route Thinning & Validation | 0/TBD | Not started | - |
 | 6. Access Enforcement Rollout | 0/TBD | Not started | - |

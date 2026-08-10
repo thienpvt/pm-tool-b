@@ -2,18 +2,18 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 03
-current_phase_name: Integration Clients
-status: planning
-stopped_at: Phase 02 verification passed
-last_updated: "2026-08-10T02:05:00Z"
-last_activity: 2026-08-10
-last_activity_desc: Phase 02 verified passed (CI 31348410580, 170/170 tests)
+status: executing
+stopped_at: Completed 03-01-PLAN.md
+last_updated: "2026-08-10T07:00:10.870Z"
+last_activity: 2026-08-10 — Phase 03 execution started
 progress:
   total_phases: 7
   completed_phases: 2
-  total_plans: 4
-  completed_plans: 4
+  total_plans: 8
+  completed_plans: 5
+  percent: 29
+current_phase: 03
+current_phase_name: Integration Clients
 ---
 
 # Project State
@@ -27,10 +27,10 @@ See: .planning/PROJECT.md (updated 2026-08-07)
 
 ## Current Position
 
-Phase: 03 (Integration Clients) — PLANNING
-Plan: none yet
-Status: Phase 02 complete and verified; Phase 03 context gathered
-Last activity: 2026-08-10 — Phase 02 verified passed
+Phase: 03 (Integration Clients) — EXECUTING
+Plan: 2 of 4
+Status: Ready to execute
+Last activity: 2026-08-10 — Phase 03 execution started
 
 Progress: [███░░░░░░░] 29% (2/7 phases)
 
@@ -59,6 +59,7 @@ Progress: [███░░░░░░░] 29% (2/7 phases)
 | Plan | Duration | Tasks | Files |
 |------|----------|-------|-------|
 | Phase 01-test-harness P01 | 45m | 8 tasks | 10 files |
+| Phase 03-integration-clients P03-01 | 38 | 4 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -70,6 +71,10 @@ Recent decisions affecting current work:
 - Roadmap: bottom-up layer order settled by dependency, not preference — repositories → integrations → services → route thinning → enforcement rollout → UI. Do not reorder.
 - Roadmap: access enforcement split into two phases (5: build wrapper, 6: roll out) specifically to allow shadow-mode logging before hard enforcement, avoiding a 403 storm.
 - Roadmap: HYG-01/02/03 treated as cross-cutting execution conventions applying to every phase, not a standalone phase.
+- [Phase ?]: zod ^4.4.3 promoted to direct dependency for integration-client boundary validation (INTG-05/06)
+- [Phase ?]: withFetchTimeout races the promise against its own abort signal; timedOut flag distinguishes timeout (kind timeout) from caller abort (kind network)
+- [Phase ?]: Anthropic resolver adopts env || db treating empty-string env as unset (INTG-08, the only intentional normalization)
+- [Phase ?]: Cutover script runs via npx tsx, not plain node (node 25 cannot resolve the @/ alias); documented in 03-01-SUMMARY
 
 ### Pending Todos
 
@@ -92,6 +97,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-07T14:17:28.502Z
-Stopped at: Completed 01-test-harness-01
+Last session: 2026-08-10T07:00:10.861Z
+Stopped at: Completed 03-01-PLAN.md
 Resume file: None

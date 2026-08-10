@@ -32,9 +32,9 @@ Requirements for this milestone. Each maps to roadmap phases.
 - [ ] **INTG-04**: Every integration client applies an explicit request timeout and returns a normalized error type rather than throwing a raw SDK or fetch error
 - [ ] **INTG-05**: Jira REST responses are validated against a Zod schema at the client boundary; a shape mismatch produces a logged validation error, not a silent wrong value or a 500
 - [ ] **INTG-06**: Anthropic model output is validated at the client boundary before any caller consumes it
-- [ ] **INTG-07**: One credential resolver serves all integrations, replacing the split between Jira's env-var-names-in-DB pattern and Anthropic's env-then-DB fallback
-- [ ] **INTG-08**: The credential resolver preserves every currently-working tenant configuration — verified per configured company before the old paths are deleted
-- [ ] **INTG-09**: An integration client never imports a repository; a service resolves credentials and passes values in
+- [x] **INTG-07**: One credential resolver serves all integrations, replacing the split between Jira's env-var-names-in-DB pattern and Anthropic's env-then-DB fallback
+- [x] **INTG-08**: The credential resolver preserves every currently-working tenant configuration — verified per configured company before the old paths are deleted
+- [x] **INTG-09**: An integration client never imports a repository; a service resolves credentials and passes values in
 - [ ] **INTG-10**: Each integration client has tests using recorded/mocked external responses, including a malformed-response case
 
 ### Service Layer
@@ -137,9 +137,9 @@ Deferred. Tracked but not in this milestone's roadmap.
 | INTG-04 | Phase 3 | Pending |
 | INTG-05 | Phase 3 | Pending |
 | INTG-06 | Phase 3 | Pending |
-| INTG-07 | Phase 3 | Pending |
-| INTG-08 | Phase 3 | Pending |
-| INTG-09 | Phase 3 | Pending |
+| INTG-07 | Phase 3 | Complete |
+| INTG-08 | Phase 3 | Complete |
+| INTG-09 | Phase 3 | Complete |
 | INTG-10 | Phase 3 | Pending |
 | SVC-01 | Phase 4 | Pending |
 | SVC-02 | Phase 4 | Pending |
