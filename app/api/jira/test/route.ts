@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionFromRequest } from '@/lib/auth';
+import { integrationErrorResponse } from '@/lib/api-errors';
 import { companyJiraConfig } from '@/lib/repositories/jira-config.repo';
+import { resolveJiraCredentials } from '@/lib/integrations/credentials';
+import { testConnection } from '@/lib/integrations/jira/client';
 
 type Cfg = { base_url_var: string; email_var: string; token_var: string };
 
@@ -9,6 +12,11 @@ type Cfg = { base_url_var: string; email_var: string; token_var: string };
  *  - Admin can pass a body with companyId and/or the var names being edited in the
  *    config dialog → test those, even before they're saved.
  *  - Otherwise fall back to the logged-in user's own company config (saved in DB).
+ *
+ * Returns the names only — actual values are resolved by resolveJiraCredentials,
+ * which serves both this path and the DB-config path (Pitfall 3). The resolver's
+ * null return carries no per-name detail, so the missing-var diagnostic below is
+ * computed from the names against process.env, exactly as before.
  */
 async function resolveCfg(req: NextRequest): Promise<
   | { ok: true; cfg: Cfg }
@@ -61,21 +69,10 @@ async function handle(req: NextRequest) {
     }, { status: 503 });
   }
 
-  const auth = 'Basic ' + Buffer.from(`${email}:${token}`).toString('base64');
+  const creds = { baseUrl, email, token };
 
   try {
-    const resp = await fetch(`${baseUrl}/rest/api/3/myself`, {
-      headers: { Authorization: auth, Accept: 'application/json' },
-    });
-
-    if (!resp.ok) {
-      const errText = await resp.text();
-      let errMsg = `Jira trả về ${resp.status}`;
-      try { const j = JSON.parse(errText); if (j.message) errMsg = j.message; } catch { /* keep */ }
-      return NextResponse.json({ ok: false, error: errMsg }, { status: resp.status });
-    }
-
-    const me = await resp.json();
+    const me = await testConnection(creds);
     return NextResponse.json({
       ok: true,
       displayName: me.displayName,
@@ -84,8 +81,18 @@ async function handle(req: NextRequest) {
       baseUrl,
     });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ ok: false, error: `Lỗi kết nối: ${msg}` }, { status: 500 });
+    const e = err as { kind?: string; status?: number; message?: string };
+    // Route-level handling wins here: the test route's response shapes and the
+    // `Lỗi kết nối: ...` 500 prefix differ from the search route's mapper
+    // output, so the upstream/network cases are rendered with the test prefix.
+    const upstreamMsg = typeof e.message === 'string' ? e.message : 'Lỗi kết nối Jira';
+    if (e.kind === 'upstream') {
+      return NextResponse.json({ ok: false, error: upstreamMsg }, { status: e.status ?? 500 });
+    }
+    if (e.kind === 'network' || e.kind === 'timeout') {
+      return NextResponse.json({ ok: false, error: `Lỗi kết nối: ${upstreamMsg}` }, { status: 500 });
+    }
+    return integrationErrorResponse(err);
   }
 }
 
