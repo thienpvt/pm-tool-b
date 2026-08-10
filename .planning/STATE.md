@@ -4,16 +4,16 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 03
 current_phase_name: Integration Clients
-status: executing
-stopped_at: Completed 03-03-PLAN.md
-last_updated: "2026-08-10T07:59:49.454Z"
+status: verifying
+stopped_at: Completed 03-04-PLAN.md
+last_updated: "2026-08-10T08:27:36.786Z"
 last_activity: 2026-08-10
 last_activity_desc: Phase 03 execution started
 progress:
   total_phases: 3
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 8
-  completed_plans: 7
+  completed_plans: 8
 ---
 
 # Project State
@@ -29,10 +29,10 @@ See: .planning/PROJECT.md (updated 2026-08-07)
 
 Phase: 03 (Integration Clients) — EXECUTING
 Plan: 4 of 4
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-08-10 — Phase 03 execution started
 
-Progress: [█████████░] 88% (2/7 phases)
+Progress: [██████████] 100% (2/7 phases)
 
 ## Performance Metrics
 
@@ -62,6 +62,7 @@ Progress: [█████████░] 88% (2/7 phases)
 | Phase 03-integration-clients P03-01 | 38 | 4 tasks | 7 files |
 | Phase 03 P02 | 25 | 3 tasks | 5 files |
 | Phase 03-integration-clients P03 | 40 | 3 tasks | 12 files |
+| Phase 03-integration-clients P03-04 | 55 | 4 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -82,6 +83,10 @@ Recent decisions affecting current work:
 - [Phase ?]: Resend 2xx schema requires id with passthrough — id-less 200 is validation error, never partial messageId (T-03-07)
 - [Phase ?]: Zod validates the FOUND text block (not the whole content array) — heterogeneous ContentBlock[] like [thinking,text] must pass, so the schema is applied after the .find scan
 - [Phase ?]: SDK maxRetries left at default (2) per orchestrator — documented in a client comment, no per-route note needed
+- [Phase ?]: Jira upstream message stamped on IntegrationError.message AND cause so route-level e.message rendering and the mapper pass-through both reproduce the preserved string
+- [Phase ?]: Test route keeps ok:false wrappers for upstream/network (behavior freeze) — route-level handling wins where shapes differ from the shared mapper
+- [Phase ?]: Fields route keeps its two 503 strings (Jira chưa cấu hình vs Thiếu env vars) via config-row presence check; resolver null collapses both
+- [Phase ?]: INTG-08 cutover deletion BLOCKED (no DATABASE_URL) — old inline Jira credential blocks preserved as marked dead code so HYG-01 stays a dedicated gated commit
 
 ### Pending Todos
 
@@ -91,6 +96,7 @@ None yet.
 
 - Whether `proxy.ts` executes in the deployed Docker runtime is unconfirmed (ROUTE-11, Phase 6) — treat as open, do not build route-level enforcement as if it depends on proxy.ts working.
 - Credential resolver unification (Phase 3, INTG-07/08) risks silently breaking a tenant's Jira or Anthropic config if precedence order changes — verify every configured company before deleting old paths.
+- INTG-08 credential cutover deletion BLOCKED (plan 03-04 Task 4): no reachable DATABASE_URL, so scripts/verify-credential-cutover.ts evidence could not be gathered. Old inline Jira credential blocks preserved as dead code in app/api/jira/search/route.ts + fields/route.ts. Operator: set DATABASE_URL, run npx tsx scripts/verify-credential-cutover.ts, land HYG-01 deletion commit when all rows match: yes.
 
 ## Deferred Items
 
@@ -104,6 +110,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-10T07:59:49.433Z
-Stopped at: Completed 03-03-PLAN.md
+Last session: 2026-08-10T08:27:20.662Z
+Stopped at: Completed 03-04-PLAN.md
 Resume file: None
