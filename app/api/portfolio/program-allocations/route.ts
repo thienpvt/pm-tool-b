@@ -1,17 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionFromRequest } from '@/lib/auth';
-import {
-  programFteAllocations,
-  upsertPortfolioProgramAllocation,
-} from '@/lib/repositories/portfolio.repo';
+import { serviceErrorResponse } from '@/lib/api-errors';
+import { createProgramAllocation, listProgramAllocations } from '@/lib/services/portfolio.service';
+
+function actorOf(user: { company_id: number | null; is_admin: number }) {
+  return { company_id: user.company_id, is_admin: user.is_admin };
+}
 
 // GET: ALL programs for this company with their allocation + actual FTE
 export async function GET(req: NextRequest) {
   const user = await getSessionFromRequest(req);
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  if (!user.company_id) return NextResponse.json([]);
 
-  const rows = await programFteAllocations(user.company_id);
+  const rows = await listProgramAllocations(actorOf(user));
   return NextResponse.json(rows);
 }
 
@@ -19,15 +20,13 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const user = await getSessionFromRequest(req);
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const { program_id, allocated_headcount } = await req.json();
-  if (!program_id) return NextResponse.json({ error: 'program_id required' }, { status: 400 });
-  const headcount = Math.max(0, Number(allocated_headcount) || 0);
-  const pid = Number(program_id);
+  const body = await req.json();
   try {
-    await upsertPortfolioProgramAllocation(user.company_id, pid, headcount);
-    return NextResponse.json({ program_id: pid, allocated_headcount: headcount });
+    const result = await createProgramAllocation(actorOf(user), body);
+    return NextResponse.json(result);
   } catch (e) {
-    console.error('program-allocations POST error:', e);
-    return NextResponse.json({ error: String(e) }, { status: 500 });
+    // HYG-02: was `{ error: String(e) }` — a server error now surfaces as the
+    // generic serviceErrorResponse 500, never the raw error text.
+    return serviceErrorResponse(e);
   }
 }

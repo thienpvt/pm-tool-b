@@ -1,24 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionFromRequest } from '@/lib/auth';
-import {
-  createPortfolioMember,
-  portfolioMembersWithUtilization,
-} from '@/lib/repositories/portfolio.repo';
+import { serviceErrorResponse } from '@/lib/api-errors';
+import { createMember, listMembers } from '@/lib/services/portfolio.service';
+
+function actorOf(user: { company_id: number | null; is_admin: number }) {
+  return { company_id: user.company_id, is_admin: user.is_admin };
+}
 
 export async function GET(req: NextRequest) {
   const user = await getSessionFromRequest(req);
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  return NextResponse.json(await portfolioMembersWithUtilization(user.company_id));
+  return NextResponse.json(await listMembers(actorOf(user)));
 }
 
 export async function POST(req: NextRequest) {
   const user = await getSessionFromRequest(req);
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const body = await req.json();
-  const { role = '', name, email = '', note = '', member_type = 'internal', member_category = 'delivery', overhead_remaining = 0 } = body;
-  if (!name?.trim()) return NextResponse.json({ error: 'Name is required' }, { status: 400 });
-  const row = await createPortfolioMember(user.company_id, {
-    role, name: name.trim(), email, note, member_type, member_category, overhead_remaining,
-  });
-  return NextResponse.json(row, { status: 201 });
+  try {
+    const row = await createMember(actorOf(user), body);
+    return NextResponse.json(row, { status: 201 });
+  } catch (e) {
+    return serviceErrorResponse(e);
+  }
 }
