@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
 import Anthropic from '@anthropic-ai/sdk';
+import { serverError } from '@/lib/log';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -252,6 +253,6 @@ export async function POST(req: NextRequest, { params }: Params) {
     const text = message.content[0].type === 'text' ? message.content[0].text : '';
     return NextResponse.json({ report: text });
   } catch (e: any) {
-    return NextResponse.json({ error: e.message ?? 'AI generation failed' }, { status: 500 });
+    return serverError(req, e, { error: e.message ?? 'AI generation failed' });
   }
 }

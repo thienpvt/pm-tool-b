@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
 import { getSessionFromRequest } from '@/lib/auth';
+import { serverError } from '@/lib/log';
 
 export async function GET(req: NextRequest) {
   try {
@@ -15,7 +16,7 @@ export async function GET(req: NextRequest) {
         : await db.all(`SELECT p.*, c.name as program_name, c.industry as program_industry FROM projects p LEFT JOIN customers c ON p.customer_id = c.id WHERE (p.company_id IS NULL OR c.company_id IS NULL) ORDER BY p.created_at DESC`);
     return NextResponse.json(projects);
   } catch (e) {
-    return NextResponse.json({ error: String(e) }, { status: 500 });
+    return serverError(req, e, { error: String(e) });
   }
 }
 
@@ -60,6 +61,6 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(project, { status: 201 });
   } catch (e) {
-    return NextResponse.json({ error: String(e) }, { status: 500 });
+    return serverError(req, e, { error: String(e) });
   }
 }

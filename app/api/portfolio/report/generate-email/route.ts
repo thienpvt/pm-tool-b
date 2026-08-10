@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
 import { getSessionFromRequest } from '@/lib/auth';
 import Anthropic from '@anthropic-ai/sdk';
+import { serverError } from '@/lib/log';
 
 const SYSTEM_PROMPT = `Bạn là Giám đốc PMO (Project Management Office) cấp Senior với 15+ năm kinh nghiệm quản lý danh mục dự án quy mô doanh nghiệp. Bạn đang soạn email báo cáo chính thức gửi Ban Lãnh đạo cấp cao (C-level).
 
@@ -84,7 +85,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ subject, emailHtml });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : 'Claude API failed';
-    return NextResponse.json({ error: msg }, { status: 502 });
+    return serverError(req, e, { error: msg }, 502);
   }
 }
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
 import { getSessionFromRequest } from '@/lib/auth';
+import { serverError } from '@/lib/log';
 
 async function getJiraCredentials(req: NextRequest) {
   const user = await getSessionFromRequest(req);
@@ -104,6 +105,6 @@ export async function POST(req: NextRequest) {
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ error: `Lỗi kết nối Jira: ${msg}` }, { status: 500 });
+    return serverError(req, err, { error: `Lỗi kết nối Jira: ${msg}` });
   }
 }

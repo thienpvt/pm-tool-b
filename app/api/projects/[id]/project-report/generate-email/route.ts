@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
 import { getSessionFromRequest } from '@/lib/auth';
 import Anthropic from '@anthropic-ai/sdk';
+import { serverError } from '@/lib/log';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -84,7 +85,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     return NextResponse.json({ subject, emailHtml });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : 'Claude API failed';
-    return NextResponse.json({ error: msg }, { status: 502 });
+    return serverError(req, e, { error: msg }, 502);
   }
 }
 

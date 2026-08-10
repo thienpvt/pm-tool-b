@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
 import { getSessionFromRequest } from '@/lib/auth';
+import { serverError } from '@/lib/log';
 
 // GET: ALL programs for this company with their allocation + actual FTE
 export async function GET(req: NextRequest) {
@@ -63,7 +64,6 @@ export async function POST(req: NextRequest) {
     }
     return NextResponse.json({ program_id: pid, allocated_headcount: headcount });
   } catch (e) {
-    console.error('program-allocations POST error:', e);
-    return NextResponse.json({ error: String(e) }, { status: 500 });
+    return serverError(req, e, { error: String(e) });
   }
 }

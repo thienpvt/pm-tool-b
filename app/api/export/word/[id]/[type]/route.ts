@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateWordDoc } from '@/lib/export/word';
+import { serverError } from '@/lib/log';
 
 type Params = { params: Promise<{ id: string; type: string }> };
 
@@ -16,6 +17,6 @@ export async function GET(req: NextRequest, { params }: Params) {
       },
     });
   } catch (e) {
-    return NextResponse.json({ error: String(e) }, { status: 500 });
+    return serverError(req, e, { error: String(e) });
   }
 }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateKickoffPPT } from '@/lib/export/ppt';
+import { serverError } from '@/lib/log';
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -14,6 +15,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       },
     });
   } catch (e) {
-    return NextResponse.json({ error: String(e) }, { status: 500 });
+    return serverError(req, e, { error: String(e) });
   }
 }

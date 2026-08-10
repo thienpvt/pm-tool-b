@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import ExcelJS from 'exceljs';
+import { serverError } from '@/lib/log';
 
 function parseCSV(text: string): string[][] {
   const rows: string[][] = [];
@@ -116,7 +117,6 @@ export async function POST(req: NextRequest) {
       allRows: dataRows,
     });
   } catch (e) {
-    console.error('parse-file-headers error:', e);
-    return NextResponse.json({ error: 'Không thể đọc file. Kiểm tra định dạng.' }, { status: 500 });
+    return serverError(req, e, { error: 'Không thể đọc file. Kiểm tra định dạng.' });
   }
 }

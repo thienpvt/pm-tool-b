@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
 import { getSessionFromRequest } from '@/lib/auth';
+import { serverError } from '@/lib/log';
 
 type Cfg = { base_url_var: string; email_var: string; token_var: string };
 
@@ -89,7 +90,7 @@ async function handle(req: NextRequest) {
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ ok: false, error: `Lỗi kết nối: ${msg}` }, { status: 500 });
+    return serverError(req, err, { ok: false, error: `Lỗi kết nối: ${msg}` });
   }
 }
 

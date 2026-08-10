@@ -4,6 +4,7 @@ import { getSessionFromRequest } from '@/lib/auth';
 import Anthropic from '@anthropic-ai/sdk';
 import { statusWeight, DONE_STATUSES } from '@/lib/status-weights';
 import { calculateRAG, DEFAULT_RAG_CONFIG } from '@/lib/rag';
+import { serverError } from '@/lib/log';
 
 // ─── GET: Full portfolio report data ─────────────────────────────────────────
 export async function GET(req: NextRequest) {
@@ -787,6 +788,6 @@ export async function POST(req: NextRequest) {
     const text = message.content[0].type === 'text' ? message.content[0].text : '';
     return NextResponse.json({ report: text });
   } catch (e: any) {
-    return NextResponse.json({ error: e.message ?? 'AI generation failed' }, { status: 500 });
+    return serverError(req, e, { error: e.message ?? 'AI generation failed' });
   }
 }

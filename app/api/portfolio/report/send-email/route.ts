@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionFromRequest } from '@/lib/auth';
+import { serverError } from '@/lib/log';
 
 export async function POST(req: NextRequest) {
   const user = await getSessionFromRequest(req);
@@ -41,6 +42,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, messageId: data.id });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : 'Send failed';
-    return NextResponse.json({ error: msg }, { status: 502 });
+    return serverError(req, e, { error: msg }, 502);
   }
 }

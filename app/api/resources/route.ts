@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
 import { getSessionFromRequest } from '@/lib/auth';
+import { serverError } from '@/lib/log';
 
 export async function GET(req: NextRequest) {
   try {
@@ -38,6 +39,6 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(members);
   } catch (e) {
-    return NextResponse.json({ error: String(e) }, { status: 500 });
+    return serverError(req, e, { error: String(e) });
   }
 }

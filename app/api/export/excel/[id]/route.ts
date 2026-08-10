@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateProjectPlan } from '@/lib/export/excel';
+import { serverError } from '@/lib/log';
 
 type Params = { params: Promise<{ id: string }> };
 
-export async function GET(_req: NextRequest, { params }: Params) {
+export async function GET(req: NextRequest, { params }: Params) {
   const { id } = await params;
   try {
     const buf = await generateProjectPlan(Number(id));
@@ -15,6 +16,6 @@ export async function GET(_req: NextRequest, { params }: Params) {
       },
     });
   } catch (e) {
-    return NextResponse.json({ error: String(e) }, { status: 500 });
+    return serverError(req, e, { error: String(e) });
   }
 }

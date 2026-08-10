@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
 import { getSessionFromRequest } from '@/lib/auth';
+import { serverError } from '@/lib/log';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -32,7 +33,7 @@ export async function GET(req: NextRequest, { params }: Params) {
     if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     return NextResponse.json(project);
   } catch (e) {
-    return NextResponse.json({ error: String(e) }, { status: 500 });
+    return serverError(req, e, { error: String(e) });
   }
 }
 
@@ -48,7 +49,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     await db.run(`UPDATE projects SET ${fields} WHERE id = ?`, ...values);
     return NextResponse.json(await db.get('SELECT * FROM projects WHERE id = ?', id));
   } catch (e) {
-    return NextResponse.json({ error: String(e) }, { status: 500 });
+    return serverError(req, e, { error: String(e) });
   }
 }
 
@@ -61,6 +62,6 @@ export async function DELETE(req: NextRequest, { params }: Params) {
     await db.run('DELETE FROM projects WHERE id = ?', id);
     return NextResponse.json({ ok: true });
   } catch (e) {
-    return NextResponse.json({ error: String(e) }, { status: 500 });
+    return serverError(req, e, { error: String(e) });
   }
 }
