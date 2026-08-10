@@ -8,8 +8,10 @@ import {
 import { listOpenIssues } from '@/lib/repositories/issues.repo';
 import { getProjectWithCustomer } from '@/lib/repositories/projects.repo';
 import { listOpenRisks } from '@/lib/repositories/risks.repo';
-import { getSetting } from '@/lib/repositories/settings.repo';
-import Anthropic from '@anthropic-ai/sdk';
+import { resolveAnthropicCredentials } from '@/lib/integrations/credentials';
+import { createMessage } from '@/lib/integrations/anthropic/client';
+import { MODEL_OPUS_4_7 } from '@/lib/integrations/anthropic/models';
+import { integrationErrorResponse } from '@/lib/api-errors';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -145,8 +147,8 @@ export async function POST(req: NextRequest, { params }: Params) {
   void id;
   const body = await req.json();
 
-  const apiKey = process.env.ANTHROPIC_API_KEY || (await getSetting('anthropic_api_key'));
-  if (!apiKey) {
+  const creds = await resolveAnthropicCredentials();
+  if (!creds) {
     return NextResponse.json(
       { error: 'NO_API_KEY' },
       { status: 503 }
@@ -219,16 +221,14 @@ export async function POST(req: NextRequest, { params }: Params) {
   ].join('\n');
 
   try {
-    const client = new Anthropic({ apiKey });
-    const message = await client.messages.create({
-      model: 'claude-opus-4-7',
+    const { text } = await createMessage(creds, {
+      model: MODEL_OPUS_4_7,
       max_tokens: 1024,
       messages: [{ role: 'user', content: prompt }],
     });
-
-    const text = message.content[0].type === 'text' ? message.content[0].text : '';
     return NextResponse.json({ report: text });
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message ?? 'AI generation failed' }, { status: 500 });
+  } catch (e) {
+    // Behavior change: adds a 120s SDK timeout where none existed (HYG-02)
+    return integrationErrorResponse(e, { force500: true });
   }
 }
