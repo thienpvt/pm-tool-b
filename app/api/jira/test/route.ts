@@ -52,15 +52,18 @@ async function handle(req: NextRequest) {
   if (!resolved.ok) return NextResponse.json({ ok: false, error: resolved.error }, { status: resolved.status });
   const { cfg } = resolved;
 
-  const baseUrl = process.env[cfg.base_url_var]?.replace(/\/$/, '');
-  const email   = process.env[cfg.email_var];
-  const token   = process.env[cfg.token_var];
+  // INTG-07: values come from the shared resolver, never from an inline
+  // process.env read. `explicit` hands it the var names resolveCfg settled on —
+  // which for the admin path are un-saved form values with no DB row to find.
+  const creds = await resolveJiraCredentials(null, cfg);
 
-  if (!baseUrl || !email || !token) {
+  if (!creds) {
+    // The resolver's null carries no per-name detail, so the operator-facing
+    // diagnostic is recomputed from the names here (same as before).
     const missing = [
-      !baseUrl && cfg.base_url_var,
-      !email   && cfg.email_var,
-      !token   && cfg.token_var,
+      !process.env[cfg.base_url_var] && cfg.base_url_var,
+      !process.env[cfg.email_var]    && cfg.email_var,
+      !process.env[cfg.token_var]    && cfg.token_var,
     ].filter(Boolean);
     return NextResponse.json({
       ok: false,
@@ -69,8 +72,6 @@ async function handle(req: NextRequest) {
     }, { status: 503 });
   }
 
-  const creds = { baseUrl, email, token };
-
   try {
     const me = await testConnection(creds);
     return NextResponse.json({
@@ -78,7 +79,7 @@ async function handle(req: NextRequest) {
       displayName: me.displayName,
       email: me.emailAddress,
       accountId: me.accountId,
-      baseUrl,
+      baseUrl: creds.baseUrl,
     });
   } catch (err) {
     const e = err as { kind?: string; status?: number; message?: string };

@@ -56,6 +56,7 @@ export function integrationErrorResponse(e: unknown, opts?: { force500?: boolean
     }
 
     if (e.kind === 'validation') {
+      console.error('Integration response failed validation', { service: e.service, cause: e.cause });
       return NextResponse.json({ error: 'Jira trả về dữ liệu không hợp lệ' }, { status: 502 });
     }
 
@@ -81,6 +82,7 @@ export function integrationErrorResponse(e: unknown, opts?: { force500?: boolean
     }
 
     if (e.kind === 'validation') {
+      console.error('Integration response failed validation', { service: e.service, cause: e.cause });
       return NextResponse.json({ error: 'Resend API error' }, { status: 502 });
     }
 
@@ -90,6 +92,17 @@ export function integrationErrorResponse(e: unknown, opts?: { force500?: boolean
 
   // Anthropic — behavior freeze (Pitfall 5): report routes return 500 today,
   // generate-email routes 502. The split is preserved via force500.
+  //
+  // `validation` escapes force500 on purpose: it is an error kind this phase
+  // introduced (the client now checks Anthropic output against a schema before
+  // any caller sees it), so it has no pre-phase behavior to freeze. INTG-06
+  // requires a shape mismatch not to surface as a 500 — the frozen split still
+  // governs upstream/timeout/network/auth.
+  if (e.kind === 'validation') {
+    console.error('Integration response failed validation', { service: e.service, cause: e.cause });
+    return NextResponse.json({ error: e.message ?? 'AI generation failed' }, { status: 502 });
+  }
+
   const status = opts?.force500 ? 500 : 502;
   return NextResponse.json({ error: e.message ?? 'AI generation failed' }, { status });
 }
