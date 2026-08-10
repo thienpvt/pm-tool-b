@@ -2,18 +2,18 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: Completed 03-01-PLAN.md
-last_updated: "2026-08-10T07:00:10.870Z"
-last_activity: 2026-08-10 — Phase 03 execution started
-progress:
-  total_phases: 7
-  completed_phases: 2
-  total_plans: 8
-  completed_plans: 5
-  percent: 29
 current_phase: 03
 current_phase_name: Integration Clients
+status: executing
+stopped_at: Completed 03-02-PLAN.md
+last_updated: "2026-08-10T07:29:06.851Z"
+last_activity: 2026-08-10
+last_activity_desc: Phase 03 execution started
+progress:
+  total_phases: 3
+  completed_phases: 2
+  total_plans: 8
+  completed_plans: 6
 ---
 
 # Project State
@@ -28,11 +28,11 @@ See: .planning/PROJECT.md (updated 2026-08-07)
 ## Current Position
 
 Phase: 03 (Integration Clients) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 Status: Ready to execute
 Last activity: 2026-08-10 — Phase 03 execution started
 
-Progress: [███░░░░░░░] 29% (2/7 phases)
+Progress: [████████░░] 75% (2/7 phases)
 
 ## Performance Metrics
 
@@ -60,6 +60,7 @@ Progress: [███░░░░░░░] 29% (2/7 phases)
 |------|----------|-------|-------|
 | Phase 01-test-harness P01 | 45m | 8 tasks | 10 files |
 | Phase 03-integration-clients P03-01 | 38 | 4 tasks | 7 files |
+| Phase 03 P02 | 25 | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -75,6 +76,9 @@ Recent decisions affecting current work:
 - [Phase ?]: withFetchTimeout races the promise against its own abort signal; timedOut flag distinguishes timeout (kind timeout) from caller abort (kind network)
 - [Phase ?]: Anthropic resolver adopts env || db treating empty-string env as unset (INTG-08, the only intentional normalization)
 - [Phase ?]: Cutover script runs via npx tsx, not plain node (node 25 cannot resolve the @/ alias); documented in 03-01-SUMMARY
+- [Phase ?]: withFetchTimeout gains optional service label (default 'jira') so non-Jira clients stamp correct service on timeout/network errors
+- [Phase ?]: Resend upstream errors always map to 502 regardless of upstream status (behavior freeze, Pitfall 5)
+- [Phase ?]: Resend 2xx schema requires id with passthrough — id-less 200 is validation error, never partial messageId (T-03-07)
 
 ### Pending Todos
 
@@ -97,6 +101,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-10T07:00:10.861Z
-Stopped at: Completed 03-01-PLAN.md
+Last session: 2026-08-10T07:28:37.586Z
+Stopped at: Completed 03-02-PLAN.md
 Resume file: None

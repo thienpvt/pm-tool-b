@@ -28,14 +28,14 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 - [ ] **INTG-01**: All Jira Cloud REST calls go through `lib/integrations/jira/client.ts` — no `fetch` to Atlassian from any route
 - [ ] **INTG-02**: All Anthropic calls go through `lib/integrations/anthropic/client.ts` — no direct `@anthropic-ai/sdk` construction in any route
-- [ ] **INTG-03**: All Resend calls go through `lib/integrations/resend/client.ts`
-- [ ] **INTG-04**: Every integration client applies an explicit request timeout and returns a normalized error type rather than throwing a raw SDK or fetch error
-- [ ] **INTG-05**: Jira REST responses are validated against a Zod schema at the client boundary; a shape mismatch produces a logged validation error, not a silent wrong value or a 500
-- [ ] **INTG-06**: Anthropic model output is validated at the client boundary before any caller consumes it
+- [x] **INTG-03**: All Resend calls go through `lib/integrations/resend/client.ts`
+- [x] **INTG-04**: Every integration client applies an explicit request timeout and returns a normalized error type rather than throwing a raw SDK or fetch error
+- [x] **INTG-05**: Jira REST responses are validated against a Zod schema at the client boundary; a shape mismatch produces a logged validation error, not a silent wrong value or a 500
+- [x] **INTG-06**: Anthropic model output is validated at the client boundary before any caller consumes it
 - [x] **INTG-07**: One credential resolver serves all integrations, replacing the split between Jira's env-var-names-in-DB pattern and Anthropic's env-then-DB fallback
 - [x] **INTG-08**: The credential resolver preserves every currently-working tenant configuration — verified per configured company before the old paths are deleted
 - [x] **INTG-09**: An integration client never imports a repository; a service resolves credentials and passes values in
-- [ ] **INTG-10**: Each integration client has tests using recorded/mocked external responses, including a malformed-response case
+- [x] **INTG-10**: Each integration client has tests using recorded/mocked external responses, including a malformed-response case
 
 ### Service Layer
 
@@ -133,14 +133,14 @@ Deferred. Tracked but not in this milestone's roadmap.
 | REPO-06 | Phase 2 | Pending |
 | INTG-01 | Phase 3 | Pending |
 | INTG-02 | Phase 3 | Pending |
-| INTG-03 | Phase 3 | Pending |
-| INTG-04 | Phase 3 | Pending |
-| INTG-05 | Phase 3 | Pending |
-| INTG-06 | Phase 3 | Pending |
+| INTG-03 | Phase 3 | Complete |
+| INTG-04 | Phase 3 | Complete |
+| INTG-05 | Phase 3 | Complete |
+| INTG-06 | Phase 3 | Complete |
 | INTG-07 | Phase 3 | Complete |
 | INTG-08 | Phase 3 | Complete |
 | INTG-09 | Phase 3 | Complete |
-| INTG-10 | Phase 3 | Pending |
+| INTG-10 | Phase 3 | Complete |
 | SVC-01 | Phase 4 | Pending |
 | SVC-02 | Phase 4 | Pending |
 | SVC-03 | Phase 4 | Pending |
