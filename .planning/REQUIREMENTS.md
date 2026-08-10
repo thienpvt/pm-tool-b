@@ -27,7 +27,7 @@ Requirements for this milestone. Each maps to roadmap phases.
 ### Integration Clients
 
 - [ ] **INTG-01**: All Jira Cloud REST calls go through `lib/integrations/jira/client.ts` — no `fetch` to Atlassian from any route
-- [ ] **INTG-02**: All Anthropic calls go through `lib/integrations/anthropic/client.ts` — no direct `@anthropic-ai/sdk` construction in any route
+- [x] **INTG-02**: All Anthropic calls go through `lib/integrations/anthropic/client.ts` — no direct `@anthropic-ai/sdk` construction in any route
 - [x] **INTG-03**: All Resend calls go through `lib/integrations/resend/client.ts`
 - [x] **INTG-04**: Every integration client applies an explicit request timeout and returns a normalized error type rather than throwing a raw SDK or fetch error
 - [x] **INTG-05**: Jira REST responses are validated against a Zod schema at the client boundary; a shape mismatch produces a logged validation error, not a silent wrong value or a 500
@@ -132,7 +132,7 @@ Deferred. Tracked but not in this milestone's roadmap.
 | REPO-05 | Phase 2 | Pending |
 | REPO-06 | Phase 2 | Pending |
 | INTG-01 | Phase 3 | Pending |
-| INTG-02 | Phase 3 | Pending |
+| INTG-02 | Phase 3 | Complete |
 | INTG-03 | Phase 3 | Complete |
 | INTG-04 | Phase 3 | Complete |
 | INTG-05 | Phase 3 | Complete |
