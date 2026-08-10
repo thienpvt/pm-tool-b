@@ -79,9 +79,12 @@ describe('resend client', () => {
   it('throws kind timeout when the request hangs past 15s', async () => {
     fetchMock.mockReturnValue(new Promise(() => {}));
 
-    const pending = sendEmail({ apiKey: 'rk' }, baseParams);
+    // Attach the rejection handler BEFORE advancing timers: the abort fires
+    // inside advanceTimersByTimeAsync, so asserting afterwards leaves the
+    // rejection momentarily unhandled and vitest exits non-zero.
+    const assertion = expect(sendEmail({ apiKey: 'rk' }, baseParams))
+      .rejects.toMatchObject({ kind: 'timeout', service: 'resend' });
     await vi.advanceTimersByTimeAsync(15_000);
-
-    await expect(pending).rejects.toMatchObject({ kind: 'timeout', service: 'resend' });
+    await assertion;
   });
 });
