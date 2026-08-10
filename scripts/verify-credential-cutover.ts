@@ -53,7 +53,8 @@ async function main(): Promise<number> {
     return 1;
   }
 
-  const pool = new Pool({ connectionString: databaseUrl });
+  // WR-06: fail the gate loudly after 5s instead of hanging forever on a dead host.
+  const pool = new Pool({ connectionString: databaseUrl, connectionTimeoutMillis: 5000 });
   let exitCode = 0;
 
   try {
