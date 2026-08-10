@@ -28,9 +28,11 @@ async function getJiraCredentials(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const user = await getSessionFromRequest(req);
   if (!user?.company_id) {
+    // Behavior freeze (WR-01): a session with a null company is an authz
+    // failure (401), matching the fields route — not a config-missing 503.
     return NextResponse.json(
       { error: 'Jira chưa được cấu hình cho công ty này. Admin cần vào trang Quản trị → Companies → Cấu hình Jira.' },
-      { status: 503 }
+      { status: 401 }
     );
   }
 
