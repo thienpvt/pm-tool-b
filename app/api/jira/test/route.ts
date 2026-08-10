@@ -60,7 +60,7 @@ async function handle(req: NextRequest) {
     ].filter(Boolean);
     return NextResponse.json({
       ok: false,
-      error: `Biến môi trường chưa được set trên Railway: ${missing.join(', ')}`,
+      error: `Biến môi trường chưa được set trên server: ${missing.join(', ')}`,
       missing,
     }, { status: 503 });
   }

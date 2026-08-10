@@ -1894,7 +1894,7 @@ export default function PortfolioReportPage() {
       const d = await res.json();
       if (!res.ok) {
         toast.error(d.error === 'NO_RESEND_KEY'
-          ? 'Email chưa cấu hình — cần thêm RESEND_API_KEY vào Railway'
+          ? 'Email chưa cấu hình — cần thêm RESEND_API_KEY vào biến môi trường server'
           : (d.error ?? 'Gửi email thất bại'));
         return;
       }

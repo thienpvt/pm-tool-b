@@ -16,7 +16,7 @@
 | Auth | Session-based (scrypt hash, cookie `pm_session`, 7 ngày) |
 | AI | Anthropic Claude SDK (`@anthropic-ai/sdk`) |
 | Exports | ExcelJS, PptxGenJS, Docx |
-| Deploy | Railway + Dockerfile |
+| Deploy | Railway + on-premise (Docker), song song |
 
 **Không dùng:** Prisma, Redux, tRPC, GraphQL, NextAuth.
 
@@ -169,7 +169,7 @@ Auth utilities (`lib/auth.ts`):
 - `POST /api/portfolio/report` — AI report (Claude)
 - `GET /api/resources`
 - `GET /api/config`
-- `GET /api/health` — Railway health check
+- `GET /api/health` — health check (dùng chung cho Railway lẫn on-prem)
 
 ---
 
@@ -209,11 +209,12 @@ Auth utilities (`lib/auth.ts`):
 
 ## 9. Deployment
 
-- **Platform:** Railway (xem `railway.json`)
-- **DB:** Railway PostgreSQL
-- **Build:** Dockerfile → `node:20-slim` → `npm install` + `npm run build`
-- **Health check:** `GET /api/health`
-- **Restart:** ON_FAILURE
+Deploy song song trên 2 hạ tầng, dùng chung `Dockerfile` — khác nhau ở biến môi trường (`DATABASE_URL` có/không `?sslmode=disable`, xem `lib/db.ts:resolveSsl`), không có logic riêng theo platform trong code.
+
+- **Railway:** xem `railway.json` (build DOCKERFILE, healthcheck `/api/health`, restart ON_FAILURE). DB: Railway PostgreSQL (SSL mặc định bật, `rejectUnauthorized: false`).
+- **On-premise:** xem `docker-compose.yml` (cùng Dockerfile, healthcheck `/api/health`, `restart: unless-stopped`). DB: Postgres nội bộ, thường cần `?sslmode=disable` trong `DATABASE_URL`.
+- **Build (chung):** Dockerfile → `node:20-slim` → `npm install` + `npm run build`
+- **Health check (chung):** `GET /api/health`
 
 ---
 

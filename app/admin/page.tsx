@@ -547,7 +547,7 @@ export default function AdminPage() {
           </DialogHeader>
           <div className="space-y-4 py-2">
             <p className="text-xs text-slate-500 bg-slate-50 rounded-lg p-3 leading-relaxed">
-              Nhập <strong>tên biến môi trường</strong> đã set trên Railway cho công ty này.
+              Nhập <strong>tên biến môi trường</strong> đã set trên server cho công ty này.
               Ví dụ: nếu bạn set <code className="bg-slate-200 px-1 rounded">JIRA_URL_ACME=https://acme.atlassian.net</code> thì nhập <code className="bg-slate-200 px-1 rounded">JIRA_URL_ACME</code> vào ô dưới.
             </p>
             <div>

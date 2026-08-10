@@ -566,6 +566,20 @@ async function seedAuthData(db: DbClient) {
   }
 }
 
+// ── SSL mode ───────────────────────────────────────────────────────────────────
+// Driven by the standard libpq `sslmode` query param on DATABASE_URL — the portable,
+// infra-agnostic way to control this (add `?sslmode=disable` for an on-prem Postgres
+// without TLS, `?sslmode=require` or omit it for managed/cloud Postgres).
+//   Fallback: if `sslmode` isn't set at all, default to disabled for `railway.internal`
+//   hosts specifically, to preserve today's already-deployed Railway config (whose
+//   DATABASE_URL predates this param) without requiring an env var edit on Railway.
+function resolveSsl(databaseUrl: string): false | { rejectUnauthorized: boolean } {
+  const url = new URL(databaseUrl);
+  const sslmode = url.searchParams.get('sslmode');
+  if (sslmode) return sslmode === 'disable' ? false : { rejectUnauthorized: false };
+  return url.hostname.endsWith('railway.internal') ? false : { rejectUnauthorized: false };
+}
+
 // ── Singleton ──────────────────────────────────────────────────────────────────
 let _client: DbClient | null = null;
 
@@ -578,9 +592,7 @@ export async function getDb(): Promise<DbClient> {
 
   const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
-    ssl: process.env.DATABASE_URL.includes('railway.internal')
-      ? false
-      : { rejectUnauthorized: false },
+    ssl: resolveSsl(process.env.DATABASE_URL),
   });
   const client = new PostgresClient(pool);
   await initPostgresSchema(client);

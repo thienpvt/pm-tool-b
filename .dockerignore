@@ -1,0 +1,14 @@
+node_modules
+.next
+.git
+.env
+.env.*
+!.env.example
+*.sql
+dump-data.mjs
+mindmap.html
+mindmap.pdf
+pitch.html
+pitch.pdf
+npm-debug.log*
+README.md
