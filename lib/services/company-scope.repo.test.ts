@@ -4,10 +4,11 @@ import { seedCompany, seedProject, setupRepoTables, testDb } from '../../test/re
 
 vi.mock('@/lib/db', () => ({ getDb: vi.fn(async () => testDb()) }));
 
-import { getPortfolioSummary } from './portfolio.service';
+import { getBudget, getPortfolioSummary, listBudgets } from './portfolio.service';
 import { getPortfolioReport } from './portfolio-report.service';
 import { getRoadmap } from './roadmap.service';
 import { listPortfolioBudgets } from '@/lib/repositories/portfolio.repo';
+import { NotFoundError } from './errors';
 
 /**
  * SVC-05 proof: aggregate services exclude another company's rows from lists
@@ -195,5 +196,23 @@ describe.skipIf(!hasTestDb)('portfolio aggregates are company-scoped (SVC-05)', 
     // Amount sum similarly
     const amountSum = rows.reduce((s, r) => s + Number(r.total_amount), 0);
     expect(amountSum).toBeLessThan(1000 + 99999);
+
+    // 04-06: portfolio.service.ts's listBudgets wraps this same repository call —
+    // prove the service layer carries the identical company-scoped totals (SVC-05),
+    // folded into this test rather than a new `it()` so the DB-gated skip count is
+    // unaffected when TEST_DATABASE_URL is absent.
+    const svcRows = await listBudgets({ company_id: companyA, is_admin: 0 }) as typeof rows;
+    expect(svcRows.every(r => Number(r.company_id) === companyA)).toBe(true);
+    expect(svcRows.some(r => r.period_label === 'B-Q1')).toBe(false);
+    const svcAllocatedSum = svcRows.reduce((s, r) => s + Number(r.total_allocated), 0);
+    expect(svcAllocatedSum).toBe(allocatedSum);
+
+    // getBudget on company B's own budget id must 404 for a company A actor —
+    // never return the foreign row.
+    const bRows = await listPortfolioBudgets(companyB) as { id: number; period_label: string }[];
+    const bBudgetId = bRows.find(r => r.period_label === 'B-Q1')!.id;
+    await expect(
+      getBudget(bBudgetId, { company_id: companyA, is_admin: 0 }),
+    ).rejects.toBeInstanceOf(NotFoundError);
   });
 });
