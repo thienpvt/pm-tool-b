@@ -1,51 +1,54 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { repoErrorResponse } from '@/lib/api-errors';
+import { getSessionFromRequest } from '@/lib/auth';
+import { serviceErrorResponse } from '@/lib/api-errors';
 import {
-  deleteAllBugs,
-  deleteSnapshot,
+  deleteBugs,
   listBugs,
   listSnapshotDates,
   replaceSnapshot,
-} from '@/lib/repositories/bugs.repo';
+} from '@/lib/services/bugs.service';
 
 type Params = { params: Promise<{ id: string }> };
 
+function actorOf(user: { company_id: number | null; is_admin: number }) {
+  return { company_id: user.company_id, is_admin: user.is_admin };
+}
+
 export async function GET(req: NextRequest, { params }: Params) {
   const { id } = await params;
+  const user = await getSessionFromRequest(req);
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const url = new URL(req.url);
   try {
-    // Return list of available snapshot dates
     if (url.searchParams.get('list_dates') === '1') {
-      return NextResponse.json(await listSnapshotDates(id));
+      return NextResponse.json(await listSnapshotDates(id, actorOf(user)));
     }
-    return NextResponse.json(await listBugs(id, url.searchParams.get('date')));
+    return NextResponse.json(await listBugs(id, actorOf(user), url.searchParams.get('date')));
   } catch (e) {
-    return repoErrorResponse(e);
+    return serviceErrorResponse(e);
   }
 }
 
 export async function POST(req: NextRequest, { params }: Params) {
   const { id } = await params;
+  const user = await getSessionFromRequest(req);
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   try {
     const { bugs, snapshot_date } = await req.json();
-    if (!Array.isArray(bugs)) return NextResponse.json({ error: 'bugs must be array' }, { status: 400 });
-
-    const date = snapshot_date || new Date().toISOString().split('T')[0];
-    const inserted = await replaceSnapshot(id, bugs, date);
-    return NextResponse.json({ inserted, snapshot_date: date });
+    return NextResponse.json(await replaceSnapshot(id, actorOf(user), bugs, snapshot_date));
   } catch (e) {
-    return repoErrorResponse(e);
+    return serviceErrorResponse(e);
   }
 }
 
 export async function DELETE(req: NextRequest, { params }: Params) {
   const { id } = await params;
+  const user = await getSessionFromRequest(req);
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const date = new URL(req.url).searchParams.get('date');
   try {
-    if (date) await deleteSnapshot(id, date);
-    else await deleteAllBugs(id);
-    return NextResponse.json({ ok: true });
+    return NextResponse.json(await deleteBugs(id, actorOf(user), date));
   } catch (e) {
-    return repoErrorResponse(e);
+    return serviceErrorResponse(e);
   }
 }

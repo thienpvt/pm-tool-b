@@ -1,27 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { repoErrorResponse } from '@/lib/api-errors';
-import { deleteMilestone, updateMilestone } from '@/lib/repositories/milestones.repo';
+import { getSessionFromRequest } from '@/lib/auth';
+import { serviceErrorResponse } from '@/lib/api-errors';
+import { deleteMilestone, updateMilestone } from '@/lib/services/milestones.service';
 
 type Params = { params: Promise<{ id: string; milestoneId: string }> };
 
+function actorOf(user: { company_id: number | null; is_admin: number }) {
+  return { company_id: user.company_id, is_admin: user.is_admin };
+}
+
 export async function PUT(req: NextRequest, { params }: Params) {
   const { id, milestoneId } = await params;
+  const user = await getSessionFromRequest(req);
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   try {
     const body = await req.json();
-    const updated = await updateMilestone(id, milestoneId, body);
-    if (!updated) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-    return NextResponse.json(updated);
+    return NextResponse.json(await updateMilestone(id, actorOf(user), milestoneId, body));
   } catch (e) {
-    return repoErrorResponse(e);
+    return serviceErrorResponse(e);
   }
 }
 
-export async function DELETE(_req: NextRequest, { params }: Params) {
+export async function DELETE(req: NextRequest, { params }: Params) {
   const { id, milestoneId } = await params;
+  const user = await getSessionFromRequest(req);
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   try {
-    await deleteMilestone(id, milestoneId);
+    await deleteMilestone(id, actorOf(user), milestoneId);
     return NextResponse.json({ ok: true });
   } catch (e) {
-    return repoErrorResponse(e);
+    return serviceErrorResponse(e);
   }
 }

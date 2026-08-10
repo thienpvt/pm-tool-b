@@ -1,48 +1,70 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { repoErrorResponse } from '@/lib/api-errors';
-import { createMeeting, deleteMeeting, listMeetings, updateMeeting } from '@/lib/repositories/meetings.repo';
+import { getSessionFromRequest } from '@/lib/auth';
+import { repoErrorResponse, serviceErrorResponse } from '@/lib/api-errors';
+import { UnknownColumnError } from '@/lib/repositories/_helpers';
+import {
+  createMeeting,
+  deleteMeeting,
+  listMeetings,
+  updateMeeting,
+} from '@/lib/services/meetings.service';
 
 type Params = { params: Promise<{ id: string }> };
 
-export async function GET(_req: NextRequest, { params }: Params) {
+function actorOf(user: { company_id: number | null; is_admin: number }) {
+  return { company_id: user.company_id, is_admin: user.is_admin };
+}
+
+function mapError(e: unknown) {
+  if (e instanceof UnknownColumnError) return repoErrorResponse(e);
+  return serviceErrorResponse(e);
+}
+
+export async function GET(req: NextRequest, { params }: Params) {
   const { id } = await params;
+  const user = await getSessionFromRequest(req);
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   try {
-    return NextResponse.json(await listMeetings(id));
+    return NextResponse.json(await listMeetings(id, actorOf(user)));
   } catch (e) {
-    return repoErrorResponse(e);
+    return mapError(e);
   }
 }
 
 export async function POST(req: NextRequest, { params }: Params) {
   const { id } = await params;
+  const user = await getSessionFromRequest(req);
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   try {
     const body = await req.json();
-    return NextResponse.json(await createMeeting(id, body), { status: 201 });
+    return NextResponse.json(await createMeeting(id, actorOf(user), body), { status: 201 });
   } catch (e) {
-    return repoErrorResponse(e);
+    return mapError(e);
   }
 }
 
 export async function PUT(req: NextRequest, { params }: Params) {
   const { id } = await params;
+  const user = await getSessionFromRequest(req);
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   try {
     const body = await req.json();
     const { id: rowId, ...fields } = body;
-    const updated = await updateMeeting(id, rowId, fields);
-    if (!updated) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-    return NextResponse.json(updated);
+    return NextResponse.json(await updateMeeting(id, actorOf(user), rowId, fields));
   } catch (e) {
-    return repoErrorResponse(e);
+    return mapError(e);
   }
 }
 
 export async function DELETE(req: NextRequest, { params }: Params) {
   const { id } = await params;
+  const user = await getSessionFromRequest(req);
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const { searchParams } = new URL(req.url);
   try {
-    await deleteMeeting(id, searchParams.get('rowId') ?? '');
+    await deleteMeeting(id, actorOf(user), searchParams.get('rowId') ?? '');
     return NextResponse.json({ ok: true });
   } catch (e) {
-    return repoErrorResponse(e);
+    return mapError(e);
   }
 }

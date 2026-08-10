@@ -1,27 +1,40 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { repoErrorResponse } from '@/lib/api-errors';
-import { listEscalations, updateEscalation } from '@/lib/repositories/escalations.repo';
+import { getSessionFromRequest } from '@/lib/auth';
+import { repoErrorResponse, serviceErrorResponse } from '@/lib/api-errors';
+import { UnknownColumnError } from '@/lib/repositories/_helpers';
+import { listEscalations, updateEscalation } from '@/lib/services/escalations.service';
 
 type Params = { params: Promise<{ id: string }> };
 
-export async function GET(_req: NextRequest, { params }: Params) {
+function actorOf(user: { company_id: number | null; is_admin: number }) {
+  return { company_id: user.company_id, is_admin: user.is_admin };
+}
+
+function mapError(e: unknown) {
+  if (e instanceof UnknownColumnError) return repoErrorResponse(e);
+  return serviceErrorResponse(e);
+}
+
+export async function GET(req: NextRequest, { params }: Params) {
   const { id } = await params;
+  const user = await getSessionFromRequest(req);
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   try {
-    return NextResponse.json(await listEscalations(id));
+    return NextResponse.json(await listEscalations(id, actorOf(user)));
   } catch (e) {
-    return repoErrorResponse(e);
+    return mapError(e);
   }
 }
 
 export async function PUT(req: NextRequest, { params }: Params) {
   const { id } = await params;
+  const user = await getSessionFromRequest(req);
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   try {
     const body = await req.json();
     const { id: rowId, ...fields } = body;
-    const updated = await updateEscalation(id, rowId, fields);
-    if (!updated) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-    return NextResponse.json(updated);
+    return NextResponse.json(await updateEscalation(id, actorOf(user), rowId, fields));
   } catch (e) {
-    return repoErrorResponse(e);
+    return mapError(e);
   }
 }
