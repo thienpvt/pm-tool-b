@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionFromRequest } from '@/lib/auth';
-import Anthropic from '@anthropic-ai/sdk';
 import { statusWeight, DONE_STATUSES } from '@/lib/status-weights';
 import { calculateRAG, DEFAULT_RAG_CONFIG } from '@/lib/rag';
 import { companyRagConfig } from '@/lib/repositories/rag-config.repo';
-import { getSetting } from '@/lib/repositories/settings.repo';
 import { listCompanyPrograms } from '@/lib/repositories/programs.repo';
+import { resolveAnthropicCredentials } from '@/lib/integrations/credentials';
+import { createMessage } from '@/lib/integrations/anthropic/client';
+import { MODEL_OPUS_4_7 } from '@/lib/integrations/anthropic/models';
+import { integrationErrorResponse } from '@/lib/api-errors';
 import {
   completedPortfolioActivitiesBetween,
   internalPortfolioMembers as listInternalPortfolioMembers,
@@ -532,9 +534,8 @@ export async function POST(req: NextRequest) {
   const { portfolioData } = body;
   const lang = (portfolioData.language ?? body.language ?? 'Vietnamese') === 'English' ? 'English' : 'Vietnamese';
 
-  const dbKey = await getSetting('anthropic_api_key');
-  const apiKey = process.env.ANTHROPIC_API_KEY || dbKey;
-  if (!apiKey) return NextResponse.json({ error: 'NO_API_KEY' }, { status: 503 });
+  const creds = await resolveAnthropicCredentials();
+  if (!creds) return NextResponse.json({ error: 'NO_API_KEY' }, { status: 503 });
 
   const { kpi, programs, noProgramProjects, reportDate, topRisks, topIssues, upcomingMilestones, completedByProject, periodStart, periodEnd } = portfolioData;
   const allProjects = [...programs.flatMap(c => c.projects), ...noProgramProjects];
@@ -628,15 +629,14 @@ export async function POST(req: NextRequest) {
   ].filter(Boolean).join('\n');
 
   try {
-    const client = new Anthropic({ apiKey });
-    const message = await client.messages.create({
-      model: 'claude-opus-4-7',
+    const { text } = await createMessage(creds, {
+      model: MODEL_OPUS_4_7,
       max_tokens: 2000,
       messages: [{ role: 'user', content: prompt }],
     });
-    const text = message.content[0].type === 'text' ? message.content[0].text : '';
     return NextResponse.json({ report: text });
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message ?? 'AI generation failed' }, { status: 500 });
+  } catch (e) {
+    // Behavior change: adds a 120s SDK timeout where none existed (HYG-02)
+    return integrationErrorResponse(e, { force500: true });
   }
 }
