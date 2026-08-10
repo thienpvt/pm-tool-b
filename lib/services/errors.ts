@@ -1,7 +1,7 @@
 /**
  * Typed service-layer errors. HTTP-code-free by design (SVC-03) — mapping to
- * responses lives in `serviceErrorResponse` in `lib/api-errors.ts` so services
- * never import `next/server`.
+ * responses lives in `serviceErrorResponse` in `lib/api-errors.ts` so this
+ * layer stays free of framework HTTP types.
  *
  * Shape mirrors `UnknownColumnError` (bare `extends Error`, `this.name`,
  * structured payload). Do NOT add an HTTP code field — that is what forbids
