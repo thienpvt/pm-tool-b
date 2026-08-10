@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionFromRequest } from '@/lib/auth';
-import Anthropic from '@anthropic-ai/sdk';
-import { getSetting } from '@/lib/repositories/settings.repo';
+import { resolveAnthropicCredentials } from '@/lib/integrations/credentials';
+import { createMessage } from '@/lib/integrations/anthropic/client';
+import { MODEL_OPUS_4_7 } from '@/lib/integrations/anthropic/models';
+import { integrationErrorResponse } from '@/lib/api-errors';
 
 const SYSTEM_PROMPT = `Bạn là Giám đốc PMO (Project Management Office) cấp Senior với 15+ năm kinh nghiệm quản lý danh mục dự án quy mô doanh nghiệp. Bạn đang soạn email báo cáo chính thức gửi Ban Lãnh đạo cấp cao (C-level).
 
@@ -33,12 +35,8 @@ export async function POST(req: NextRequest) {
   const user = await getSessionFromRequest(req);
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  // Resolve API key: env var takes priority, fallback to DB settings
-  let apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    apiKey = await getSetting('anthropic_api_key');
-  }
-  if (!apiKey) return NextResponse.json({ error: 'NO_API_KEY' }, { status: 503 });
+  const creds = await resolveAnthropicCredentials();
+  if (!creds) return NextResponse.json({ error: 'NO_API_KEY' }, { status: 503 });
 
   const body = await req.json();
   const { portfolioData, promptInstruction, language } = body as {
@@ -54,10 +52,9 @@ export async function POST(req: NextRequest) {
   const context = buildPortfolioContext(portfolioData, language);
   const langLabel = language === 'Vietnamese' ? 'Tiếng Việt' : 'English';
 
-  const client = new Anthropic({ apiKey });
   try {
-    const msg = await client.messages.create({
-      model: 'claude-opus-4-7',
+    const { text: raw } = await createMessage(creds, {
+      model: MODEL_OPUS_4_7,
       max_tokens: 3500,
       system: SYSTEM_PROMPT,
       messages: [{
@@ -65,8 +62,6 @@ export async function POST(req: NextRequest) {
         content: `${promptInstruction}\n\nNgôn ngữ: ${langLabel}\n\n=== DỮ LIỆU PORTFOLIO ===\n${context}`,
       }],
     });
-
-    const raw = msg.content[0].type === 'text' ? msg.content[0].text : '';
 
     // Parse subject from first line
     const lines = raw.split('\n');
@@ -80,9 +75,9 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({ subject, emailHtml });
-  } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : 'Claude API failed';
-    return NextResponse.json({ error: msg }, { status: 502 });
+  } catch (e) {
+    // Behavior change: adds a 120s SDK timeout where none existed (HYG-02)
+    return integrationErrorResponse(e);
   }
 }
 
