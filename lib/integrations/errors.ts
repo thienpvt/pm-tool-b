@@ -34,12 +34,16 @@ export class IntegrationError extends Error {
  * kind 'timeout', caller abort and generic rejection map to 'network' (Pitfall
  * 6). The wrapper races the promise against its own abort signal so a timeout
  * resolves at `ms` even when the promise ignores the signal; the timer is
- * cleared in `finally` so the process never hangs (INTG-04, T-03-05).
+ * cleared in `finally` so the process never hangs (INTG-04, T-03-05). The
+ * `service` label defaults to 'jira' for backward compatibility; callers pass
+ * their own service name ('resend', 'anthropic', ...) so normalized errors
+ * carry the right identity.
  */
 export async function withFetchTimeout<T>(
   promise: Promise<T>,
   ms: number,
   callerSignal?: AbortSignal,
+  service = 'jira',
 ): Promise<{ value: T; error: null } | { value: null; error: IntegrationError }> {
   const controller = new AbortController();
   const onCallerAbort = () => controller.abort();
@@ -60,8 +64,8 @@ export async function withFetchTimeout<T>(
     const value = await Promise.race([promise, abortPromise]);
     return { value, error: null };
   } catch (e) {
-    if (timedOut) return { value: null, error: new IntegrationError({ kind: 'timeout', service: 'jira', cause: e }) };
-    return { value: null, error: new IntegrationError({ kind: 'network', service: 'jira', cause: e }) };
+    if (timedOut) return { value: null, error: new IntegrationError({ kind: 'timeout', service, cause: e }) };
+    return { value: null, error: new IntegrationError({ kind: 'network', service, cause: e }) };
   } finally {
     clearTimeout(timer);
     callerSignal?.removeEventListener('abort', onCallerAbort);
