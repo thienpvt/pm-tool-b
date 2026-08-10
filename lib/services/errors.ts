@@ -34,3 +34,11 @@ export class ValidationError extends Error {
     this.field = field;
   }
 }
+
+/** Resource-state conflict (e.g. duplicate holiday date). Maps to 409. */
+export class ConflictError extends Error {
+  constructor(message = 'Conflict') {
+    super(message);
+    this.name = 'ConflictError';
+  }
+}

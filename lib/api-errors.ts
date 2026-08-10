@@ -1,7 +1,12 @@
 import { NextResponse } from 'next/server';
 import { IntegrationError } from '@/lib/integrations/errors';
 import { UnknownColumnError } from '@/lib/repositories/_helpers';
-import { ForbiddenError, NotFoundError, ValidationError } from '@/lib/services/errors';
+import {
+  ConflictError,
+  ForbiddenError,
+  NotFoundError,
+  ValidationError,
+} from '@/lib/services/errors';
 
 /**
  * Map a repository error to a response.
@@ -45,6 +50,9 @@ export function serviceErrorResponse(e: unknown) {
     const body: { error: string; field?: string } = { error: e.message };
     if (e.field !== undefined) body.field = e.field;
     return NextResponse.json(body, { status: 400 });
+  }
+  if (e instanceof ConflictError) {
+    return NextResponse.json({ error: e.message }, { status: 409 });
   }
   console.error('Unexpected service error', e);
   return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
