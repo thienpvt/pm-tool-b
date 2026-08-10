@@ -43,7 +43,7 @@ Requirements for this milestone. Each maps to roadmap phases.
 - [x] **SVC-02**: A service function takes plain arguments and returns plain data — it never imports `next/server` or touches `NextRequest`/`NextResponse`
 - [x] **SVC-03**: Services signal failure by throwing typed errors (`ForbiddenError`, `NotFoundError`, `ValidationError`) that carry no HTTP status of their own
 - [x] **SVC-04**: Every service function operating on a project asserts the caller's company owns that project before returning or mutating data
-- [ ] **SVC-05**: Portfolio, roadmap, budget rollup, and report-generation services scope every aggregate query and join by company — verified with a cross-company fixture, not by inspection
+- [x] **SVC-05**: Portfolio, roadmap, budget rollup, and report-generation services scope every aggregate query and join by company — verified with a cross-company fixture, not by inspection
 - [x] **SVC-06**: Every export service (Excel, PowerPoint, Word) scopes its data fetch by company
 - [x] **SVC-07**: Each service has unit tests with mocked repositories, including an explicit cross-company access-denied case
 
@@ -145,7 +145,7 @@ Deferred. Tracked but not in this milestone's roadmap.
 | SVC-02 | Phase 4 | Complete |
 | SVC-03 | Phase 4 | Complete |
 | SVC-04 | Phase 4 | Complete |
-| SVC-05 | Phase 4 | Pending |
+| SVC-05 | Phase 4 | Complete |
 | SVC-06 | Phase 4 | Complete |
 | SVC-07 | Phase 4 | Complete |
 | ROUTE-01 | Phase 5 | Pending |

@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 04
 current_phase_name: Service Layer
 status: executing
-stopped_at: Completed 04-01-PLAN.md
-last_updated: "2026-08-10T16:17:20.085Z"
+stopped_at: Completed 04-04-PLAN.md
+last_updated: "2026-08-10T16:44:21.137Z"
 last_activity: 2026-08-10
-last_activity_desc: Phase 04 execution started
+last_activity_desc: Plan 04-04 complete — phase ready for verification
 progress:
   total_phases: 4
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 12
-  completed_plans: 9
+  completed_plans: 12
 ---
 
 # Project State
@@ -27,12 +27,12 @@ See: .planning/PROJECT.md (updated 2026-08-07)
 
 ## Current Position
 
-Phase: 04 (Service Layer) — EXECUTING
-Plan: 4 of 4 (04-04 aggregates remaining)
-Status: Waves 1-2 complete (310 passed / 0 failed / 109 skipped) — 04-04 queued
-Last activity: 2026-08-10 — Plans 04-01/02/03 complete
+Phase: 04 (Service Layer) — READY FOR VERIFICATION
+Plan: 4 of 4 (all plans complete)
+Status: 04-04 done — suite 446 total / 333 passed / 0 failed / **113 skipped** (new skip baseline; +4 = company-scope.repo.test.ts DB-gated)
+Last activity: 2026-08-10 — Plan 04-04 aggregates + SVC-05 proof complete
 
-Progress: [██████░░░░] 55% (3/7 phases)
+Progress: [██████████] 100% (phase 04 plans complete; await verify)
 
 ## Performance Metrics
 
@@ -64,6 +64,7 @@ Progress: [██████░░░░] 55% (3/7 phases)
 | Phase 03-integration-clients P03 | 40 | 3 tasks | 12 files |
 | Phase 03-integration-clients P03-04 | 55 | 4 tasks | 8 files |
 | Phase 04 P01 | 5 | 6 tasks | 10 files |
+| Phase 04 P04 | 11min | 5 tasks | 15 files |
 
 ## Accumulated Context
 
@@ -91,6 +92,9 @@ Recent decisions affecting current work:
 - [Phase ?]: ForbiddenError body is always { error: 'Forbidden' } — message never crosses the wire
 - [Phase ?]: deleteRisk treats changes===0 as NotFoundError so the route yields 404 rather than {ok:true} on a miss
 - [Phase ?]: Risks route tests mock repos (default tier) so skip count stays 109 without TEST_DATABASE_URL
+- [Phase ?]: Extract portfolio/roadmap inline RAG verbatim; reconcile vs calculateRAG is HYG-02
+- [Phase ?]: project-report companyRagConfig(project.company_id) behavior freeze (not session company)
+- [Phase ?]: Report POST AI handlers stay in routes; force500:true preserved
 
 ### Pending Todos
 
@@ -114,6 +118,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-10T16:17:20.076Z
-Stopped at: Completed 04-01-PLAN.md
+Last session: 2026-08-10T16:44:21.129Z
+Stopped at: Completed 04-04-PLAN.md
 Resume file: None
