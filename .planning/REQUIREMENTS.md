@@ -33,7 +33,7 @@ Requirements for this milestone. Each maps to roadmap phases.
 - [x] **INTG-05**: Jira REST responses are validated against a Zod schema at the client boundary; a shape mismatch produces a logged validation error, not a silent wrong value or a 500
 - [x] **INTG-06**: Anthropic model output is validated at the client boundary before any caller consumes it
 - [x] **INTG-07**: One credential resolver serves all integrations, replacing the split between Jira's env-var-names-in-DB pattern and Anthropic's env-then-DB fallback
-- [x] **INTG-08**: The credential resolver preserves every currently-working tenant configuration — verified per configured company before the old paths are deleted
+- [ ] **INTG-08**: The credential resolver preserves every currently-working tenant configuration — verified per configured company before the old paths are deleted <!-- DEFERRED: no reachable DATABASE_URL, so scripts/verify-credential-cutover.ts cannot gather per-tenant evidence. Old inline blocks preserved as marked dead code; operator runs the script then lands the HYG-01 deletion commit. See 03-VERIFICATION.md. -->
 - [x] **INTG-09**: An integration client never imports a repository; a service resolves credentials and passes values in
 - [x] **INTG-10**: Each integration client has tests using recorded/mocked external responses, including a malformed-response case
 
@@ -138,7 +138,7 @@ Deferred. Tracked but not in this milestone's roadmap.
 | INTG-05 | Phase 3 | Complete |
 | INTG-06 | Phase 3 | Complete |
 | INTG-07 | Phase 3 | Complete |
-| INTG-08 | Phase 3 | Complete |
+| INTG-08 | Phase 3 | Deferred — cutover evidence needs a live DATABASE_URL (HYG-01 deletion commit outstanding) |
 | INTG-09 | Phase 3 | Complete |
 | INTG-10 | Phase 3 | Complete |
 | SVC-01 | Phase 4 | Pending |

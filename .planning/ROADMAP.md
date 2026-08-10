@@ -13,7 +13,7 @@ This milestone takes the app from zero test coverage and a flat `lib/` where rou
 
 - [x] **Phase 1: Test Harness** - Stand up Vitest so every later layer lands with tests, not a promise to add them (completed 2026-08-07)
 - [x] **Phase 2: Repository Layer** - Move every SQL statement into repository modules with explicit scoping and column allowlists (completed 2026-08-10)
-- [ ] **Phase 3: Integration Clients** - Route all Jira/Anthropic/Resend calls through dedicated, validated clients with one credential resolver
+- [x] **Phase 3: Integration Clients** - Route all Jira/Anthropic/Resend calls through dedicated, validated clients with one credential resolver (completed 2026-08-10)
 - [ ] **Phase 4: Service Layer** - Concentrate business logic and tenant-ownership checks in service modules with typed errors
 - [ ] **Phase 5: Route Thinning & Validation** - Build the shared auth/access wrapper and Zod validation so routes shrink to parse/authorize/call/respond
 - [ ] **Phase 6: Access Enforcement Rollout** - Roll the wrapper out to every project-scoped route, shadow-mode first, with 401/403 tests proving it
@@ -154,7 +154,7 @@ Three requirements apply to every phase's execution rather than to a specific la
 |-------|----------------|--------|-----------|
 | 1. Test Harness | 1/1 | Complete    | 2026-08-07 |
 | 2. Repository Layer | 3/3 | Complete    | 2026-08-10 |
-| 3. Integration Clients | 4/4 | In Progress|  |
+| 3. Integration Clients | 4/4 | Complete    | 2026-08-10 |
 | 4. Service Layer | 0/TBD | Not started | - |
 | 5. Route Thinning & Validation | 0/TBD | Not started | - |
 | 6. Access Enforcement Rollout | 0/TBD | Not started | - |
