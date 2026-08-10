@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 04
 current_phase_name: Service Layer
 status: executing
-stopped_at: Completed 04-04-PLAN.md
-last_updated: "2026-08-10T16:44:21.137Z"
+stopped_at: Completed 04-05-PLAN.md (gap closure)
+last_updated: "2026-08-10T17:28:13.935Z"
 last_activity: 2026-08-10
-last_activity_desc: Plan 04-04 complete — phase ready for verification
+last_activity_desc: Plan 04-04 aggregates + SVC-05 proof complete
 progress:
   total_phases: 4
   completed_phases: 4
-  total_plans: 12
-  completed_plans: 12
+  total_plans: 13
+  completed_plans: 13
 ---
 
 # Project State
@@ -28,9 +28,9 @@ See: .planning/PROJECT.md (updated 2026-08-07)
 ## Current Position
 
 Phase: 04 (Service Layer) — READY FOR VERIFICATION
-Plan: 4 of 4 (all plans complete)
-Status: 04-04 done — suite 446 total / 333 passed / 0 failed / **113 skipped** (new skip baseline; +4 = company-scope.repo.test.ts DB-gated)
-Last activity: 2026-08-10 — Plan 04-04 aggregates + SVC-05 proof complete
+Plan: 5 of 5 (all plans complete, including 04-05 gap closure)
+Status: 04-05 done — suite 506 total / 393 passed / 0 failed / **113 skipped** (baseline held from 04-04)
+Last activity: 2026-08-10 — Plan 04-05 gap closure: deleted checkAccess/authorize copies, closed two live IDORs (T-04-21 epics read, T-04-22 allocations write + adjacent GET leak)
 
 Progress: [██████████] 100% (phase 04 plans complete; await verify)
 
@@ -65,6 +65,7 @@ Progress: [██████████] 100% (phase 04 plans complete; await 
 | Phase 03-integration-clients P03-04 | 55 | 4 tasks | 8 files |
 | Phase 04 P01 | 5 | 6 tasks | 10 files |
 | Phase 04 P04 | 11min | 5 tasks | 15 files |
+| Phase 04 P05 | 24min | 5 tasks | 19 files |
 
 ## Accumulated Context
 
@@ -95,6 +96,8 @@ Recent decisions affecting current work:
 - [Phase ?]: Extract portfolio/roadmap inline RAG verbatim; reconcile vs calculateRAG is HYG-02
 - [Phase ?]: project-report companyRagConfig(project.company_id) behavior freeze (not session company)
 - [Phase ?]: Report POST AI handlers stay in routes; force500:true preserved
+- [Phase ?]: T-04-21/22 live IDORs closed: epics read gated via assertProjectAccess; program-project-allocations POST gated on BOTH program and project ownership (GET read-leak also closed)
+- [Phase ?]: checkAccess/authorize file-local copies deleted from projects/[id] and the three nested budget routes; unified on assertProjectAccess via new projects.service.ts and budget-items.service.ts (cross-company 401->403 on the budget routes, HYG-02)
 
 ### Pending Todos
 
@@ -118,6 +121,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-10T16:44:21.129Z
-Stopped at: Completed 04-04-PLAN.md
+Last session: 2026-08-10T17:28:13.926Z
+Stopped at: Completed 04-05-PLAN.md (gap closure)
 Resume file: None
