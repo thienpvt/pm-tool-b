@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import ExcelJS from 'exceljs';
+import { getSessionFromRequest } from '@/lib/auth';
+import { serviceErrorResponse } from '@/lib/api-errors';
 import { getProject } from '@/lib/repositories/projects.repo';
 import { listForExport } from '@/lib/repositories/team.repo';
+import { assertProjectAccess } from '@/lib/services/access';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -48,8 +51,19 @@ function displayMonth(ym: string) {
   return `${labels[Number(m) - 1]}\n${y}`;
 }
 
-export async function GET(_req: NextRequest, { params }: Params) {
+export async function GET(req: NextRequest, { params }: Params) {
   const { id } = await params;
+  const user = await getSessionFromRequest(req);
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  try {
+    await assertProjectAccess(id, {
+      company_id: user.company_id,
+      is_admin: user.is_admin,
+    });
+  } catch (e) {
+    return serviceErrorResponse(e);
+  }
 
   const project = await getProject(Number(id)) as Record<string, string> | undefined;
   if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 });

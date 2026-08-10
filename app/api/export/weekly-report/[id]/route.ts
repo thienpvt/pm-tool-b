@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import ExcelJS from 'exceljs';
+import { getSessionFromRequest } from '@/lib/auth';
+import { serviceErrorResponse } from '@/lib/api-errors';
+import { assertProjectAccess } from '@/lib/services/access';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -51,11 +54,33 @@ function info(ws: ExcelJS.Worksheet, rowNum: number, label: string, value: strin
 }
 
 export async function POST(req: NextRequest, { params }: Params) {
-  void (await params); // params.id not needed for export, data comes from body
-  const { report, reportData, startDate, endDate, language } = await req.json() as {
-    report: string; reportData: ReportData; startDate: string; endDate: string; language: string;
-  };
+  const { id } = await params;
+  const user = await getSessionFromRequest(req);
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+  try {
+    await assertProjectAccess(id, {
+      company_id: user.company_id,
+      is_admin: user.is_admin,
+    });
+
+    const { report, reportData, startDate, endDate, language } = await req.json() as {
+      report: string; reportData: ReportData; startDate: string; endDate: string; language: string;
+    };
+
+    return await buildWeeklyReportResponse(report, reportData, startDate, endDate, language);
+  } catch (e) {
+    return serviceErrorResponse(e);
+  }
+}
+
+async function buildWeeklyReportResponse(
+  report: string,
+  reportData: ReportData,
+  startDate: string,
+  endDate: string,
+  language: string,
+) {
   const wb = new ExcelJS.Workbook();
   wb.creator = 'PM Tool';
   wb.created = new Date();
@@ -251,3 +276,4 @@ export async function POST(req: NextRequest, { params }: Params) {
     },
   });
 }
+
