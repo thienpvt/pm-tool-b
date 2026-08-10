@@ -210,15 +210,33 @@ CREATE TABLE IF NOT EXISTS operations_incidents (
 );
 `;
 
+/** Advisory lock key serialising DDL across parallel vitest worker processes. */
+const DDL_LOCK_KEY = 2026_0002;
+
 /**
  * Create the tables if absent. Deliberately does NOT truncate or drop:
  * vitest runs test files in parallel workers, so a TRUNCATE in one suite would
  * delete rows another suite is mid-assertion on. Suites isolate themselves by
  * calling `seedProject()` and working only inside the project id it returns —
  * every repository read is already `WHERE project_id = ?`, so that is enough.
+ *
+ * `CREATE TABLE IF NOT EXISTS` is NOT concurrency-safe in Postgres: two workers
+ * can both pass the existence check and then collide inserting into `pg_type`
+ * (23505 on `pg_type_typname_nsp_index`). A session advisory lock — held on one
+ * pinned connection, since advisory locks are per-session — serialises the whole
+ * DDL block so only one worker creates and the rest see a genuine no-op.
  */
 export async function setupRepoTables(): Promise<void> {
-  await testDb().exec(DDL);
+  const client = await testPool().connect();
+  try {
+    await client.query('SELECT pg_advisory_lock($1)', [DDL_LOCK_KEY]);
+    for (const stmt of DDL.split(';').map(s => s.trim()).filter(Boolean)) {
+      await client.query(stmt);
+    }
+  } finally {
+    await client.query('SELECT pg_advisory_unlock($1)', [DDL_LOCK_KEY]).catch(() => {});
+    client.release();
+  }
 }
 
 /** Insert a company and return its id for company-scoped repository suites. */
