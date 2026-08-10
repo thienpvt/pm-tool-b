@@ -1,145 +1,40 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- POST body typing preserved from pre-extraction route */
 import { NextRequest, NextResponse } from 'next/server';
-import {
-  listByStatuses,
-  listDoneBetween,
-  listPlannedBetweenExcludingStatuses,
-  listStatusAndPhase,
-} from '@/lib/repositories/activities.repo';
-import { listOpenIssues } from '@/lib/repositories/issues.repo';
-import { getProjectWithCustomer } from '@/lib/repositories/projects.repo';
-import { listOpenRisks } from '@/lib/repositories/risks.repo';
+import { getSessionFromRequest } from '@/lib/auth';
 import { resolveAnthropicCredentials } from '@/lib/integrations/credentials';
 import { createMessage } from '@/lib/integrations/anthropic/client';
 import { MODEL_OPUS_4_7 } from '@/lib/integrations/anthropic/models';
-import { integrationErrorResponse } from '@/lib/api-errors';
+import { integrationErrorResponse, serviceErrorResponse } from '@/lib/api-errors';
+import { IntegrationError } from '@/lib/integrations/errors';
+import { getWeeklyProjectReport } from '@/lib/services/project-report.service';
 
 type Params = { params: Promise<{ id: string }> };
 
 type ActivityRow = { activity: string; deliverable: string; completion_pct: number; plan_start: string; plan_end: string; };
 type RiskRow = { priority: string; description: string; mitigation: string; };
 
-const STATUS_WEIGHTS: Record<string, number> = {
-  'ANBM': 1, 'STAGING-READY4TEST': 0.6, 'Deployed': 1, 'Done': 1,
-  'In Dev': 0.2, 'In development': 0.2, 'In Progress': 0.3, 'In Review': 0.5,
-  'In Testing': 0.6, 'New': 0, 'PENDING': 0.5, 'UAT': 1, 'QC Done': 1,
-  'Ready For Dev': 0.2, 'Ready for Test': 0.6, 'Testing': 0.6, 'To Do': 0.1,
-  'To-do': 0.1, 'REFINEMENT': 0.1, 'Re-Open': 0.7, 'READY TO RELEASE': 1,
-  'Passed QC': 1, 'READY4TEST': 0.6, 'READY FOR RELEASE': 1, 'Blocked': 0,
-};
-
-function statusWeight(s: string): number { return STATUS_WEIGHTS[s] ?? 0; }
-
-const DONE_STATUSES = Object.entries(STATUS_WEIGHTS).filter(([, w]) => w >= 1).map(([s]) => s);
-const IN_PROGRESS_STATUSES = Object.entries(STATUS_WEIGHTS).filter(([, w]) => w > 0 && w < 1).map(([s]) => s);
-
-function getWeekBounds(weekStart?: string): { start: Date; end: Date } {
-  let start: Date;
-  if (weekStart) {
-    start = new Date(weekStart + 'T00:00:00');
-  } else {
-    start = new Date();
-    const day = start.getDay();
-    start.setDate(start.getDate() - (day === 0 ? 6 : day - 1));
-    start.setHours(0, 0, 0, 0);
-  }
-  const end = new Date(start);
-  end.setDate(end.getDate() + 6);
-  end.setHours(23, 59, 59, 999);
-  return { start, end };
-}
-
-function fmt(d: Date) {
-  return d.toISOString().split('T')[0];
-}
-
 export async function GET(req: NextRequest, { params }: Params) {
+  const user = await getSessionFromRequest(req);
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
   const { id } = await params;
   const { searchParams } = new URL(req.url);
-  const startParam = searchParams.get('start');
-  const endParam = searchParams.get('end');
-  const weekStart = searchParams.get('week') ?? undefined;
 
-  let startStr: string, endStr: string;
-  if (startParam && endParam) {
-    startStr = startParam;
-    endStr = endParam;
-  } else {
-    const { start, end } = getWeekBounds(weekStart);
-    startStr = fmt(start);
-    endStr = fmt(end);
+  try {
+    const data = await getWeeklyProjectReport(
+      id,
+      { company_id: user.company_id, is_admin: user.is_admin },
+      {
+        start: searchParams.get('start'),
+        end: searchParams.get('end'),
+        week: searchParams.get('week'),
+      },
+    );
+    return NextResponse.json(data);
+  } catch (e) {
+    if (e instanceof IntegrationError) return integrationErrorResponse(e);
+    return serviceErrorResponse(e);
   }
-
-  const project = await getProjectWithCustomer(id) as any;
-  if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-
-  const doneThisWeek = await listDoneBetween(id, startStr, endStr, DONE_STATUSES) as any[];
-
-  const inProgress = await listByStatuses(id, IN_PROGRESS_STATUSES) as any[];
-
-  const endDate = new Date(endStr + 'T23:59:59');
-  const nextStart = fmt(new Date(endDate.getTime() + 1));
-  const nextEnd = fmt(new Date(endDate.getTime() + 7 * 86400000));
-  const nextWeekPlan = await listPlannedBetweenExcludingStatuses(
-    id, nextStart, nextEnd, DONE_STATUSES,
-  ) as any[];
-
-  const openRisks = await listOpenRisks(id) as any[];
-
-  const openIssues = await listOpenIssues(id) as any[];
-
-  // Weighted stats from all US activities
-  const allActivities = await listStatusAndPhase(id);
-
-  const total = allActivities.length;
-  let weightedSum = 0;
-  let doneCount = 0;
-  let inProgressCount = 0;
-  let notStartedCount = 0;
-
-  for (const act of allActivities) {
-    const w = statusWeight(act.status);
-    weightedSum += w;
-    if (w >= 1) doneCount++;
-    else if (w > 0) inProgressCount++;
-    else notStartedCount++;
-  }
-
-  const completion_pct = total > 0 ? Math.round((weightedSum / total) * 100) : 0;
-
-  // Epic stats: group by phase, pct = done_US / total_US
-  const phaseMap: Record<string, { total: number; done: number }> = {};
-  for (const act of allActivities) {
-    const phase = act.phase || 'General';
-    if (!phaseMap[phase]) phaseMap[phase] = { total: 0, done: 0 };
-    phaseMap[phase].total++;
-    if (statusWeight(act.status) >= 1) phaseMap[phase].done++;
-  }
-  const epicStats = Object.entries(phaseMap)
-    .map(([phase, { total: t, done: d }]) => ({
-      phase,
-      total: t,
-      done: d,
-      pct: t > 0 ? Math.round((d / t) * 100) : 0,
-    }))
-    .sort((a, b) => a.phase.localeCompare(b.phase));
-
-  return NextResponse.json({
-    project,
-    weekRange: { start: startStr, end: endStr },
-    doneThisWeek,
-    inProgress,
-    nextWeekPlan,
-    openRisks,
-    openIssues,
-    stats: {
-      total,
-      done: doneCount,
-      inProgress: inProgressCount,
-      notStarted: notStartedCount,
-      completion_pct,
-    },
-    epicStats,
-  });
 }
 
 export async function POST(req: NextRequest, { params }: Params) {

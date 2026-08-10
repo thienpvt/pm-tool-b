@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- verbatim extract from pre-layer routes */
 import {
   listByStatuses,
   listDoneBetween,
@@ -333,7 +334,7 @@ export async function getProjectReport(
   // BEHAVIOR FREEZE: RAG config from project.company_id, NOT actor.company_id.
   // Recorded inversion — do not "fix" to session company here.
   const ragCfg = await companyRagConfig(project.company_id) ?? DEFAULT_RAG_CONFIG;
-  const { rag, spi: _spi, days_until_deadline } = calculateRAG({
+  const { rag, days_until_deadline } = calculateRAG({
     current_phase: project.current_phase,
     effective_start: effectiveStart,
     effective_end: effectiveEnd,

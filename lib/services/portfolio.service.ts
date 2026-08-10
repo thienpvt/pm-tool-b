@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- verbatim extract from pre-layer route */
 import {
   activityCompletionByProject,
   issueCountsByProject,

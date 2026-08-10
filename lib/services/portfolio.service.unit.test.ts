@@ -73,7 +73,9 @@ describe('portfolio.service getPortfolioSummary', () => {
     activityCompletionByProject.mockResolvedValue([]);
 
     const result = await getPortfolioSummary(scoped);
-    const byId = Object.fromEntries(result.projects.map((p: { id: number }) => [p.id, p]));
+    const byId = Object.fromEntries(
+      result.projects.map((p: { id: number; rag: string }) => [p.id, p]),
+    );
     expect(byId[1].rag).toBe('red');
     expect(byId[2].rag).toBe('amber');
     expect(byId[3].rag).toBe('green');
