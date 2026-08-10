@@ -10,9 +10,11 @@ import { listEpicActivityIds, listMilestones } from '@/lib/repositories/mileston
 import { getProjectForReport } from '@/lib/repositories/projects.repo';
 import { companyRagConfig } from '@/lib/repositories/rag-config.repo';
 import { listNotClosedByPriority as risksNotClosed } from '@/lib/repositories/risks.repo';
-import { getSetting } from '@/lib/repositories/settings.repo';
 import { listForReport as teamForReport } from '@/lib/repositories/team.repo';
-import Anthropic from '@anthropic-ai/sdk';
+import { resolveAnthropicCredentials } from '@/lib/integrations/credentials';
+import { createMessage } from '@/lib/integrations/anthropic/client';
+import { MODEL_OPUS_4_7 } from '@/lib/integrations/anthropic/models';
+import { integrationErrorResponse } from '@/lib/api-errors';
 import { calculateRAG, DEFAULT_RAG_CONFIG } from '@/lib/rag';
 
 type Params = { params: Promise<{ id: string }> };
@@ -294,9 +296,8 @@ export async function POST(req: NextRequest, { params }: Params) {
   const { id } = await params;
   void id;
 
-  const dbKey = await getSetting('anthropic_api_key');
-  const apiKey = process.env.ANTHROPIC_API_KEY || dbKey;
-  if (!apiKey) return NextResponse.json({ error: 'NO_API_KEY' }, { status: 503 });
+  const creds = await resolveAnthropicCredentials();
+  if (!creds) return NextResponse.json({ error: 'NO_API_KEY' }, { status: 503 });
 
   const body = await req.json();
   const { reportData, language = 'Vietnamese' } = body;
@@ -374,15 +375,14 @@ export async function POST(req: NextRequest, { params }: Params) {
   ].filter(Boolean).join('\n');
 
   try {
-    const client = new Anthropic({ apiKey });
-    const message = await client.messages.create({
-      model: 'claude-opus-4-7',
+    const { text } = await createMessage(creds, {
+      model: MODEL_OPUS_4_7,
       max_tokens: 1200,
       messages: [{ role: 'user', content: prompt }],
     });
-    const text = message.content[0].type === 'text' ? message.content[0].text : '';
     return NextResponse.json({ report: text });
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message ?? 'AI generation failed' }, { status: 500 });
+  } catch (e) {
+    // Behavior change: adds a 120s SDK timeout where none existed (HYG-02)
+    return integrationErrorResponse(e, { force500: true });
   }
 }
