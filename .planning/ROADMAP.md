@@ -80,7 +80,7 @@ Three requirements apply to every phase's execution rather than to a specific la
   4. One credential resolver serves all integrations, replacing the Jira env-var-names-in-DB / Anthropic env-then-DB split, and every currently-working tenant configuration is verified against it before the old paths are deleted
   5. Each integration client has tests using recorded/mocked responses including a malformed-response case, and imports no repository directly
 
-**Plans**: 4 plans
+**Plans**: 1/4 plans executed
 
 - [x] 03-01-PLAN.md — Integration foundation: zod, error type, unified credential resolver, INTG-08 cutover script
 - [ ] 03-02-PLAN.md — Resend client + integrationErrorResponse + send-email route
