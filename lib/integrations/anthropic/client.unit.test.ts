@@ -36,6 +36,13 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
+// The mocked module's error classes are plain Error subclasses at runtime, but
+// TS types them as the real SDK errors whose constructors take options objects
+// and whose `status` is readonly — cast through this helper to build them.
+function sdkErr<T extends Error>(Ctor: new (...args: any[]) => T, message: string): T {
+  return new Ctor(message as never) as T;
+}
+
 describe('anthropic client', () => {
   it('returns the text on the happy path', async () => {
     createMock.mockResolvedValue({ content: [{ type: 'text', text: 'Report' }] });
@@ -59,22 +66,22 @@ describe('anthropic client', () => {
   });
 
   it('maps APIConnectionTimeoutError to kind timeout', async () => {
-    createMock.mockRejectedValue(new APIConnectionTimeoutError('timed out'));
+    createMock.mockRejectedValue(sdkErr(APIConnectionTimeoutError, 'timed out'));
 
     await expect(createMessage({ apiKey: 'k' }, baseParams))
       .rejects.toMatchObject({ kind: 'timeout', service: 'anthropic' });
   });
 
   it('maps AuthenticationError to kind auth', async () => {
-    createMock.mockRejectedValue(new AuthenticationError('bad key'));
+    createMock.mockRejectedValue(sdkErr(AuthenticationError, 'bad key'));
 
     await expect(createMessage({ apiKey: 'k' }, baseParams))
       .rejects.toMatchObject({ kind: 'auth', service: 'anthropic' });
   });
 
   it('maps APIError to kind upstream with the status', async () => {
-    const err = new APIError('upstream failed');
-    err.status = 429;
+    const err = sdkErr(APIError, 'upstream failed');
+    Object.assign(err, { status: 429 });
     createMock.mockRejectedValue(err);
 
     await expect(createMessage({ apiKey: 'k' }, baseParams))

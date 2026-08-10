@@ -20,38 +20,52 @@ export function repoErrorResponse(e: unknown) {
   return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
 }
 
-/** Maps normalized integration failures without exposing raw upstream bodies. */
-export function integrationErrorResponse(e: unknown) {
+/**
+ * Maps normalized integration failures without exposing raw upstream bodies.
+ *
+ * Anthropic failures map to 502 by default; the two report routes (500 today)
+ * pass `force500: true` to keep the orchestrator-locked 500/502 status split.
+ * Only `e.message` crosses to the client — `e.cause` (raw SDK/upstream errors)
+ * stays server-side.
+ */
+export function integrationErrorResponse(e: unknown, opts?: { force500?: boolean }) {
   if (!(e instanceof IntegrationError)) {
     console.error('Unexpected integration error', e);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 
-  if (e.service !== 'resend') {
+  if (e.service !== 'resend' && e.service !== 'anthropic') {
     console.error('Unexpected integration error', e);
     return NextResponse.json({ error: 'Internal server error' }, { status: 502 });
   }
 
-  if (e.kind === 'upstream') {
-    const data = e.cause as { message?: unknown; name?: unknown } | undefined;
-    const error = typeof data?.message === 'string'
-      ? data.message
-      : typeof data?.name === 'string'
-        ? data.name
-        : 'Resend API error';
-    // Behavior freeze (Pitfall 5): the old route returned 502 for every
-    // non-ok Resend response, regardless of the upstream status.
-    return NextResponse.json({ error }, { status: 502 });
+  if (e.service === 'resend') {
+    if (e.kind === 'upstream') {
+      const data = e.cause as { message?: unknown; name?: unknown } | undefined;
+      const error = typeof data?.message === 'string'
+        ? data.message
+        : typeof data?.name === 'string'
+          ? data.name
+          : 'Resend API error';
+      // Behavior freeze (Pitfall 5): the old route returned 502 for every
+      // non-ok Resend response, regardless of the upstream status.
+      return NextResponse.json({ error }, { status: 502 });
+    }
+
+    if (e.kind === 'network' || e.kind === 'timeout') {
+      return NextResponse.json({ error: e.message }, { status: 502 });
+    }
+
+    if (e.kind === 'validation') {
+      return NextResponse.json({ error: 'Resend API error' }, { status: 502 });
+    }
+
+    console.error('Unexpected integration error', e);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 502 });
   }
 
-  if (e.kind === 'network' || e.kind === 'timeout') {
-    return NextResponse.json({ error: e.message }, { status: 502 });
-  }
-
-  if (e.kind === 'validation') {
-    return NextResponse.json({ error: 'Resend API error' }, { status: 502 });
-  }
-
-  console.error('Unexpected integration error', e);
-  return NextResponse.json({ error: 'Internal server error' }, { status: 502 });
+  // Anthropic — behavior freeze (Pitfall 5): report routes return 500 today,
+  // generate-email routes 502. The split is preserved via force500.
+  const status = opts?.force500 ? 500 : 502;
+  return NextResponse.json({ error: e.message ?? 'AI generation failed' }, { status });
 }
