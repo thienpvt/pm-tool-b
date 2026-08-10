@@ -4,16 +4,16 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 04
 current_phase_name: Service Layer
-status: ready_to_execute
-stopped_at: Phase 04 planned (4 plans, 3 waves)
-last_updated: "2026-08-10T23:20:00.000Z"
+status: executing
+stopped_at: Completed 04-01-PLAN.md
+last_updated: "2026-08-10T16:17:20.085Z"
 last_activity: 2026-08-10
-last_activity_desc: Phase 04 planned — 4 plans across 3 waves
+last_activity_desc: Phase 04 execution started
 progress:
-  total_phases: 7
+  total_phases: 4
   completed_phases: 3
-  total_plans: 8
-  completed_plans: 8
+  total_plans: 12
+  completed_plans: 9
 ---
 
 # Project State
@@ -27,12 +27,12 @@ See: .planning/PROJECT.md (updated 2026-08-07)
 
 ## Current Position
 
-Phase: 04 (Service Layer) — PLANNED
-Plan: 0 of 4
-Status: 4 plans across 3 waves — ready to execute
-Last activity: 2026-08-10 — Phase 04 planned
+Phase: 04 (Service Layer) — EXECUTING
+Plan: 2 of 4
+Status: Ready to execute
+Last activity: 2026-08-10 — Phase 04 execution started
 
-Progress: [████░░░░░░] 43% (3/7 phases)
+Progress: [████████░░] 75% (3/7 phases)
 
 ## Performance Metrics
 
@@ -63,6 +63,7 @@ Progress: [████░░░░░░] 43% (3/7 phases)
 | Phase 03 P02 | 25 | 3 tasks | 5 files |
 | Phase 03-integration-clients P03 | 40 | 3 tasks | 12 files |
 | Phase 03-integration-clients P03-04 | 55 | 4 tasks | 8 files |
+| Phase 04 P01 | 5 | 6 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -87,6 +88,9 @@ Recent decisions affecting current work:
 - [Phase ?]: Test route keeps ok:false wrappers for upstream/network (behavior freeze) — route-level handling wins where shapes differ from the shared mapper
 - [Phase ?]: Fields route keeps its two 503 strings (Jira chưa cấu hình vs Thiếu env vars) via config-row presence check; resolver null collapses both
 - [Phase ?]: INTG-08 cutover deletion BLOCKED (no DATABASE_URL) — old inline Jira credential blocks preserved as marked dead code so HYG-01 stays a dedicated gated commit
+- [Phase ?]: ForbiddenError body is always { error: 'Forbidden' } — message never crosses the wire
+- [Phase ?]: deleteRisk treats changes===0 as NotFoundError so the route yields 404 rather than {ok:true} on a miss
+- [Phase ?]: Risks route tests mock repos (default tier) so skip count stays 109 without TEST_DATABASE_URL
 
 ### Pending Todos
 
@@ -110,6 +114,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-10T08:27:20.662Z
-Stopped at: Completed 03-04-PLAN.md
+Last session: 2026-08-10T16:17:20.076Z
+Stopped at: Completed 04-01-PLAN.md
 Resume file: None
