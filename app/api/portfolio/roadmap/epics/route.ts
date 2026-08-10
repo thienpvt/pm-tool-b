@@ -22,14 +22,20 @@ export async function GET(req: NextRequest) {
     return serviceErrorResponse(e);
   }
 
-  const rows = await roadmapEpicRows(projectId) as any[];
+  type ActivityRow = {
+    id: number; phase: string | null; no: string | null; activity: string | null;
+    status: string | null; plan_start: string | null; plan_end: string | null;
+    jira_key: string | null; parent_id: number | null;
+  };
 
-  const childrenByParent: Record<number, any[]> = {};
+  const rows = await roadmapEpicRows(projectId) as ActivityRow[];
+
+  const childrenByParent: Record<number, ActivityRow[]> = {};
   for (const r of rows) {
     if (r.parent_id) (childrenByParent[r.parent_id] = childrenByParent[r.parent_id] ?? []).push(r);
   }
 
-  const shape = (a: any) => ({
+  const shape = (a: ActivityRow) => ({
     id: a.id, phase: a.phase, no: a.no, activity: a.activity, status: a.status,
     plan_start: a.plan_start || null, plan_end: a.plan_end || null, jira_key: a.jira_key || null,
   });
@@ -44,7 +50,7 @@ export async function GET(req: NextRequest) {
       return {
         ...shape(epic),
         child_count: kids.length,
-        weighted_pct: kids.length > 0 ? weightedProgress(kids.map((k: any) => k.status)) : statusPct(epic.status),
+        weighted_pct: kids.length > 0 ? weightedProgress(kids.map((k) => k.status)) : statusPct(epic.status),
         children: kids,
       };
     });
