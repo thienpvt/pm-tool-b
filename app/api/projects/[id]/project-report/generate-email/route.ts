@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSetting } from '@/lib/repositories/settings.repo';
 import { getSessionFromRequest } from '@/lib/auth';
-import Anthropic from '@anthropic-ai/sdk';
+import { resolveAnthropicCredentials } from '@/lib/integrations/credentials';
+import { createMessage } from '@/lib/integrations/anthropic/client';
+import { MODEL_SONNET_4_6 } from '@/lib/integrations/anthropic/models';
+import { integrationErrorResponse } from '@/lib/api-errors';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -36,14 +38,8 @@ export async function POST(req: NextRequest, { params }: Params) {
   const user = await getSessionFromRequest(req);
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  let apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    // NOTE: the previous inline call passed `['anthropic_api_key']` as a single param, so
-    // pg received a Postgres array literal and the lookup never matched. Routing through
-    // getSetting passes the key as text, which fixes that latent bug — see 02-02-SUMMARY.md.
-    apiKey = await getSetting('anthropic_api_key');
-  }
-  if (!apiKey) return NextResponse.json({ error: 'NO_API_KEY' }, { status: 503 });
+  const creds = await resolveAnthropicCredentials();
+  if (!creds) return NextResponse.json({ error: 'NO_API_KEY' }, { status: 503 });
 
   const body = await req.json();
   const { reportData, promptInstruction, language } = body as {
@@ -59,10 +55,9 @@ export async function POST(req: NextRequest, { params }: Params) {
   const context = buildProjectContext(reportData, language);
   const langLabel = language === 'Vietnamese' ? 'Tiếng Việt' : 'English';
 
-  const client = new Anthropic({ apiKey });
   try {
-    const msg = await client.messages.create({
-      model: 'claude-sonnet-4-6',
+    const { text: raw } = await createMessage(creds, {
+      model: MODEL_SONNET_4_6,
       max_tokens: 3000,
       system: SYSTEM_PROMPT,
       messages: [{
@@ -71,7 +66,6 @@ export async function POST(req: NextRequest, { params }: Params) {
       }],
     });
 
-    const raw = msg.content[0].type === 'text' ? msg.content[0].text : '';
     const lines = raw.split('\n');
     let subject = `[Dự án] Báo cáo tình trạng — ${new Date().toLocaleDateString('vi-VN', { month: 'long', year: 'numeric' })}`;
     let emailHtml = raw;
@@ -83,9 +77,9 @@ export async function POST(req: NextRequest, { params }: Params) {
     }
 
     return NextResponse.json({ subject, emailHtml });
-  } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : 'Claude API failed';
-    return NextResponse.json({ error: msg }, { status: 502 });
+  } catch (e) {
+    // Behavior change: adds a 120s SDK timeout where none existed (HYG-02)
+    return integrationErrorResponse(e);
   }
 }
 
