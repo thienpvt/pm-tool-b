@@ -6,6 +6,9 @@ import { listMeetings } from '@/lib/repositories/meetings.repo';
 import { getProject } from '@/lib/repositories/projects.repo';
 import { listRisks } from '@/lib/repositories/risks.repo';
 import { listTeam } from '@/lib/repositories/team.repo';
+import type { AccessActor } from '@/lib/services/access';
+import { assertProjectAccess } from '@/lib/services/access';
+import { NotFoundError } from '@/lib/services/errors';
 
 // ─── Color palette matching the original Bank Platform template ───────────────
 const NAV_COLOR    = '1E293B';   // dark navy header
@@ -100,9 +103,14 @@ function getMonths(start: string, end: string): string[] {
 
 // ─── Main export function ─────────────────────────────────────────────────────
 
-export async function generateProjectPlan(projectId: number): Promise<Buffer> {
+export async function generateProjectPlan(
+  projectId: number,
+  actor: AccessActor,
+): Promise<Buffer> {
+  await assertProjectAccess(projectId, actor);
+
   const project = await getProject(projectId) as Record<string, string> | undefined;
-  if (!project) throw new Error('Project not found');
+  if (!project) throw new NotFoundError('Project not found', 'project');
 
   const [activities, teamMembers, meetings, escalations, risks, issues] = await Promise.all([
     listActivities(projectId) as Promise<Record<string, string | number>[]>,

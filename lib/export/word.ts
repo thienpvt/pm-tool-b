@@ -5,6 +5,8 @@ import {
 } from 'docx';
 import { getDocumentForExport } from '@/lib/repositories/documents.repo';
 import { getProject } from '@/lib/repositories/projects.repo';
+import type { AccessActor } from '@/lib/services/access';
+import { assertProjectAccess } from '@/lib/services/access';
 
 function heading1(text: string) {
   return new Paragraph({
@@ -71,7 +73,14 @@ function logoBlock(projectName: string) {
   ];
 }
 
-export async function generateWordDoc(projectId: number, docType: string, docId?: number): Promise<Buffer> {
+export async function generateWordDoc(
+  projectId: number,
+  actor: AccessActor,
+  docType: string,
+  docId?: number,
+): Promise<Buffer> {
+  await assertProjectAccess(projectId, actor);
+
   const project = await getProject(projectId) as Record<string, string>;
   const docRow = await getDocumentForExport(projectId, docType, docId) as {
     content_json: string; title?: string;

@@ -5,6 +5,9 @@ import { listMeetings } from '@/lib/repositories/meetings.repo';
 import { getProject } from '@/lib/repositories/projects.repo';
 import { listRisks } from '@/lib/repositories/risks.repo';
 import { listTeam } from '@/lib/repositories/team.repo';
+import type { AccessActor } from '@/lib/services/access';
+import { assertProjectAccess } from '@/lib/services/access';
+import { NotFoundError } from '@/lib/services/errors';
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const PRIMARY   = '1677FF';   // blue
@@ -86,6 +89,7 @@ function dataCell(text: string, opts: Partial<PptxGenJS.TableCellProps> = {}): P
 
 export async function generateKickoffPPT(
   projectId: number,
+  actor: AccessActor,
   extras: {
     presentation_date?: string;
     methodology?: string;
@@ -93,8 +97,10 @@ export async function generateKickoffPPT(
     agenda?: string;
   } = {}
 ): Promise<Buffer> {
+  await assertProjectAccess(projectId, actor);
+
   const project = await getProject(projectId) as Record<string, string> | undefined;
-  if (!project) throw new Error('Project not found');
+  if (!project) throw new NotFoundError('Project not found', 'project');
 
   const [team, meetings, risks, activities, charter] = await Promise.all([
     listTeam(projectId) as Promise<Record<string, string>[]>,
