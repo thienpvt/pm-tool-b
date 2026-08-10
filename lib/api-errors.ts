@@ -34,9 +34,33 @@ export function integrationErrorResponse(e: unknown, opts?: { force500?: boolean
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 
-  if (e.service !== 'resend' && e.service !== 'anthropic') {
+  if (e.service !== 'resend' && e.service !== 'anthropic' && e.service !== 'jira') {
     console.error('Unexpected integration error', e);
     return NextResponse.json({ error: 'Internal server error' }, { status: 502 });
+  }
+
+  if (e.service === 'jira') {
+    // Behavior freeze: Jira upstream errors pass through the upstream status
+    // (a Jira 401/429 reaches the client as that status), with the message the
+    // routes already extract from the upstream body. Timeout/network → the
+    // search route's 500 string; validation → fixed 502 string, schema detail
+    // never leaks (T-03-19).
+    if (e.kind === 'upstream' || e.kind === 'auth') {
+      const data = e.cause as { message?: unknown } | undefined;
+      const error = typeof data?.message === 'string' ? data.message : e.message;
+      return NextResponse.json({ error }, { status: e.status ?? 500 });
+    }
+
+    if (e.kind === 'timeout' || e.kind === 'network') {
+      return NextResponse.json({ error: `Lỗi kết nối Jira: ${e.message}` }, { status: 500 });
+    }
+
+    if (e.kind === 'validation') {
+      return NextResponse.json({ error: 'Jira trả về dữ liệu không hợp lệ' }, { status: 502 });
+    }
+
+    console.error('Unexpected integration error', e);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 
   if (e.service === 'resend') {
