@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionFromRequest } from '@/lib/auth';
+import { serviceErrorResponse } from '@/lib/api-errors';
+import { assertProjectAccess } from '@/lib/services/access';
 import { statusPct, weightedProgress } from '@/lib/status-weights';
 import { roadmapEpicRows } from '@/lib/repositories/portfolio.repo';
 
@@ -12,6 +14,13 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const projectId = searchParams.get('project_id');
   if (!projectId) return NextResponse.json({ error: 'project_id required' }, { status: 400 });
+
+  // T-04-21 live read IDOR fix: assert ownership BEFORE the epic tree read.
+  try {
+    await assertProjectAccess(projectId, { company_id: user.company_id, is_admin: user.is_admin });
+  } catch (e) {
+    return serviceErrorResponse(e);
+  }
 
   const rows = await roadmapEpicRows(projectId) as any[];
 
