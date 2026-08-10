@@ -10,8 +10,12 @@ import { ForbiddenError, NotFoundError } from './errors';
 /**
  * Programs map to the customers table. Ownership is company_id on the program row,
  * not a project id — do not call assertProjectAccess here.
+ *
+ * Exported (not just used internally) so `app/api/programs/[id]/project-allocations/route.ts`
+ * can assert program-side ownership with the same logic this service already uses for
+ * GET/PATCH/DELETE on `/api/programs/[id]`, rather than re-deriving it (T-04-22).
  */
-async function assertProgramAccess(programId: number | string, actor: AccessActor) {
+export async function assertProgramAccess(programId: number | string, actor: AccessActor) {
   if (actor.is_admin) {
     const row = await getProgramRepo(programId);
     if (!row) throw new NotFoundError('Not found', 'program');
