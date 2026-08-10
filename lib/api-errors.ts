@@ -39,7 +39,9 @@ export function integrationErrorResponse(e: unknown) {
       : typeof data?.name === 'string'
         ? data.name
         : 'Resend API error';
-    return NextResponse.json({ error }, { status: e.status ?? 502 });
+    // Behavior freeze (Pitfall 5): the old route returned 502 for every
+    // non-ok Resend response, regardless of the upstream status.
+    return NextResponse.json({ error }, { status: 502 });
   }
 
   if (e.kind === 'network' || e.kind === 'timeout') {
