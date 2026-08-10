@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { IntegrationError } from '@/lib/integrations/errors';
 import { UnknownColumnError } from '@/lib/repositories/_helpers';
+import { ForbiddenError, NotFoundError, ValidationError } from '@/lib/services/errors';
 
 /**
  * Map a repository error to a response.
@@ -17,6 +18,35 @@ export function repoErrorResponse(e: unknown) {
     return NextResponse.json({ error: e.message, columns: e.columns }, { status: 400 });
   }
   console.error('Unexpected repository error', e);
+  return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+}
+
+/**
+ * Map a service-layer error to a response.
+ *
+ * Forbidden / not-found / validation are client-visible outcomes of the ownership
+ * assert and business rules. Everything else is logged server-side and surfaces as a
+ * generic 500 — never `String(e)`.
+ *
+ * Lives outside `lib/services/` on purpose — service modules must not import
+ * `next/server` (SVC-03 companion of REPO-06). `IntegrationError` is intentionally
+ * NOT handled here: services re-throw it untouched (Phase 3 freeze), and the route
+ * catch chain calls `integrationErrorResponse` for that family.
+ */
+export function serviceErrorResponse(e: unknown) {
+  if (e instanceof ForbiddenError) {
+    // Never echo the message — it could name a resource the caller cannot see.
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+  if (e instanceof NotFoundError) {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  }
+  if (e instanceof ValidationError) {
+    const body: { error: string; field?: string } = { error: e.message };
+    if (e.field !== undefined) body.field = e.field;
+    return NextResponse.json(body, { status: 400 });
+  }
+  console.error('Unexpected service error', e);
   return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
 }
 

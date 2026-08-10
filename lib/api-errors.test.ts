@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { integrationErrorResponse } from './api-errors';
+import { integrationErrorResponse, serviceErrorResponse } from './api-errors';
 import { IntegrationError } from './integrations/errors';
+import { ForbiddenError, NotFoundError, ValidationError } from './services/errors';
 
 /**
  * INTG-06: a malformed upstream response must log server-side and must not
@@ -40,5 +41,60 @@ describe('integrationErrorResponse — validation branches', () => {
 
     expect(integrationErrorResponse(upstream, { force500: true }).status).toBe(500);
     expect(integrationErrorResponse(upstream).status).toBe(502);
+  });
+});
+
+describe('serviceErrorResponse', () => {
+  it('maps ForbiddenError to 403 without leaking the message', async () => {
+    const res = serviceErrorResponse(new ForbiddenError('you cannot see project 42'));
+    const body = await res.json();
+
+    expect(res.status).toBe(403);
+    expect(body).toEqual({ error: 'Forbidden' });
+    expect(JSON.stringify(body)).not.toContain('project 42');
+    expect(JSON.stringify(body)).not.toContain('you cannot see');
+  });
+
+  it('maps NotFoundError to 404', async () => {
+    const res = serviceErrorResponse(new NotFoundError('missing', 'project'));
+    const body = await res.json();
+
+    expect(res.status).toBe(404);
+    expect(body).toEqual({ error: 'Not found' });
+  });
+
+  it('maps ValidationError to 400 with optional field', async () => {
+    const res = serviceErrorResponse(new ValidationError('bad category', 'category'));
+    const body = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(body).toEqual({ error: 'bad category', field: 'category' });
+  });
+
+  it('maps unknown errors to a generic 500 without String(e)', async () => {
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const secret = 'SQLSTATE detail: relation "secrets" does not exist';
+
+    const res = serviceErrorResponse(new Error(secret));
+    const body = await res.json();
+
+    expect(res.status).toBe(500);
+    expect(body).toEqual({ error: 'Internal server error' });
+    expect(JSON.stringify(body)).not.toContain(secret);
+    expect(JSON.stringify(body)).not.toContain('SQLSTATE');
+    expect(logged).toHaveBeenCalled();
+  });
+
+  it('does not classify IntegrationError — falls through to generic 500', async () => {
+    // Documents the boundary: IntegrationError is re-thrown by services and
+    // handled by integrationErrorResponse in the route catch chain, not here.
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const err = new IntegrationError({ kind: 'upstream', service: 'jira', status: 429, message: 'rate limited' });
+
+    const res = serviceErrorResponse(err);
+    const body = await res.json();
+
+    expect(res.status).toBe(500);
+    expect(body).toEqual({ error: 'Internal server error' });
   });
 });
