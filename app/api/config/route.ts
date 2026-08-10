@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getSessionFromRequest } from '@/lib/auth';
 import { listSettings, setSetting } from '@/lib/repositories/settings.repo';
 
 export async function GET() {
@@ -18,6 +19,10 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const user = await getSessionFromRequest(req);
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!user.is_admin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
   const body = await req.json();
   for (const [key, value] of Object.entries(body)) {
     await setSetting(key, String(value));
