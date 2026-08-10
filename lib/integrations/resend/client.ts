@@ -24,7 +24,7 @@ export async function sendEmail(
   params: SendEmailParams,
 ): Promise<string | undefined> {
   const { value: response, error } = await withFetchTimeout(
-    fetch('https://api.resend.com/emails', {
+    signal => fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${creds.apiKey}`,
@@ -37,6 +37,7 @@ export async function sendEmail(
         html: params.html,
         text: params.text ?? '',
       }),
+      signal,
     }),
     15_000,
     undefined,

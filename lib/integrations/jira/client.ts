@@ -47,7 +47,7 @@ export async function searchIssues(
   };
   if (params.nextPageToken) body.nextPageToken = params.nextPageToken;
 
-  const { value: response, error } = await withFetchTimeout(fetch(
+  const { value: response, error } = await withFetchTimeout(signal => fetch(
     `${creds.baseUrl}/rest/api/3/search/jql`,
     {
       method: 'POST',
@@ -57,7 +57,7 @@ export async function searchIssues(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(body),
-      signal: params.signal,
+      signal,
     },
   ), 15_000, params.signal, 'jira');
   if (error) throw error;
@@ -98,9 +98,9 @@ export async function searchIssues(
 export async function listFields(
   creds: JiraCredentials,
 ): Promise<Array<{ id: string; name: string; type: string }>> {
-  const { value: response, error } = await withFetchTimeout(fetch(
+  const { value: response, error } = await withFetchTimeout(signal => fetch(
     `${creds.baseUrl}/rest/api/3/field`,
-    { headers: { Authorization: basicAuth(creds.email, creds.token), Accept: 'application/json' } },
+    { headers: { Authorization: basicAuth(creds.email, creds.token), Accept: 'application/json' }, signal },
   ), 15_000, undefined, 'jira');
   if (error) throw error;
 
@@ -132,9 +132,9 @@ export async function listFields(
 export async function testConnection(
   creds: JiraCredentials,
 ): Promise<{ displayName: string; emailAddress: string; accountId: string }> {
-  const { value: response, error } = await withFetchTimeout(fetch(
+  const { value: response, error } = await withFetchTimeout(signal => fetch(
     `${creds.baseUrl}/rest/api/3/myself`,
-    { headers: { Authorization: basicAuth(creds.email, creds.token), Accept: 'application/json' } },
+    { headers: { Authorization: basicAuth(creds.email, creds.token), Accept: 'application/json' }, signal },
   ), 15_000, undefined, 'jira');
   if (error) throw error;
 

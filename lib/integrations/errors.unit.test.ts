@@ -32,7 +32,7 @@ describe('withFetchTimeout', () => {
 
   it('maps a timeout to kind "timeout"', async () => {
     vi.useFakeTimers();
-    const pending = withFetchTimeout(NEVER(), 10);
+    const pending = withFetchTimeout(() => NEVER(), 10);
     await vi.advanceTimersByTimeAsync(10);
     const result = await pending;
     expect(result.value).toBeNull();
@@ -40,12 +40,12 @@ describe('withFetchTimeout', () => {
   });
 
   it('returns the value and clears the timer on success', async () => {
-    const result = await withFetchTimeout(Promise.resolve(42), 10);
+    const result = await withFetchTimeout(() => Promise.resolve(42), 10);
     expect(result).toEqual({ value: 42, error: null });
   });
 
   it('maps a rejected promise to kind "network"', async () => {
-    const result = await withFetchTimeout(Promise.reject(new Error('boom')), 10);
+    const result = await withFetchTimeout(() => Promise.reject(new Error('boom')), 10);
     expect(result.value).toBeNull();
     expect(result.error?.kind).toBe('network');
   });
@@ -53,8 +53,38 @@ describe('withFetchTimeout', () => {
   it('maps a caller abort to kind "network", never "timeout"', async () => {
     const caller = new AbortController();
     caller.abort();
-    const result = await withFetchTimeout(NEVER(), 10, caller.signal);
+    const result = await withFetchTimeout(() => NEVER(), 10, caller.signal);
     expect(result.value).toBeNull();
     expect(result.error?.kind).toBe('network');
+  });
+
+  it('aborts the created promise via the wrapper signal (WR-03)', async () => {
+    const caller = new AbortController();
+    const signals: AbortSignal[] = [];
+    const pending = withFetchTimeout(signal => {
+      signals.push(signal);
+      return NEVER();
+    }, 60_000, caller.signal);
+
+    caller.abort();
+    const result = await pending;
+    expect(signals[0].aborted).toBe(true);
+    expect(result.value).toBeNull();
+    expect(result.error?.kind).toBe('network');
+  });
+
+  it('aborts the created promise via the wrapper signal on timeout (WR-03)', async () => {
+    vi.useFakeTimers();
+    const signals: AbortSignal[] = [];
+    const pending = withFetchTimeout(signal => {
+      signals.push(signal);
+      return NEVER();
+    }, 10);
+
+    await vi.advanceTimersByTimeAsync(10);
+    const result = await pending;
+    expect(signals[0].aborted).toBe(true);
+    expect(result.value).toBeNull();
+    expect(result.error?.kind).toBe('timeout');
   });
 });

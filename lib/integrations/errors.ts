@@ -40,7 +40,7 @@ export class IntegrationError extends Error {
  * carry the right identity.
  */
 export async function withFetchTimeout<T>(
-  promise: Promise<T>,
+  createPromise: (signal: AbortSignal) => Promise<T>,
   ms: number,
   callerSignal?: AbortSignal,
   service = 'jira',
@@ -61,7 +61,11 @@ export async function withFetchTimeout<T>(
   });
 
   try {
-    const value = await Promise.race([promise, abortPromise]);
+    // The promise is created lazily with the wrapper's controller signal, so a
+    // timeout AND a caller abort both abort the underlying request (WR-03) —
+    // the socket is released immediately instead of lingering up to `ms`. The
+    // race still resolves at `ms` even if the promise ignores the signal.
+    const value = await Promise.race([createPromise(controller.signal), abortPromise]);
     return { value, error: null };
   } catch (e) {
     if (timedOut) return { value: null, error: new IntegrationError({ kind: 'timeout', service, cause: e }) };
