@@ -530,7 +530,14 @@ type PortfolioPayload = {
 };
 
 export async function POST(req: NextRequest) {
-  const body = await req.json() as { portfolioData: PortfolioPayload; language?: string };
+  // WR-05: reject a malformed/oversized body with a JSON 400 instead of letting
+  // req.json() reject the handler and surface a bare 500.
+  let body: { portfolioData: PortfolioPayload; language?: string };
+  try {
+    body = await req.json() as { portfolioData: PortfolioPayload; language?: string };
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+  }
   const { portfolioData } = body;
   const lang = (portfolioData.language ?? body.language ?? 'Vietnamese') === 'English' ? 'English' : 'Vietnamese';
 

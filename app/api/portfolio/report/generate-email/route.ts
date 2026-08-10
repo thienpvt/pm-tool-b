@@ -38,12 +38,15 @@ export async function POST(req: NextRequest) {
   const creds = await resolveAnthropicCredentials();
   if (!creds) return NextResponse.json({ error: 'NO_API_KEY' }, { status: 503 });
 
-  const body = await req.json();
-  const { portfolioData, promptInstruction, language } = body as {
-    portfolioData: Record<string, unknown>;
-    promptInstruction: string;
-    language: string;
-  };
+  // WR-05: reject a malformed/oversized body with a JSON 400 instead of letting
+  // req.json() reject the handler and surface a bare 500.
+  let body: { portfolioData: Record<string, unknown>; promptInstruction: string; language: string };
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+  }
+  const { portfolioData, promptInstruction, language } = body;
 
   if (!portfolioData || !promptInstruction) {
     return NextResponse.json({ error: 'MISSING_DATA' }, { status: 400 });

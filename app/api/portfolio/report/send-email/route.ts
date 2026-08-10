@@ -11,13 +11,15 @@ export async function POST(req: NextRequest) {
   const creds = await resolveResendCredentials();
   if (!creds) return NextResponse.json({ error: 'NO_RESEND_KEY' }, { status: 503 });
 
-  const body = await req.json();
-  const { to, subject, htmlBody, textBody } = body as {
-    to: string[];
-    subject: string;
-    htmlBody: string;
-    textBody?: string;
-  };
+  // WR-05: reject a malformed/oversized body with a JSON 400 instead of letting
+  // req.json() reject the handler and surface a bare 500.
+  let body: { to: string[]; subject: string; htmlBody: string; textBody?: string };
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+  }
+  const { to, subject, htmlBody, textBody } = body;
 
   if (!to?.length || !subject || !htmlBody) {
     return NextResponse.json({ error: 'MISSING_FIELDS' }, { status: 400 });

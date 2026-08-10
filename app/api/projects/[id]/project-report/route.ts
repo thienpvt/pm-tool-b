@@ -299,7 +299,14 @@ export async function POST(req: NextRequest, { params }: Params) {
   const creds = await resolveAnthropicCredentials();
   if (!creds) return NextResponse.json({ error: 'NO_API_KEY' }, { status: 503 });
 
-  const body = await req.json();
+  // WR-05: reject a malformed/oversized body with a JSON 400 instead of letting
+  // req.json() reject the handler and surface a bare 500.
+  let body: any;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+  }
   const { reportData, language = 'Vietnamese' } = body;
   const lang = language === 'English' ? 'English' : 'Vietnamese';
   const {
