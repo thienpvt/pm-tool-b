@@ -1,15 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionFromRequest } from '@/lib/auth';
-import {
-  createPortfolioBudgetCategory,
-  findPortfolioBudget,
-  portfolioBudgetCategories,
-} from '@/lib/repositories/portfolio.repo';
+import { serviceErrorResponse } from '@/lib/api-errors';
+import { createBudgetCategory, listBudgetCategories } from '@/lib/services/portfolio.service';
 
 type Params = { params: Promise<{ id: string }> };
 
-async function verifyOwnership(budgetId: string, companyId: number | null) {
-  return findPortfolioBudget(companyId, budgetId);
+function actorOf(user: { company_id: number | null; is_admin: number }) {
+  return { company_id: user.company_id, is_admin: user.is_admin };
 }
 
 export async function GET(req: NextRequest, { params }: Params) {
@@ -17,12 +14,11 @@ export async function GET(req: NextRequest, { params }: Params) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { id } = await params;
-  if (!await verifyOwnership(id, user.company_id)) {
-    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  try {
+    return NextResponse.json(await listBudgetCategories(id, actorOf(user)));
+  } catch (e) {
+    return serviceErrorResponse(e);
   }
-
-  const cats = await portfolioBudgetCategories(id);
-  return NextResponse.json(cats);
 }
 
 export async function POST(req: NextRequest, { params }: Params) {
@@ -30,14 +26,11 @@ export async function POST(req: NextRequest, { params }: Params) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { id } = await params;
-  if (!await verifyOwnership(id, user.company_id)) {
-    return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  }
-
   const body = await req.json();
-  const { category, ceiling_amount, notes } = body;
-  if (!category) return NextResponse.json({ error: 'category required' }, { status: 400 });
-
-  const created = await createPortfolioBudgetCategory(id, { category, ceiling_amount, notes });
-  return NextResponse.json(created, { status: 201 });
+  try {
+    const created = await createBudgetCategory(id, actorOf(user), body);
+    return NextResponse.json(created, { status: 201 });
+  } catch (e) {
+    return serviceErrorResponse(e);
+  }
 }
