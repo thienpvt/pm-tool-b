@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- POST body typing preserved from pre-extraction route */
-import { NextRequest, NextResponse } from 'next/server';
-import { getSessionFromRequest } from '@/lib/auth';
+import { NextResponse } from 'next/server';
+import { withProjectAccess } from '@/lib/http/with-project-access';
 import { resolveAnthropicCredentials } from '@/lib/integrations/credentials';
 import { createMessage } from '@/lib/integrations/anthropic/client';
 import { MODEL_OPUS_4_7 } from '@/lib/integrations/anthropic/models';
@@ -8,19 +8,13 @@ import { integrationErrorResponse, serviceErrorResponse } from '@/lib/api-errors
 import { IntegrationError } from '@/lib/integrations/errors';
 import { getProjectReport } from '@/lib/services/project-report.service';
 
-type Params = { params: Promise<{ id: string }> };
-
-export async function GET(req: NextRequest, { params }: Params) {
-  const user = await getSessionFromRequest(req);
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-  const { id } = await params;
+export const GET = withProjectAccess(async (req, { params, actor }) => {
   const { searchParams } = new URL(req.url);
 
   try {
     const data = await getProjectReport(
-      id,
-      { company_id: user.company_id, is_admin: user.is_admin },
+      params.id,
+      actor,
       {
         start: searchParams.get('start'),
         end: searchParams.get('end'),
@@ -32,12 +26,9 @@ export async function GET(req: NextRequest, { params }: Params) {
     if (e instanceof IntegrationError) return integrationErrorResponse(e);
     return serviceErrorResponse(e);
   }
-}
+});
 
-export async function POST(req: NextRequest, { params }: Params) {
-  const { id } = await params;
-  void id;
-
+export const POST = withProjectAccess(async (req) => {
   const creds = await resolveAnthropicCredentials();
   if (!creds) return NextResponse.json({ error: 'NO_API_KEY' }, { status: 503 });
 
@@ -134,4 +125,4 @@ export async function POST(req: NextRequest, { params }: Params) {
     // Behavior change: adds a 120s SDK timeout where none existed (HYG-02)
     return integrationErrorResponse(e, { force500: true });
   }
-}
+}, { rawBody: true });

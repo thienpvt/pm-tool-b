@@ -1,11 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getSessionFromRequest } from '@/lib/auth';
+import { NextResponse } from 'next/server';
+import { withProjectAccess } from '@/lib/http/with-project-access';
 import { resolveAnthropicCredentials } from '@/lib/integrations/credentials';
 import { createMessage } from '@/lib/integrations/anthropic/client';
 import { MODEL_SONNET_4_6 } from '@/lib/integrations/anthropic/models';
 import { integrationErrorResponse } from '@/lib/api-errors';
-
-type Params = { params: Promise<{ id: string }> };
 
 const SYSTEM_PROMPT = `Bạn là Project Manager cấp Senior đang soạn email báo cáo chính thức gửi Project Sponsor và Ban Lãnh đạo.
 
@@ -31,13 +29,7 @@ const SYSTEM_PROMPT = `Bạn là Project Manager cấp Senior đang soạn email
 - Tone: chuyên nghiệp, tự tin, khách quan
 - Khuyến nghị phải cụ thể, có thể hành động được`;
 
-export async function POST(req: NextRequest, { params }: Params) {
-  const { id } = await params;
-  void id;
-
-  const user = await getSessionFromRequest(req);
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
+export const POST = withProjectAccess(async (req) => {
   const creds = await resolveAnthropicCredentials();
   if (!creds) return NextResponse.json({ error: 'NO_API_KEY' }, { status: 503 });
 
@@ -84,7 +76,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     // Behavior change: adds a 120s SDK timeout where none existed (HYG-02)
     return integrationErrorResponse(e);
   }
-}
+}, { rawBody: true });
 
 function buildProjectContext(data: Record<string, unknown>, language: string): string {
   const lines: string[] = [];
