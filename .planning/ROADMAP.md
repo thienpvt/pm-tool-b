@@ -14,7 +14,7 @@ This milestone takes the app from zero test coverage and a flat `lib/` where rou
 - [x] **Phase 1: Test Harness** - Stand up Vitest so every later layer lands with tests, not a promise to add them (completed 2026-08-07)
 - [x] **Phase 2: Repository Layer** - Move every SQL statement into repository modules with explicit scoping and column allowlists (completed 2026-08-10)
 - [x] **Phase 3: Integration Clients** - Route all Jira/Anthropic/Resend calls through dedicated, validated clients with one credential resolver (completed 2026-08-10)
-- [ ] **Phase 4: Service Layer** - Concentrate business logic and tenant-ownership checks in service modules with typed errors
+- [x] **Phase 4: Service Layer** - Concentrate business logic and tenant-ownership checks in service modules with typed errors (completed 2026-08-11)
 - [ ] **Phase 5: Route Thinning & Validation** - Build the shared auth/access wrapper and Zod validation so routes shrink to parse/authorize/call/respond
 - [ ] **Phase 6: Access Enforcement Rollout** - Roll the wrapper out to every project-scoped route, shadow-mode first, with 401/403 tests proving it
 - [ ] **Phase 7: UI Decomposition** - Split the 7 named god pages/components into hooks + feature modules against the now-stable API surface
@@ -182,7 +182,7 @@ Cross-cutting constraints:
 | 1. Test Harness | 1/1 | Complete    | 2026-08-07 |
 | 2. Repository Layer | 3/3 | Complete    | 2026-08-10 |
 | 3. Integration Clients | 4/4 | Complete    | 2026-08-10 |
-| 4. Service Layer | 7/7 | In Progress|  |
+| 4. Service Layer | 7/7 | Complete    | 2026-08-11 |
 | 5. Route Thinning & Validation | 0/TBD | Not started | - |
 | 6. Access Enforcement Rollout | 0/TBD | Not started | - |
 | 7. UI Decomposition | 0/TBD | Not started | - |

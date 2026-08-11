@@ -2,18 +2,19 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 04
-current_phase_name: Service Layer
-status: ready_for_verification
+current_phase: 5
+current_phase_name: Route Thinning & Validation
+status: completed
 stopped_at: Completed 04-07-PLAN.md
-last_updated: "2026-08-11T00:16:14.102Z"
+last_updated: "2026-08-11T00:19:05.138Z"
 last_activity: 2026-08-11
-last_activity_desc: "Plan 04-07 gap closure: converted the two remaining collection routes (app/api/projects/route.ts, app/api/programs/route.ts) onto projects.service.ts/programs.service.ts; moved the admin-vs-session companyId tenant-placement decision into the service layer. SVC-01 now complete — all 7 SVC requirements satisfied."
+last_activity_desc: Phase 04 complete, transitioned to Phase 5
 progress:
-  total_phases: 4
+  total_phases: 7
   completed_phases: 4
   total_plans: 15
   completed_plans: 15
+  percent: 57
 ---
 
 # Project State
@@ -27,10 +28,10 @@ See: .planning/PROJECT.md (updated 2026-08-07)
 
 ## Current Position
 
-Phase: 04 (Service Layer) — READY FOR VERIFICATION
-Plan: 7 of 7 (all plans complete, including 04-05, 04-06, and 04-07 gap closure)
+Phase: 5 — Route Thinning & Validation
+Plan: Not started
 Status: 04-07 done — suite 573 total / 460 passed / 0 failed / **113 skipped** (baseline held); SVC-01 now complete
-Last activity: 2026-08-11 — Plan 04-07 gap closure: converted app/api/projects/route.ts and app/api/programs/route.ts onto projects.service.ts/programs.service.ts; moved admin-vs-session companyId tenant-placement decision into the service layer
+Last activity: 2026-08-11 — Phase 04 complete, transitioned to Phase 5
 
 Progress: [██████████] 100% (phase 04 plans complete; await verify)
 
@@ -38,7 +39,7 @@ Progress: [██████████] 100% (phase 04 plans complete; await 
 
 **Velocity:**
 
-- Total plans completed: 1
+- Total plans completed: 8
 - Average duration: - min
 - Total execution time: 0 hours
 
@@ -47,6 +48,7 @@ Progress: [██████████] 100% (phase 04 plans complete; await 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 1 | 1 | - | - |
+| 04 | 7 | - | - |
 
 **Recent Trend:**
 
