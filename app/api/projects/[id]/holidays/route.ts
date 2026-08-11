@@ -1,46 +1,18 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getSessionFromRequest } from '@/lib/auth';
-import { serviceErrorResponse } from '@/lib/api-errors';
+import { NextResponse } from 'next/server';
+import { withProjectAccess } from '@/lib/http/with-project-access';
 import { createHoliday, deleteHoliday, listHolidays } from '@/lib/services/holidays.service';
 
-type Params = { params: Promise<{ id: string }> };
+export const GET = withProjectAccess(async (_req, { params, actor }) =>
+  NextResponse.json(await listHolidays(params.id, actor)),
+);
 
-function actorOf(user: { company_id: number | null; is_admin: number }) {
-  return { company_id: user.company_id, is_admin: user.is_admin };
-}
+export const POST = withProjectAccess(async (_req, { params, actor, body }) => {
+  const { date, name } = body as { date: string; name: string };
+  return NextResponse.json(await createHoliday(params.id, actor, date, name), { status: 201 });
+});
 
-export async function GET(req: NextRequest, { params }: Params) {
-  const { id } = await params;
-  const user = await getSessionFromRequest(req);
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  try {
-    return NextResponse.json(await listHolidays(id, actorOf(user)));
-  } catch (e) {
-    return serviceErrorResponse(e);
-  }
-}
-
-export async function POST(req: NextRequest, { params }: Params) {
-  const { id } = await params;
-  const user = await getSessionFromRequest(req);
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  try {
-    const { date, name } = await req.json();
-    return NextResponse.json(await createHoliday(id, actorOf(user), date, name), { status: 201 });
-  } catch (e) {
-    return serviceErrorResponse(e);
-  }
-}
-
-export async function DELETE(req: NextRequest, { params }: Params) {
-  const { id } = await params;
-  const user = await getSessionFromRequest(req);
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+export const DELETE = withProjectAccess(async (req, { params, actor }) => {
   const hid = new URL(req.url).searchParams.get('hid');
-  try {
-    await deleteHoliday(id, actorOf(user), hid);
-    return NextResponse.json({ ok: true });
-  } catch (e) {
-    return serviceErrorResponse(e);
-  }
-}
+  await deleteHoliday(params.id, actor, hid);
+  return NextResponse.json({ ok: true });
+});

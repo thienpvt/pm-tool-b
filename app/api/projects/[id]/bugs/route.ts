@@ -1,6 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getSessionFromRequest } from '@/lib/auth';
-import { serviceErrorResponse } from '@/lib/api-errors';
+import { NextResponse } from 'next/server';
+import { withProjectAccess } from '@/lib/http/with-project-access';
 import {
   deleteBugs,
   listBugs,
@@ -8,47 +7,20 @@ import {
   replaceSnapshot,
 } from '@/lib/services/bugs.service';
 
-type Params = { params: Promise<{ id: string }> };
-
-function actorOf(user: { company_id: number | null; is_admin: number }) {
-  return { company_id: user.company_id, is_admin: user.is_admin };
-}
-
-export async function GET(req: NextRequest, { params }: Params) {
-  const { id } = await params;
-  const user = await getSessionFromRequest(req);
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+export const GET = withProjectAccess(async (req, { params, actor }) => {
   const url = new URL(req.url);
-  try {
-    if (url.searchParams.get('list_dates') === '1') {
-      return NextResponse.json(await listSnapshotDates(id, actorOf(user)));
-    }
-    return NextResponse.json(await listBugs(id, actorOf(user), url.searchParams.get('date')));
-  } catch (e) {
-    return serviceErrorResponse(e);
+  if (url.searchParams.get('list_dates') === '1') {
+    return NextResponse.json(await listSnapshotDates(params.id, actor));
   }
-}
+  return NextResponse.json(await listBugs(params.id, actor, url.searchParams.get('date')));
+});
 
-export async function POST(req: NextRequest, { params }: Params) {
-  const { id } = await params;
-  const user = await getSessionFromRequest(req);
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  try {
-    const { bugs, snapshot_date } = await req.json();
-    return NextResponse.json(await replaceSnapshot(id, actorOf(user), bugs, snapshot_date));
-  } catch (e) {
-    return serviceErrorResponse(e);
-  }
-}
+export const POST = withProjectAccess(async (_req, { params, actor, body }) => {
+  const { bugs, snapshot_date } = body as { bugs: unknown; snapshot_date: string };
+  return NextResponse.json(await replaceSnapshot(params.id, actor, bugs, snapshot_date));
+});
 
-export async function DELETE(req: NextRequest, { params }: Params) {
-  const { id } = await params;
-  const user = await getSessionFromRequest(req);
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+export const DELETE = withProjectAccess(async (req, { params, actor }) => {
   const date = new URL(req.url).searchParams.get('date');
-  try {
-    return NextResponse.json(await deleteBugs(id, actorOf(user), date));
-  } catch (e) {
-    return serviceErrorResponse(e);
-  }
-}
+  return NextResponse.json(await deleteBugs(params.id, actor, date));
+});

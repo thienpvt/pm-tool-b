@@ -1,6 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getSessionFromRequest } from '@/lib/auth';
-import { serviceErrorResponse } from '@/lib/api-errors';
+import { NextResponse } from 'next/server';
+import { withProjectAccess } from '@/lib/http/with-project-access';
 import {
   deleteDocument,
   listDocuments,
@@ -8,58 +7,21 @@ import {
   upsertDocument,
 } from '@/lib/services/documents.service';
 
-type Params = { params: Promise<{ id: string }> };
+export const GET = withProjectAccess(async (_req, { params, actor }) =>
+  NextResponse.json(await listDocuments(params.id, actor)),
+);
 
-function actorOf(user: { company_id: number | null; is_admin: number }) {
-  return { company_id: user.company_id, is_admin: user.is_admin };
-}
+export const POST = withProjectAccess(async (_req, { params, actor, body }) => {
+  const result = await upsertDocument(params.id, actor, body as Record<string, unknown>);
+  return NextResponse.json(result.row, { status: result.created ? 201 : 200 });
+});
 
-export async function GET(req: NextRequest, { params }: Params) {
-  const { id } = await params;
-  const user = await getSessionFromRequest(req);
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  try {
-    return NextResponse.json(await listDocuments(id, actorOf(user)));
-  } catch (e) {
-    return serviceErrorResponse(e);
-  }
-}
+export const PUT = withProjectAccess(async (_req, { params, actor, body }) => {
+  const b = body as { id: string | number; title: string; content: string };
+  return NextResponse.json(await updateDocument(params.id, actor, b.id, b.title, b.content));
+});
 
-export async function POST(req: NextRequest, { params }: Params) {
-  const { id } = await params;
-  const user = await getSessionFromRequest(req);
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  try {
-    const body = await req.json();
-    const result = await upsertDocument(id, actorOf(user), body);
-    return NextResponse.json(result.row, { status: result.created ? 201 : 200 });
-  } catch (e) {
-    return serviceErrorResponse(e);
-  }
-}
-
-export async function PUT(req: NextRequest, { params }: Params) {
-  const { id } = await params;
-  const user = await getSessionFromRequest(req);
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  try {
-    const body = await req.json();
-    return NextResponse.json(
-      await updateDocument(id, actorOf(user), body.id, body.title, body.content),
-    );
-  } catch (e) {
-    return serviceErrorResponse(e);
-  }
-}
-
-export async function DELETE(req: NextRequest, { params }: Params) {
-  const { id } = await params;
-  const user = await getSessionFromRequest(req);
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+export const DELETE = withProjectAccess(async (req, { params, actor }) => {
   const docId = new URL(req.url).searchParams.get('docId');
-  try {
-    return NextResponse.json(await deleteDocument(id, actorOf(user), docId));
-  } catch (e) {
-    return serviceErrorResponse(e);
-  }
-}
+  return NextResponse.json(await deleteDocument(params.id, actor, docId));
+});

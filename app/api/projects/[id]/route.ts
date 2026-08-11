@@ -1,52 +1,19 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getSessionFromRequest } from '@/lib/auth';
-import { repoErrorResponse, serviceErrorResponse } from '@/lib/api-errors';
-import { UnknownColumnError } from '@/lib/repositories/_helpers';
+import { NextResponse } from 'next/server';
+import { withProjectAccess } from '@/lib/http/with-project-access';
 import { deleteProject, getProject, updateProject } from '@/lib/services/projects.service';
 
-type Params = { params: Promise<{ id: string }> };
+// GET intentionally calls getProject(ctx.params.id, ctx.actor) rather than
+// trusting ctx.project — getProject returns the FULL project row while
+// ctx.project is only the tenancy columns (ProjectAccessRow).
+export const GET = withProjectAccess(async (_req, { params, actor }) =>
+  NextResponse.json(await getProject(params.id, actor)),
+);
 
-function actorOf(user: { company_id: number | null; is_admin: number }) {
-  return { company_id: user.company_id, is_admin: user.is_admin };
-}
+export const PATCH = withProjectAccess(async (_req, { params, actor, body }) =>
+  NextResponse.json(await updateProject(params.id, actor, body as Record<string, unknown>)),
+);
 
-function mapError(e: unknown) {
-  // Rejected column must stay a 400 naming the column, not a generic 500 or 403 (T-04-25).
-  if (e instanceof UnknownColumnError) return repoErrorResponse(e);
-  return serviceErrorResponse(e);
-}
-
-export async function GET(req: NextRequest, { params }: Params) {
-  const { id } = await params;
-  const user = await getSessionFromRequest(req);
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  try {
-    return NextResponse.json(await getProject(id, actorOf(user)));
-  } catch (e) {
-    return mapError(e);
-  }
-}
-
-export async function PATCH(req: NextRequest, { params }: Params) {
-  const { id } = await params;
-  const user = await getSessionFromRequest(req);
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  try {
-    const body = await req.json();
-    return NextResponse.json(await updateProject(id, actorOf(user), body));
-  } catch (e) {
-    return mapError(e);
-  }
-}
-
-export async function DELETE(req: NextRequest, { params }: Params) {
-  const { id } = await params;
-  const user = await getSessionFromRequest(req);
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  try {
-    await deleteProject(id, actorOf(user));
-    return NextResponse.json({ ok: true });
-  } catch (e) {
-    return mapError(e);
-  }
-}
+export const DELETE = withProjectAccess(async (_req, { params, actor }) => {
+  await deleteProject(params.id, actor);
+  return NextResponse.json({ ok: true });
+});
