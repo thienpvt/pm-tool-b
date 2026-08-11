@@ -6,6 +6,7 @@ import {
   listCompaniesWithUserCounts,
   updateCompany,
 } from '@/lib/repositories/admin.repo';
+import { createCompanySchema, updateCompanySchema } from './schema';
 
 async function requireAdmin(req: NextRequest) {
   const user = await getSessionFromRequest(req);
@@ -22,10 +23,11 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const err = await requireAdmin(req); if (err) return err;
-  const { name } = await req.json();
-  if (!name?.trim()) return NextResponse.json({ error: 'Name required' }, { status: 400 });
+  const parsed = createCompanySchema.safeParse(await req.json());
+  if (!parsed.success) return NextResponse.json({ error: 'Name required' }, { status: 400 });
+  const { name } = parsed.data;
   try {
-    const newCompany = await createCompany(name.trim());
+    const newCompany = await createCompany(name);
     return NextResponse.json(newCompany, { status: 201 });
   } catch {
     return NextResponse.json({ error: 'Company name already exists' }, { status: 409 });
@@ -34,9 +36,10 @@ export async function POST(req: NextRequest) {
 
 export async function PUT(req: NextRequest) {
   const err = await requireAdmin(req); if (err) return err;
-  const { id, name } = await req.json();
-  if (!id || !name?.trim()) return NextResponse.json({ error: 'id and name required' }, { status: 400 });
-  await updateCompany(id, name.trim());
+  const parsed = updateCompanySchema.safeParse(await req.json());
+  if (!parsed.success) return NextResponse.json({ error: 'id and name required' }, { status: 400 });
+  const { id, name } = parsed.data;
+  await updateCompany(id, name);
   return NextResponse.json({ ok: true });
 }
 

@@ -5,6 +5,7 @@ import {
   findOperationsSystem,
   listOperationsBudgetItems,
 } from '@/lib/repositories/operations.repo';
+import { createOpsBudgetItemSchema } from './schema';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -30,9 +31,9 @@ export async function POST(req: NextRequest, { params }: Params) {
   const { id } = await params;
   if (!await verifySystem(id, user.company_id, Boolean(user.is_admin))) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  const body = await req.json();
-  const { category, name, planned_amount, actual_amount, unit, period_label, notes } = body;
-  if (!name) return NextResponse.json({ error: 'name required' }, { status: 400 });
+  const parsed = createOpsBudgetItemSchema.safeParse(await req.json());
+  if (!parsed.success) return NextResponse.json({ error: 'name required' }, { status: 400 });
+  const { category, name, planned_amount, actual_amount, unit, period_label, notes } = parsed.data;
 
   const created = await createOperationsBudgetItem(id, {
     category, name, planned_amount, actual_amount, unit, period_label, notes,

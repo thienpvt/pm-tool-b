@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionFromRequest, forbidden, unauthorized } from '@/lib/auth';
 import { deleteDemoRequest, listDemoRequests, updateDemoRequest } from '@/lib/repositories/admin.repo';
+import { updateDemoRequestSchema } from './schema';
 
 async function requireAdmin(req: NextRequest) {
   const user = await getSessionFromRequest(req);
@@ -17,8 +18,9 @@ export async function GET(req: NextRequest) {
 
 export async function PUT(req: NextRequest) {
   const err = await requireAdmin(req); if (err) return err;
-  const { id, status, notes } = await req.json();
-  if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
+  const parsed = updateDemoRequestSchema.safeParse(await req.json());
+  if (!parsed.success) return NextResponse.json({ error: 'id required' }, { status: 400 });
+  const { id, status, notes } = parsed.data;
   await updateDemoRequest(id, status ?? null, notes ?? null);
   return NextResponse.json({ ok: true });
 }

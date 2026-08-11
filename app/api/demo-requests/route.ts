@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createDemoRequest } from '@/lib/repositories/demo-requests.repo';
+import { demoRequestSchema } from './schema';
 
 export async function POST(req: NextRequest) {
-  const { full_name, phone, email, company_name } = await req.json();
-  if (!full_name?.trim() || !phone?.trim() || !email?.trim() || !company_name?.trim()) {
+  const parsed = demoRequestSchema.safeParse(await req.json());
+  if (!parsed.success) {
     return NextResponse.json({ error: 'All fields are required' }, { status: 400 });
   }
-  const id = await createDemoRequest(full_name.trim(), phone.trim(), email.trim(), company_name.trim());
+  const { full_name, phone, email, company_name } = parsed.data;
+  const id = await createDemoRequest(full_name, phone, email, company_name);
   return NextResponse.json({ id }, { status: 201 });
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionFromRequest } from '@/lib/auth';
 import { listSettings, setSetting } from '@/lib/repositories/settings.repo';
+import { configSchema } from './schema';
 
 export async function GET() {
   const rows = await listSettings();
@@ -23,7 +24,10 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   if (!user.is_admin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-  const body = await req.json();
+  const raw = await req.json();
+  // Shape guard only — no per-field frozen validation exists to preserve.
+  const parsed = configSchema.safeParse(raw);
+  const body = parsed.success ? parsed.data : raw;
   for (const [key, value] of Object.entries(body)) {
     await setSetting(key, String(value));
   }

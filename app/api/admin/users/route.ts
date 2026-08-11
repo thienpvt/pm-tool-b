@@ -7,6 +7,7 @@ import {
   setAdminUserPassword,
   updateAdminUser,
 } from '@/lib/repositories/admin.repo';
+import { createUserSchema, updateUserSchema } from './schema';
 
 async function requireAdmin(req: NextRequest) {
   const user = await getSessionFromRequest(req);
@@ -23,13 +24,15 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const err = await requireAdmin(req); if (err) return err;
-  const { username, password, display_name, company_id, is_admin } = await req.json();
-  if (!username?.trim() || !password) {
+  const parsed = createUserSchema.safeParse(await req.json());
+  if (!parsed.success) {
     return NextResponse.json({ error: 'Username and password required' }, { status: 400 });
   }
+  const { username, password, display_name, company_id, is_admin } = parsed.data;
   try {
     const newUser = await createAdminUser(
-      username.trim(), hashPassword(password), display_name ?? '', company_id ?? null, Boolean(is_admin),
+      username.trim(), hashPassword(password), display_name ?? '',
+      (company_id ?? null) as number | null, Boolean(is_admin),
     );
     return NextResponse.json(newUser, { status: 201 });
   } catch {
@@ -39,12 +42,13 @@ export async function POST(req: NextRequest) {
 
 export async function PUT(req: NextRequest) {
   const err = await requireAdmin(req); if (err) return err;
-  const { id, display_name, company_id, is_admin, password } = await req.json();
-  if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
+  const parsed = updateUserSchema.safeParse(await req.json());
+  if (!parsed.success) return NextResponse.json({ error: 'id required' }, { status: 400 });
+  const { id, display_name, company_id, is_admin, password } = parsed.data;
   if (password) {
     await setAdminUserPassword(id, hashPassword(password));
   }
-  await updateAdminUser(id, display_name ?? '', company_id ?? null, Boolean(is_admin));
+  await updateAdminUser(id, display_name ?? '', (company_id ?? null) as number | null, Boolean(is_admin));
   return NextResponse.json({ ok: true });
 }
 

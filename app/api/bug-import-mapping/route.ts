@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { bugMappingIds, createBugMapping, deleteBugMapping, listBugMappings } from '@/lib/repositories/import-mapping.repo';
+import { createBugMappingSchema } from './schema';
 
 const MAX_TEMPLATES = 5;
 
@@ -8,8 +9,9 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const { name, mappings_json } = await req.json();
-  if (!name || !mappings_json) return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
+  const parsed = createBugMappingSchema.safeParse(await req.json());
+  if (!parsed.success) return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
+  const { name, mappings_json } = parsed.data;
 
   const existing = await bugMappingIds();
 

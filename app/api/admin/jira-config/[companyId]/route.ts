@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionFromRequest, unauthorized, forbidden } from '@/lib/auth';
 import { companyJiraConfig, setCompanyJiraConfig } from '@/lib/repositories/jira-config.repo';
+import { jiraConfigSchema } from './schema';
 
 type Params = { params: Promise<{ companyId: string }> };
 
@@ -25,7 +26,9 @@ export async function POST(req: NextRequest, { params }: Params) {
   if (err) return err;
 
   const { companyId } = await params;
-  const { base_url_var, email_var, token_var } = await req.json() as {
+  const raw = await req.json();
+  const parsed = jiraConfigSchema.safeParse(raw);
+  const { base_url_var, email_var, token_var } = (parsed.success ? parsed.data : raw) as {
     base_url_var: string; email_var: string; token_var: string;
   };
 

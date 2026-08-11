@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSessionFromRequest, unauthorized, forbidden } from '@/lib/auth';
 import { DEFAULT_RAG_CONFIG, RagConfig } from '@/lib/rag';
 import { companyRagConfig, setCompanyRagConfig } from '@/lib/repositories/rag-config.repo';
+import { ragConfigSchema } from './schema';
 
 type Params = { params: Promise<{ companyId: string }> };
 
@@ -26,7 +27,10 @@ export async function POST(req: NextRequest, { params }: Params) {
   if (err) return err;
 
   const { companyId } = await params;
-  const body = await req.json() as Partial<RagConfig>;
+  const raw = await req.json();
+  // Passthrough shape guard only — see schema.ts for why coercion stays here.
+  const parsed = ragConfigSchema.safeParse(raw);
+  const body = (parsed.success ? parsed.data : raw) as Partial<RagConfig>;
 
   const cfg: RagConfig = {
     spi_red_threshold:   Number(body.spi_red_threshold   ?? DEFAULT_RAG_CONFIG.spi_red_threshold),

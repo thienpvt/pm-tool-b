@@ -9,6 +9,7 @@ import {
   listOperationsIncidents,
   updateOperationsSystem,
 } from '@/lib/repositories/operations.repo';
+import { updateOperationsSystemSchema } from './schema';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -35,8 +36,12 @@ export async function PUT(req: NextRequest, { params }: Params) {
   const existing = await findOperationsSystem(id, user.company_id, Boolean(user.is_admin));
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  const body = await req.json();
-  const { name, description, project_id, go_live_date, status } = body;
+  const raw = await req.json();
+  // Passthrough shape guard only (no inline validation existed before this
+  // schema) — parsed.data mirrors `raw` on any object body; behavior is
+  // unchanged for the object bodies this route has always accepted.
+  const parsed = updateOperationsSystemSchema.safeParse(raw);
+  const { name, description, project_id, go_live_date, status } = parsed.success ? parsed.data : raw;
 
   const updated = await updateOperationsSystem(id, {
     name, description, project_id, go_live_date, status,
