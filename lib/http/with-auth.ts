@@ -4,6 +4,7 @@ import type { z } from 'zod';
 import { getSessionFromRequest, type SessionUser } from '@/lib/auth';
 import { repoErrorResponse, serviceErrorResponse } from '@/lib/api-errors';
 import { UnknownColumnError } from '@/lib/repositories/_helpers';
+import { ForbiddenError, NotFoundError } from '@/lib/services/errors';
 
 /** Plain actor fields peeled off the session — matches lib/services/access.ts's AccessActor. */
 export type AccessActor = {
@@ -25,6 +26,40 @@ export type RouteHandler<
   TParams extends Record<string, string> = Record<string, string>,
   TBody = unknown,
 > = (req: NextRequest, ctx: HandlerContext<TParams, TBody>) => Promise<NextResponse>;
+
+/**
+ * ROUTE-08 shadow-mode gate. Read per-request (never hoisted to module scope)
+ * so an operator can flip `ACCESS_ENFORCEMENT=shadow` at deploy time without a
+ * rebuild (T-06-04). NEVER defaults on — absent/any-other-value is enforcing.
+ */
+export function isAccessShadowMode(): boolean {
+  return process.env.ACCESS_ENFORCEMENT === 'shadow';
+}
+
+/**
+ * Structured '[ACCESS-SHADOW]' log line for a would-be denial that shadow mode
+ * allowed through. Shared by withAuth's own catch tail and the access
+ * wrappers (withProjectAccess/withProgramAccess), which soften only their
+ * ownership assert via this same helper (T-06-01/T-06-02).
+ */
+export function logAccessShadowDenial(
+  req: NextRequest,
+  user: SessionUser,
+  error: ForbiddenError | NotFoundError,
+  targetId?: string,
+): void {
+  console.error(
+    '[ACCESS-SHADOW]',
+    JSON.stringify({
+      method: req.method,
+      path: req.nextUrl.pathname,
+      userId: user.id,
+      companyId: user.company_id,
+      errorKind: error.constructor.name,
+      targetId,
+    }),
+  );
+}
 
 export type WrapperOptions<TBody = unknown> = {
   /** Zod schema validated at the boundary. On safeParse failure, returns the
@@ -92,6 +127,15 @@ export function withAuth<
       // T-04-25 freeze: a rejected column stays a 400 naming the column.
       // Routes that never throw UnknownColumnError pass straight to serviceErrorResponse.
       if (e instanceof UnknownColumnError) return repoErrorResponse(e);
+      // ROUTE-08 shadow mode: ONLY ForbiddenError/NotFoundError are softened,
+      // and only when the operator has explicitly set the env flag for this
+      // deploy. Every other error kind (UnknownColumnError above, any generic
+      // Error below via serviceErrorResponse) is NEVER allowed through — the
+      // flag must never swallow an arbitrary handler bug (T-06-02).
+      if (isAccessShadowMode() && (e instanceof ForbiddenError || e instanceof NotFoundError)) {
+        logAccessShadowDenial(req, user, e, (params as Record<string, string>).id);
+        return handler(req, { user, actor, params, body: body as TBody });
+      }
       return serviceErrorResponse(e);
     }
   };

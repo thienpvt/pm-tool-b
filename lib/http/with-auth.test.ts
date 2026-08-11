@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { getSessionFromRequest } = vi.hoisted(() => ({
   getSessionFromRequest: vi.fn(),
@@ -204,5 +204,116 @@ describe('withAuth', () => {
     expect(body).toEqual({ error: 'Internal server error' });
     expect(JSON.stringify(body)).not.toContain(secret);
     logged.mockRestore();
+  });
+
+  describe('ACCESS_ENFORCEMENT shadow flag', () => {
+    afterEach(() => {
+      delete process.env.ACCESS_ENFORCEMENT;
+    });
+
+    it('shadow ON + ForbiddenError: logs a structured line and allows the request through', async () => {
+      process.env.ACCESS_ENFORCEMENT = 'shadow';
+      getSessionFromRequest.mockResolvedValue(ownerSession);
+      const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const handler = vi
+        .fn()
+        .mockRejectedValueOnce(new ForbiddenError())
+        .mockResolvedValueOnce(NextResponse.json({ ok: true }));
+      const wrapped = withAuth(handler);
+
+      const res = await wrapped(req('GET'), rawCtx());
+
+      expect(res.status).toBe(200);
+      expect(handler).toHaveBeenCalledTimes(2);
+      expect(spy).toHaveBeenCalledWith(
+        '[ACCESS-SHADOW]',
+        expect.stringContaining('"errorKind":"ForbiddenError"'),
+      );
+      spy.mockRestore();
+    });
+
+    it('shadow ON + NotFoundError: logs a structured line and allows the request through', async () => {
+      process.env.ACCESS_ENFORCEMENT = 'shadow';
+      getSessionFromRequest.mockResolvedValue(ownerSession);
+      const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const handler = vi
+        .fn()
+        .mockRejectedValueOnce(new NotFoundError())
+        .mockResolvedValueOnce(NextResponse.json({ ok: true }));
+      const wrapped = withAuth(handler);
+
+      const res = await wrapped(req('GET'), rawCtx());
+
+      expect(res.status).toBe(200);
+      expect(handler).toHaveBeenCalledTimes(2);
+      expect(spy).toHaveBeenCalledWith(
+        '[ACCESS-SHADOW]',
+        expect.stringContaining('"errorKind":"NotFoundError"'),
+      );
+      spy.mockRestore();
+    });
+
+    it('shadow OFF (unset): ForbiddenError still 403s, no shadow log, handler called once', async () => {
+      getSessionFromRequest.mockResolvedValue(ownerSession);
+      const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const handler = vi.fn().mockRejectedValue(new ForbiddenError());
+      const wrapped = withAuth(handler);
+
+      const res = await wrapped(req('GET'), rawCtx());
+
+      expect(res.status).toBe(403);
+      expect(handler).toHaveBeenCalledTimes(1);
+      expect(spy).not.toHaveBeenCalledWith(
+        '[ACCESS-SHADOW]',
+        expect.anything(),
+      );
+      spy.mockRestore();
+    });
+
+    it('shadow ON + UnknownColumnError: still 400, never allowed through', async () => {
+      process.env.ACCESS_ENFORCEMENT = 'shadow';
+      getSessionFromRequest.mockResolvedValue(ownerSession);
+      const handler = vi.fn().mockRejectedValue(new UnknownColumnError(['company_id']));
+      const wrapped = withAuth(handler);
+
+      const res = await wrapped(req('GET'), rawCtx());
+
+      expect(res.status).toBe(400);
+      expect(handler).toHaveBeenCalledTimes(1);
+    });
+
+    it('shadow ON + arbitrary Error: still 500, never allowed through', async () => {
+      process.env.ACCESS_ENFORCEMENT = 'shadow';
+      getSessionFromRequest.mockResolvedValue(ownerSession);
+      const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const handler = vi.fn().mockRejectedValue(new Error('boom'));
+      const wrapped = withAuth(handler);
+
+      const res = await wrapped(req('GET'), rawCtx());
+
+      expect(res.status).toBe(500);
+      expect(handler).toHaveBeenCalledTimes(1);
+      logged.mockRestore();
+    });
+
+    it('reads ACCESS_ENFORCEMENT per-request, not hoisted at module load', async () => {
+      getSessionFromRequest.mockResolvedValue(ownerSession);
+      const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const handler = vi.fn().mockRejectedValue(new ForbiddenError());
+      const wrapped = withAuth(handler);
+
+      const off = await wrapped(req('GET'), rawCtx());
+      expect(off.status).toBe(403);
+
+      process.env.ACCESS_ENFORCEMENT = 'shadow';
+      handler.mockReset();
+      handler
+        .mockRejectedValueOnce(new ForbiddenError())
+        .mockResolvedValueOnce(NextResponse.json({ ok: true }));
+      const on = await wrapped(req('GET'), rawCtx());
+      expect(on.status).toBe(200);
+
+      spy.mockRestore();
+    });
   });
 });
