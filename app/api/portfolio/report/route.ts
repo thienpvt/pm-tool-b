@@ -61,6 +61,13 @@ type PortfolioPayload = {
 };
 
 export async function POST(req: NextRequest) {
+  // HYG-03 (06-06): POST had no session check — the sibling GET and the
+  // generate-email/send-email routes in this same tree all gate on
+  // getSessionFromRequest; this endpoint silently didn't. Anonymous callers
+  // could burn the shared Anthropic key generating full portfolio reports.
+  const user = await getSessionFromRequest(req);
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
   // WR-05: reject a malformed/oversized body with a JSON 400 instead of letting
   // req.json() reject the handler and surface a bare 500.
   let body: { portfolioData: PortfolioPayload; language?: string };
