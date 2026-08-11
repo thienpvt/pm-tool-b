@@ -1,10 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { assertProjectAccess, getProjectRepo, updateProjectRepo, deleteProjectRepo } = vi.hoisted(() => ({
+const {
+  assertProjectAccess,
+  getProjectRepo,
+  updateProjectRepo,
+  deleteProjectRepo,
+  listProjectsRepo,
+  createProjectRepo,
+} = vi.hoisted(() => ({
   assertProjectAccess: vi.fn(),
   getProjectRepo: vi.fn(),
   updateProjectRepo: vi.fn(),
   deleteProjectRepo: vi.fn(),
+  listProjectsRepo: vi.fn(),
+  createProjectRepo: vi.fn(),
 }));
 
 vi.mock('@/lib/services/access', () => ({ assertProjectAccess }));
@@ -12,10 +21,12 @@ vi.mock('@/lib/repositories/projects.repo', () => ({
   getProject: getProjectRepo,
   updateProject: updateProjectRepo,
   deleteProject: deleteProjectRepo,
+  listProjects: listProjectsRepo,
+  createProject: createProjectRepo,
 }));
 
 import { UnknownColumnError } from '@/lib/repositories/_helpers';
-import { deleteProject, getProject, updateProject } from './projects.service';
+import { createProject, deleteProject, getProject, listProjects, updateProject } from './projects.service';
 import { ForbiddenError, NotFoundError } from './errors';
 
 beforeEach(() => {
@@ -84,6 +95,48 @@ describe('projects.service', () => {
       assertProjectAccess.mockRejectedValue(new ForbiddenError());
       await expect(deleteProject(7, foreign)).rejects.toBeInstanceOf(ForbiddenError);
       expect(deleteProjectRepo).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('listProjects', () => {
+    it('scopes to the actor company for a non-admin', async () => {
+      listProjectsRepo.mockResolvedValue([{ id: 1 }]);
+      await expect(listProjects(owner)).resolves.toEqual([{ id: 1 }]);
+      expect(listProjectsRepo).toHaveBeenCalledWith(owner.company_id, false);
+    });
+
+    it('bypasses the company scope for an admin', async () => {
+      listProjectsRepo.mockResolvedValue([{ id: 1 }, { id: 2 }]);
+      const admin = { company_id: 9, is_admin: 1 };
+      await expect(listProjects(admin)).resolves.toEqual([{ id: 1 }, { id: 2 }]);
+      expect(listProjectsRepo).toHaveBeenCalledWith(admin.company_id, true);
+    });
+  });
+
+  describe('createProject', () => {
+    it('places the project in the session company for a non-admin, ignoring body.company_id', async () => {
+      createProjectRepo.mockResolvedValue({ id: 1, name: 'Alpha', company_id: owner.company_id });
+      await createProject(owner, { name: 'Alpha', company_id: 999 });
+      expect(createProjectRepo).toHaveBeenCalledWith(owner.company_id, { name: 'Alpha', company_id: 999 });
+    });
+
+    it('honors body.company_id for an admin', async () => {
+      const admin = { company_id: 9, is_admin: 1 };
+      createProjectRepo.mockResolvedValue({ id: 1, name: 'Alpha', company_id: 42 });
+      await createProject(admin, { name: 'Alpha', company_id: 42 });
+      expect(createProjectRepo).toHaveBeenCalledWith(42, { name: 'Alpha', company_id: 42 });
+    });
+
+    it('places an admin-created project in null company when body.company_id is absent', async () => {
+      const admin = { company_id: 9, is_admin: 1 };
+      createProjectRepo.mockResolvedValue({ id: 1, name: 'Alpha', company_id: null });
+      await createProject(admin, { name: 'Alpha' });
+      expect(createProjectRepo).toHaveBeenCalledWith(null, { name: 'Alpha' });
+    });
+
+    it('propagates UnknownColumnError from the repository untouched', async () => {
+      createProjectRepo.mockRejectedValue(new UnknownColumnError(['company_id']));
+      await expect(createProject(owner, { name: 'Alpha' })).rejects.toBeInstanceOf(UnknownColumnError);
     });
   });
 });
