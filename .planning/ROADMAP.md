@@ -142,7 +142,7 @@ Cross-cutting constraints:
   4. Every request body is validated against an explicit Zod schema at the route boundary before reaching a service
   5. The wrapper maps typed service errors to status codes (403/404/400) and returns a generic message for unexpected errors instead of `String(e)`
 
-**Plans**: 2/3 plans executed
+**Plans**: 3/3 plans executed
 
 Plans:
 **Wave 1**
@@ -155,7 +155,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 05-03-PLAN.md — Wire Zod schemas into tree-A (12 projects/[id]/** resources) and tree-B (~14 non-converted routes)
+- [x] 05-03-PLAN.md — Wire Zod schemas into tree-A (12 projects/[id]/** resources) and tree-B (~14 non-converted routes)
 
 **Cross-cutting constraints:**
 
@@ -200,6 +200,6 @@ Plans:
 | 2. Repository Layer | 3/3 | Complete    | 2026-08-10 |
 | 3. Integration Clients | 4/4 | Complete    | 2026-08-10 |
 | 4. Service Layer | 7/7 | Complete    | 2026-08-11 |
-| 5. Route Thinning & Validation | 2/3 | In Progress|  |
+| 5. Route Thinning & Validation | 3/3 | In Progress|  |
 | 6. Access Enforcement Rollout | 0/TBD | Not started | - |
 | 7. UI Decomposition | 0/TBD | Not started | - |

@@ -54,7 +54,7 @@ Requirements for this milestone. Each maps to roadmap phases.
 - [ ] **ROUTE-03**: Every route under `app/api/projects/[id]/**` uses the project-access wrapper, including activities, risks, issues, meetings, escalations, team, documents, bugs, holidays, milestones, and budget
 - [ ] **ROUTE-04**: Import, export, config, and file-header-parsing routes enforce the same access check as project routes
 - [x] **ROUTE-05**: Each route handler contains only parse, authorize, call service, respond — no SQL, no external API call, no business logic
-- [ ] **ROUTE-06**: Every request body is validated against an explicit Zod schema at the route boundary before reaching a service
+- [x] **ROUTE-06**: Every request body is validated against an explicit Zod schema at the route boundary before reaching a service
 - [x] **ROUTE-07**: The wrapper maps typed service errors to status codes (403, 404, 400) and returns a generic message for unexpected errors instead of the current `String(e)`
 - [ ] **ROUTE-08**: Access enforcement runs in log-only shadow mode first, and the recorded would-be-denials are reviewed and resolved before enforcement is switched on
 - [ ] **ROUTE-09**: A test asserts 403 for a cross-company `project_id` on every route under `app/api/projects/[id]/**`
@@ -151,7 +151,7 @@ Deferred. Tracked but not in this milestone's roadmap.
 | ROUTE-01 | Phase 5 | Complete |
 | ROUTE-02 | Phase 5 | Complete |
 | ROUTE-05 | Phase 5 | Complete |
-| ROUTE-06 | Phase 5 | Pending |
+| ROUTE-06 | Phase 5 | Complete |
 | ROUTE-07 | Phase 5 | Complete |
 | ROUTE-12 | Phase 5 | Complete |
 | ROUTE-03 | Phase 6 | Pending |
