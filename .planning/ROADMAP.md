@@ -100,9 +100,7 @@ Three requirements apply to every phase's execution rather than to a specific la
   4. Portfolio, roadmap, budget rollup, and report-generation services scope every aggregate query and join by company, proven with a cross-company fixture rather than by inspection
   5. Every export service (Excel, PowerPoint, Word) scopes its data fetch by company, and each service has unit tests with mocked repositories including an explicit cross-company access-denied case
 
-**Plans**: 5/5 plans executed
-
-- [x] 04-05-PLAN.md
+**Plans**: 6/6 plans executed
 
 **Wave 1**
 
@@ -116,6 +114,11 @@ Three requirements apply to every phase's execution rather than to a specific la
 
 - [x] 04-03-PLAN.md — Project-scoped route sweep (22 unprotected routes, 11 services)
 - [x] 04-04-PLAN.md — Portfolio/report aggregates + SVC-05 cross-company DB fixture
+
+**Wave 4 — Gap Closure**
+
+- [x] 04-05-PLAN.md — Deleted checkAccess/authorize copies; closed two live IDORs (T-04-21 epics read, T-04-22 allocations write)
+- [x] 04-06-PLAN.md — Wired 11 portfolio sub-resource routes onto portfolio.service.ts; fixed String(e) leak on program-allocations POST (HYG-02)
 
 Cross-cutting constraints:
 
@@ -177,7 +180,7 @@ Cross-cutting constraints:
 | 1. Test Harness | 1/1 | Complete    | 2026-08-07 |
 | 2. Repository Layer | 3/3 | Complete    | 2026-08-10 |
 | 3. Integration Clients | 4/4 | Complete    | 2026-08-10 |
-| 4. Service Layer | 5/5 | In Progress|  |
+| 4. Service Layer | 6/6 | In Progress|  |
 | 5. Route Thinning & Validation | 0/TBD | Not started | - |
 | 6. Access Enforcement Rollout | 0/TBD | Not started | - |
 | 7. UI Decomposition | 0/TBD | Not started | - |

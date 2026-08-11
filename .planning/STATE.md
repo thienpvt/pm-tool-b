@@ -4,16 +4,16 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 04
 current_phase_name: Service Layer
-status: executing
-stopped_at: Completed 04-05-PLAN.md (gap closure)
-last_updated: "2026-08-10T17:28:13.935Z"
-last_activity: 2026-08-10
-last_activity_desc: Plan 04-04 aggregates + SVC-05 proof complete
+status: ready_for_verification
+stopped_at: Completed 04-06-PLAN.md (gap closure — portfolio sub-resources onto the service)
+last_updated: "2026-08-11T00:00:00.000Z"
+last_activity: 2026-08-11
+last_activity_desc: Plan 04-06 — wired 11 portfolio sub-resource routes onto portfolio.service.ts; fixed String(e) leak on program-allocations POST
 progress:
   total_phases: 4
   completed_phases: 4
-  total_plans: 13
-  completed_plans: 13
+  total_plans: 14
+  completed_plans: 14
 ---
 
 # Project State
@@ -28,9 +28,9 @@ See: .planning/PROJECT.md (updated 2026-08-07)
 ## Current Position
 
 Phase: 04 (Service Layer) — READY FOR VERIFICATION
-Plan: 5 of 5 (all plans complete, including 04-05 gap closure)
-Status: 04-05 done — suite 506 total / 393 passed / 0 failed / **113 skipped** (baseline held from 04-04)
-Last activity: 2026-08-10 — Plan 04-05 gap closure: deleted checkAccess/authorize copies, closed two live IDORs (T-04-21 epics read, T-04-22 allocations write + adjacent GET leak)
+Plan: 6 of 6 (all plans complete, including 04-05 and 04-06 gap closure)
+Status: 04-06 done — suite 554 total / 441 passed / 0 failed / **113 skipped** (baseline held from 04-05)
+Last activity: 2026-08-11 — Plan 04-06 gap closure: wired all 11 portfolio sub-resource routes (budgets, members, milestones, program-allocations, quota) onto portfolio.service.ts with company scoping; fixed the confirmed String(e) leak on program-allocations POST (T-04-27/HYG-02)
 
 Progress: [██████████] 100% (phase 04 plans complete; await verify)
 
@@ -66,6 +66,7 @@ Progress: [██████████] 100% (phase 04 plans complete; await 
 | Phase 04 P01 | 5 | 6 tasks | 10 files |
 | Phase 04 P04 | 11min | 5 tasks | 15 files |
 | Phase 04 P05 | 24min | 5 tasks | 19 files |
+| Phase 04 P06 | 55min | 6 tasks | 18 files |
 
 ## Accumulated Context
 
@@ -98,6 +99,8 @@ Recent decisions affecting current work:
 - [Phase ?]: Report POST AI handlers stay in routes; force500:true preserved
 - [Phase ?]: T-04-21/22 live IDORs closed: epics read gated via assertProjectAccess; program-project-allocations POST gated on BOTH program and project ownership (GET read-leak also closed)
 - [Phase ?]: checkAccess/authorize file-local copies deleted from projects/[id] and the three nested budget routes; unified on assertProjectAccess via new projects.service.ts and budget-items.service.ts (cross-company 401->403 on the budget routes, HYG-02)
+- [Phase 04-06]: Budget/member/quota/allocation repo functions take only companyId (no is_admin all-companies branch, unlike listPortfolioProjects/listPortfolioMilestones) — services preserve this Phase 2 baseline rather than expanding admin reach
+- [Phase 04-06]: portfolio/program-allocations POST String(e) leak fixed (T-04-27) — createProgramAllocation lets errors propagate untouched so the route's serviceErrorResponse maps any failure to the generic 500
 
 ### Pending Todos
 
@@ -121,6 +124,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-10T17:28:13.926Z
-Stopped at: Completed 04-05-PLAN.md (gap closure)
+Last session: 2026-08-11T00:00:00.000Z
+Stopped at: Completed 04-06-PLAN.md (gap closure — portfolio sub-resources onto the service)
 Resume file: None
