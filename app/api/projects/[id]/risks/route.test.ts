@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { UnknownColumnError } from '@/lib/repositories/_helpers';
 
 const { projectAccessRow, listRisksRepo, createRiskRepo, updateRiskRepo, deleteRiskRepo } = vi.hoisted(() => ({
   projectAccessRow: vi.fn(),
@@ -126,6 +127,20 @@ describe('GET/POST/PUT/DELETE /api/projects/[id]/risks', () => {
 
     expect(res.status).toBe(200);
     await expect(res.json()).resolves.toEqual(updated);
+  });
+
+  it('PUT rejects an unknown column with 400 naming the column, never 500/403 (T-04-25)', async () => {
+    vi.mocked(getSessionFromRequest).mockResolvedValue(ownerSession as never);
+    projectAccessRow.mockResolvedValue({ company_id: 5, customer_company_id: null });
+    updateRiskRepo.mockRejectedValue(new UnknownColumnError(['company_id']));
+
+    const res = await PUT(req('PUT', undefined, { id: 1, company_id: 999 }), params());
+
+    expect(res.status).toBe(400);
+    await expect(res.json()).resolves.toEqual({
+      error: 'Unknown column(s): company_id',
+      columns: ['company_id'],
+    });
   });
 
   it('DELETE returns { ok: true } for an owner', async () => {

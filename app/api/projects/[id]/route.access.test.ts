@@ -101,13 +101,17 @@ describe('GET/PATCH/DELETE /api/projects/[id] access control', () => {
 
   it('returns 200 for an admin regardless of company', async () => {
     vi.mocked(getSessionFromRequest).mockResolvedValue(adminSession as never);
+    // Post-flip (05-01): the admin branch of assertProjectAccess now fetches the
+    // row too (mirrors assertProgramAccess) so it has something to return —
+    // wire behavior is unchanged, but the query now happens.
+    projectAccessRow.mockResolvedValue({ company_id: 9, customer_company_id: null });
     const project = { id: 7, name: 'Acme Rollout' };
     getProjectRepo.mockResolvedValue(project);
 
     const res = await GET(req('GET'), params());
 
     expect(res.status).toBe(200);
-    expect(projectAccessRow).not.toHaveBeenCalled();
+    expect(projectAccessRow).toHaveBeenCalledWith('7');
   });
 
   it('allows a null-company actor only for a fully-unassigned project on GET', async () => {

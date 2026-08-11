@@ -18,9 +18,11 @@ const admin = { company_id: 5 as number | null, is_admin: 1 as number | boolean 
 const nullCompany = { company_id: null as number | null, is_admin: 0 as number | boolean };
 
 describe('assertProjectAccess', () => {
-  it('returns immediately for admin without consulting project ownership', async () => {
-    await expect(assertProjectAccess(1, admin)).resolves.toBeUndefined();
-    expect(projectAccessRow).not.toHaveBeenCalled();
+  it('fetches and returns the project row for admin (mirrors assertProgramAccess)', async () => {
+    const row = { company_id: 9, customer_company_id: null };
+    projectAccessRow.mockResolvedValue(row);
+    await expect(assertProjectAccess(1, admin)).resolves.toEqual(row);
+    expect(projectAccessRow).toHaveBeenCalledWith(1);
   });
 
   it('throws NotFoundError when the project does not exist', async () => {
@@ -30,13 +32,15 @@ describe('assertProjectAccess', () => {
   });
 
   it('allows an owner via project.company_id', async () => {
-    projectAccessRow.mockResolvedValue({ company_id: 5, customer_company_id: 9 });
-    await expect(assertProjectAccess(1, owner)).resolves.toBeUndefined();
+    const row = { company_id: 5, customer_company_id: 9 };
+    projectAccessRow.mockResolvedValue(row);
+    await expect(assertProjectAccess(1, owner)).resolves.toEqual(row);
   });
 
   it('allows an owner via customer_company_id', async () => {
-    projectAccessRow.mockResolvedValue({ company_id: 9, customer_company_id: 5 });
-    await expect(assertProjectAccess(1, owner)).resolves.toBeUndefined();
+    const row = { company_id: 9, customer_company_id: 5 };
+    projectAccessRow.mockResolvedValue(row);
+    await expect(assertProjectAccess(1, owner)).resolves.toEqual(row);
   });
 
   it('throws ForbiddenError for a cross-company actor (not NotFoundError)', async () => {
@@ -46,8 +50,9 @@ describe('assertProjectAccess', () => {
   });
 
   it('allows a null-company actor only for a fully unassigned project', async () => {
-    projectAccessRow.mockResolvedValue({ company_id: null, customer_company_id: null });
-    await expect(assertProjectAccess(1, nullCompany)).resolves.toBeUndefined();
+    const row = { company_id: null, customer_company_id: null };
+    projectAccessRow.mockResolvedValue(row);
+    await expect(assertProjectAccess(1, nullCompany)).resolves.toEqual(row);
   });
 
   it('denies a null-company actor a project whose company_id is set', async () => {

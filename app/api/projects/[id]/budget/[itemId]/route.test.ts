@@ -1,9 +1,10 @@
 import { NextRequest } from 'next/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { getSessionFromRequest, updateBudgetItem } = vi.hoisted(() => ({
+const { getSessionFromRequest, updateBudgetItem, projectAccessRow } = vi.hoisted(() => ({
   getSessionFromRequest: vi.fn(),
   updateBudgetItem: vi.fn(),
+  projectAccessRow: vi.fn(),
 }));
 
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest }));
@@ -11,7 +12,7 @@ vi.mock('@/lib/repositories/budget.repo', () => ({
   deleteBudgetItem: vi.fn(),
   updateBudgetItem,
 }));
-vi.mock('@/lib/repositories/projects.repo', () => ({ projectAccessRow: vi.fn() }));
+vi.mock('@/lib/repositories/projects.repo', () => ({ projectAccessRow }));
 
 import { PUT } from './route';
 
@@ -25,7 +26,10 @@ describe('PUT /api/projects/[id]/budget/[itemId]', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    getSessionFromRequest.mockResolvedValue({ is_admin: 1 });
+    getSessionFromRequest.mockResolvedValue({ is_admin: 1, company_id: null });
+    // Post-flip (05-01): assertProjectAccess's admin branch now fetches the row
+    // too (mirrors assertProgramAccess), so it has something to return.
+    projectAccessRow.mockResolvedValue({ company_id: null, customer_company_id: null });
     updateBudgetItem.mockResolvedValue(undefined);
   });
 
