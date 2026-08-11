@@ -56,7 +56,7 @@ Requirements for this milestone. Each maps to roadmap phases.
 - [x] **ROUTE-05**: Each route handler contains only parse, authorize, call service, respond — no SQL, no external API call, no business logic
 - [x] **ROUTE-06**: Every request body is validated against an explicit Zod schema at the route boundary before reaching a service
 - [x] **ROUTE-07**: The wrapper maps typed service errors to status codes (403, 404, 400) and returns a generic message for unexpected errors instead of the current `String(e)`
-- [ ] **ROUTE-08**: Access enforcement runs in log-only shadow mode first, and the recorded would-be-denials are reviewed and resolved before enforcement is switched on
+- [x] **ROUTE-08**: Access enforcement runs in log-only shadow mode first, and the recorded would-be-denials are reviewed and resolved before enforcement is switched on
 - [ ] **ROUTE-09**: A test asserts 403 for a cross-company `project_id` on every route under `app/api/projects/[id]/**`
 - [ ] **ROUTE-10**: A test asserts 401 for a missing or expired session on every non-public route
 - [ ] **ROUTE-11**: `proxy.ts` is confirmed to execute in the deployed runtime, or route-level session enforcement is confirmed sufficient without it — with the finding written down either way
@@ -156,7 +156,7 @@ Deferred. Tracked but not in this milestone's roadmap.
 | ROUTE-12 | Phase 5 | Complete |
 | ROUTE-03 | Phase 6 | Pending |
 | ROUTE-04 | Phase 6 | Pending |
-| ROUTE-08 | Phase 6 | Pending |
+| ROUTE-08 | Phase 6 | Complete |
 | ROUTE-09 | Phase 6 | Pending |
 | ROUTE-10 | Phase 6 | Pending |
 | ROUTE-11 | Phase 6 | Pending |

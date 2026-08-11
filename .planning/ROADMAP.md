@@ -174,7 +174,15 @@ Plans:
   4. A test asserts 403 for a cross-company `project_id` on every route under `app/api/projects/[id]/**`, and a test asserts 401 for a missing or expired session on every non-public route
   5. Whether `proxy.ts` executes in the deployed runtime is confirmed empirically (or route-level enforcement is confirmed sufficient without it), with the finding written down either way
 
-**Plans**: TBD
+**Plans**: 1/7 plans executed
+
+- [x] 06-01-PLAN.md
+- [ ] 06-02-PLAN.md
+- [ ] 06-03-PLAN.md
+- [ ] 06-04-PLAN.md
+- [ ] 06-05-PLAN.md
+- [ ] 06-06-PLAN.md
+- [ ] 06-07-PLAN.md
 
 ### Phase 7: UI Decomposition
 
@@ -201,5 +209,5 @@ Plans:
 | 3. Integration Clients | 4/4 | Complete    | 2026-08-10 |
 | 4. Service Layer | 7/7 | Complete    | 2026-08-11 |
 | 5. Route Thinning & Validation | 3/3 | Complete    | 2026-08-11 |
-| 6. Access Enforcement Rollout | 0/TBD | Not started | - |
+| 6. Access Enforcement Rollout | 1/7 | In Progress|  |
 | 7. UI Decomposition | 0/TBD | Not started | - |
