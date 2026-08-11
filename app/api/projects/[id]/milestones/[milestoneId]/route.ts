@@ -1,34 +1,16 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getSessionFromRequest } from '@/lib/auth';
-import { serviceErrorResponse } from '@/lib/api-errors';
+import { NextResponse } from 'next/server';
+import { withProjectAccess } from '@/lib/http/with-project-access';
 import { deleteMilestone, updateMilestone } from '@/lib/services/milestones.service';
 
-type Params = { params: Promise<{ id: string; milestoneId: string }> };
+type Params = { id: string; milestoneId: string };
 
-function actorOf(user: { company_id: number | null; is_admin: number }) {
-  return { company_id: user.company_id, is_admin: user.is_admin };
-}
+export const PUT = withProjectAccess<Params>(async (_req, { params, actor, body }) =>
+  NextResponse.json(
+    await updateMilestone(params.id, actor, params.milestoneId, body as Record<string, unknown>),
+  ),
+);
 
-export async function PUT(req: NextRequest, { params }: Params) {
-  const { id, milestoneId } = await params;
-  const user = await getSessionFromRequest(req);
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  try {
-    const body = await req.json();
-    return NextResponse.json(await updateMilestone(id, actorOf(user), milestoneId, body));
-  } catch (e) {
-    return serviceErrorResponse(e);
-  }
-}
-
-export async function DELETE(req: NextRequest, { params }: Params) {
-  const { id, milestoneId } = await params;
-  const user = await getSessionFromRequest(req);
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  try {
-    await deleteMilestone(id, actorOf(user), milestoneId);
-    return NextResponse.json({ ok: true });
-  } catch (e) {
-    return serviceErrorResponse(e);
-  }
-}
+export const DELETE = withProjectAccess<Params>(async (_req, { params, actor }) => {
+  await deleteMilestone(params.id, actor, params.milestoneId);
+  return NextResponse.json({ ok: true });
+});

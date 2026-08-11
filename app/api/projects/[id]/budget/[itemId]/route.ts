@@ -1,34 +1,20 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getSessionFromRequest } from '@/lib/auth';
-import { serviceErrorResponse } from '@/lib/api-errors';
-import { deleteBudgetItem, updateBudgetItem } from '@/lib/services/budget-items.service';
+import { NextResponse } from 'next/server';
+import { withProjectAccess } from '@/lib/http/with-project-access';
+import {
+  deleteBudgetItem,
+  updateBudgetItem,
+  type BudgetItemBody,
+} from '@/lib/services/budget-items.service';
 
-type Ctx = { params: Promise<{ id: string; itemId: string }> };
+type Params = { id: string; itemId: string };
 
-function actorOf(user: { company_id: number | null; is_admin: number }) {
-  return { company_id: user.company_id, is_admin: user.is_admin };
-}
+export const PUT = withProjectAccess<Params>(async (_req, { params, actor, body }) =>
+  NextResponse.json(
+    await updateBudgetItem(params.id, params.itemId, actor, body as BudgetItemBody),
+  ),
+);
 
-export async function PUT(req: NextRequest, { params }: Ctx) {
-  const { id, itemId } = await params;
-  const user = await getSessionFromRequest(req);
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  try {
-    const body = await req.json();
-    return NextResponse.json(await updateBudgetItem(id, itemId, actorOf(user), body));
-  } catch (e) {
-    return serviceErrorResponse(e);
-  }
-}
-
-export async function DELETE(req: NextRequest, { params }: Ctx) {
-  const { id, itemId } = await params;
-  const user = await getSessionFromRequest(req);
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  try {
-    await deleteBudgetItem(id, itemId, actorOf(user));
-    return NextResponse.json({ ok: true });
-  } catch (e) {
-    return serviceErrorResponse(e);
-  }
-}
+export const DELETE = withProjectAccess<Params>(async (_req, { params, actor }) => {
+  await deleteBudgetItem(params.id, params.itemId, actor);
+  return NextResponse.json({ ok: true });
+});
