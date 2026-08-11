@@ -142,7 +142,12 @@ Cross-cutting constraints:
   4. Every request body is validated against an explicit Zod schema at the route boundary before reaching a service
   5. The wrapper maps typed service errors to status codes (403/404/400) and returns a generic message for unexpected errors instead of `String(e)`
 
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 05-01-PLAN.md — Build lib/http/ wrapper substrate (withAuth, withProjectAccess, withProgramAccess), flip assertProjectAccess to return the row, prove end-to-end on risks/route.ts
+- [ ] 05-02-PLAN.md — Convert remaining 17 app/api/projects/[id]/** routes onto withProjectAccess
+- [ ] 05-03-PLAN.md — Wire Zod schemas into tree-A (12 projects/[id]/** resources) and tree-B (~14 non-converted routes)
 
 ### Phase 6: Access Enforcement Rollout
 
