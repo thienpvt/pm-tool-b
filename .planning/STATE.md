@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 05
 current_phase_name: Route Thinning & Validation
 status: executing
-stopped_at: Completed 05-01-PLAN.md
-last_updated: "2026-08-11T02:02:05.770Z"
+stopped_at: Completed 05-02-PLAN.md
+last_updated: "2026-08-11T02:08:39.212Z"
 last_activity: 2026-08-11
 last_activity_desc: Phase 05 execution started
 progress:
   total_phases: 5
   completed_phases: 4
   total_plans: 18
-  completed_plans: 16
+  completed_plans: 17
 ---
 
 # Project State
@@ -28,11 +28,11 @@ See: .planning/PROJECT.md (updated 2026-08-07)
 ## Current Position
 
 Phase: 05 (Route Thinning & Validation) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Ready to execute
 Last activity: 2026-08-11 — Phase 05 execution started
 
-Progress: [█████████░] 89% (phase 04 plans complete; await verify)
+Progress: [█████████░] 94% (phase 04 plans complete; await verify)
 
 ## Performance Metrics
 
@@ -70,6 +70,7 @@ Progress: [█████████░] 89% (phase 04 plans complete; await v
 | Phase 04 P06 | 55min | 6 tasks | 18 files |
 | Phase 04 P07 | 45m | 4 tasks | 8 files |
 | Phase 05 P01 | 45min | 3 tasks | 12 files |
+| Phase 05 P02 | 40min | 3 tasks | 17 files |
 
 ## Accumulated Context
 
@@ -107,6 +108,7 @@ Recent decisions affecting current work:
 - [Phase ?]: [Phase 04-07]: Collection routes (projects, programs) tenant-placement decision moved into services; SVC-01 marked complete, all 7 SVC requirements satisfied (SVC-05 runtime proof deferred to CI)
 - [Phase ?]: assertProjectAccess flipped to return the project row (Promise<ProjectAccessRow>) instead of void, mirroring assertProgramAccess; admin branch now fetches the row too (wire-identical, HYG-01)
 - [Phase ?]: withAuth made generic over TBody (not just TParams) so withProjectAccess/withProgramAccess's WrapperOptions<TBody> type-checks through the composition
+- [Phase ?]: 17 project-tree routes converted to withProjectAccess; no test edits needed (admin-bypass flip already landed in 05-01)
 
 ### Pending Todos
 
@@ -130,6 +132,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-11T02:02:05.760Z
-Stopped at: Completed 05-01-PLAN.md
+Last session: 2026-08-11T02:08:39.202Z
+Stopped at: Completed 05-02-PLAN.md
 Resume file: None

@@ -60,7 +60,7 @@ Requirements for this milestone. Each maps to roadmap phases.
 - [ ] **ROUTE-09**: A test asserts 403 for a cross-company `project_id` on every route under `app/api/projects/[id]/**`
 - [ ] **ROUTE-10**: A test asserts 401 for a missing or expired session on every non-public route
 - [ ] **ROUTE-11**: `proxy.ts` is confirmed to execute in the deployed runtime, or route-level session enforcement is confirmed sufficient without it — with the finding written down either way
-- [ ] **ROUTE-12**: No dynamic SQL column assignment built from request keys remains anywhere in `app/api/**`
+- [x] **ROUTE-12**: No dynamic SQL column assignment built from request keys remains anywhere in `app/api/**`
 
 ### UI Decomposition
 
@@ -153,7 +153,7 @@ Deferred. Tracked but not in this milestone's roadmap.
 | ROUTE-05 | Phase 5 | Complete |
 | ROUTE-06 | Phase 5 | Pending |
 | ROUTE-07 | Phase 5 | Complete |
-| ROUTE-12 | Phase 5 | Pending |
+| ROUTE-12 | Phase 5 | Complete |
 | ROUTE-03 | Phase 6 | Pending |
 | ROUTE-04 | Phase 6 | Pending |
 | ROUTE-08 | Phase 6 | Pending |
