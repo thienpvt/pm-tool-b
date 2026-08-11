@@ -1,44 +1,19 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getSessionFromRequest } from '@/lib/auth';
-import { serviceErrorResponse } from '@/lib/api-errors';
+import { NextResponse } from 'next/server';
+import { withProgramAccess } from '@/lib/http/with-program-access';
 import { deleteProgram, getProgramDetail, updateProgram } from '@/lib/services/programs.service';
 
-type Params = { params: Promise<{ id: string }> };
+// GET/PUT/DELETE all re-call the service, which re-runs assertProgramAccess
+// internally (defense in depth, matches the projects tree) — the wrapper's
+// assert is the route-level gate; ctx.program is unused here for the same
+// reason projects/[id]/route.ts skips ctx.project on GET.
+export const GET = withProgramAccess(async (_req, { params, actor }) =>
+  NextResponse.json(await getProgramDetail(params.id, actor)),
+);
 
-function actorOf(user: { company_id: number | null; is_admin: number }) {
-  return { company_id: user.company_id, is_admin: user.is_admin };
-}
+export const PUT = withProgramAccess(async (_req, { params, actor, body }) =>
+  NextResponse.json(await updateProgram(params.id, actor, body as Record<string, unknown>)),
+);
 
-export async function GET(req: NextRequest, { params }: Params) {
-  const { id } = await params;
-  const user = await getSessionFromRequest(req);
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  try {
-    return NextResponse.json(await getProgramDetail(id, actorOf(user)));
-  } catch (e) {
-    return serviceErrorResponse(e);
-  }
-}
-
-export async function PUT(req: NextRequest, { params }: Params) {
-  const { id } = await params;
-  const user = await getSessionFromRequest(req);
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  try {
-    const body = await req.json();
-    return NextResponse.json(await updateProgram(id, actorOf(user), body));
-  } catch (e) {
-    return serviceErrorResponse(e);
-  }
-}
-
-export async function DELETE(req: NextRequest, { params }: Params) {
-  const { id } = await params;
-  const user = await getSessionFromRequest(req);
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  try {
-    return NextResponse.json(await deleteProgram(id, actorOf(user)));
-  } catch (e) {
-    return serviceErrorResponse(e);
-  }
-}
+export const DELETE = withProgramAccess(async (_req, { params, actor }) =>
+  NextResponse.json(await deleteProgram(params.id, actor)),
+);
