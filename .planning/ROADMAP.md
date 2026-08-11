@@ -174,7 +174,7 @@ Plans:
   4. A test asserts 403 for a cross-company `project_id` on every route under `app/api/projects/[id]/**`, and a test asserts 401 for a missing or expired session on every non-public route
   5. Whether `proxy.ts` executes in the deployed runtime is confirmed empirically (or route-level enforcement is confirmed sufficient without it), with the finding written down either way
 
-**Plans**: 6/7 plans executed
+**Plans**: 7/7 plans executed
 
 - [x] 06-01-PLAN.md
 - [x] 06-02-PLAN.md
@@ -182,7 +182,7 @@ Plans:
 - [x] 06-04-PLAN.md
 - [x] 06-05-PLAN.md
 - [x] 06-06-PLAN.md
-- [ ] 06-07-PLAN.md
+- [x] 06-07-PLAN.md
 
 ### Phase 7: UI Decomposition
 

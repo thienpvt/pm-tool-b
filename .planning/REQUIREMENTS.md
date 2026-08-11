@@ -59,7 +59,7 @@ Requirements for this milestone. Each maps to roadmap phases.
 - [x] **ROUTE-08**: Access enforcement runs in log-only shadow mode first, and the recorded would-be-denials are reviewed and resolved before enforcement is switched on
 - [x] **ROUTE-09**: A test asserts 403 for a cross-company `project_id` on every route under `app/api/projects/[id]/**`
 - [x] **ROUTE-10**: A test asserts 401 for a missing or expired session on every non-public route
-- [ ] **ROUTE-11**: `proxy.ts` is confirmed to execute in the deployed runtime, or route-level session enforcement is confirmed sufficient without it — with the finding written down either way
+- [x] **ROUTE-11**: `proxy.ts` is confirmed to execute in the deployed runtime, or route-level session enforcement is confirmed sufficient without it — with the finding written down either way (finding: `06-PROXY-FINDING.md` — proxy.ts IS live, 307-redirects cookie-less requests; route-level remains the session-validity + tenancy layer)
 - [x] **ROUTE-12**: No dynamic SQL column assignment built from request keys remains anywhere in `app/api/**`
 
 ### UI Decomposition
@@ -159,7 +159,7 @@ Deferred. Tracked but not in this milestone's roadmap.
 | ROUTE-08 | Phase 6 | Complete |
 | ROUTE-09 | Phase 6 | Complete |
 | ROUTE-10 | Phase 6 | Complete |
-| ROUTE-11 | Phase 6 | Pending |
+| ROUTE-11 | Phase 6 | Complete |
 | UI-01 | Phase 7 | Pending |
 | UI-09 | Phase 7 | Pending |
 | UI-10 | Phase 7 | Pending |
