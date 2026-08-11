@@ -2,19 +2,18 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 5
+current_phase: 05
 current_phase_name: Route Thinning & Validation
-status: completed
-stopped_at: Completed 04-07-PLAN.md
-last_updated: "2026-08-11T00:19:05.138Z"
+status: executing
+stopped_at: Completed 05-01-PLAN.md
+last_updated: "2026-08-11T02:02:05.770Z"
 last_activity: 2026-08-11
-last_activity_desc: Phase 04 complete, transitioned to Phase 5
+last_activity_desc: Phase 05 execution started
 progress:
-  total_phases: 7
+  total_phases: 5
   completed_phases: 4
-  total_plans: 15
-  completed_plans: 15
-  percent: 57
+  total_plans: 18
+  completed_plans: 16
 ---
 
 # Project State
@@ -24,16 +23,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-07)
 
 **Core value:** Every project-scoped request is tenant-isolated and every layer has one job — so a new route or page cannot silently reintroduce IDOR or a 2000-line god component.
-**Current focus:** Phase 04 — Service Layer
+**Current focus:** Phase 05 — Route Thinning & Validation
 
 ## Current Position
 
-Phase: 5 — Route Thinning & Validation
-Plan: Not started
-Status: 04-07 done — suite 573 total / 460 passed / 0 failed / **113 skipped** (baseline held); SVC-01 now complete
-Last activity: 2026-08-11 — Phase 04 complete, transitioned to Phase 5
+Phase: 05 (Route Thinning & Validation) — EXECUTING
+Plan: 2 of 3
+Status: Ready to execute
+Last activity: 2026-08-11 — Phase 05 execution started
 
-Progress: [██████████] 100% (phase 04 plans complete; await verify)
+Progress: [█████████░] 89% (phase 04 plans complete; await verify)
 
 ## Performance Metrics
 
@@ -70,6 +69,7 @@ Progress: [██████████] 100% (phase 04 plans complete; await 
 | Phase 04 P05 | 24min | 5 tasks | 19 files |
 | Phase 04 P06 | 55min | 6 tasks | 18 files |
 | Phase 04 P07 | 45m | 4 tasks | 8 files |
+| Phase 05 P01 | 45min | 3 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -105,6 +105,8 @@ Recent decisions affecting current work:
 - [Phase 04-06]: Budget/member/quota/allocation repo functions take only companyId (no is_admin all-companies branch, unlike listPortfolioProjects/listPortfolioMilestones) — services preserve this Phase 2 baseline rather than expanding admin reach
 - [Phase 04-06]: portfolio/program-allocations POST String(e) leak fixed (T-04-27) — createProgramAllocation lets errors propagate untouched so the route's serviceErrorResponse maps any failure to the generic 500
 - [Phase ?]: [Phase 04-07]: Collection routes (projects, programs) tenant-placement decision moved into services; SVC-01 marked complete, all 7 SVC requirements satisfied (SVC-05 runtime proof deferred to CI)
+- [Phase ?]: assertProjectAccess flipped to return the project row (Promise<ProjectAccessRow>) instead of void, mirroring assertProgramAccess; admin branch now fetches the row too (wire-identical, HYG-01)
+- [Phase ?]: withAuth made generic over TBody (not just TParams) so withProjectAccess/withProgramAccess's WrapperOptions<TBody> type-checks through the composition
 
 ### Pending Todos
 
@@ -128,6 +130,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-11T00:16:00.738Z
-Stopped at: Completed 04-07-PLAN.md
+Last session: 2026-08-11T02:02:05.760Z
+Stopped at: Completed 05-01-PLAN.md
 Resume file: None
