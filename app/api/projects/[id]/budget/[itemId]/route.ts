@@ -5,13 +5,16 @@ import {
   updateBudgetItem,
   type BudgetItemBody,
 } from '@/lib/services/budget-items.service';
+import { budgetItemUpdateSchema } from './schema';
 
 type Params = { id: string; itemId: string };
 
-export const PUT = withProjectAccess<Params>(async (_req, { params, actor, body }) =>
-  NextResponse.json(
-    await updateBudgetItem(params.id, params.itemId, actor, body as BudgetItemBody),
-  ),
+export const PUT = withProjectAccess<Params>(
+  async (_req, { params, actor, body }) =>
+    NextResponse.json(
+      await updateBudgetItem(params.id, params.itemId, actor, body as BudgetItemBody),
+    ),
+  { schema: budgetItemUpdateSchema },
 );
 
 export const DELETE = withProjectAccess<Params>(async (_req, { params, actor }) => {

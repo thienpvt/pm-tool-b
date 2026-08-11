@@ -6,6 +6,7 @@ import {
   listSnapshotDates,
   replaceSnapshot,
 } from '@/lib/services/bugs.service';
+import { bugsInputSchema } from './schema';
 
 export const GET = withProjectAccess(async (req, { params, actor }) => {
   const url = new URL(req.url);
@@ -15,10 +16,13 @@ export const GET = withProjectAccess(async (req, { params, actor }) => {
   return NextResponse.json(await listBugs(params.id, actor, url.searchParams.get('date')));
 });
 
-export const POST = withProjectAccess(async (_req, { params, actor, body }) => {
-  const { bugs, snapshot_date } = body as { bugs: unknown; snapshot_date: string };
-  return NextResponse.json(await replaceSnapshot(params.id, actor, bugs, snapshot_date));
-});
+export const POST = withProjectAccess(
+  async (_req, { params, actor, body }) => {
+    const { bugs, snapshot_date } = body as { bugs: unknown; snapshot_date: string };
+    return NextResponse.json(await replaceSnapshot(params.id, actor, bugs, snapshot_date));
+  },
+  { schema: bugsInputSchema },
+);
 
 export const DELETE = withProjectAccess(async (req, { params, actor }) => {
   const date = new URL(req.url).searchParams.get('date');
