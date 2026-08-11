@@ -136,6 +136,14 @@ Items acknowledged and carried forward from previous milestone close:
 | Enforcement | ENF-01, ENF-02 (ESLint gate, Kysely adoption) | v2 | 2026-08-07 |
 | Performance | PERF-01, PERF-02, PERF-03 | v2 | 2026-08-07 |
 
+## Deferred Verification
+
+| Phase | State | Resume |
+|-------|-------|--------|
+| 6 | verification_deferred_human | /gsd-verify-work 6 |
+
+*Deferred 2026-08-11 (autonomous): items 1-2 need a live deploy + security-owner sign-off — (1) shadow-cutover operational review (ACCESS_ENFORCEMENT=shadow + live DATABASE_URL, review [ACCESS-SHADOW] lines, then enforce), (2) v1 tenancy-residual risk acceptance on the 4 tenancy-less tables + schedule v2 company_id migration. Item 3 (ROUTE-11/06-07 doc status) resolved and committed at aed4517.*
+
 ## Session Continuity
 
 Last session: 2026-08-11T07:51:04.363Z
