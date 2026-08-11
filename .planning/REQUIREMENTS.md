@@ -39,7 +39,7 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 ### Service Layer
 
-- [x] **SVC-01**: Business logic for every API resource lives in a `lib/services/*.service.ts` module
+- [x] **SVC-01**: Business logic for every API resource lives in a `lib/services/*.service.ts` module <!-- 04-07 closed the last gap: app/api/projects/route.ts and app/api/programs/route.ts collection handlers now call projects.service.ts/programs.service.ts instead of repositories directly. See 04-VERIFICATION.md and 04-07-SUMMARY.md. -->
 - [x] **SVC-02**: A service function takes plain arguments and returns plain data — it never imports `next/server` or touches `NextRequest`/`NextResponse`
 - [x] **SVC-03**: Services signal failure by throwing typed errors (`ForbiddenError`, `NotFoundError`, `ValidationError`) that carry no HTTP status of their own
 - [x] **SVC-04**: Every service function operating on a project asserts the caller's company owns that project before returning or mutating data
@@ -141,7 +141,7 @@ Deferred. Tracked but not in this milestone's roadmap.
 | INTG-08 | Phase 3 | Deferred — cutover evidence needs a live DATABASE_URL (HYG-01 deletion commit outstanding) |
 | INTG-09 | Phase 3 | Complete |
 | INTG-10 | Phase 3 | Complete |
-| SVC-01 | Phase 4 | Complete |
+| SVC-01 | Phase 4 | Complete (04-07 gap closure — collection routes) |
 | SVC-02 | Phase 4 | Complete |
 | SVC-03 | Phase 4 | Complete |
 | SVC-04 | Phase 4 | Complete |
