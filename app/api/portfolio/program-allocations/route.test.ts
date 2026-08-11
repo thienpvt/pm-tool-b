@@ -28,6 +28,8 @@ describe('POST /api/portfolio/program-allocations', () => {
     is_admin: 0, onboarding_completed: 1,
   };
 
+  const params = () => ({ params: Promise.resolve({}) });
+
   function post(body: unknown) {
     return new NextRequest('http://localhost/api/portfolio/program-allocations', {
       method: 'POST',
@@ -38,14 +40,14 @@ describe('POST /api/portfolio/program-allocations', () => {
 
   it('returns 401 without a session', async () => {
     vi.mocked(getSessionFromRequest).mockResolvedValue(null);
-    const res = await POST(post({ program_id: 1, allocated_headcount: 3 }));
+    const res = await POST(post({ program_id: 1, allocated_headcount: 3 }), params());
     expect(res.status).toBe(401);
     expect(upsertPortfolioProgramAllocation).not.toHaveBeenCalled();
   });
 
   it('returns 400 when program_id is missing', async () => {
     vi.mocked(getSessionFromRequest).mockResolvedValue(session as never);
-    const res = await POST(post({ allocated_headcount: 3 }));
+    const res = await POST(post({ allocated_headcount: 3 }), params());
     expect(res.status).toBe(400);
     expect(upsertPortfolioProgramAllocation).not.toHaveBeenCalled();
   });
@@ -53,7 +55,7 @@ describe('POST /api/portfolio/program-allocations', () => {
   it('returns 200 with the upserted allocation on success', async () => {
     vi.mocked(getSessionFromRequest).mockResolvedValue(session as never);
     upsertPortfolioProgramAllocation.mockResolvedValue(undefined);
-    const res = await POST(post({ program_id: 7, allocated_headcount: 3 }));
+    const res = await POST(post({ program_id: 7, allocated_headcount: 3 }), params());
     expect(res.status).toBe(200);
     await expect(res.json()).resolves.toEqual({ program_id: 7, allocated_headcount: 3 });
   });
@@ -64,7 +66,7 @@ describe('POST /api/portfolio/program-allocations', () => {
       new Error('duplicate key value violates unique constraint "portfolio_program_allocations_company_id_program_id_key"'),
     );
 
-    const res = await POST(post({ program_id: 7, allocated_headcount: 3 }));
+    const res = await POST(post({ program_id: 7, allocated_headcount: 3 }), params());
 
     expect(res.status).toBe(500);
     const body = await res.json();
@@ -77,9 +79,11 @@ describe('POST /api/portfolio/program-allocations', () => {
 describe('GET /api/portfolio/program-allocations', () => {
   beforeEach(() => vi.clearAllMocks());
 
+  const params = () => ({ params: Promise.resolve({}) });
+
   it('returns 401 without a session', async () => {
     vi.mocked(getSessionFromRequest).mockResolvedValue(null);
-    const res = await GET(new NextRequest('http://localhost/api/portfolio/program-allocations'));
+    const res = await GET(new NextRequest('http://localhost/api/portfolio/program-allocations'), params());
     expect(res.status).toBe(401);
   });
 
@@ -88,7 +92,7 @@ describe('GET /api/portfolio/program-allocations', () => {
       id: 1, username: 'x', display_name: 'X', company_id: null, company_name: null,
       is_admin: 0, onboarding_completed: 1,
     } as never);
-    const res = await GET(new NextRequest('http://localhost/api/portfolio/program-allocations'));
+    const res = await GET(new NextRequest('http://localhost/api/portfolio/program-allocations'), params());
     expect(res.status).toBe(200);
     await expect(res.json()).resolves.toEqual([]);
     expect(programFteAllocations).not.toHaveBeenCalled();

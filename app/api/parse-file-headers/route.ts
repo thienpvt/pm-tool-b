@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import ExcelJS from 'exceljs';
+import { withAuth } from '@/lib/http/with-auth';
 
 function parseCSV(text: string): string[][] {
   const rows: string[][] = [];
@@ -43,7 +44,7 @@ function countNonEmpty(vals: string[]): number {
   return vals.filter(v => v.trim()).length;
 }
 
-export async function POST(req: NextRequest) {
+export const POST = withAuth(async (req) => {
   try {
     const formData = await req.formData();
     const file = formData.get('file') as File | null;
@@ -119,4 +120,4 @@ export async function POST(req: NextRequest) {
     console.error('parse-file-headers error:', e);
     return NextResponse.json({ error: 'Không thể đọc file. Kiểm tra định dạng.' }, { status: 500 });
   }
-}
+}, { rawBody: true });
