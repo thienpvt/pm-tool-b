@@ -1,12 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import ExcelJS from 'exceljs';
-import { getSessionFromRequest } from '@/lib/auth';
-import { serviceErrorResponse } from '@/lib/api-errors';
+import { withProjectAccess } from '@/lib/http/with-project-access';
 import { getProject } from '@/lib/repositories/projects.repo';
 import { listForExport } from '@/lib/repositories/team.repo';
-import { assertProjectAccess } from '@/lib/services/access';
-
-type Params = { params: Promise<{ id: string }> };
 
 const NAVY     = 'FF1E293B';
 const WHITE    = 'FFFFFFFF';
@@ -51,20 +47,8 @@ function displayMonth(ym: string) {
   return `${labels[Number(m) - 1]}\n${y}`;
 }
 
-export async function GET(req: NextRequest, { params }: Params) {
-  const { id } = await params;
-  const user = await getSessionFromRequest(req);
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-  try {
-    await assertProjectAccess(id, {
-      company_id: user.company_id,
-      is_admin: user.is_admin,
-    });
-  } catch (e) {
-    return serviceErrorResponse(e);
-  }
-
+export const GET = withProjectAccess(async (_req, { params }) => {
+  const id = params.id;
   const project = await getProject(Number(id)) as Record<string, string> | undefined;
   if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
@@ -240,4 +224,4 @@ export async function GET(req: NextRequest, { params }: Params) {
       'Content-Disposition': `attachment; filename="ResourcePlan_${safeName}.xlsx"`,
     },
   });
-}
+});

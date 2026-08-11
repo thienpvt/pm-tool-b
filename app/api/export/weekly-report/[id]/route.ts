@@ -1,10 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import ExcelJS from 'exceljs';
-import { getSessionFromRequest } from '@/lib/auth';
-import { serviceErrorResponse } from '@/lib/api-errors';
-import { assertProjectAccess } from '@/lib/services/access';
-
-type Params = { params: Promise<{ id: string }> };
+import { withProjectAccess } from '@/lib/http/with-project-access';
 
 type Activity = { id: number; activity: string; deliverable: string; completion_pct: number; plan_end: string; actual_end: string; status: string; };
 type RiskIssue = { id: number; description: string; priority: string; mitigation: string; };
@@ -53,26 +49,13 @@ function info(ws: ExcelJS.Worksheet, rowNum: number, label: string, value: strin
   row.height = 18;
 }
 
-export async function POST(req: NextRequest, { params }: Params) {
-  const { id } = await params;
-  const user = await getSessionFromRequest(req);
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+export const POST = withProjectAccess(async (_req, { body }) => {
+  const { report, reportData, startDate, endDate, language } = body as {
+    report: string; reportData: ReportData; startDate: string; endDate: string; language: string;
+  };
 
-  try {
-    await assertProjectAccess(id, {
-      company_id: user.company_id,
-      is_admin: user.is_admin,
-    });
-
-    const { report, reportData, startDate, endDate, language } = await req.json() as {
-      report: string; reportData: ReportData; startDate: string; endDate: string; language: string;
-    };
-
-    return await buildWeeklyReportResponse(report, reportData, startDate, endDate, language);
-  } catch (e) {
-    return serviceErrorResponse(e);
-  }
-}
+  return await buildWeeklyReportResponse(report, reportData, startDate, endDate, language);
+});
 
 async function buildWeeklyReportResponse(
   report: string,
