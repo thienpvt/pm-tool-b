@@ -32,6 +32,10 @@ export type WrapperOptions<TBody = unknown> = {
    *  or the first issue message. */
   schema?: z.ZodType<TBody>;
   badRequest?: (error: z.ZodError<TBody>) => NextResponse;
+  /** Skip the wrapper's auto `req.json()` on POST/PUT/PATCH so the handler can
+   *  consume the request itself (formData/multipart routes). Only affects the
+   *  no-schema path — a schema set alongside rawBody still parses/validates. */
+  rawBody?: boolean;
 };
 
 /**
@@ -74,7 +78,7 @@ export function withAuth<
       } catch {
         return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
       }
-    } else if (req.method === 'POST' || req.method === 'PUT' || req.method === 'PATCH') {
+    } else if (!opts?.rawBody && (req.method === 'POST' || req.method === 'PUT' || req.method === 'PATCH')) {
       try {
         body = await req.json();
       } catch {

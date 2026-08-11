@@ -130,6 +130,66 @@ describe('withAuth', () => {
     await expect(res.json()).resolves.toEqual(body);
   });
 
+  it('rawBody: true skips the auto req.json() and hands the handler body: undefined on POST', async () => {
+    getSessionFromRequest.mockResolvedValue(ownerSession);
+    const handler = vi.fn().mockResolvedValue(NextResponse.json({ ok: true }));
+    const wrapped = withAuth(handler, { rawBody: true });
+
+    const res = await wrapped(req('POST', 'http://localhost/api/x', { a: 1 }), rawCtx());
+
+    expect(res.status).toBe(200);
+    const [, ctx] = handler.mock.calls[0];
+    expect(ctx.body).toBeUndefined();
+  });
+
+  it('rawBody: true lets a non-JSON POST body reach the handler (no 400)', async () => {
+    getSessionFromRequest.mockResolvedValue(ownerSession);
+    const handler = vi.fn().mockResolvedValue(NextResponse.json({ ok: true }));
+    const wrapped = withAuth(handler, { rawBody: true });
+
+    const badReq = new NextRequest('http://localhost/api/x', {
+      method: 'POST',
+      body: 'not json{{{',
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    const res = await wrapped(badReq, rawCtx());
+
+    expect(res.status).toBe(200);
+    expect(handler).toHaveBeenCalledTimes(1);
+  });
+
+  it('without rawBody, malformed JSON still returns 400 Invalid JSON (WR-05 unchanged)', async () => {
+    getSessionFromRequest.mockResolvedValue(ownerSession);
+    const handler = vi.fn();
+    const wrapped = withAuth(handler);
+
+    const badReq = new NextRequest('http://localhost/api/x', {
+      method: 'POST',
+      body: 'not json{{{',
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    const res = await wrapped(badReq, rawCtx());
+
+    expect(res.status).toBe(400);
+    await expect(res.json()).resolves.toEqual({ error: 'Invalid JSON' });
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it('rawBody has no effect when a schema is set — schema path still parses', async () => {
+    const { z } = await import('zod');
+    getSessionFromRequest.mockResolvedValue(ownerSession);
+    const handler = vi.fn().mockResolvedValue(NextResponse.json({ ok: true }));
+    const wrapped = withAuth(handler, { rawBody: true, schema: z.object({ a: z.number() }) });
+
+    const res = await wrapped(req('POST', 'http://localhost/api/x', { a: 1 }), rawCtx());
+
+    expect(res.status).toBe(200);
+    const [, ctx] = handler.mock.calls[0];
+    expect(ctx.body).toEqual({ a: 1 });
+  });
+
   it('maps a generic Error to a 500 with a generic message, never String(e)', async () => {
     const secret = 'SQLSTATE detail: relation "secrets" does not exist';
     getSessionFromRequest.mockResolvedValue(ownerSession);
