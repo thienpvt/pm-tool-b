@@ -52,7 +52,7 @@ Requirements for this milestone. Each maps to roadmap phases.
 - [x] **ROUTE-01**: `lib/http/with-auth.ts` provides a wrapper that resolves the session, returns 401 on missing or invalid session, and passes an authorized context into the handler
 - [x] **ROUTE-02**: `withProjectAccess` loads the project, verifies `project.company_id` matches the session company, and hands the already-authorized project to the handler — a handler that does not use it has no code path to project data
 - [x] **ROUTE-03**: Every route under `app/api/projects/[id]/**` uses the project-access wrapper, including activities, risks, issues, meetings, escalations, team, documents, bugs, holidays, milestones, and budget
-- [ ] **ROUTE-04**: Import, export, config, and file-header-parsing routes enforce the same access check as project routes
+- [x] **ROUTE-04**: Import, export, config, and file-header-parsing routes enforce the same access check as project routes
 - [x] **ROUTE-05**: Each route handler contains only parse, authorize, call service, respond — no SQL, no external API call, no business logic
 - [x] **ROUTE-06**: Every request body is validated against an explicit Zod schema at the route boundary before reaching a service
 - [x] **ROUTE-07**: The wrapper maps typed service errors to status codes (403, 404, 400) and returns a generic message for unexpected errors instead of the current `String(e)`
@@ -155,7 +155,7 @@ Deferred. Tracked but not in this milestone's roadmap.
 | ROUTE-07 | Phase 5 | Complete |
 | ROUTE-12 | Phase 5 | Complete |
 | ROUTE-03 | Phase 6 | Complete |
-| ROUTE-04 | Phase 6 | Pending |
+| ROUTE-04 | Phase 6 | Complete |
 | ROUTE-08 | Phase 6 | Complete |
 | ROUTE-09 | Phase 6 | Complete |
 | ROUTE-10 | Phase 6 | Complete |
