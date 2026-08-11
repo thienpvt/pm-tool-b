@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 04
 current_phase_name: Service Layer
 status: ready_for_verification
-stopped_at: Completed 04-06-PLAN.md (gap closure — portfolio sub-resources onto the service)
-last_updated: "2026-08-11T00:00:00.000Z"
+stopped_at: Completed 04-07-PLAN.md
+last_updated: "2026-08-11T00:16:14.102Z"
 last_activity: 2026-08-11
-last_activity_desc: Plan 04-06 — wired 11 portfolio sub-resource routes onto portfolio.service.ts; fixed String(e) leak on program-allocations POST
+last_activity_desc: "Plan 04-07 gap closure: converted the two remaining collection routes (app/api/projects/route.ts, app/api/programs/route.ts) onto projects.service.ts/programs.service.ts; moved the admin-vs-session companyId tenant-placement decision into the service layer. SVC-01 now complete — all 7 SVC requirements satisfied."
 progress:
   total_phases: 4
   completed_phases: 4
-  total_plans: 14
-  completed_plans: 14
+  total_plans: 15
+  completed_plans: 15
 ---
 
 # Project State
@@ -28,9 +28,9 @@ See: .planning/PROJECT.md (updated 2026-08-07)
 ## Current Position
 
 Phase: 04 (Service Layer) — READY FOR VERIFICATION
-Plan: 6 of 6 (all plans complete, including 04-05 and 04-06 gap closure)
-Status: 04-06 done — suite 554 total / 441 passed / 0 failed / **113 skipped** (baseline held from 04-05)
-Last activity: 2026-08-11 — Plan 04-06 gap closure: wired all 11 portfolio sub-resource routes (budgets, members, milestones, program-allocations, quota) onto portfolio.service.ts with company scoping; fixed the confirmed String(e) leak on program-allocations POST (T-04-27/HYG-02)
+Plan: 7 of 7 (all plans complete, including 04-05, 04-06, and 04-07 gap closure)
+Status: 04-07 done — suite 573 total / 460 passed / 0 failed / **113 skipped** (baseline held); SVC-01 now complete
+Last activity: 2026-08-11 — Plan 04-07 gap closure: converted app/api/projects/route.ts and app/api/programs/route.ts onto projects.service.ts/programs.service.ts; moved admin-vs-session companyId tenant-placement decision into the service layer
 
 Progress: [██████████] 100% (phase 04 plans complete; await verify)
 
@@ -67,6 +67,7 @@ Progress: [██████████] 100% (phase 04 plans complete; await 
 | Phase 04 P04 | 11min | 5 tasks | 15 files |
 | Phase 04 P05 | 24min | 5 tasks | 19 files |
 | Phase 04 P06 | 55min | 6 tasks | 18 files |
+| Phase 04 P07 | 45m | 4 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -101,6 +102,7 @@ Recent decisions affecting current work:
 - [Phase ?]: checkAccess/authorize file-local copies deleted from projects/[id] and the three nested budget routes; unified on assertProjectAccess via new projects.service.ts and budget-items.service.ts (cross-company 401->403 on the budget routes, HYG-02)
 - [Phase 04-06]: Budget/member/quota/allocation repo functions take only companyId (no is_admin all-companies branch, unlike listPortfolioProjects/listPortfolioMilestones) — services preserve this Phase 2 baseline rather than expanding admin reach
 - [Phase 04-06]: portfolio/program-allocations POST String(e) leak fixed (T-04-27) — createProgramAllocation lets errors propagate untouched so the route's serviceErrorResponse maps any failure to the generic 500
+- [Phase ?]: [Phase 04-07]: Collection routes (projects, programs) tenant-placement decision moved into services; SVC-01 marked complete, all 7 SVC requirements satisfied (SVC-05 runtime proof deferred to CI)
 
 ### Pending Todos
 
@@ -124,6 +126,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-11T00:00:00.000Z
-Stopped at: Completed 04-06-PLAN.md (gap closure — portfolio sub-resources onto the service)
+Last session: 2026-08-11T00:16:00.738Z
+Stopped at: Completed 04-07-PLAN.md
 Resume file: None
