@@ -51,14 +51,14 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 - [x] **ROUTE-01**: `lib/http/with-auth.ts` provides a wrapper that resolves the session, returns 401 on missing or invalid session, and passes an authorized context into the handler
 - [x] **ROUTE-02**: `withProjectAccess` loads the project, verifies `project.company_id` matches the session company, and hands the already-authorized project to the handler — a handler that does not use it has no code path to project data
-- [ ] **ROUTE-03**: Every route under `app/api/projects/[id]/**` uses the project-access wrapper, including activities, risks, issues, meetings, escalations, team, documents, bugs, holidays, milestones, and budget
+- [x] **ROUTE-03**: Every route under `app/api/projects/[id]/**` uses the project-access wrapper, including activities, risks, issues, meetings, escalations, team, documents, bugs, holidays, milestones, and budget
 - [ ] **ROUTE-04**: Import, export, config, and file-header-parsing routes enforce the same access check as project routes
 - [x] **ROUTE-05**: Each route handler contains only parse, authorize, call service, respond — no SQL, no external API call, no business logic
 - [x] **ROUTE-06**: Every request body is validated against an explicit Zod schema at the route boundary before reaching a service
 - [x] **ROUTE-07**: The wrapper maps typed service errors to status codes (403, 404, 400) and returns a generic message for unexpected errors instead of the current `String(e)`
 - [x] **ROUTE-08**: Access enforcement runs in log-only shadow mode first, and the recorded would-be-denials are reviewed and resolved before enforcement is switched on
-- [ ] **ROUTE-09**: A test asserts 403 for a cross-company `project_id` on every route under `app/api/projects/[id]/**`
-- [ ] **ROUTE-10**: A test asserts 401 for a missing or expired session on every non-public route
+- [x] **ROUTE-09**: A test asserts 403 for a cross-company `project_id` on every route under `app/api/projects/[id]/**`
+- [x] **ROUTE-10**: A test asserts 401 for a missing or expired session on every non-public route
 - [ ] **ROUTE-11**: `proxy.ts` is confirmed to execute in the deployed runtime, or route-level session enforcement is confirmed sufficient without it — with the finding written down either way
 - [x] **ROUTE-12**: No dynamic SQL column assignment built from request keys remains anywhere in `app/api/**`
 
@@ -154,11 +154,11 @@ Deferred. Tracked but not in this milestone's roadmap.
 | ROUTE-06 | Phase 5 | Complete |
 | ROUTE-07 | Phase 5 | Complete |
 | ROUTE-12 | Phase 5 | Complete |
-| ROUTE-03 | Phase 6 | Pending |
+| ROUTE-03 | Phase 6 | Complete |
 | ROUTE-04 | Phase 6 | Pending |
 | ROUTE-08 | Phase 6 | Complete |
-| ROUTE-09 | Phase 6 | Pending |
-| ROUTE-10 | Phase 6 | Pending |
+| ROUTE-09 | Phase 6 | Complete |
+| ROUTE-10 | Phase 6 | Complete |
 | ROUTE-11 | Phase 6 | Pending |
 | UI-01 | Phase 7 | Pending |
 | UI-09 | Phase 7 | Pending |
