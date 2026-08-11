@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { getSessionFromRequest } = vi.hoisted(() => ({
   getSessionFromRequest: vi.fn(),
@@ -91,5 +91,62 @@ describe('withProgramAccess', () => {
     expect(res.status).toBe(401);
     expect(assertProgramAccess).not.toHaveBeenCalled();
     expect(handler).not.toHaveBeenCalled();
+  });
+
+  describe('ACCESS_ENFORCEMENT shadow flag', () => {
+    afterEach(() => {
+      delete process.env.ACCESS_ENFORCEMENT;
+    });
+
+    it('shadow ON: a cross-company deny still invokes the handler, with program undefined', async () => {
+      process.env.ACCESS_ENFORCEMENT = 'shadow';
+      getSessionFromRequest.mockResolvedValue(ownerSession);
+      const { ForbiddenError } = await import('@/lib/services/errors');
+      assertProgramAccess.mockRejectedValue(new ForbiddenError());
+      const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const handler = vi.fn().mockResolvedValue(NextResponse.json({ ok: true }));
+      const wrapped = withProgramAccess(handler);
+
+      const res = await wrapped(req('GET'), rawCtx());
+
+      expect(res.status).toBe(200);
+      expect(handler).toHaveBeenCalledTimes(1);
+      const [, ctx] = handler.mock.calls[0];
+      expect(ctx.program).toBeUndefined();
+      expect(assertProgramAccess).toHaveBeenCalledTimes(1);
+      expect(spy).toHaveBeenCalledWith(
+        '[ACCESS-SHADOW]',
+        expect.stringContaining('"errorKind":"ForbiddenError"'),
+      );
+      spy.mockRestore();
+    });
+
+    it('shadow OFF: a cross-company deny still 403s and never calls the handler', async () => {
+      getSessionFromRequest.mockResolvedValue(ownerSession);
+      const { ForbiddenError } = await import('@/lib/services/errors');
+      assertProgramAccess.mockRejectedValue(new ForbiddenError());
+      const handler = vi.fn();
+      const wrapped = withProgramAccess(handler);
+
+      const res = await wrapped(req('GET'), rawCtx());
+
+      expect(res.status).toBe(403);
+      expect(handler).not.toHaveBeenCalled();
+    });
+
+    it('shadow ON: an unrelated handler error (post-assert) is NOT softened, still 500', async () => {
+      process.env.ACCESS_ENFORCEMENT = 'shadow';
+      getSessionFromRequest.mockResolvedValue(ownerSession);
+      assertProgramAccess.mockResolvedValue({ id: 7, company_id: 5 });
+      const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const handler = vi.fn().mockRejectedValue(new Error('boom'));
+      const wrapped = withProgramAccess(handler);
+
+      const res = await wrapped(req('GET'), rawCtx());
+
+      expect(res.status).toBe(500);
+      expect(handler).toHaveBeenCalledTimes(1);
+      logged.mockRestore();
+    });
   });
 });

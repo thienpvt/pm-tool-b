@@ -1,7 +1,14 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { assertProgramAccess } from '@/lib/services/programs.service';
-import { withAuth, type HandlerContext, type WrapperOptions } from './with-auth';
+import { ForbiddenError, NotFoundError } from '@/lib/services/errors';
+import {
+  isAccessShadowMode,
+  logAccessShadowDenial,
+  withAuth,
+  type HandlerContext,
+  type WrapperOptions,
+} from './with-auth';
 
 /**
  * Composes withAuth with the program/customer ownership assert. Program scope
@@ -13,6 +20,11 @@ import { withAuth, type HandlerContext, type WrapperOptions } from './with-auth'
  * wrapper hands it to the handler as ctx.program. Zero Phase 5 route
  * consumers (Phase 6 converts programs/[id]/**), built now per locked
  * decision so the substrate ships complete.
+ *
+ * ROUTE-08 shadow re-entry: mirrors withProjectAccess — the try/catch wraps
+ * ONLY the assert call. Shadow-on + ForbiddenError/NotFoundError logs and
+ * invokes the handler with `program: undefined`; any other error (including
+ * one the handler itself throws) is untouched by this catch.
  */
 export function withProgramAccess<
   TParams extends { id: string } & Record<string, string> = { id: string },
@@ -27,8 +39,17 @@ export function withProgramAccess<
 ) {
   return withAuth<TParams, TBody>(
     async (req, ctx) => {
-      const program = (await assertProgramAccess(ctx.params.id, ctx.actor)) as TProgram;
-      return handler(req, { ...ctx, program });
+      let program: TProgram | undefined;
+      try {
+        program = (await assertProgramAccess(ctx.params.id, ctx.actor)) as TProgram;
+      } catch (e) {
+        if (isAccessShadowMode() && (e instanceof ForbiddenError || e instanceof NotFoundError)) {
+          logAccessShadowDenial(req, ctx.user, e, ctx.params.id);
+        } else {
+          throw e;
+        }
+      }
+      return handler(req, { ...ctx, program: program as TProgram });
     },
     opts,
   );
