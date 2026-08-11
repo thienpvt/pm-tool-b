@@ -5,16 +5,15 @@ milestone_name: milestone
 current_phase: 06
 current_phase_name: Access Enforcement Rollout
 status: executing
-stopped_at: Completed 05-03-PLAN.md
-last_updated: "2026-08-11T06:11:32.977Z"
+stopped_at: Completed 06-06-PLAN.md
+last_updated: "2026-08-11T07:51:04.374Z"
 last_activity: 2026-08-11
 last_activity_desc: Phase 06 execution started
 progress:
-  total_phases: 7
+  total_phases: 6
   completed_phases: 5
   total_plans: 25
-  completed_plans: 18
-  percent: 71
+  completed_plans: 24
 ---
 
 # Project State
@@ -29,11 +28,11 @@ See: .planning/PROJECT.md (updated 2026-08-07)
 ## Current Position
 
 Phase: 06 (Access Enforcement Rollout) — EXECUTING
-Plan: 1 of 7
-Status: Executing Phase 06
+Plan: 3 of 7
+Status: Ready to execute
 Last activity: 2026-08-11 — Phase 06 execution started
 
-Progress: [██████████] 100% (phase 04 plans complete; await verify)
+Progress: [██████████] 96% (phase 04 plans complete; await verify)
 
 ## Performance Metrics
 
@@ -74,6 +73,7 @@ Progress: [██████████] 100% (phase 04 plans complete; await 
 | Phase 05 P01 | 45min | 3 tasks | 12 files |
 | Phase 05 P02 | 40min | 3 tasks | 17 files |
 | Phase 05 P03 | 55min | 3 tasks | 62 files |
+| Phase 06 P06 | 45min | 4 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -114,6 +114,7 @@ Recent decisions affecting current work:
 - [Phase ?]: 17 project-tree routes converted to withProjectAccess; no test edits needed (admin-bypass flip already landed in 05-01)
 - [Phase ?]: Tree-A schemas stay pure .passthrough() shape guards wherever no inline validation exists today; budget schemas avoid naming CAPEX/OPEX even in comments to satisfy the plan's zero-occurrence grep gate
 - [Phase ?]: Zero-validation tree-B routes (operations/systems/[id] PUT, program-allocations, config, rag-config, jira-config POST) get passthrough-only schemas with a fallback-to-raw-body pattern -- ROUTE-06 coverage without inventing new 400s
+- [Phase ?]: [Phase 06-06]: 401 matrix uses import.meta.glob eager-load (single enumeration source shared by both the 401 assertions and the drift check); global getDb() canary suffices since a null session 401s before any repo/service import path runs
 
 ### Pending Todos
 
@@ -137,6 +138,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-11T02:32:45.319Z
-Stopped at: Completed 05-03-PLAN.md
+Last session: 2026-08-11T07:51:04.363Z
+Stopped at: Completed 06-06-PLAN.md
 Resume file: None
