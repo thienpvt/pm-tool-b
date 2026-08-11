@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import ExcelJS from 'exceljs';
-import { getSessionFromRequest } from '@/lib/auth';
+import { withAuth } from '@/lib/http/with-auth';
 import { companyNameAndQuota, listPortfolioMembers } from '@/lib/repositories/portfolio.repo';
 
 const NAVY     = 'FF1E293B';
@@ -103,12 +103,9 @@ function buildSheet(
   secRow.getCell(1).font = { bold: true, size: 14, color: { argb: fnColor }, name: 'Calibri' };
 }
 
-export async function GET(req: NextRequest) {
-  const user = await getSessionFromRequest(req);
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-  const members = await listPortfolioMembers(user.company_id) as Member[];
-  const company = await companyNameAndQuota(user.company_id);
+export const GET = withAuth(async (_req, { actor }) => {
+  const members = await listPortfolioMembers(actor.company_id) as Member[];
+  const company = await companyNameAndQuota(actor.company_id);
 
   const internal = members.filter(m => m.member_type !== 'external');
   const external = members.filter(m => m.member_type === 'external');
@@ -130,4 +127,4 @@ export async function GET(req: NextRequest) {
       'Content-Disposition': `attachment; filename="ResourceManagement_${safeName}.xlsx"`,
     },
   });
-}
+});
