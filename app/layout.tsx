@@ -6,7 +6,7 @@ import { Toaster } from "@/components/ui/sonner";
 const geist = Geist({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Gambaru",
+  title: "SHB One Portfolio View",
   description: "Project Management Document Automation",
 };
 
