@@ -5,22 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Eye, EyeOff } from 'lucide-react';
-
-function KoinoboriIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
-      <path d="M7 14 C7 7 20 6 22 12 L22 16 C20 22 7 21 7 14Z" fill="#f97316"/>
-      <circle cx="7" cy="14" r="3.5" fill="none" stroke="#f97316" strokeWidth="2"/>
-      <path d="M12 10 A3 3 0 0 1 17 10" stroke="rgba(255,255,255,0.65)" strokeWidth="1.3" fill="none"/>
-      <path d="M10 14 A3 3 0 0 1 15 14" stroke="rgba(255,255,255,0.65)" strokeWidth="1.3" fill="none"/>
-      <path d="M15 14 A3 3 0 0 1 20 14" stroke="rgba(255,255,255,0.65)" strokeWidth="1.3" fill="none"/>
-      <path d="M12 18 A3 3 0 0 1 17 18" stroke="rgba(255,255,255,0.65)" strokeWidth="1.3" fill="none"/>
-      <path d="M22 12 L28 7 L25 14 L28 21 L22 16Z" fill="#f97316"/>
-      <circle cx="10" cy="11" r="2" fill="white"/>
-      <circle cx="10.5" cy="11.5" r="1" fill="#1e293b"/>
-    </svg>
-  );
-}
+import { Logo } from '@/components/brand/Logo';
 
 function LoginForm() {
   const router = useRouter();
@@ -61,11 +46,9 @@ function LoginForm() {
         {/* Logo */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center gap-2.5 mb-3">
-            <div className="bg-orange-500/20 rounded-xl p-2.5">
-              <KoinoboriIcon className="h-7 w-7" />
-            </div>
+            <Logo onDark className="h-8" />
           </div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">Gambaru</h1>
+          <h1 className="text-2xl font-bold text-white tracking-tight">SHB One Portfolio View</h1>
           <p className="text-slate-400 text-sm mt-1">Sign in to continue</p>
         </div>
 
@@ -127,7 +110,7 @@ function LoginForm() {
         </div>
 
         <p className="text-center text-slate-600 text-xs mt-6">
-          Gambaru
+          SHB One Portfolio View
         </p>
       </div>
     </div>

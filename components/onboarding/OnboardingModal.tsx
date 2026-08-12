@@ -7,26 +7,11 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { Logo } from '@/components/brand/Logo';
 import {
   Building2, FolderKanban, TrendingUp, CheckCircle2,
   ArrowRight, ChevronRight, Check,
 } from 'lucide-react';
-
-function KoinoboriIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
-      <path d="M7 14 C7 7 20 6 22 12 L22 16 C20 22 7 21 7 14Z" fill="#fb923c" />
-      <circle cx="7" cy="14" r="3.5" fill="none" stroke="#fb923c" strokeWidth="2" />
-      <path d="M12 10 A3 3 0 0 1 17 10" stroke="rgba(255,255,255,0.6)" strokeWidth="1.3" fill="none" />
-      <path d="M10 14 A3 3 0 0 1 15 14" stroke="rgba(255,255,255,0.6)" strokeWidth="1.3" fill="none" />
-      <path d="M15 14 A3 3 0 0 1 20 14" stroke="rgba(255,255,255,0.6)" strokeWidth="1.3" fill="none" />
-      <path d="M12 18 A3 3 0 0 1 17 18" stroke="rgba(255,255,255,0.6)" strokeWidth="1.3" fill="none" />
-      <path d="M22 12 L28 7 L25 14 L28 21 L22 16Z" fill="#fb923c" />
-      <circle cx="10" cy="11" r="2" fill="white" />
-      <circle cx="10.5" cy="11.5" r="1" fill="#1e293b" />
-    </svg>
-  );
-}
 
 const INDUSTRIES = [
   'Banking & Finance', 'Insurance', 'Fintech', 'Retail', 'Healthcare',
@@ -83,9 +68,7 @@ function WelcomeStep({
         />
         <div className="relative">
           <div className="flex items-center gap-3 mb-5">
-            <div className="w-11 h-11 bg-white/15 rounded-2xl flex items-center justify-center backdrop-blur-sm shrink-0">
-              <KoinoboriIcon className="h-6 w-6" />
-            </div>
+            <Logo className="h-7" />
             <div>
               <p className="text-[10px] text-white/50 font-semibold uppercase tracking-widest">PM Tool</p>
               <p className="text-white font-bold text-sm leading-tight">Project Manager</p>

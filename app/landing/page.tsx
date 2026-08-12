@@ -7,22 +7,7 @@ import {
   TrendingUp, Target, Zap, ArrowRight, Activity, Download, Sparkles,
   ClipboardList,
 } from 'lucide-react';
-
-function KoinoboriIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
-      <path d="M7 14 C7 7 20 6 22 12 L22 16 C20 22 7 21 7 14Z" fill="#f97316" />
-      <circle cx="7" cy="14" r="3.5" fill="none" stroke="#f97316" strokeWidth="2" />
-      <path d="M12 10 A3 3 0 0 1 17 10" stroke="rgba(255,255,255,0.65)" strokeWidth="1.3" fill="none" />
-      <path d="M10 14 A3 3 0 0 1 15 14" stroke="rgba(255,255,255,0.65)" strokeWidth="1.3" fill="none" />
-      <path d="M15 14 A3 3 0 0 1 20 14" stroke="rgba(255,255,255,0.65)" strokeWidth="1.3" fill="none" />
-      <path d="M12 18 A3 3 0 0 1 17 18" stroke="rgba(255,255,255,0.65)" strokeWidth="1.3" fill="none" />
-      <path d="M22 12 L28 7 L25 14 L28 21 L22 16Z" fill="#f97316" />
-      <circle cx="10" cy="11" r="2" fill="white" />
-      <circle cx="10.5" cy="11.5" r="1" fill="#1e293b" />
-    </svg>
-  );
-}
+import { Logo } from '@/components/brand/Logo';
 
 const FEATURES = [
   {
@@ -115,10 +100,8 @@ export default function LandingPage() {
       <header className="sticky top-0 z-50 bg-white/95 backdrop-blur border-b border-slate-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <Link href="/landing" className="flex items-center gap-2.5">
-            <div className="bg-orange-500/15 rounded-xl p-2">
-              <KoinoboriIcon className="h-6 w-6" />
-            </div>
-            <span className="text-xl font-bold text-slate-900 tracking-tight">Gambaru</span>
+            <Logo className="h-7" />
+            <span className="text-xl font-bold text-slate-900 tracking-tight">SHB One Portfolio View</span>
           </Link>
 
           {/* Desktop nav */}
@@ -189,7 +172,7 @@ export default function LandingPage() {
           </h1>
 
           <p className="mt-6 text-lg sm:text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed">
-            PMOs spend up to 40% of their time writing status reports. Gambaru eliminates that — generating board-ready executive reports in seconds, while giving you real-time visibility across every project in your portfolio.
+            PMOs spend up to 40% of their time writing status reports. SHB One Portfolio View eliminates that — generating board-ready executive reports in seconds, while giving you real-time visibility across every project in your portfolio.
           </p>
 
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -262,7 +245,7 @@ export default function LandingPage() {
                 <div className="w-3 h-3 rounded-full bg-amber-400" />
                 <div className="w-3 h-3 rounded-full bg-green-400" />
               </div>
-              <div className="flex-1 bg-white rounded-md px-3 py-1 text-xs text-slate-400 font-mono">gambaru.vn</div>
+              <div className="flex-1 bg-white rounded-md px-3 py-1 text-xs text-slate-400 font-mono">portfolio.shb.com.vn</div>
             </div>
 
             {/* App shell */}
@@ -270,10 +253,8 @@ export default function LandingPage() {
               {/* Sidebar */}
               <div className="w-44 bg-[#0f172a] px-3 py-4 flex flex-col gap-1 shrink-0 hidden sm:flex">
                 <div className="flex items-center gap-2 mb-4 px-2">
-                  <div className="w-6 h-6 bg-orange-500/20 rounded-lg flex items-center justify-center shrink-0">
-                    <KoinoboriIcon className="h-3.5 w-3.5" />
-                  </div>
-                  <span className="text-white text-xs font-bold">Gambaru</span>
+                  <Logo onDark className="h-4" />
+                  <span className="text-white text-xs font-bold leading-tight">SHB One Portfolio View</span>
                 </div>
                 {(['Portfolio', 'Roadmap', 'Reports', 'Programs', 'Projects'] as const).map((item, i) => (
                   <div key={item} className={`px-3 py-1.5 rounded-lg text-xs font-medium ${
@@ -441,7 +422,7 @@ export default function LandingPage() {
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-400">Not anymore.</span>
             </h2>
             <p className="mt-4 text-slate-400 text-base max-w-2xl mx-auto">
-              PMOs are the backbone of delivery — yet generic project tools force them to spend hours every week compiling data, formatting slides, and chasing status updates. Gambaru was designed to eliminate exactly that.
+              PMOs are the backbone of delivery — yet generic project tools force them to spend hours every week compiling data, formatting slides, and chasing status updates. SHB One Portfolio View was designed to eliminate exactly that.
             </p>
           </div>
 
@@ -463,7 +444,7 @@ export default function LandingPage() {
                 before: 'Copy-paste slides',
                 after:  '1-click export',
                 label:  'Board deck preparation',
-                desc:   'Generate presentation-ready PowerPoint or PDF directly from Gambaru in seconds.',
+                desc:   'Generate presentation-ready PowerPoint or PDF directly from SHB One Portfolio View in seconds.',
               },
             ].map(item => (
               <div key={item.label} className="bg-white/5 border border-white/10 rounded-2xl p-6 hover:bg-white/8 transition-colors">
@@ -503,7 +484,7 @@ export default function LandingPage() {
               Everything your PMO needs
             </h2>
             <p className="mt-4 text-lg text-slate-500 max-w-xl mx-auto">
-              From portfolio health to AI reports, Gambaru gives you a complete view of every project.
+              From portfolio health to AI reports, SHB One Portfolio View gives you a complete view of every project.
             </p>
           </div>
 
@@ -561,11 +542,9 @@ export default function LandingPage() {
               {/* Illustration: Onboarding card */}
               <div className="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 shadow-xl">
                 <div className="flex items-center gap-3 mb-5">
-                  <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center shrink-0">
-                    <KoinoboriIcon className="h-5 w-5" />
-                  </div>
+                  <Logo onDark className="h-5" />
                   <div>
-                    <p className="text-white font-bold text-sm">Welcome to Gambaru</p>
+                    <p className="text-white font-bold text-sm">Welcome to SHB One Portfolio View</p>
                     <p className="text-slate-400 text-xs">Let&apos;s set up your workspace</p>
                   </div>
                   <div className="ml-auto text-[10px] text-slate-500">1 / 4</div>
@@ -725,11 +704,11 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── Why Gambaru ──────────────────────────────────────────────────────── */}
+      {/* ── Why SHB One Portfolio View ──────────────────────────────────────── */}
       <section className="py-24 bg-slate-50">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <p className="text-sm font-bold text-blue-600 uppercase tracking-widest mb-3">Why Gambaru</p>
+            <p className="text-sm font-bold text-blue-600 uppercase tracking-widest mb-3">Why SHB One Portfolio View</p>
             <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
               Built for teams that ship
             </h2>
@@ -761,15 +740,13 @@ export default function LandingPage() {
         </div>
         <div className="relative max-w-3xl mx-auto px-4 text-center">
           <div className="inline-flex items-center justify-center mb-6 gap-2.5">
-            <div className="bg-orange-500/15 rounded-xl p-3">
-              <KoinoboriIcon className="h-8 w-8" />
-            </div>
+            <Logo onDark className="h-9" />
           </div>
           <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight mb-4">
             Ready to take control of your portfolio?
           </h2>
           <p className="text-slate-400 text-lg mb-10">
-            Sign in to your Gambaru workspace and start managing projects with clarity.
+            Sign in to your SHB One Portfolio View workspace and start managing projects with clarity.
           </p>
           <Link
             href="/login"
@@ -785,10 +762,8 @@ export default function LandingPage() {
       <footer className="bg-[#0a0f1e] border-t border-slate-800 py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2.5">
-            <div className="bg-orange-500/15 rounded-lg p-1.5">
-              <KoinoboriIcon className="h-5 w-5" />
-            </div>
-            <span className="text-sm font-bold text-slate-400">Gambaru</span>
+            <Logo onDark className="h-6" />
+            <span className="text-sm font-bold text-slate-400">SHB One Portfolio View</span>
           </div>
           <p className="text-xs text-slate-600">
             Project Management · AI-Powered · Built for PMOs
