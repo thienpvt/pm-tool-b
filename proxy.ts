@@ -37,5 +37,11 @@ export function proxy(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
+  // Static assets under public/ must be excluded too. Without the extension
+  // group, a request for /shb-logo.svg has no session cookie and gets
+  // redirected to /login — the browser then receives an HTML page where an
+  // image should be and renders a broken-image icon.
+  matcher: [
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|avif|ico|bmp|woff|woff2|ttf|otf|eot)$).*)',
+  ],
 };
