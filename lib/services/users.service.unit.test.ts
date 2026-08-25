@@ -189,6 +189,63 @@ describe('users.service updateUser audit', () => {
       }),
     );
   });
+
+  it('routes status locked to lockUser (USER-05, D-10)', async () => {
+    findUserById
+      .mockResolvedValueOnce({
+        id: 10,
+        username: 'new',
+        company_id: 5,
+        status: 'active',
+        email: 'new@example.com',
+        display_name: 'New',
+        roles: ['pm'],
+      })
+      .mockResolvedValueOnce({
+        id: 10,
+        username: 'new',
+        company_id: 5,
+        status: 'locked',
+        email: 'new@example.com',
+        display_name: 'New',
+        roles: ['pm'],
+      });
+    await updateUser(cpmoActor, 10, { status: 'locked' });
+    expect(lockUserRow).toHaveBeenCalledWith(10, cpmoActor.user_id);
+    expect(deleteSessionsForUser).toHaveBeenCalledWith(10);
+    expect(updateUserRow).not.toHaveBeenCalled();
+    expect(auditLogFn).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'lock', entity_type: 'user' }),
+    );
+  });
+
+  it('routes status active from locked to unlockUser (USER-05)', async () => {
+    findUserById
+      .mockResolvedValueOnce({
+        id: 10,
+        username: 'new',
+        company_id: 5,
+        status: 'locked',
+        email: 'new@example.com',
+        display_name: 'New',
+        roles: ['pm'],
+      })
+      .mockResolvedValueOnce({
+        id: 10,
+        username: 'new',
+        company_id: 5,
+        status: 'active',
+        email: 'new@example.com',
+        display_name: 'New',
+        roles: ['pm'],
+      });
+    await updateUser(cpmoActor, 10, { status: 'active' });
+    expect(unlockUserRow).toHaveBeenCalledWith(10);
+    expect(updateUserRow).not.toHaveBeenCalled();
+    expect(auditLogFn).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'unlock', entity_type: 'user' }),
+    );
+  });
 });
 
 describe('users.service lock/unlock/deactivate', () => {

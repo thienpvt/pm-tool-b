@@ -128,6 +128,13 @@ export async function updateUser(
   assertCpmoCompany(actor);
   const before = await loadUserInCompany(actor, userId);
 
+  if (input.status === 'locked' && before.status !== 'locked') {
+    return lockUser(actor, userId);
+  }
+  if (input.status === 'active' && before.status === 'locked') {
+    return unlockUser(actor, userId);
+  }
+
   const username = before.username;
   const email = input.email?.trim() ?? before.email;
   if (input.email !== undefined) {
