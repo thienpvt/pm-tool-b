@@ -2,22 +2,58 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const {
   assertCompanyWrite,
+  assertProjectAccess,
+  assertProjectWriteAccess,
   getCompanyWeeklyConfigRepo,
   upsertCompanyWeeklyConfigRepo,
   createPeriodWithShellsRepo,
   listWeeklyPeriodsRepo,
   auditLogFn,
+  getWeeklyReportFullRow,
+  getWeeklyReportWithPeriod,
+  updateWeeklyReportDraft,
+  updatePrevWeekRag,
+  getPriorPeriodSubmittedRag,
+  insertWeeklyReportVersion,
+  finalizeWeeklyReportSubmit,
+  openCorrectionOnShell,
+  getLatestVersionSnapshot,
+  listProjectWeeklyHistoryRepo,
+  getProjectRepo,
+  createRiskFn,
+  updateRiskFn,
+  createIssueFn,
+  updateIssueFn,
 } = vi.hoisted(() => ({
   assertCompanyWrite: vi.fn(),
+  assertProjectAccess: vi.fn(),
+  assertProjectWriteAccess: vi.fn(),
   getCompanyWeeklyConfigRepo: vi.fn(),
   upsertCompanyWeeklyConfigRepo: vi.fn(),
   createPeriodWithShellsRepo: vi.fn(),
   listWeeklyPeriodsRepo: vi.fn(),
   auditLogFn: vi.fn(),
+  getWeeklyReportFullRow: vi.fn(),
+  getWeeklyReportWithPeriod: vi.fn(),
+  updateWeeklyReportDraft: vi.fn(),
+  updatePrevWeekRag: vi.fn(),
+  getPriorPeriodSubmittedRag: vi.fn(),
+  insertWeeklyReportVersion: vi.fn(),
+  finalizeWeeklyReportSubmit: vi.fn(),
+  openCorrectionOnShell: vi.fn(),
+  getLatestVersionSnapshot: vi.fn(),
+  listProjectWeeklyHistoryRepo: vi.fn(),
+  getProjectRepo: vi.fn(),
+  createRiskFn: vi.fn(),
+  updateRiskFn: vi.fn(),
+  createIssueFn: vi.fn(),
+  updateIssueFn: vi.fn(),
 }));
 
 vi.mock('./access', () => ({
   assertCompanyWrite,
+  assertProjectAccess: (...args: unknown[]) => assertProjectAccess(...args),
+  assertProjectWriteAccess: (...args: unknown[]) => assertProjectWriteAccess(...args),
   isCpmo: (actor: { roles?: string[] }) => actor.roles?.includes('cpmo') ?? false,
 }));
 vi.mock('@/lib/repositories/weekly-periods.repo', () => ({
@@ -26,16 +62,44 @@ vi.mock('@/lib/repositories/weekly-periods.repo', () => ({
   createPeriodWithShells: createPeriodWithShellsRepo,
   listWeeklyPeriods: listWeeklyPeriodsRepo,
 }));
+vi.mock('@/lib/repositories/weekly-reports.repo', () => ({
+  getWeeklyReportFullRow,
+  getWeeklyReportWithPeriod,
+  updateWeeklyReportDraft,
+  updatePrevWeekRag,
+  getPriorPeriodSubmittedRag,
+  insertWeeklyReportVersion,
+  finalizeWeeklyReportSubmit,
+  openCorrectionOnShell,
+  getLatestVersionSnapshot,
+  listProjectWeeklyHistoryRepo,
+}));
+vi.mock('@/lib/repositories/projects.repo', () => ({
+  getProject: getProjectRepo,
+}));
 vi.mock('./audit.service', () => ({ auditLog: auditLogFn }));
+vi.mock('./risks.service', () => ({
+  createRisk: createRiskFn,
+  updateRisk: updateRiskFn,
+}));
+vi.mock('./issues.service', () => ({
+  createIssue: createIssueFn,
+  updateIssue: updateIssueFn,
+}));
 
 import {
   createWeeklyPeriod,
   getCompanyWeeklyConfig,
+  getWeeklyReportShell,
   isWeeklyReportOverdue,
+  listProjectWeeklyHistory,
   listWeeklyPeriods,
+  openWeeklyReportCorrection,
+  saveWeeklyReportDraft,
+  submitWeeklyReport,
   upsertCompanyWeeklyConfig,
 } from './weekly-reports.service';
-import { ConflictError, ForbiddenError } from './errors';
+import { ConflictError, ForbiddenError, NotFoundError } from './errors';
 import type { AccessActor } from './access';
 
 const cpmoActor: AccessActor = {
@@ -55,10 +119,40 @@ const pmActor: AccessActor = {
   user_id: 2,
 };
 
+const baseShell = {
+  id: 10,
+  period_id: 1,
+  project_id: 100,
+  status: 'not_submitted',
+  first_submitted_at: null,
+  first_lateness: null,
+  latest_version: 0,
+  correction_open: false,
+  highlights: null,
+  completed_work: null,
+  next_week_goals: null,
+  nearest_milestone: null,
+  nearest_milestone_id: null,
+  raid_dependency: null,
+  leadership_support: null,
+  this_week_rag: null,
+  prev_week_rag: null,
+  draft_raid_json: null,
+  iso_week: '2026-W02',
+  due_at: '2026-01-09T18:00:00.000Z',
+  display_name: '2026-W02 | 2026-01-05 – 2026-01-11',
+  company_id: 5,
+};
+
 beforeEach(() => {
   vi.clearAllMocks();
   assertCompanyWrite.mockImplementation(() => undefined);
+  assertProjectAccess.mockResolvedValue({ company_id: 5, customer_company_id: null });
+  assertProjectWriteAccess.mockResolvedValue(undefined);
   getCompanyWeeklyConfigRepo.mockResolvedValue(null);
+  getPriorPeriodSubmittedRag.mockResolvedValue(null);
+  getProjectRepo.mockResolvedValue({ rag: 'Green' });
+  updatePrevWeekRag.mockResolvedValue(undefined);
 });
 
 describe('createWeeklyPeriod', () => {
@@ -177,5 +271,313 @@ describe('isWeeklyReportOverdue', () => {
     expect(isWeeklyReportOverdue('not_submitted', dueAt, new Date('2026-01-01T00:00:00.000Z'))).toBe(
       false,
     );
+  });
+});
+
+describe('saveWeeklyReportDraft', () => {
+  it('does not call repo when assertProjectWriteAccess rejects (D-13, WKRP-02)', async () => {
+    assertProjectWriteAccess.mockRejectedValue(new ForbiddenError());
+
+    await expect(
+      saveWeeklyReportDraft(100, 10, pmActor, { highlights: 'hi' }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+    expect(getWeeklyReportFullRow).not.toHaveBeenCalled();
+    expect(updateWeeklyReportDraft).not.toHaveBeenCalled();
+  });
+
+  it('first PATCH of highlights sets status draft (D-06, WKRP-02)', async () => {
+    getWeeklyReportFullRow.mockResolvedValue({ ...baseShell });
+    updateWeeklyReportDraft.mockResolvedValue({ ...baseShell, status: 'draft', highlights: 'hi' });
+    getWeeklyReportWithPeriod.mockResolvedValue({
+      ...baseShell,
+      status: 'draft',
+      highlights: 'hi',
+      prev_week_rag: 'Green',
+    });
+
+    await saveWeeklyReportDraft(100, 10, pmActor, { highlights: 'hi' });
+
+    expect(assertProjectWriteAccess).toHaveBeenCalledWith(100, pmActor);
+    expect(updateWeeklyReportDraft).toHaveBeenCalledWith(
+      100,
+      10,
+      expect.objectContaining({ highlights: 'hi', status: 'draft' }),
+    );
+  });
+
+  it('PATCH including prev_week_rag leaves stored prev_week_rag unchanged (D-07, WKRP-03)', async () => {
+    getWeeklyReportFullRow.mockResolvedValue({ ...baseShell, prev_week_rag: 'Amber' });
+    updateWeeklyReportDraft.mockResolvedValue({ ...baseShell, status: 'draft', highlights: 'x' });
+    getWeeklyReportWithPeriod.mockResolvedValue({
+      ...baseShell,
+      status: 'draft',
+      prev_week_rag: 'Amber',
+    });
+
+    await saveWeeklyReportDraft(100, 10, pmActor, {
+      highlights: 'x',
+      prev_week_rag: 'Red',
+    });
+
+    expect(updateWeeklyReportDraft).toHaveBeenCalledWith(
+      100,
+      10,
+      expect.not.objectContaining({ prev_week_rag: expect.anything() }),
+    );
+  });
+
+  it('draft_raid_json PATCH does not invoke risks or issues services (D-11)', async () => {
+    getWeeklyReportFullRow.mockResolvedValue({ ...baseShell });
+    updateWeeklyReportDraft.mockResolvedValue({
+      ...baseShell,
+      status: 'draft',
+      draft_raid_json: { risks: [] },
+    });
+    getWeeklyReportWithPeriod.mockResolvedValue({
+      ...baseShell,
+      status: 'draft',
+      draft_raid_json: { risks: [] },
+      prev_week_rag: 'Green',
+    });
+
+    await saveWeeklyReportDraft(100, 10, pmActor, {
+      draft_raid_json: { risks: [{ id: 'new', title: 'x' }] },
+    });
+
+    expect(createRiskFn).not.toHaveBeenCalled();
+    expect(updateRiskFn).not.toHaveBeenCalled();
+    expect(createIssueFn).not.toHaveBeenCalled();
+    expect(updateIssueFn).not.toHaveBeenCalled();
+  });
+
+  it('throws ConflictError on submitted shell with correction_open false (D-08)', async () => {
+    getWeeklyReportFullRow.mockResolvedValue({
+      ...baseShell,
+      status: 'submitted',
+      correction_open: false,
+    });
+
+    await expect(
+      saveWeeklyReportDraft(100, 10, pmActor, { highlights: 'nope' }),
+    ).rejects.toBeInstanceOf(ConflictError);
+    expect(updateWeeklyReportDraft).not.toHaveBeenCalled();
+  });
+});
+
+describe('getWeeklyReportShell', () => {
+  it('prefills prev_week_rag from projects.rag when no prior submitted version (D-07)', async () => {
+    getWeeklyReportWithPeriod.mockResolvedValue({ ...baseShell, prev_week_rag: null });
+    getPriorPeriodSubmittedRag.mockResolvedValue(null);
+    getProjectRepo.mockResolvedValue({ rag: 'Amber' });
+
+    const shell = await getWeeklyReportShell(100, pmActor, 10);
+
+    expect(updatePrevWeekRag).toHaveBeenCalledWith(100, 10, 'Amber');
+    expect(shell.prev_week_rag).toBe('Amber');
+  });
+
+  it('uses prior period submitted version rag when available (D-07)', async () => {
+    getWeeklyReportWithPeriod.mockResolvedValue({ ...baseShell, prev_week_rag: null });
+    getPriorPeriodSubmittedRag.mockResolvedValue('Red');
+
+    const shell = await getWeeklyReportShell(100, pmActor, 10);
+
+    expect(getProjectRepo).not.toHaveBeenCalled();
+    expect(shell.prev_week_rag).toBe('Red');
+  });
+});
+
+describe('submitWeeklyReport', () => {
+  it('inserts version 1 and sets first_lateness on_time when before due_at (D-08, WKRP-04)', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-01-08T12:00:00.000Z'));
+
+    getWeeklyReportWithPeriod.mockResolvedValue({
+      ...baseShell,
+      status: 'draft',
+      this_week_rag: 'Green',
+      prev_week_rag: 'Amber',
+    });
+    finalizeWeeklyReportSubmit.mockResolvedValue({
+      ...baseShell,
+      status: 'submitted',
+      latest_version: 1,
+      first_submitted_at: '2026-01-08T12:00:00.000Z',
+      first_lateness: 'on_time',
+    });
+    getWeeklyReportWithPeriod.mockResolvedValueOnce({
+      ...baseShell,
+      status: 'draft',
+      this_week_rag: 'Green',
+      prev_week_rag: 'Amber',
+    });
+    getWeeklyReportWithPeriod.mockResolvedValue({
+      ...baseShell,
+      status: 'submitted',
+      latest_version: 1,
+      this_week_rag: 'Green',
+      prev_week_rag: 'Amber',
+      first_submitted_at: '2026-01-08T12:00:00.000Z',
+      first_lateness: 'on_time',
+    });
+
+    await submitWeeklyReport(100, 10, pmActor);
+
+    expect(insertWeeklyReportVersion).toHaveBeenCalledWith(
+      expect.objectContaining({ version: 1, rag: 'Green' }),
+    );
+    expect(finalizeWeeklyReportSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ latestVersion: 1, firstLateness: 'on_time' }),
+    );
+    expect(auditLogFn).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'weekly_submit' }),
+    );
+
+    vi.useRealTimers();
+  });
+
+  it('allows late submit and sets first_lateness late (D-05, PERD-03)', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-01-12T12:00:00.000Z'));
+
+    getWeeklyReportWithPeriod
+      .mockResolvedValueOnce({
+        ...baseShell,
+        status: 'draft',
+        this_week_rag: 'Amber',
+        prev_week_rag: 'Green',
+      })
+      .mockResolvedValue({
+        ...baseShell,
+        status: 'submitted',
+        this_week_rag: 'Amber',
+        prev_week_rag: 'Green',
+        first_lateness: 'late',
+      });
+    finalizeWeeklyReportSubmit.mockResolvedValue({});
+
+    await submitWeeklyReport(100, 10, pmActor);
+
+    expect(finalizeWeeklyReportSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ firstLateness: 'late' }),
+    );
+
+    vi.useRealTimers();
+  });
+
+  it('correction submit inserts version 2 with weekly_correct audit (D-08, WKRP-05)', async () => {
+    getWeeklyReportWithPeriod
+      .mockResolvedValueOnce({
+        ...baseShell,
+        status: 'submitted',
+        correction_open: true,
+        this_week_rag: 'Red',
+        prev_week_rag: 'Amber',
+        latest_version: 1,
+        first_submitted_at: '2026-01-08T12:00:00.000Z',
+        first_lateness: 'on_time',
+      })
+      .mockResolvedValue({
+        ...baseShell,
+        status: 'submitted',
+        latest_version: 2,
+        first_lateness: 'on_time',
+        first_submitted_at: '2026-01-08T12:00:00.000Z',
+      });
+    finalizeWeeklyReportSubmit.mockResolvedValue({});
+
+    await submitWeeklyReport(100, 10, pmActor);
+
+    expect(insertWeeklyReportVersion).toHaveBeenCalledWith(
+      expect.objectContaining({ version: 2 }),
+    );
+    expect(finalizeWeeklyReportSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        latestVersion: 2,
+        firstSubmittedAt: '2026-01-08T12:00:00.000Z',
+        firstLateness: 'on_time',
+      }),
+    );
+    expect(auditLogFn).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'weekly_correct' }),
+    );
+  });
+});
+
+describe('openWeeklyReportCorrection', () => {
+  it('opens correction and copies latest snapshot into draft columns (D-08)', async () => {
+    getWeeklyReportFullRow.mockResolvedValue({
+      ...baseShell,
+      status: 'submitted',
+      latest_version: 1,
+    });
+    getLatestVersionSnapshot.mockResolvedValue({
+      highlights: 'snap hi',
+      completed_work: 'done',
+      next_week_goals: 'goals',
+      nearest_milestone: { text: 'M1', milestone_id: 3 },
+      raid_dependency: 'dep',
+      leadership_support: 'sup',
+      this_week_rag: 'Green',
+      draft_raid_json: { risks: [] },
+    });
+    openCorrectionOnShell.mockResolvedValue({ ...baseShell, correction_open: true });
+    getWeeklyReportWithPeriod.mockResolvedValue({
+      ...baseShell,
+      status: 'submitted',
+      correction_open: true,
+      prev_week_rag: 'Green',
+    });
+
+    await openWeeklyReportCorrection(100, 10, pmActor, { highlights: 'overlay' });
+
+    expect(openCorrectionOnShell).toHaveBeenCalledWith(
+      100,
+      10,
+      expect.objectContaining({ highlights: 'overlay', nearest_milestone: 'M1' }),
+    );
+    expect(insertWeeklyReportVersion).not.toHaveBeenCalled();
+  });
+});
+
+describe('listProjectWeeklyHistory', () => {
+  it('returns one row per period newest iso_week first with overdue flag (D-09, WKRP-06)', async () => {
+    listProjectWeeklyHistoryRepo.mockResolvedValue([
+      {
+        display_name: '2026-W02 | x',
+        iso_week: '2026-W02',
+        status: 'draft',
+        due_at: '2020-01-01T00:00:00.000Z',
+        first_lateness: null,
+        latest_version: 0,
+        report_id: 2,
+        period_id: 2,
+        rag: null,
+        submitted_at: null,
+        submitted_by: null,
+      },
+      {
+        display_name: '2026-W01 | y',
+        iso_week: '2026-W01',
+        status: 'submitted',
+        due_at: '2026-01-02T18:00:00.000Z',
+        first_lateness: 'on_time',
+        latest_version: 1,
+        report_id: 1,
+        period_id: 1,
+        rag: 'Green',
+        submitted_at: '2026-01-02T10:00:00.000Z',
+        submitted_by: 2,
+      },
+    ]);
+
+    const rows = await listProjectWeeklyHistory(100, pmActor);
+
+    expect(assertProjectAccess).toHaveBeenCalledWith(100, pmActor);
+    expect(rows).toHaveLength(2);
+    expect(rows[0].iso_week).toBe('2026-W02');
+    expect(rows[0].overdue).toBe(true);
+    expect(rows[1].iso_week).toBe('2026-W01');
+    expect(rows[1].overdue).toBe(false);
   });
 });
