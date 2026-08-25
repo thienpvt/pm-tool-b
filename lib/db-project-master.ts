@@ -2,6 +2,7 @@ import type { Pool } from 'pg';
 
 export const PROJECT_MASTER_DDL_FLAG = 'project_master_ddl_v1';
 export const PM_ASSIGNMENT_BACKFILL_FLAG = 'pm_assignment_backfill_v1';
+export const PROJECT_MASTER_CONSTRAINTS_FLAG = 'project_master_constraints_v1';
 
 /** Hermetic unit-test assertions against the DDL strings (D-01, D-11, D-16, D-09). */
 export const PROJECT_MASTER_DDL = [
@@ -49,6 +50,26 @@ export const PROJECT_MASTER_DDL = [
   `,
 ];
 
+/** Partial unique indexes for assignment overlap and stakeholder singleton (D-12, D-18, WR-01, WR-03, WR-04). */
+export const PROJECT_MASTER_CONSTRAINTS_DDL = [
+  `
+    CREATE UNIQUE INDEX IF NOT EXISTS project_pm_assignments_one_open_primary_unique
+    ON project_pm_assignments (project_id)
+    WHERE role = 'primary' AND effective_to IS NULL
+  `,
+  `
+    CREATE UNIQUE INDEX IF NOT EXISTS project_pm_assignments_open_user_role_unique
+    ON project_pm_assignments (project_id, user_id, role)
+    WHERE effective_to IS NULL
+  `,
+  `
+    CREATE UNIQUE INDEX IF NOT EXISTS project_stakeholders_singleton_open_unique
+    ON project_stakeholders (project_id, stakeholder_role)
+    WHERE effective_to IS NULL
+      AND stakeholder_role IN ('sponsor', 'psc_chair', 'project_director')
+  `,
+];
+
 async function settingsFlagExists(pool: Pool, key: string): Promise<boolean> {
   try {
     const res = await pool.query('SELECT 1 FROM settings WHERE key = $1 LIMIT 1', [key]);
@@ -73,6 +94,16 @@ async function migrateProjectMasterDdl(pool: Pool): Promise<void> {
   }
 
   await writeSettingsFlag(pool, PROJECT_MASTER_DDL_FLAG);
+}
+
+async function migrateProjectMasterConstraints(pool: Pool): Promise<void> {
+  if (await settingsFlagExists(pool, PROJECT_MASTER_CONSTRAINTS_FLAG)) return;
+
+  for (const sql of PROJECT_MASTER_CONSTRAINTS_DDL) {
+    await pool.query(sql);
+  }
+
+  await writeSettingsFlag(pool, PROJECT_MASTER_CONSTRAINTS_FLAG);
 }
 
 /** Phase 10 D-14 email-first then name match; at most one open primary per project (D-14). */
@@ -118,6 +149,7 @@ export async function backfillPmAssignments(pool: Pool): Promise<void> {
 export async function migrateProjectMaster(pool: Pool): Promise<void> {
   try {
     await migrateProjectMasterDdl(pool);
+    await migrateProjectMasterConstraints(pool);
     await backfillPmAssignments(pool);
   } catch {
     /* settings table may not exist yet on first run — will retry next boot */

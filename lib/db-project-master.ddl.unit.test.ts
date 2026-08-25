@@ -30,3 +30,14 @@ describe('migrateProjectMaster DDL fragments', () => {
     );
   });
 });
+
+describe('migrateProjectMaster constraint indexes', () => {
+  it('includes partial unique indexes for open primary, user-role, and singleton stakeholders (WR-04)', async () => {
+    const { PROJECT_MASTER_CONSTRAINTS_DDL } = await import('./db-project-master');
+    const ddl = PROJECT_MASTER_CONSTRAINTS_DDL.join('\n');
+    expect(ddl).toMatch(/project_pm_assignments_one_open_primary_unique/);
+    expect(ddl).toMatch(/project_pm_assignments_open_user_role_unique/);
+    expect(ddl).toMatch(/project_stakeholders_singleton_open_unique/);
+    expect(ddl).toMatch(/stakeholder_role IN \('sponsor', 'psc_chair', 'project_director'\)/);
+  });
+});

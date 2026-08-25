@@ -121,6 +121,13 @@ describe('stakeholders.service', () => {
     expect(insertStakeholderRepo).not.toHaveBeenCalled();
   });
 
+  it('maps unique violation on singleton insert to ValidationError (WR-04, D-18)', async () => {
+    insertStakeholderRepo.mockRejectedValue({ code: '23505' });
+    await expect(
+      createProjectStakeholder(7, owner, { stakeholder_role: 'sponsor', user_id: 10 }),
+    ).rejects.toBeInstanceOf(ValidationError);
+  });
+
   it('second active psc_member does not throw', async () => {
     insertStakeholderRepo.mockResolvedValue({ id: 3, stakeholder_role: 'psc_member' });
     await expect(

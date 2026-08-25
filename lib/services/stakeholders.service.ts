@@ -50,6 +50,15 @@ function isSingletonStakeholderRole(role: StakeholderRole): boolean {
   return SINGLETON_ROLES.includes(role);
 }
 
+function isUniqueViolation(err: unknown): boolean {
+  return (
+    typeof err === 'object' &&
+    err !== null &&
+    'code' in err &&
+    (err as { code: string }).code === '23505'
+  );
+}
+
 function parseStakeholderRole(value: unknown): StakeholderRole {
   if (typeof value !== 'string' || !STAKEHOLDER_ROLES.includes(value as StakeholderRole)) {
     throw new ValidationError('stakeholder_role is required', 'stakeholder_role');
@@ -108,12 +117,23 @@ export async function createProjectStakeholder(
     }
   }
 
-  const created = (await insertStakeholderRepo(projectId, {
-    stakeholder_role: stakeholderRole,
-    user_id: userId,
-    external_name: externalName,
-    external_email: externalEmail,
-  })) as StakeholderRow;
+  let created: StakeholderRow;
+  try {
+    created = (await insertStakeholderRepo(projectId, {
+      stakeholder_role: stakeholderRole,
+      user_id: userId,
+      external_name: externalName,
+      external_email: externalEmail,
+    })) as StakeholderRow;
+  } catch (err) {
+    if (isSingletonStakeholderRole(stakeholderRole) && isUniqueViolation(err)) {
+      throw new ValidationError(
+        `An active ${stakeholderRole} already exists; end the previous window first`,
+        'stakeholder_role',
+      );
+    }
+    throw err;
+  }
 
   await auditLog({
     actor_id: actor.user_id,
