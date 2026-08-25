@@ -433,16 +433,15 @@ Baseline today: **zero matches** in `components/`; **zero forbidden imports** in
 
 **If A1 wrong:** Read `node_modules/next/dist/docs/` for Next 16 navigation testing guidance before executor starts project-scoped pages.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Exact sub-split boundaries for >400-line banner sections (portfolio BuildHtmlReport, timeline RoadmapView)**
    - What we know: Banner is the primary seam; inner comments exist in timeline Component section.
-   - What's unclear: Whether planner splits BuildHtmlReport by HTML section (KPI, risks, FTE) or by helper functions.
-   - Recommendation: Executor reads the banner block, splits at top-level `function`/`const` boundaries inside it — still semantic, not line-count.
+   - RESOLVED: Executor splits at top-level `function`/`const` boundaries inside the banner block — semantic seams, not arbitrary line counts.
 
 2. **Hook granularity for portfolio report (many loaders)**
    - What we know: `loadConfig`, `loadData`, email flows are separate callbacks today [VERIFIED: app/portfolio/report/page.tsx:1582-1604].
-   - Recommendation: Single `usePortfolioReport` hook exporting all fetch state — avoids over-engineering; split only if file exceeds 400 lines.
+   - RESOLVED: Single `usePortfolioReport` hook exporting all fetch state; split only if that file exceeds 400 lines.
 
 ## Environment Availability
 
