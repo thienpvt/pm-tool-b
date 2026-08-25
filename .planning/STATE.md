@@ -5,16 +5,16 @@ milestone_name: Portfolio One View
 current_phase: 10
 current_phase_name: Users, Roles & Server Authorization
 status: executing
-stopped_at: Completed 10-05-PLAN.md
-last_updated: "2026-08-25T18:36:52.010Z"
+stopped_at: Completed 10-04-PLAN.md
+last_updated: "2026-08-25T18:39:06.766Z"
 last_activity: 2026-08-26
 last_activity_desc: Phase 9 complete, transitioned to Phase 10
-state_head: 163d175f0547c5b9ee695b4c87b2de3d3194ca17
+state_head: 41d4475d1dbc2c056a2526530bc44c3eecee1ddc
 progress:
   total_phases: 10
   completed_phases: 1
   total_plans: 14
-  completed_plans: 7
+  completed_plans: 8
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-08-25)
 ## Current Position
 
 Phase: 10 (Users, Roles & Server Authorization) — IN PROGRESS
-Plan: 4 of 11 complete (10-01)
+Plan: 5 of 11 complete (10-01)
 Status: Ready to execute
 Last activity: 2026-08-26 — Completed 10-01 auth spine tracer
 
@@ -62,6 +62,7 @@ Progress: [█░░░░░░░░░] 10%
 | Phase 10-users-roles-server-authorization P02 | 8min | 3 tasks | 7 files |
 | Phase 10-users-roles-server-authorization P03 | 8min | 3 tasks | 9 files |
 | Phase 10-users-roles-server-authorization P05 | 12min | 3 tasks | 13 files |
+| Phase 10-users-roles-server-authorization P04 | 3min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -88,6 +89,7 @@ Recent decisions affecting current work:
 - [Phase 10]: PM-only D-14 matcher on GET after tenant; assertPmWriteAccess seam for Phase 11 (D-14, D-24)
 - [Phase 10]: CPMO user admin split from platform break-glass via withCpmo + company_id scope (D-21)
 - [Phase 10]: user_roles excluded from INSERT RETURNING id (composite PK)
+- [Phase 10]: RAID/timeline mutators use assertProjectWriteAccess from 10-03; reads keep assertProjectAccess
 
 ### Pending Todos
 
@@ -108,6 +110,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-08-25T18:36:51.925Z
-Stopped at: Completed 10-05-PLAN.md
+Last session: 2026-08-25T18:39:06.681Z
+Stopped at: Completed 10-04-PLAN.md
 Resume file: None
