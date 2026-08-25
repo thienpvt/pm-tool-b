@@ -112,6 +112,8 @@ Notes:
 
 **HYG-01 commit:** `e0b2cea` — `refactor(08): delete old inline credential paths after resolver cutover verified (INTG-08, HYG-01)`
 
+**Plan metadata:** `4466e9a` (docs: complete plan)
+
 ## Files Created/Modified
 
 - `app/api/jira/search/route.ts` — removed dead `getJiraCredentials` and unused `companyJiraConfig` import
