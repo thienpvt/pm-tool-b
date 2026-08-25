@@ -29,13 +29,13 @@ Requirements for this milestone. Each maps to roadmap phases. Jira import, AI re
 
 ### Project Master Data
 
-- [ ] **PROJ-01**: CPMO can create a project with required identity fields: portfolio year, name, unique project code, and program; only CPMO can set or change project code
-- [ ] **PROJ-02**: Changing a project code does not drop or recreate linked records
+- [x] **PROJ-01**: CPMO can create a project with required identity fields: portfolio year, name, unique project code, and program; only CPMO can set or change project code
+- [x] **PROJ-02**: Changing a project code does not drop or recreate linked records
 - [ ] **PROJ-03**: User with write access can maintain classification, governance, stage (L0–L5), status, RAG, progress (0–100%), and timeline dates (start, plan end, adjusted end, actual end)
 - [ ] **PROJ-04**: Status "Other" requires a reason; weekly-report flag "Yes" requires a start period
 - [ ] **PROJ-05**: Stage L5 defaults status to Completed, RAG to Not applicable, and progress to 100%, with a warning if the user overrides or if progress was below 100%
 - [ ] **PROJ-06**: Stage L5 or status Completed/Paused/Cancelled/Other defaults RAG to Not applicable, with a warning if the user chooses otherwise
-- [ ] **PROJ-07**: Progress updates do not overwrite progress stored in previously submitted weekly reports
+- [x] **PROJ-07**: Progress updates do not overwrite progress stored in previously submitted weekly reports
 - [ ] **PROJ-08**: Only projects with weekly-report = Yes generate weekly obligations from the chosen start period forward; turning the flag off stops future periods without deleting history; L5 or terminal status also stops future obligations
 
 ### PM Assignment
@@ -198,13 +198,13 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AUTH-04 | Phase 10 | Complete |
 | AUTH-05 | Phase 10 | Complete |
 | AUTH-06 | Phase 10 | Complete |
-| PROJ-01 | Phase 11 | Pending |
-| PROJ-02 | Phase 11 | Pending |
+| PROJ-01 | Phase 11 | Complete |
+| PROJ-02 | Phase 11 | Complete |
 | PROJ-03 | Phase 11 | Pending |
 | PROJ-04 | Phase 11 | Pending |
 | PROJ-05 | Phase 11 | Pending |
 | PROJ-06 | Phase 11 | Pending |
-| PROJ-07 | Phase 11 | Pending |
+| PROJ-07 | Phase 11 | Complete |
 | PROJ-08 | Phase 11 | Pending |
 | PMAS-01 | Phase 11 | Pending |
 | PMAS-02 | Phase 11 | Pending |
