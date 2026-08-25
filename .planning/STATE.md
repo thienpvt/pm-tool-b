@@ -20,8 +20,8 @@ progress:
 
 See: .planning/PROJECT.md (updated 2026-08-25)
 
-**Core value:** Every project-scoped request is tenant-isolated and every layer has one job — so a new route or page cannot silently reintroduce IDOR or a 2000-line god component.
-**Current focus:** Planning next milestone (`$gsd-new-milestone`)
+**Core value:** One source of truth for projects, milestones, RAID, and weekly reports — role- and project-scoped — so CPMO and PMs act on highlights, nearest milestones, open risks/issues, and items that need leadership support.
+**Current focus:** v2.0 Portfolio One View — defining requirements
 
 ## Current Position
 
@@ -166,22 +166,23 @@ Items acknowledged and carried forward from previous milestone close:
 
 | Category | Item | Status | Deferred At |
 |----------|------|--------|-------------|
-| Data Layer | DATA-01, DATA-02, DATA-03 (migration tooling) | v2 | 2026-08-07 |
-| Enforcement | ENF-01, ENF-02 (ESLint gate, Kysely adoption) | v2 | 2026-08-07 |
-| Performance | PERF-01, PERF-02, PERF-03 | v2 | 2026-08-07 |
+| Data Layer | DATA-01, DATA-02, DATA-03 (migration tooling) | later (not v2.0) | 2026-08-07 |
+| Enforcement | ENF-01, ENF-02 (ESLint gate, Kysely adoption) | later (not v2.0) | 2026-08-07 |
+| Performance | PERF-01, PERF-02, PERF-03 | later (not v2.0) | 2026-08-07 |
 
 ## Deferred Verification
 
 None. Phase 6 human UAT closed 2026-08-25 (`06-UAT.md`: shadow review, residual-risk acceptance, proxy 307). Phase 7 UI-11 UAT closed the same day.
 
-*v2 follow-up (not verification debt): company_id on timeline_import_mappings, bug_import_mappings, jira_jql_presets, jira_sync_mappings.*
+TENANT-01 is in v2.0 scope: `company_id` on `timeline_import_mappings`, `bug_import_mappings`, `jira_jql_presets`, `jira_sync_mappings`.
 
 ## Session Continuity
 
-Last session: 2026-08-25T15:06:06.458Z
-Stopped at: Phase 8 complete — all phases complete
+Last session: 2026-08-25T16:04:00.000Z
+Stopped at: Milestone v2.0 started — defining requirements
 Resume file: None
 
 ## Operator Next Steps
 
-- Start the next milestone with /gsd-new-milestone
+- Finish `$gsd-new-milestone` (requirements → roadmap)
+- Then `$gsd-discuss-phase 9` or `$gsd-plan-phase 9`
