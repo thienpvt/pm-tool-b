@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createUser, listUsers, updateUser } from '@/lib/services/users.service';
+import { NextResponse } from 'next/server';
+import { createUser, deactivateUser, listUsers, updateUser } from '@/lib/services/users.service';
 import { withCpmo } from '@/lib/http/with-role';
+import { ValidationError } from '@/lib/services/errors';
 import { createUserSchema, updateUserSchema } from './schema';
 
 export const GET = withCpmo(async (req, { actor }) => {
@@ -40,6 +41,17 @@ export const PUT = withCpmo(
   },
 );
 
-export async function DELETE(_req: NextRequest) {
-  return NextResponse.json({ error: 'Not implemented' }, { status: 501 });
-}
+export const DELETE = withCpmo(async (req, { actor }) => {
+  const { searchParams } = new URL(req.url);
+  const id = searchParams.get('id');
+  if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
+  try {
+    await deactivateUser(actor, id);
+  } catch (e) {
+    if (e instanceof ValidationError && e.message === 'Cannot deactivate yourself') {
+      return NextResponse.json({ error: 'Cannot delete yourself' }, { status: 400 });
+    }
+    throw e;
+  }
+  return NextResponse.json({ ok: true });
+});

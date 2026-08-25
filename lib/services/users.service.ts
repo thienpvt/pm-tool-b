@@ -164,17 +164,37 @@ export async function updateUser(
 
 export async function lockUser(actor: AccessActor, userId: number | string) {
   assertCpmoCompany(actor);
-  const existing = await loadUserInCompany(actor, userId);
+  const before = await loadUserInCompany(actor, userId);
   await lockUserRow(userId, actor.user_id);
   await deleteSessionsForUser(userId);
-  return findUserById(existing.id);
+  const after = await findUserById(userId);
+  await auditLog({
+    actor_id: actor.user_id,
+    company_id: actor.company_id,
+    entity_type: 'user',
+    entity_id: String(userId),
+    action: 'lock',
+    before: auditSnapshot(before),
+    after: auditSnapshot(after),
+  });
+  return after;
 }
 
 export async function unlockUser(actor: AccessActor, userId: number | string) {
   assertCpmoCompany(actor);
-  const existing = await loadUserInCompany(actor, userId);
+  const before = await loadUserInCompany(actor, userId);
   await unlockUserRow(userId);
-  return findUserById(existing.id);
+  const after = await findUserById(userId);
+  await auditLog({
+    actor_id: actor.user_id,
+    company_id: actor.company_id,
+    entity_type: 'user',
+    entity_id: String(userId),
+    action: 'unlock',
+    before: auditSnapshot(before),
+    after: auditSnapshot(after),
+  });
+  return after;
 }
 
 export async function deactivateUser(actor: AccessActor, userId: number | string) {
@@ -182,7 +202,17 @@ export async function deactivateUser(actor: AccessActor, userId: number | string
   if (Number(userId) === actor.user_id) {
     throw new ValidationError('Cannot deactivate yourself');
   }
-  await loadUserInCompany(actor, userId);
+  const before = await loadUserInCompany(actor, userId);
   await deactivateUserRow(userId);
-  return findUserById(userId);
+  const after = await findUserById(userId);
+  await auditLog({
+    actor_id: actor.user_id,
+    company_id: actor.company_id,
+    entity_type: 'user',
+    entity_id: String(userId),
+    action: 'deactivate',
+    before: auditSnapshot(before),
+    after: auditSnapshot(after),
+  });
+  return after;
 }
