@@ -2,19 +2,21 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const {
   assertProjectAccess,
+  assertProjectWriteAccess,
   listBudgetItems,
   listExpenses,
   activityStats,
   createBudgetItemRepo,
 } = vi.hoisted(() => ({
   assertProjectAccess: vi.fn(),
+  assertProjectWriteAccess: vi.fn(),
   listBudgetItems: vi.fn(),
   listExpenses: vi.fn(),
   activityStats: vi.fn(),
   createBudgetItemRepo: vi.fn(),
 }));
 
-vi.mock('@/lib/services/access', () => ({ assertProjectAccess }));
+vi.mock('@/lib/services/access', () => ({ assertProjectAccess, assertProjectWriteAccess }));
 vi.mock('@/lib/repositories/budget.repo', () => ({
   listBudgetItems,
   listExpenses,
@@ -28,6 +30,7 @@ import { ForbiddenError, ValidationError } from './errors';
 beforeEach(() => {
   vi.clearAllMocks();
   assertProjectAccess.mockResolvedValue(undefined);
+  assertProjectWriteAccess.mockResolvedValue(undefined);
 });
 
 const owner = { company_id: 5 as number | null, is_admin: 0 as number | boolean };
@@ -91,8 +94,15 @@ describe('budget.service', () => {
     expect(createBudgetItemRepo).not.toHaveBeenCalled();
   });
 
-  it('createBudgetItem does not call the repository when access is denied', async () => {
-    assertProjectAccess.mockRejectedValue(new ForbiddenError());
+  it('createBudgetItem asserts write access before creating', async () => {
+    createBudgetItemRepo.mockResolvedValue({ id: 1, name: 'Item' });
+    await createBudgetItem(7, owner, { name: 'Item', type: 'CAPEX' });
+    expect(assertProjectWriteAccess).toHaveBeenCalledWith(7, owner);
+    expect(createBudgetItemRepo).toHaveBeenCalled();
+  });
+
+  it('createBudgetItem does not call the repository when write access is denied', async () => {
+    assertProjectWriteAccess.mockRejectedValue(new ForbiddenError());
     await expect(
       createBudgetItem(7, foreign, { name: 'Item', type: 'CAPEX' }),
     ).rejects.toBeInstanceOf(ForbiddenError);

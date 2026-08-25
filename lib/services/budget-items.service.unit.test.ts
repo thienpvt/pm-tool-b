@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const {
   assertProjectAccess,
+  assertProjectWriteAccess,
   updateBudgetItemRepo,
   deleteBudgetItemRepo,
   listExpensesByItemRepo,
@@ -11,6 +12,7 @@ const {
   deleteExpenseRepo,
 } = vi.hoisted(() => ({
   assertProjectAccess: vi.fn(),
+  assertProjectWriteAccess: vi.fn(),
   updateBudgetItemRepo: vi.fn(),
   deleteBudgetItemRepo: vi.fn(),
   listExpensesByItemRepo: vi.fn(),
@@ -20,7 +22,7 @@ const {
   deleteExpenseRepo: vi.fn(),
 }));
 
-vi.mock('@/lib/services/access', () => ({ assertProjectAccess }));
+vi.mock('@/lib/services/access', () => ({ assertProjectAccess, assertProjectWriteAccess }));
 vi.mock('@/lib/repositories/budget.repo', () => ({
   updateBudgetItem: updateBudgetItemRepo,
   deleteBudgetItem: deleteBudgetItemRepo,
@@ -43,6 +45,7 @@ import { ForbiddenError, NotFoundError, ValidationError } from './errors';
 beforeEach(() => {
   vi.clearAllMocks();
   assertProjectAccess.mockResolvedValue(undefined);
+  assertProjectWriteAccess.mockResolvedValue(undefined);
 });
 
 const owner = { company_id: 5 as number | null, is_admin: 0 as number | boolean };
@@ -51,15 +54,15 @@ const validBody = { type: 'CAPEX', name: 'Servers' };
 
 describe('budget-items.service', () => {
   describe('updateBudgetItem', () => {
-    it('asserts access before updating', async () => {
+    it('asserts write access before updating', async () => {
       updateBudgetItemRepo.mockResolvedValue({ id: 2, name: 'Servers' });
       await expect(updateBudgetItem(1, 2, owner, validBody)).resolves.toEqual({ id: 2, name: 'Servers' });
-      expect(assertProjectAccess).toHaveBeenCalledWith(1, owner);
+      expect(assertProjectWriteAccess).toHaveBeenCalledWith(1, owner);
       expect(updateBudgetItemRepo).toHaveBeenCalledWith(1, 2, validBody);
     });
 
-    it('does not call the repository when access is denied', async () => {
-      assertProjectAccess.mockRejectedValue(new ForbiddenError());
+    it('does not call the repository when write access is denied', async () => {
+      assertProjectWriteAccess.mockRejectedValue(new ForbiddenError());
       await expect(updateBudgetItem(1, 2, foreign, validBody)).rejects.toBeInstanceOf(ForbiddenError);
       expect(updateBudgetItemRepo).not.toHaveBeenCalled();
     });
@@ -85,15 +88,15 @@ describe('budget-items.service', () => {
   });
 
   describe('deleteBudgetItem', () => {
-    it('asserts access before deleting', async () => {
+    it('asserts write access before deleting', async () => {
       deleteBudgetItemRepo.mockResolvedValue({ lastInsertRowid: 0, changes: 1 });
       await expect(deleteBudgetItem(1, 2, owner)).resolves.toEqual({ lastInsertRowid: 0, changes: 1 });
-      expect(assertProjectAccess).toHaveBeenCalledWith(1, owner);
+      expect(assertProjectWriteAccess).toHaveBeenCalledWith(1, owner);
       expect(deleteBudgetItemRepo).toHaveBeenCalledWith(1, 2);
     });
 
-    it('does not call the repository when access is denied', async () => {
-      assertProjectAccess.mockRejectedValue(new ForbiddenError());
+    it('does not call the repository when write access is denied', async () => {
+      assertProjectWriteAccess.mockRejectedValue(new ForbiddenError());
       await expect(deleteBudgetItem(1, 2, foreign)).rejects.toBeInstanceOf(ForbiddenError);
       expect(deleteBudgetItemRepo).not.toHaveBeenCalled();
     });
@@ -117,7 +120,7 @@ describe('budget-items.service', () => {
   describe('createExpense', () => {
     const expenseBody = { description: 'Cloud bill' };
 
-    it('asserts access, then the item scoping guard, before creating', async () => {
+    it('asserts write access, then the item scoping guard, before creating', async () => {
       getBudgetItemInProjectRepo.mockResolvedValue({ id: 2 });
       createExpenseRepo.mockResolvedValue({ id: 9, description: 'Cloud bill' });
 
@@ -125,13 +128,13 @@ describe('budget-items.service', () => {
         id: 9,
         description: 'Cloud bill',
       });
-      expect(assertProjectAccess).toHaveBeenCalledWith(1, owner);
+      expect(assertProjectWriteAccess).toHaveBeenCalledWith(1, owner);
       expect(getBudgetItemInProjectRepo).toHaveBeenCalledWith(1, 2);
       expect(createExpenseRepo).toHaveBeenCalledWith(1, 2, expenseBody);
     });
 
-    it('does not call the repository when access is denied', async () => {
-      assertProjectAccess.mockRejectedValue(new ForbiddenError());
+    it('does not call the repository when write access is denied', async () => {
+      assertProjectWriteAccess.mockRejectedValue(new ForbiddenError());
       await expect(createExpense(1, 2, foreign, expenseBody)).rejects.toBeInstanceOf(ForbiddenError);
       expect(getBudgetItemInProjectRepo).not.toHaveBeenCalled();
     });
@@ -151,17 +154,17 @@ describe('budget-items.service', () => {
   });
 
   describe('deleteExpense', () => {
-    it('asserts access, then the scoping guard, before deleting', async () => {
+    it('asserts write access, then the scoping guard, before deleting', async () => {
       getExpenseInItemRepo.mockResolvedValue({ id: 9 });
       deleteExpenseRepo.mockResolvedValue({ ok: true });
       await expect(deleteExpense(1, 2, 9, owner)).resolves.toEqual({ ok: true });
-      expect(assertProjectAccess).toHaveBeenCalledWith(1, owner);
+      expect(assertProjectWriteAccess).toHaveBeenCalledWith(1, owner);
       expect(getExpenseInItemRepo).toHaveBeenCalledWith(1, 2, 9);
       expect(deleteExpenseRepo).toHaveBeenCalledWith(1, 2, 9);
     });
 
-    it('does not call the repository when access is denied', async () => {
-      assertProjectAccess.mockRejectedValue(new ForbiddenError());
+    it('does not call the repository when write access is denied', async () => {
+      assertProjectWriteAccess.mockRejectedValue(new ForbiddenError());
       await expect(deleteExpense(1, 2, 9, foreign)).rejects.toBeInstanceOf(ForbiddenError);
       expect(getExpenseInItemRepo).not.toHaveBeenCalled();
       expect(deleteExpenseRepo).not.toHaveBeenCalled();
