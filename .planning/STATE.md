@@ -154,7 +154,7 @@ None yet.
 
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
-| 260825-vq9 | summary milestone v1.0 work in Vietnamese | 2026-08-25 | pending | [260825-vq9-summary-milestone-v1-0-work-in-vietnames](./quick/260825-vq9-summary-milestone-v1-0-work-in-vietnames/) |
+| 260825-vq9 | summary milestone v1.0 work in Vietnamese | 2026-08-25 | b86f19a | [260825-vq9-summary-milestone-v1-0-work-in-vietnames](./quick/260825-vq9-summary-milestone-v1-0-work-in-vietnames/) |
 
 ### Roadmap Evolution
 
