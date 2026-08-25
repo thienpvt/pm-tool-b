@@ -5,16 +5,16 @@ milestone_name: Portfolio One View
 current_phase: 13
 current_phase_name: Weekly Periods & PM Submit
 status: planning
-stopped_at: Completed 13-02-PLAN.md
-last_updated: "2026-08-25T23:46:02.570Z"
+stopped_at: Completed 13-03-PLAN.md
+last_updated: "2026-08-25T23:50:26.103Z"
 last_activity: 2026-08-26
 last_activity_desc: Phase 12 complete, transitioned to Phase 13
-state_head: 90aaa2f95f132268ad463d796826a0708061815d
+state_head: 8a37f5fcc8584d83d616bacbae96bff14b983536
 progress:
   total_phases: 10
   completed_phases: 4
   total_plans: 25
-  completed_plans: 24
+  completed_plans: 25
 ---
 
 # Project State
@@ -79,6 +79,7 @@ Progress: [█░░░░░░░░░] 10%
 | Phase 12-milestone-raid-master-registers P03 | 4min | 3 tasks | 11 files |
 | Phase 13-weekly-periods-pm-submit P01 | 25 | 2 tasks | 18 files |
 | Phase 13-weekly-periods-pm-submit P02 | 25min | 2 tasks | 12 files |
+| Phase 13-weekly-periods-pm-submit P03 | 25 | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -130,6 +131,8 @@ Recent decisions affecting current work:
 - [Phase 13]: Transaction uses PoolClient for period+shell inserts on one connection
 - [Phase 13]: Submit route uses rawBody:true for body-less POST
 - [Phase 13]: Snapshot stores draft_raid_json on shell only until 13-03 submit RAID writes
+- [Phase 13]: SubmitValidationError fields[] separate from ValidationError.field for multi-field 400 mapping
+- [Phase 13]: Submit copies progress_pct read-only; updateProject rag-only when this_week_rag differs
 
 ### Pending Todos
 
@@ -150,6 +153,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-08-25T23:46:02.199Z
-Stopped at: Completed 13-02-PLAN.md
+Last session: 2026-08-25T23:50:25.732Z
+Stopped at: Completed 13-03-PLAN.md
 Resume file: None

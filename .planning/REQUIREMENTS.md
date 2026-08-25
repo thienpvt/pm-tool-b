@@ -62,7 +62,7 @@ Requirements for this milestone. Each maps to roadmap phases. Jira import, AI re
 - [x] **MS-01**: PM (assigned) and CPMO can create, update, and cancel milestones on projects in their scope; Viewer cannot mutate
 - [x] **MS-02**: Dashboard shows upcoming milestones (7 days before plan or adjusted end) excluding Completed/Cancelled
 - [x] **MS-03**: A milestone is overdue when today is after plan or adjusted end and status is not Completed/Cancelled; it appears on the dashboard action list
-- [ ] **MS-04**: Submitted weekly reports store a milestone snapshot; later milestone edits do not change old reports
+- [x] **MS-04**: Submitted weekly reports store a milestone snapshot; later milestone edits do not change old reports
 - [x] **MS-05**: A milestone that appeared in a submitted weekly report cannot be physically deleted
 
 ### Budget and Value
@@ -77,8 +77,8 @@ Requirements for this milestone. Each maps to roadmap phases. Jira import, AI re
 ### Risk and Issue Register
 
 - [x] **RAID-01**: PM (assigned) and CPMO can create, update, and deactivate risks and issues with a unique code per project; Viewer cannot mutate
-- [ ] **RAID-02**: The register is the master; weekly reports reference master records and store snapshots — they are not a second independent RAID store
-- [ ] **RAID-03**: Draft weekly-report RAID edits stay on the draft until submit; submit validates, writes the master, stores a version, locks the snapshot, and refreshes dashboards — or rejects the submit with the fields to fix
+- [x] **RAID-02**: The register is the master; weekly reports reference master records and store snapshots — they are not a second independent RAID store
+- [x] **RAID-03**: Draft weekly-report RAID edits stay on the draft until submit; submit validates, writes the master, stores a version, locks the snapshot, and refreshes dashboards — or rejects the submit with the fields to fix
 - [x] **RAID-04**: Overdue open RAID items are flagged and shown on dashboards; changing a due date keeps prior due-date history
 - [x] **RAID-05**: Project register defaults to Open / In progress, ordered High then Medium then Low, with overdue first within a severity
 - [x] **RAID-06**: Portfolio dashboard counts High open/in-progress RAID records (not projects) and lists technology-council issues when that flag is set
@@ -219,7 +219,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | MS-01 | Phase 12 | Complete |
 | MS-02 | Phase 12 | Complete |
 | MS-03 | Phase 12 | Complete |
-| MS-04 | Phase 13 | Pending |
+| MS-04 | Phase 13 | Complete |
 | MS-05 | Phase 12 | Complete |
 | BUDG-01 | Phase 15 | Pending |
 | BUDG-02 | Phase 15 | Pending |
@@ -228,8 +228,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | BUDG-05 | Phase 15 | Pending |
 | BUDG-06 | Phase 15 | Pending |
 | RAID-01 | Phase 12 | Complete |
-| RAID-02 | Phase 13 | Pending |
-| RAID-03 | Phase 13 | Pending |
+| RAID-02 | Phase 13 | Complete |
+| RAID-03 | Phase 13 | Complete |
 | RAID-04 | Phase 12 | Complete |
 | RAID-05 | Phase 12 | Complete |
 | RAID-06 | Phase 12 | Complete |
