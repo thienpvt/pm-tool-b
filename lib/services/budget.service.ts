@@ -4,7 +4,7 @@ import {
   listBudgetItems,
   listExpenses,
 } from '@/lib/repositories/budget.repo';
-import { assertProjectAccess, type AccessActor } from './access';
+import { assertProjectAccess, assertProjectWriteAccess, type AccessActor } from './access';
 import { ValidationError } from './errors';
 
 /**
@@ -51,7 +51,7 @@ export async function createBudgetItem(
     notes?: string;
   },
 ) {
-  await assertProjectAccess(projectId, actor);
+  await assertProjectWriteAccess(projectId, actor);
   if (!body.name?.trim()) throw new ValidationError('Name is required', 'name');
   if (!body.type || !['CAPEX', 'OPEX'].includes(body.type)) {
     throw new ValidationError('Invalid type', 'type');
