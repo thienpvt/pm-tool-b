@@ -186,7 +186,21 @@ Plans:
   4. The RAID register remains the master: draft weekly-report RAID edits stay on the draft until submit; submit validates, writes the master, stores a version, locks the snapshot, and refreshes dashboards — or rejects the submit with the fields to fix; later RAID edits do not change old reports
   5. Submitted weekly reports store a milestone snapshot; later milestone edits do not change old reports
 
-**Plans**: TBD
+**Plans:** 3 plans
+
+Plans:
+**Wave 1**
+
+- [ ] 13-01-PLAN.md — Tracer: company weekly config, period create, obligated shells, CPMO list
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 13-02-PLAN.md — Draft save, prev RAG, submit versioning, first lateness, history
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 13-03-PLAN.md — RAID/milestone snapshots, progress/RAG sync, list helpers, access tests
+
 **UI hint**: yes
 
 ### Phase 14: CPMO Tracking & Consolidated Export
