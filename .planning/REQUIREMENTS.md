@@ -33,7 +33,7 @@ Requirements for this milestone. Each maps to roadmap phases.
 - [x] **INTG-05**: Jira REST responses are validated against a Zod schema at the client boundary; a shape mismatch produces a logged validation error, not a silent wrong value or a 500
 - [x] **INTG-06**: Anthropic model output is validated at the client boundary before any caller consumes it
 - [x] **INTG-07**: One credential resolver serves all integrations, replacing the split between Jira's env-var-names-in-DB pattern and Anthropic's env-then-DB fallback
-- [ ] **INTG-08**: The credential resolver preserves every currently-working tenant configuration — verified per configured company before the old paths are deleted <!-- Phase 8: run scripts/verify-credential-cutover.ts against a live DATABASE_URL, then HYG-01 deletion of dead Jira credential blocks. See 03-VERIFICATION.md. -->
+- [x] **INTG-08**: The credential resolver preserves every currently-working tenant configuration — verified per configured company before the old paths are deleted <!-- Phase 8: script exit 0 (vacuous zero-row + anthropic match: yes); HYG-01 deletion e0b2cea. See 08-01-SUMMARY.md. -->
 - [x] **INTG-09**: An integration client never imports a repository; a service resolves credentials and passes values in
 - [x] **INTG-10**: Each integration client has tests using recorded/mocked external responses, including a malformed-response case
 
@@ -138,7 +138,7 @@ Deferred. Tracked but not in this milestone's roadmap.
 | INTG-05 | Phase 3 | Complete |
 | INTG-06 | Phase 3 | Complete |
 | INTG-07 | Phase 3 | Complete |
-| INTG-08 | Phase 3, Phase 8 | Open — Phase 8 owns cutover evidence + HYG-01 deletion of dead Jira credential blocks |
+| INTG-08 | Phase 3, Phase 8 | Complete — cutover script exit 0, HYG-01 deletion e0b2cea (08-01-SUMMARY.md) |
 | INTG-09 | Phase 3 | Complete |
 | INTG-10 | Phase 3 | Complete |
 | SVC-01 | Phase 4 | Complete (04-07 gap closure — collection routes) |
@@ -180,7 +180,7 @@ Deferred. Tracked but not in this milestone's roadmap.
 - v1 requirements: 54 total
 - Mapped to phases: 54
 - Unmapped: 0 ✓
-- Checked off: 53/54 (INTG-08 open — Phase 8)
+- Checked off: 54/54
 
 ---
 *Requirements defined: 2026-08-07*
