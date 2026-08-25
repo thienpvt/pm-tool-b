@@ -1,14 +1,15 @@
 import { NextRequest } from 'next/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { projectAccessRow, getProjectPmIdentity, updateMilestoneRepo } = vi.hoisted(() => ({
+const { projectAccessRow, hasActivePmAssignment, updateMilestoneRepo } = vi.hoisted(() => ({
   projectAccessRow: vi.fn(),
-  getProjectPmIdentity: vi.fn(),
+  hasActivePmAssignment: vi.fn(),
   updateMilestoneRepo: vi.fn(),
 }));
 
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
-vi.mock('@/lib/repositories/projects.repo', () => ({ projectAccessRow, getProjectPmIdentity }));
+vi.mock('@/lib/repositories/projects.repo', () => ({ projectAccessRow }));
+vi.mock('@/lib/repositories/pm-assignments.repo', () => ({ hasActivePmAssignment }));
 vi.mock('@/lib/repositories/milestones.repo', () => ({
   listMilestones: vi.fn(),
   createMilestone: vi.fn(),
@@ -32,7 +33,7 @@ const foreign = { ...owner, company_id: 9 };
 describe('PUT /api/projects/[id]/milestones/[milestoneId]', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    getProjectPmIdentity.mockResolvedValue({ pm_name: 'Ava', pm_email: 'ava@example.com' });
+    hasActivePmAssignment.mockResolvedValue(true);
   });
   const params = { params: Promise.resolve({ id: '7', milestoneId: '3' }) };
   const req = () =>

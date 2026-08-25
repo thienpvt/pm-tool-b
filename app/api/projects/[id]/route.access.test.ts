@@ -1,10 +1,10 @@
 import { NextRequest } from 'next/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { projectAccessRow, getProjectPmIdentity, getProjectRepo, updateProjectRepo, deleteProjectRepo } =
+const { projectAccessRow, hasActivePmAssignment, getProjectRepo, updateProjectRepo, deleteProjectRepo } =
   vi.hoisted(() => ({
     projectAccessRow: vi.fn(),
-    getProjectPmIdentity: vi.fn(),
+    hasActivePmAssignment: vi.fn(),
     getProjectRepo: vi.fn(),
     updateProjectRepo: vi.fn(),
     deleteProjectRepo: vi.fn(),
@@ -13,11 +13,11 @@ const { projectAccessRow, getProjectPmIdentity, getProjectRepo, updateProjectRep
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
 vi.mock('@/lib/repositories/projects.repo', () => ({
   projectAccessRow,
-  getProjectPmIdentity,
   getProject: getProjectRepo,
   updateProject: updateProjectRepo,
   deleteProject: deleteProjectRepo,
 }));
+vi.mock('@/lib/repositories/pm-assignments.repo', () => ({ hasActivePmAssignment }));
 
 import { getSessionFromRequest } from '@/lib/auth';
 import { UnknownColumnError } from '@/lib/repositories/_helpers';
@@ -31,7 +31,7 @@ import { DELETE, GET, PATCH } from './route';
 describe('GET/PATCH/DELETE /api/projects/[id] access control', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    getProjectPmIdentity.mockResolvedValue({ pm_name: 'Ava', pm_email: 'ava@example.com' });
+    hasActivePmAssignment.mockResolvedValue(true);
   });
 
   const params = (id = '7') => ({ params: Promise.resolve({ id }) });
@@ -148,7 +148,7 @@ describe('GET/PATCH/DELETE /api/projects/[id] access control', () => {
   it('PATCH returns the updated row for an assigned PM owner', async () => {
     vi.mocked(getSessionFromRequest).mockResolvedValue(ownerSession as never);
     projectAccessRow.mockResolvedValue({ company_id: 5, customer_company_id: null });
-    const updated = { id: 7, name: 'Renamed' };
+    const updated = { id: 7, name: 'Renamed', warnings: [] as string[] };
     updateProjectRepo.mockResolvedValue(updated);
 
     const res = await PATCH(req('PATCH', { name: 'Renamed' }), params());
@@ -180,7 +180,7 @@ describe('GET/PATCH/DELETE /api/projects/[id] access control', () => {
   it('PATCH returns 403 for PM in-company that fails D-14 assignment (D-14)', async () => {
     vi.mocked(getSessionFromRequest).mockResolvedValue(ownerSession as never);
     projectAccessRow.mockResolvedValue({ company_id: 5, customer_company_id: null });
-    getProjectPmIdentity.mockResolvedValue({ pm_name: 'Bob', pm_email: 'bob@other.com' });
+    hasActivePmAssignment.mockResolvedValue(false);
 
     const res = await PATCH(req('PATCH', { name: 'Renamed' }), params());
 

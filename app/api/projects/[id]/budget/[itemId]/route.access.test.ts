@@ -1,15 +1,16 @@
 import { NextRequest } from 'next/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { projectAccessRow, getProjectPmIdentity, updateBudgetItemRepo, deleteBudgetItemRepo } = vi.hoisted(() => ({
+const { projectAccessRow, hasActivePmAssignment, updateBudgetItemRepo, deleteBudgetItemRepo } = vi.hoisted(() => ({
   projectAccessRow: vi.fn(),
-  getProjectPmIdentity: vi.fn(),
+  hasActivePmAssignment: vi.fn(),
   updateBudgetItemRepo: vi.fn(),
   deleteBudgetItemRepo: vi.fn(),
 }));
 
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
-vi.mock('@/lib/repositories/projects.repo', () => ({ projectAccessRow, getProjectPmIdentity }));
+vi.mock('@/lib/repositories/projects.repo', () => ({ projectAccessRow }));
+vi.mock('@/lib/repositories/pm-assignments.repo', () => ({ hasActivePmAssignment }));
 vi.mock('@/lib/repositories/budget.repo', () => ({
   updateBudgetItem: updateBudgetItemRepo,
   deleteBudgetItem: deleteBudgetItemRepo,
@@ -27,7 +28,7 @@ import { DELETE, PUT } from './route';
 describe('PUT/DELETE /api/projects/[id]/budget/[itemId] access control', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    getProjectPmIdentity.mockResolvedValue({ pm_name: 'Ava', pm_email: 'ava@example.com' });
+    hasActivePmAssignment.mockResolvedValue(true);
   });
 
   const params = () => ({ params: Promise.resolve({ id: '1', itemId: '2' }) });

@@ -2,15 +2,16 @@ import { NextRequest } from 'next/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { IntegrationError } from '@/lib/integrations/errors';
 
-const { projectAccessRow, getProjectPmIdentity, createMessage, resolveAnthropicCredentials } = vi.hoisted(() => ({
+const { projectAccessRow, hasActivePmAssignment, createMessage, resolveAnthropicCredentials } = vi.hoisted(() => ({
   projectAccessRow: vi.fn(),
-  getProjectPmIdentity: vi.fn(),
+  hasActivePmAssignment: vi.fn(),
   createMessage: vi.fn(),
   resolveAnthropicCredentials: vi.fn(),
 }));
 
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
-vi.mock('@/lib/repositories/projects.repo', () => ({ projectAccessRow, getProjectPmIdentity }));
+vi.mock('@/lib/repositories/projects.repo', () => ({ projectAccessRow }));
+vi.mock('@/lib/repositories/pm-assignments.repo', () => ({ hasActivePmAssignment }));
 vi.mock('@/lib/integrations/credentials', () => ({ resolveAnthropicCredentials }));
 vi.mock('@/lib/integrations/anthropic/client', () => ({ createMessage }));
 
@@ -26,7 +27,7 @@ import { POST } from './route';
 describe('POST /api/projects/[id]/project-report/generate-email', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    getProjectPmIdentity.mockResolvedValue({ pm_name: 'Ava', pm_email: 'ava@example.com' });
+    hasActivePmAssignment.mockResolvedValue(true);
   });
 
   const params = (id = '7') => ({ params: Promise.resolve({ id }) });

@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const {
   projectAccessRow,
-  getProjectPmIdentity,
+  hasActivePmAssignment,
   listStakeholdersRepo,
   hasActiveStakeholderForRole,
   insertStakeholderRepo,
@@ -13,7 +13,7 @@ const {
   auditLogFn,
 } = vi.hoisted(() => ({
   projectAccessRow: vi.fn(),
-  getProjectPmIdentity: vi.fn(),
+  hasActivePmAssignment: vi.fn(),
   listStakeholdersRepo: vi.fn(),
   hasActiveStakeholderForRole: vi.fn(),
   insertStakeholderRepo: vi.fn(),
@@ -24,7 +24,8 @@ const {
 }));
 
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
-vi.mock('@/lib/repositories/projects.repo', () => ({ projectAccessRow, getProjectPmIdentity }));
+vi.mock('@/lib/repositories/projects.repo', () => ({ projectAccessRow }));
+vi.mock('@/lib/repositories/pm-assignments.repo', () => ({ hasActivePmAssignment }));
 vi.mock('@/lib/repositories/stakeholders.repo', () => ({
   listStakeholders: listStakeholdersRepo,
   hasActiveStakeholderForRole,
@@ -68,7 +69,7 @@ describe('/api/projects/[id]/stakeholders', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     projectAccessRow.mockResolvedValue({ company_id: 5, customer_company_id: null });
-    getProjectPmIdentity.mockResolvedValue({ pm_name: 'Ava', pm_email: 'ava@example.com' });
+    hasActivePmAssignment.mockResolvedValue(true);
     hasActiveStakeholderForRole.mockResolvedValue(false);
     auditLogFn.mockResolvedValue(undefined);
   });

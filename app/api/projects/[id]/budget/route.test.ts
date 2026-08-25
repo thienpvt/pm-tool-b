@@ -3,14 +3,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const {
   projectAccessRow,
-  getProjectPmIdentity,
+  hasActivePmAssignment,
   listBudgetItems,
   listExpenses,
   activityStats,
   createBudgetItemRepo,
 } = vi.hoisted(() => ({
   projectAccessRow: vi.fn(),
-  getProjectPmIdentity: vi.fn(),
+  hasActivePmAssignment: vi.fn(),
   listBudgetItems: vi.fn(),
   listExpenses: vi.fn(),
   activityStats: vi.fn(),
@@ -18,7 +18,8 @@ const {
 }));
 
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
-vi.mock('@/lib/repositories/projects.repo', () => ({ projectAccessRow, getProjectPmIdentity }));
+vi.mock('@/lib/repositories/projects.repo', () => ({ projectAccessRow }));
+vi.mock('@/lib/repositories/pm-assignments.repo', () => ({ hasActivePmAssignment }));
 vi.mock('@/lib/repositories/budget.repo', () => ({
   listBudgetItems,
   listExpenses,
@@ -32,7 +33,7 @@ import { GET, POST } from './route';
 describe('GET/POST /api/projects/[id]/budget', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    getProjectPmIdentity.mockResolvedValue({ pm_name: 'Ava', pm_email: 'ava@example.com' });
+    hasActivePmAssignment.mockResolvedValue(true);
   });
 
   const params = (id = '7') => ({ params: Promise.resolve({ id }) });

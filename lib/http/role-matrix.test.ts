@@ -3,12 +3,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const {
   projectAccessRow,
-  getProjectPmIdentity,
+  hasActivePmAssignment,
   getProjectRepo,
   createRiskRepo,
 } = vi.hoisted(() => ({
   projectAccessRow: vi.fn(),
-  getProjectPmIdentity: vi.fn(),
+  hasActivePmAssignment: vi.fn(),
   getProjectRepo: vi.fn(),
   createRiskRepo: vi.fn(),
 }));
@@ -16,11 +16,11 @@ const {
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
 vi.mock('@/lib/repositories/projects.repo', () => ({
   projectAccessRow,
-  getProjectPmIdentity,
   getProject: getProjectRepo,
   updateProject: vi.fn(),
   deleteProject: vi.fn(),
 }));
+vi.mock('@/lib/repositories/pm-assignments.repo', () => ({ hasActivePmAssignment }));
 vi.mock('@/lib/repositories/risks.repo', () => ({
   listRisks: vi.fn(),
   createRisk: createRiskRepo,
@@ -43,7 +43,7 @@ import { POST as postRisk } from '@/app/api/projects/[id]/risks/route';
 describe('role matrix (D-19, AUTH-04, AUTH-05)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    getProjectPmIdentity.mockResolvedValue({ pm_name: 'Ava', pm_email: 'ava@example.com' });
+    hasActivePmAssignment.mockResolvedValue(true);
   });
 
   const params = (id = '7') => ({ params: Promise.resolve({ id }) });
@@ -101,7 +101,7 @@ describe('role matrix (D-19, AUTH-04, AUTH-05)', () => {
   it('PM unassigned POST risks → 403 (D-14, D-19)', async () => {
     vi.mocked(getSessionFromRequest).mockResolvedValue(pmSession as never);
     projectAccessRow.mockResolvedValue({ company_id: 5, customer_company_id: null });
-    getProjectPmIdentity.mockResolvedValue({ pm_name: 'Bob', pm_email: 'bob@other.com' });
+    hasActivePmAssignment.mockResolvedValue(false);
 
     const res = await postRisk(postRiskReq(), params());
 
