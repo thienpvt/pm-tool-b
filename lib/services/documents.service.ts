@@ -7,7 +7,7 @@ import {
   listDocuments as listDocumentsRepo,
   updateDocumentContent,
 } from '@/lib/repositories/documents.repo';
-import { assertProjectAccess, type AccessActor } from './access';
+import { assertProjectAccess, assertProjectWriteAccess, type AccessActor } from './access';
 import { NotFoundError, ValidationError } from './errors';
 
 export async function listDocuments(projectId: number | string, actor: AccessActor) {
@@ -24,7 +24,7 @@ export async function upsertDocument(
   actor: AccessActor,
   body: { type?: string; title?: string; content?: unknown },
 ) {
-  await assertProjectAccess(projectId, actor);
+  await assertProjectWriteAccess(projectId, actor);
 
   if (body.type === 'status_report') {
     const created = await createDocumentRepo(
@@ -62,7 +62,7 @@ export async function updateDocument(
   title: string,
   content: unknown,
 ) {
-  await assertProjectAccess(projectId, actor);
+  await assertProjectWriteAccess(projectId, actor);
   const doc = await findDocumentInProject(projectId, docId);
   if (!doc) throw new NotFoundError('Not found', 'document');
   await updateDocumentContent(docId, title, JSON.stringify(content));
@@ -74,7 +74,7 @@ export async function deleteDocument(
   actor: AccessActor,
   docId: number | string | null,
 ) {
-  await assertProjectAccess(projectId, actor);
+  await assertProjectWriteAccess(projectId, actor);
   if (!docId) throw new ValidationError('Missing docId', 'docId');
   const doc = await findDocumentInProject(projectId, docId);
   if (!doc) throw new NotFoundError('Not found', 'document');
