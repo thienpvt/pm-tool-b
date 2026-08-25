@@ -28,9 +28,9 @@ function normalizedSql(): string {
 describe('null-company project visibility', () => {
   it.each([
     ['project list', () => listProjects(null)],
-    ['resource list', () => listResourceMembers(null, false)],
-    ['portfolio project list', () => listPortfolioProjects(null, false)],
-    ['portfolio milestone list', () => listPortfolioMilestones(null, false)],
+    ['resource list', () => listResourceMembers(null)],
+    ['portfolio project list', () => listPortfolioProjects(null)],
+    ['portfolio milestone list', () => listPortfolioMilestones(null)],
   ])('requires direct and customer ownership to be unassigned for the %s', async (_name, query) => {
     await query();
 
@@ -41,7 +41,7 @@ describe('null-company project visibility', () => {
   });
 
   it('excludes tenant-owned customers from unassigned program project counts', async () => {
-    await projectCountsByProgram(null, false);
+    await projectCountsByProgram(null);
 
     expect(normalizedSql()).toContain(
       'p.customer_id IS NOT NULL AND p.company_id IS NULL AND c.company_id IS NULL',

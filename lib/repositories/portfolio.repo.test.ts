@@ -19,14 +19,14 @@ describe.skipIf(!hasTestDb)('portfolio.repo', () => {
     projectB = await seedProject('Portfolio Project B', { company_id: companyB });
   });
 
-  it('limits non-admins to their company projects', async () => {
-    const rows = await listPortfolioProjects(companyA, false) as { id: number }[];
+  it('limits callers to their company projects', async () => {
+    const rows = await listPortfolioProjects(companyA) as { id: number }[];
     expect(rows.map(row => row.id)).toContain(projectA);
     expect(rows.map(row => row.id)).not.toContain(projectB);
   });
 
-  it('lets admins see projects from both companies', async () => {
-    const rows = await listPortfolioProjects(companyA, true) as { id: number }[];
-    expect(rows.map(row => row.id)).toEqual(expect.arrayContaining([projectA, projectB]));
+  it('does not return other-company projects when scoped to company A (D-13)', async () => {
+    const rows = await listPortfolioProjects(companyA) as { id: number }[];
+    expect(rows.map(row => row.id)).not.toContain(projectB);
   });
 });

@@ -25,8 +25,8 @@ const ROADMAP_DONE_STATUSES = [
  */
 export async function getRoadmap(actor: AccessActor) {
   const [projects, programs, riskCounts, issueCounts, activityTotals, phaseStats] = await Promise.all([
-    listPortfolioProjects(actor.company_id, Boolean(actor.is_admin)) as Promise<any[]>,
-    listCompanyPrograms(actor.company_id, Boolean(actor.is_admin)) as Promise<any[]>,
+    listPortfolioProjects(actor.company_id) as Promise<any[]>,
+    listCompanyPrograms(actor.company_id) as Promise<any[]>,
     riskCountsByProject() as Promise<any[]>,
     issueCountsByProject() as Promise<any[]>,
     roadmapActivityTotals(ROADMAP_DONE_STATUSES) as Promise<any[]>,

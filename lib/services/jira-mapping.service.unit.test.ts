@@ -41,9 +41,36 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
-const owner = { company_id: 5 as number | null, is_admin: 0 as number | boolean };
-const foreign = { company_id: 9 as number | null, is_admin: 0 as number | boolean };
-const noCompany = { company_id: null as number | null, is_admin: 0 as number | boolean };
+const owner = {
+  company_id: 5 as number | null,
+  is_admin: 0 as number | boolean,
+  roles: ['cpmo'] as const,
+  user_id: 1,
+  username: 'cpmo',
+  display_name: 'CPMO',
+  email: 'cpmo@example.com',
+  status: 'active' as const,
+};
+const foreign = {
+  company_id: 9 as number | null,
+  is_admin: 0 as number | boolean,
+  roles: ['cpmo'] as const,
+  user_id: 2,
+  username: 'foreign',
+  display_name: 'Foreign',
+  email: 'foreign@example.com',
+  status: 'active' as const,
+};
+const noCompany = {
+  company_id: null as number | null,
+  is_admin: 0 as number | boolean,
+  roles: ['cpmo'] as const,
+  user_id: 3,
+  username: 'nobody',
+  display_name: 'Nobody',
+  email: 'nobody@example.com',
+  status: 'active' as const,
+};
 
 const presetRow = {
   id: 1,
@@ -97,6 +124,14 @@ describe('jira-mapping.service JQL presets', () => {
     createJqlPresetRepo.mockResolvedValue(presetRow);
     await createJqlPreset(owner, 'Open', 'project = A', 'timeline', 10);
     expect(createJqlPresetRepo).toHaveBeenCalledWith(5, 'Open', 'project = A', 'timeline', 10);
+  });
+
+  it('createJqlPreset throws ForbiddenError for PM without cpmo (D-15)', async () => {
+    findJqlPresetByName.mockResolvedValue(undefined);
+    await expect(createJqlPreset({ ...owner, roles: ['pm'] }, 'Open', 'project = A', 'timeline')).rejects.toBeInstanceOf(
+      ForbiddenError,
+    );
+    expect(createJqlPresetRepo).not.toHaveBeenCalled();
   });
 });
 

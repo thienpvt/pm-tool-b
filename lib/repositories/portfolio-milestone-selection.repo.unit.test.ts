@@ -18,10 +18,10 @@ beforeEach(() => {
 });
 
 describe('portfolio milestone selection scope', () => {
-  it('returns no milestone or activity links when a non-admin company cannot see the project', async () => {
+  it('returns no milestone or activity links when company cannot see the project', async () => {
     db.get.mockResolvedValue(undefined);
 
-    const result = await portfolioMilestoneSelection([41], 7, false);
+    const result = await portfolioMilestoneSelection([41], 7);
 
     expect(result).toEqual({
       milestones: [],
@@ -38,7 +38,7 @@ describe('portfolio milestone selection scope', () => {
     expect(db.all).not.toHaveBeenCalled();
   });
 
-  it('allows an admin and limits milestone links to activities in the selected project', async () => {
+  it('limits milestone links to activities in the selected project for null-company scope', async () => {
     db.get.mockResolvedValue({
       id: 41,
       project_id: 9,
@@ -50,9 +50,12 @@ describe('portfolio milestone selection scope', () => {
     });
     db.all.mockResolvedValue([{ activity_id: 77 }]);
 
-    const result = await portfolioMilestoneSelection([41], null, true);
+    const result = await portfolioMilestoneSelection([41], null);
 
-    expect(db.get).toHaveBeenCalledWith(expect.not.stringContaining('p.company_id = ?'), 41);
+    expect(db.get).toHaveBeenCalledWith(
+      expect.stringContaining('p.company_id IS NULL'),
+      41,
+    );
     expect(db.all).toHaveBeenCalledWith(
       expect.stringContaining('AND a.project_id = ?'),
       41,

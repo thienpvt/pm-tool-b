@@ -8,18 +8,10 @@ const SELECT = `SELECT tm.*, p.name as project_name, p.id as project_id,
 const ORDER = 'ORDER BY tm.domain, tm.name, p.name';
 
 /**
- * Every team member across every project the caller can see.
- *
- * Takes the resolved `companyId` and `isAdmin` rather than a session (REPO-02). The three
- * branches match the route's current behavior exactly: admin sees all, a user with a
- * company sees rows whose project or customer matches it, and a user with a null company
- * sees only unassigned rows.
+ * Every team member across projects in the caller's company (D-13, D-24).
  */
-export async function listResourceMembers(companyId: number | null, isAdmin: boolean) {
+export async function listResourceMembers(companyId: number | null) {
   const db = await getDb();
-  if (isAdmin) {
-    return db.all(`${SELECT} ${ORDER}`);
-  }
   if (companyId !== null) {
     return db.all(
       `${SELECT}

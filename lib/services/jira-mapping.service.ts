@@ -8,6 +8,7 @@ import {
   saveJiraSyncMapping as saveJiraSyncMappingRepo,
 } from '@/lib/repositories/jira-config.repo';
 import type { AccessActor } from './access';
+import { assertCompanyWrite } from './access';
 import { ConflictError, ForbiddenError, NotFoundError } from './errors';
 
 type CompanyRow = { company_id: number };
@@ -37,6 +38,7 @@ export async function createJqlPreset(
   maxPresets = 10,
 ) {
   const companyId = requireCompanyId(actor);
+  assertCompanyWrite(actor);
   if (await findJqlPresetByName(companyId, name, context)) {
     throw new ConflictError('Preset name already exists');
   }
@@ -46,6 +48,7 @@ export async function createJqlPreset(
 export async function deleteJqlPreset(id: number | string, actor: AccessActor) {
   const row = await getJqlPresetById(id);
   assertCompanyRow(actor, row);
+  assertCompanyWrite(actor);
   return deleteJqlPresetRepo(actor.company_id!, id);
 }
 
@@ -56,5 +59,6 @@ export async function listRecentJiraSyncMappings(actor: AccessActor) {
 
 export async function saveJiraSyncMapping(actor: AccessActor, mappingsJson: string) {
   const companyId = requireCompanyId(actor);
+  assertCompanyWrite(actor);
   return saveJiraSyncMappingRepo(companyId, mappingsJson);
 }
