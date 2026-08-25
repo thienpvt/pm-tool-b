@@ -208,6 +208,12 @@ CREATE TABLE IF NOT EXISTS operations_incidents (
   description TEXT, reported_at DATE, resolved_at DATE, cost_impact NUMERIC DEFAULT 0,
   status TEXT DEFAULT 'Open'
 );
+CREATE TABLE IF NOT EXISTS timeline_import_mappings (
+  id SERIAL PRIMARY KEY, name TEXT NOT NULL, mappings_json TEXT NOT NULL,
+  company_id INTEGER REFERENCES companies(id),
+  created_at TIMESTAMP DEFAULT now(),
+  UNIQUE (company_id, name)
+);
 `;
 
 /** Advisory lock key serialising DDL across parallel vitest worker processes. */
