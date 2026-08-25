@@ -12,5 +12,7 @@ export async function GET(req: NextRequest) {
     company_name: user.company_name,
     is_admin: user.is_admin,
     onboarding_completed: user.onboarding_completed,
+    roles: user.roles,
+    status: user.status,
   });
 }
