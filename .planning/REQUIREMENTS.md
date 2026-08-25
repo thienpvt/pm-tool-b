@@ -76,7 +76,7 @@ Requirements for this milestone. Each maps to roadmap phases. Jira import, AI re
 
 ### Risk and Issue Register
 
-- [ ] **RAID-01**: PM (assigned) and CPMO can create, update, and deactivate risks and issues with a unique code per project; Viewer cannot mutate
+- [x] **RAID-01**: PM (assigned) and CPMO can create, update, and deactivate risks and issues with a unique code per project; Viewer cannot mutate
 - [ ] **RAID-02**: The register is the master; weekly reports reference master records and store snapshots — they are not a second independent RAID store
 - [ ] **RAID-03**: Draft weekly-report RAID edits stay on the draft until submit; submit validates, writes the master, stores a version, locks the snapshot, and refreshes dashboards — or rejects the submit with the fields to fix
 - [ ] **RAID-04**: Overdue open RAID items are flagged and shown on dashboards; changing a due date keeps prior due-date history
@@ -227,7 +227,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | BUDG-04 | Phase 15 | Pending |
 | BUDG-05 | Phase 15 | Pending |
 | BUDG-06 | Phase 15 | Pending |
-| RAID-01 | Phase 12 | Pending |
+| RAID-01 | Phase 12 | Complete |
 | RAID-02 | Phase 13 | Pending |
 | RAID-03 | Phase 13 | Pending |
 | RAID-04 | Phase 12 | Pending |
