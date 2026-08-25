@@ -65,7 +65,7 @@ Requirements for this milestone. Each maps to roadmap phases.
 ### UI Decomposition
 
 - [x] **UI-01**: Data fetching in each god page is extracted into named hooks, separate from rendering
-- [ ] **UI-02**: `app/portfolio/report/page.tsx` is decomposed into a container plus feature modules, with no single file over 400 lines
+- [x] **UI-02**: `app/portfolio/report/page.tsx` is decomposed into a container plus feature modules, with no single file over 400 lines
 - [ ] **UI-03**: `app/projects/[id]/timeline/page.tsx` is decomposed the same way
 - [ ] **UI-04**: `app/projects/[id]/report/page.tsx` is decomposed the same way
 - [ ] **UI-05**: `app/projects/[id]/milestones/page.tsx` is decomposed the same way
@@ -164,7 +164,7 @@ Deferred. Tracked but not in this milestone's roadmap.
 | UI-09 | Phase 7 | Complete |
 | UI-10 | Phase 7 | Complete |
 | UI-11 | Phase 7 | Complete |
-| UI-02 | Phase 7 | Pending |
+| UI-02 | Phase 7 | Complete |
 | UI-03 | Phase 7 | Pending |
 | UI-04 | Phase 7 | Pending |
 | UI-05 | Phase 7 | Pending |
