@@ -7,7 +7,7 @@ import {
   unlinkEpic as unlinkEpicRepo,
   updateMilestone as updateMilestoneRepo,
 } from '@/lib/repositories/milestones.repo';
-import { assertProjectAccess, type AccessActor } from './access';
+import { assertProjectAccess, assertProjectWriteAccess, type AccessActor } from './access';
 import { NotFoundError } from './errors';
 
 export async function listMilestones(projectId: number | string, actor: AccessActor) {
@@ -20,7 +20,7 @@ export async function createMilestone(
   actor: AccessActor,
   body: Record<string, unknown>,
 ) {
-  await assertProjectAccess(projectId, actor);
+  await assertProjectWriteAccess(projectId, actor);
   return createMilestoneRepo(projectId, body);
 }
 
@@ -34,7 +34,7 @@ export async function updateMilestone(
   milestoneId: number | string,
   body: Record<string, unknown>,
 ) {
-  await assertProjectAccess(projectId, actor);
+  await assertProjectWriteAccess(projectId, actor);
   const updated = await updateMilestoneRepo(projectId, milestoneId, body);
   if (!updated) throw new NotFoundError('Not found', 'milestone');
   return updated;
@@ -45,7 +45,7 @@ export async function deleteMilestone(
   actor: AccessActor,
   milestoneId: number | string,
 ) {
-  await assertProjectAccess(projectId, actor);
+  await assertProjectWriteAccess(projectId, actor);
   const result = await deleteMilestoneRepo(projectId, milestoneId);
   if (!result || Number(result.changes ?? 0) === 0) {
     throw new NotFoundError('Not found', 'milestone');
@@ -73,7 +73,7 @@ export async function linkEpic(
   milestoneId: number | string,
   activityId: number | string,
 ) {
-  await assertProjectAccess(projectId, actor);
+  await assertProjectWriteAccess(projectId, actor);
   try {
     await linkEpicRepo(milestoneId, activityId);
   } catch {
@@ -88,7 +88,7 @@ export async function unlinkEpic(
   milestoneId: number | string,
   activityId: number | string,
 ) {
-  await assertProjectAccess(projectId, actor);
+  await assertProjectWriteAccess(projectId, actor);
   await unlinkEpicRepo(milestoneId, activityId);
   return { ok: true as const };
 }
