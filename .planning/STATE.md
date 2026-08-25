@@ -1,19 +1,20 @@
 ---
 gsd_state_version: 1.0
 milestone: v1.0
-milestone_name: milestone
-current_phase: 06
-current_phase_name: Access Enforcement Rollout
+current_phase: 07
+current_phase_name: UI Decomposition
 status: executing
-stopped_at: Completed 06-06-PLAN.md
-last_updated: "2026-08-11T07:51:04.374Z"
+stopped_at: Completed 07-00-PLAN.md
+last_updated: "2026-08-25T11:45:07.150Z"
 last_activity: 2026-08-11
 last_activity_desc: Phase 06 execution started
+state_head: 256c949661012d43066346ee315d6ff79425dcae
 progress:
-  total_phases: 6
+  total_phases: 7
   completed_phases: 5
-  total_plans: 25
-  completed_plans: 24
+  total_plans: 34
+  completed_plans: 25
+milestone_name: milestone
 ---
 
 # Project State
@@ -23,14 +24,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-07)
 
 **Core value:** Every project-scoped request is tenant-isolated and every layer has one job — so a new route or page cannot silently reintroduce IDOR or a 2000-line god component.
-**Current focus:** Phase 06 — Access Enforcement Rollout
+**Current focus:** Phase 07 — UI Decomposition
 
 ## Current Position
 
-Phase: 06 (Access Enforcement Rollout) — EXECUTING
-Plan: 3 of 7
+Phase: 07 (UI Decomposition) — EXECUTING
+Plan: 1 of 9 complete (07-00 done; next: 07-01)
 Status: Ready to execute
-Last activity: 2026-08-11 — Phase 06 execution started
+Last activity: 2026-08-25 — Completed 07-00-PLAN.md (Wave 0 vitest include)
 
 Progress: [██████████] 96% (phase 04 plans complete; await verify)
 
@@ -73,7 +74,15 @@ Progress: [██████████] 96% (phase 04 plans complete; await v
 | Phase 05 P01 | 45min | 3 tasks | 12 files |
 | Phase 05 P02 | 40min | 3 tasks | 17 files |
 | Phase 05 P03 | 55min | 3 tasks | 62 files |
-| Phase 06 P06 | 45min | 4 tasks | 2 files |
+| Phase 07-ui-decomposition P00 | 5min | 2 tasks | 1 file |
+
+## Self-Check: PASSED
+
+- FOUND: vitest.config.ts
+- FOUND: .planning/phases/07-ui-decomposition/07-00-SUMMARY.md
+- FOUND: f608a46 (Task 1 commit)
+- FOUND: 256c949 (Task 2 commit)
+| Phase 07-ui-decomposition P00 | 5min | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -115,6 +124,7 @@ Recent decisions affecting current work:
 - [Phase ?]: Tree-A schemas stay pure .passthrough() shape guards wherever no inline validation exists today; budget schemas avoid naming CAPEX/OPEX even in comments to satisfy the plan's zero-occurrence grep gate
 - [Phase ?]: Zero-validation tree-B routes (operations/systems/[id] PUT, program-allocations, config, rag-config, jira-config POST) get passthrough-only schemas with a fallback-to-raw-body pattern -- ROUTE-06 coverage without inventing new 400s
 - [Phase ?]: [Phase 06-06]: 401 matrix uses import.meta.glob eager-load (single enumeration source shared by both the 401 assertions and the drift check); global getDb() canary suffices since a null session 401s before any repo/service import path runs
+- [Phase 06]: Phase 07-00: jsdom include lists both *.test.tsx and *.component.test.tsx — badge.test.tsx unchanged, page tests use .component.test.tsx naming
 
 ### Pending Todos
 
@@ -146,6 +156,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-11T07:51:04.363Z
-Stopped at: Completed 06-06-PLAN.md
+Last session: 2026-08-25T11:45:06.648Z
+Stopped at: Completed 07-00-PLAN.md
 Resume file: None

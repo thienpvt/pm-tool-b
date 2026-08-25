@@ -197,12 +197,12 @@ Plans:
   4. Each decomposed page has a component test covering its primary render path and one interaction
   5. Each decomposition is verified against the pre-refactor page for identical behavior on load, filter, and export paths
 
-**Plans**: 9 plans across 5 waves
+**Plans**: 1/9 plans executed across 5 waves
 
 Plans:
 **Wave 0**
 
-- [ ] 07-00-PLAN.md — Extend vitest jsdom include for `*.component.test.tsx`
+- [x] 07-00-PLAN.md — Extend vitest jsdom include for `*.component.test.tsx`
 
 **Wave 1**
 
@@ -236,4 +236,4 @@ Plans:
 | 4. Service Layer | 7/7 | Complete    | 2026-08-11 |
 | 5. Route Thinning & Validation | 3/3 | Complete    | 2026-08-11 |
 | 6. Access Enforcement Rollout | 6/7 | In Progress|  |
-| 7. UI Decomposition | 0/9 | Not started | - |
+| 7. UI Decomposition | 1/9 | In Progress|  |
