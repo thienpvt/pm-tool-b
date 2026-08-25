@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const {
   assertProjectAccess,
+  assertProjectWriteAccess,
   listMilestonesRepo,
   createMilestoneRepo,
   updateMilestoneRepo,
@@ -11,6 +12,7 @@ const {
   unlinkEpicRepo,
 } = vi.hoisted(() => ({
   assertProjectAccess: vi.fn(),
+  assertProjectWriteAccess: vi.fn(),
   listMilestonesRepo: vi.fn(),
   createMilestoneRepo: vi.fn(),
   updateMilestoneRepo: vi.fn(),
@@ -20,7 +22,7 @@ const {
   unlinkEpicRepo: vi.fn(),
 }));
 
-vi.mock('@/lib/services/access', () => ({ assertProjectAccess }));
+vi.mock('@/lib/services/access', () => ({ assertProjectAccess, assertProjectWriteAccess }));
 vi.mock('@/lib/repositories/milestones.repo', () => ({
   listMilestones: listMilestonesRepo,
   createMilestone: createMilestoneRepo,
@@ -45,6 +47,7 @@ import { ForbiddenError, NotFoundError } from './errors';
 beforeEach(() => {
   vi.clearAllMocks();
   assertProjectAccess.mockResolvedValue(undefined);
+  assertProjectWriteAccess.mockResolvedValue(undefined);
 });
 
 const owner = { company_id: 5 as number | null, is_admin: 0 as number | boolean };
@@ -57,10 +60,17 @@ describe('milestones.service', () => {
     expect(listMilestonesRepo).not.toHaveBeenCalled();
   });
 
-  it('createMilestone does not call the repository when access is denied', async () => {
-    assertProjectAccess.mockRejectedValue(new ForbiddenError());
+  it('createMilestone does not call the repository when write access is denied', async () => {
+    assertProjectWriteAccess.mockRejectedValue(new ForbiddenError());
     await expect(createMilestone(7, foreign, {})).rejects.toBeInstanceOf(ForbiddenError);
     expect(createMilestoneRepo).not.toHaveBeenCalled();
+  });
+
+  it('createMilestone asserts write access before inserting', async () => {
+    createMilestoneRepo.mockResolvedValue({ id: 1 });
+    await expect(createMilestone(7, owner, { name: 'M1' })).resolves.toEqual({ id: 1 });
+    expect(assertProjectWriteAccess).toHaveBeenCalledWith(7, owner);
+    expect(createMilestoneRepo).toHaveBeenCalledWith(7, { name: 'M1' });
   });
 
   it('updateMilestone throws NotFoundError when milestone is outside the parent project', async () => {
@@ -71,8 +81,8 @@ describe('milestones.service', () => {
     );
   });
 
-  it('updateMilestone does not call the repository when access is denied', async () => {
-    assertProjectAccess.mockRejectedValue(new ForbiddenError());
+  it('updateMilestone does not call the repository when write access is denied', async () => {
+    assertProjectWriteAccess.mockRejectedValue(new ForbiddenError());
     await expect(updateMilestone(7, foreign, 1, {})).rejects.toBeInstanceOf(ForbiddenError);
     expect(updateMilestoneRepo).not.toHaveBeenCalled();
   });
@@ -80,6 +90,12 @@ describe('milestones.service', () => {
   it('deleteMilestone throws NotFoundError on zero changes', async () => {
     deleteMilestoneRepo.mockResolvedValue({ lastInsertRowid: 0, changes: 0 });
     await expect(deleteMilestone(7, owner, 99)).rejects.toBeInstanceOf(NotFoundError);
+  });
+
+  it('deleteMilestone does not call the repository when write access is denied', async () => {
+    assertProjectWriteAccess.mockRejectedValue(new ForbiddenError());
+    await expect(deleteMilestone(7, foreign, 1)).rejects.toBeInstanceOf(ForbiddenError);
+    expect(deleteMilestoneRepo).not.toHaveBeenCalled();
   });
 
   it('listEpics asserts parent project access before listing', async () => {
@@ -95,15 +111,29 @@ describe('milestones.service', () => {
     expect(listEpicsRepo).not.toHaveBeenCalled();
   });
 
-  it('linkEpic does not call the repository when access is denied', async () => {
-    assertProjectAccess.mockRejectedValue(new ForbiddenError());
+  it('linkEpic does not call the repository when write access is denied', async () => {
+    assertProjectWriteAccess.mockRejectedValue(new ForbiddenError());
     await expect(linkEpic(7, foreign, 3, 10)).rejects.toBeInstanceOf(ForbiddenError);
     expect(linkEpicRepo).not.toHaveBeenCalled();
   });
 
-  it('unlinkEpic does not call the repository when access is denied', async () => {
-    assertProjectAccess.mockRejectedValue(new ForbiddenError());
+  it('linkEpic asserts write access before linking', async () => {
+    linkEpicRepo.mockResolvedValue({ lastInsertRowid: 0, changes: 1 });
+    await expect(linkEpic(7, owner, 3, 10)).resolves.toEqual({ ok: true });
+    expect(assertProjectWriteAccess).toHaveBeenCalledWith(7, owner);
+    expect(linkEpicRepo).toHaveBeenCalledWith(3, 10);
+  });
+
+  it('unlinkEpic does not call the repository when write access is denied', async () => {
+    assertProjectWriteAccess.mockRejectedValue(new ForbiddenError());
     await expect(unlinkEpic(7, foreign, 3, 10)).rejects.toBeInstanceOf(ForbiddenError);
     expect(unlinkEpicRepo).not.toHaveBeenCalled();
+  });
+
+  it('unlinkEpic asserts write access before unlinking', async () => {
+    unlinkEpicRepo.mockResolvedValue({ lastInsertRowid: 0, changes: 1 });
+    await expect(unlinkEpic(7, owner, 3, 10)).resolves.toEqual({ ok: true });
+    expect(assertProjectWriteAccess).toHaveBeenCalledWith(7, owner);
+    expect(unlinkEpicRepo).toHaveBeenCalledWith(3, 10);
   });
 });
