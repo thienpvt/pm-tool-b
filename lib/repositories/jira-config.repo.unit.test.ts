@@ -82,9 +82,16 @@ describe('jira-config.repo', () => {
     await saveJiraSyncMapping(5, '{"a":1}');
     const deleteSql = db.run.mock.calls[1][0].replace(/\s+/g, ' ').trim();
     expect(deleteSql).toContain('WHERE company_id = ?');
+    expect((deleteSql.match(/company_id = \?/g) ?? []).length).toBe(2);
     expect(db.run).toHaveBeenCalledWith(
       'INSERT INTO jira_sync_mappings (mappings_json, company_id) VALUES (?, ?)',
       '{"a":1}',
+      5,
+    );
+    expect(db.run).toHaveBeenNthCalledWith(
+      2,
+      expect.stringContaining('DELETE FROM jira_sync_mappings'),
+      5,
       5,
     );
   });
