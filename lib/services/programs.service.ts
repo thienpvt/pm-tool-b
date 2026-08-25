@@ -8,6 +8,7 @@ import {
   updateProgram as updateProgramRepo,
 } from '@/lib/repositories/programs.repo';
 import type { AccessActor } from './access';
+import { assertCompanyWrite } from './access';
 import { ForbiddenError, NotFoundError, ValidationError } from './errors';
 
 /**
@@ -19,12 +20,6 @@ import { ForbiddenError, NotFoundError, ValidationError } from './errors';
  * GET/PATCH/DELETE on `/api/programs/[id]`, rather than re-deriving it (T-04-22).
  */
 export async function assertProgramAccess(programId: number | string, actor: AccessActor) {
-  if (actor.is_admin) {
-    const row = await getProgramRepo(programId);
-    if (!row) throw new NotFoundError('Not found', 'program');
-    return row;
-  }
-
   const row = await getProgramRepo(programId);
   if (!row) throw new NotFoundError('Not found', 'program');
 
@@ -51,11 +46,13 @@ export async function updateProgram(
   body: Record<string, unknown>,
 ) {
   await assertProgramAccess(programId, actor);
+  assertCompanyWrite(actor);
   return updateProgramRepo(programId, body);
 }
 
 export async function deleteProgram(programId: number | string, actor: AccessActor) {
   await assertProgramAccess(programId, actor);
+  assertCompanyWrite(actor);
   await deleteProgramRepo(programId);
   return { ok: true as const };
 }
@@ -67,10 +64,9 @@ export async function deleteProgram(programId: number | string, actor: AccessAct
  * re-assemble it.
  */
 export async function listProgramsWithCounts(actor: AccessActor) {
-  const isAdmin = Boolean(actor.is_admin);
   const [programs, projectCounts] = await Promise.all([
-    listProgramsRepo(actor.company_id, isAdmin),
-    projectCountsByProgram(actor.company_id, isAdmin),
+    listProgramsRepo(actor.company_id),
+    projectCountsByProgram(actor.company_id),
   ]);
   const countMap = Object.fromEntries(projectCounts.map(r => [r.customer_id, r.count]));
   return (programs as Array<{ id: number }>).map(c => ({
@@ -81,17 +77,12 @@ export async function listProgramsWithCounts(actor: AccessActor) {
 
 /**
  * Create a program for `app/api/programs/route.ts` POST (SVC-01/SVC-04).
- *
- * Same tenant-placement resolution as `createProject` (T-04-30): admin may
- * supply `body.company_id`, everyone else is placed in their session
- * company regardless of the body. Blank/whitespace name is a
- * ValidationError → 400 'Name required' (preserves the route's exact
- * message, T-04-32).
+ * CPMO-only; stamps actor.company_id regardless of body (D-13).
  */
 export async function createProgram(actor: AccessActor, body: Record<string, unknown>) {
   const name = typeof body.name === 'string' ? body.name.trim() : '';
   if (!name) throw new ValidationError('Name required');
 
-  const companyId = actor.is_admin ? ((body.company_id as number | null | undefined) ?? null) : actor.company_id;
-  return createProgramRepo(companyId, body);
+  assertCompanyWrite(actor);
+  return createProgramRepo(actor.company_id, body);
 }

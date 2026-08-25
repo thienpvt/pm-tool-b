@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionFromRequest } from '@/lib/auth';
 import { addMissingTeamMembersToPortfolio, resourceAudit } from '@/lib/repositories/admin.repo';
+import { assertCompanyWrite, toAccessActor } from '@/lib/services/access';
+import { serviceErrorResponse } from '@/lib/api-errors';
 
 export async function GET(req: NextRequest) {
   const user = await getSessionFromRequest(req);
@@ -20,12 +22,17 @@ export async function GET(req: NextRequest) {
   });
 }
 
-// POST: add all "in_teams_not_in_portfolio" as external portfolio members
+// POST: add all "in_teams_not_in_portfolio" as external portfolio members (D-24 product write).
 export async function POST(req: NextRequest) {
   const user = await getSessionFromRequest(req);
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const cid = user.company_id;
-  const missing = await addMissingTeamMembersToPortfolio(cid);
-  return NextResponse.json({ added: missing.length, members: missing });
+  try {
+    const actor = toAccessActor(user);
+    assertCompanyWrite(actor);
+    const missing = await addMissingTeamMembersToPortfolio(actor.company_id);
+    return NextResponse.json({ added: missing.length, members: missing });
+  } catch (e) {
+    return serviceErrorResponse(e);
+  }
 }

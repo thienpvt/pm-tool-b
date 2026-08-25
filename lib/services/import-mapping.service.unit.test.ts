@@ -58,9 +58,37 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
-const owner = { company_id: 5 as number | null, is_admin: 0 as number | boolean };
-const foreign = { company_id: 9 as number | null, is_admin: 0 as number | boolean };
-const noCompany = { company_id: null as number | null, is_admin: 0 as number | boolean };
+const owner = {
+  company_id: 5 as number | null,
+  is_admin: 0 as number | boolean,
+  roles: ['cpmo'] as const,
+  user_id: 1,
+  username: 'cpmo',
+  display_name: 'CPMO',
+  email: 'cpmo@example.com',
+  status: 'active' as const,
+};
+const foreign = {
+  company_id: 9 as number | null,
+  is_admin: 0 as number | boolean,
+  roles: ['cpmo'] as const,
+  user_id: 2,
+  username: 'foreign',
+  display_name: 'Foreign',
+  email: 'foreign@example.com',
+  status: 'active' as const,
+};
+const noCompany = {
+  company_id: null as number | null,
+  is_admin: 0 as number | boolean,
+  roles: ['cpmo'] as const,
+  user_id: 3,
+  username: 'nobody',
+  display_name: 'Nobody',
+  email: 'nobody@example.com',
+  status: 'active' as const,
+};
+const pmOwner = { ...owner, roles: ['pm'] as const, is_admin: 0 };
 
 const row = { id: 1, company_id: 5, name: 'tpl', mappings_json: '{}' };
 
@@ -144,6 +172,11 @@ describe('import-mapping.service list and create', () => {
   it('listTimelineMappings throws ForbiddenError when company_id is null', async () => {
     await expect(listTimelineMappings(noCompany)).rejects.toBeInstanceOf(ForbiddenError);
     expect(listTimelineMappingsRepo).not.toHaveBeenCalled();
+  });
+
+  it('createTimelineMapping throws ForbiddenError for PM (D-15)', async () => {
+    await expect(createTimelineMapping(pmOwner, 'tpl', '{}')).rejects.toBeInstanceOf(ForbiddenError);
+    expect(createTimelineMappingRepo).not.toHaveBeenCalled();
   });
 
   it('createTimelineMapping stamps actor company_id', async () => {

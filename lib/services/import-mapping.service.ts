@@ -13,6 +13,7 @@ import {
   updateTimelineMapping as updateTimelineMappingRepo,
 } from '@/lib/repositories/import-mapping.repo';
 import type { AccessActor } from './access';
+import { assertCompanyWrite } from './access';
 import { ConflictError, ForbiddenError, NotFoundError } from './errors';
 
 const MAX_BUG_TEMPLATES = 5;
@@ -42,6 +43,7 @@ export async function createTimelineMapping(
   mappingsJson: string,
 ) {
   const companyId = requireCompanyId(actor);
+  assertCompanyWrite(actor);
   if (await findTimelineMappingByName(companyId, name)) {
     throw new ConflictError('Template name already exists');
   }
@@ -56,6 +58,7 @@ export async function updateTimelineMapping(
 ) {
   const row = await getTimelineMappingById(id);
   assertCompanyRow(actor, row);
+  assertCompanyWrite(actor);
   const companyId = requireCompanyId(actor);
   const existing = await findTimelineMappingByName(companyId, name);
   if (existing && existing.id !== Number(id)) {
@@ -67,6 +70,7 @@ export async function updateTimelineMapping(
 export async function deleteTimelineMapping(id: number | string, actor: AccessActor) {
   const row = await getTimelineMappingById(id);
   assertCompanyRow(actor, row);
+  assertCompanyWrite(actor);
   return deleteTimelineMappingRepo(actor.company_id!, id);
 }
 
@@ -81,6 +85,7 @@ export async function createBugMapping(
   mappingsJson: string,
 ) {
   const companyId = requireCompanyId(actor);
+  assertCompanyWrite(actor);
   if (await findBugMappingByName(companyId, name)) {
     throw new ConflictError('Template name already exists');
   }
@@ -95,5 +100,6 @@ export async function createBugMapping(
 export async function deleteBugMapping(id: number | string, actor: AccessActor) {
   const row = await getBugMappingById(id);
   assertCompanyRow(actor, row);
+  assertCompanyWrite(actor);
   return deleteBugMappingRepo(actor.company_id!, id);
 }
