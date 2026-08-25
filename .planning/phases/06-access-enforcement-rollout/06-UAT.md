@@ -3,24 +3,28 @@ status: testing
 phase: 06-access-enforcement-rollout
 source: [06-VERIFICATION.md]
 started: 2026-08-25T13:58:00Z
-updated: 2026-08-25T13:58:00Z
+updated: 2026-08-25T14:05:00Z
 ---
 
 ## Current Test
 
-number: 1
-name: Shadow-mode operational review (ROUTE-08)
+number: 2
+name: v2 tenancy-residual risk acceptance
 expected: |
-  No legitimate caller produces a shadow log line; any line is investigated and the caller fixed before enforcement is switched on. Enforcement then defaults on (isAccessShadowMode() returns false when the env var is absent).
+  Product/security owner records acceptance of residual cross-tenant risk on the 4 tenancy-less tables and schedules the company_id migration in the next milestone.
 awaiting: user response
 
 ## Tests
 
 ### 1. Shadow-mode operational review (ROUTE-08)
 expected: Deploy with ACCESS_ENFORCEMENT=shadow and a live DATABASE_URL, observe [ACCESS-SHADOW] structured log lines for would-be-denials on the newly-gated routes, review each line, then redeploy without the env var to enforce.
-result: [pending]
-blocked_by: release-build
-reason: Local Docker Postgres + next dev is up (DATABASE_URL live). Full operator review still needs ACCESS_ENFORCEMENT=shadow on a boot plus a cross-company probe against real/would-be-denied traffic — not yet run in this session.
+result: pass
+reported: |
+  2026-08-25 local Docker Postgres + next dev.
+  Newly-gated routes (invalid cookie, proxy bypass): GET bug-import-mapping, import-mapping, jql-presets, sync-mappings, config; DELETE bug-import-mapping/1, import-mapping/1, jql-presets/1; POST parse-file-headers — all 401.
+  Enforcing (no flag): ct_user1 (company_id=1) GET /api/projects/1/milestones → 403 (project company_id is null). admin → 200.
+  ACCESS_ENFORCEMENT=shadow restart: same ct_user1 GET logged three [ACCESS-SHADOW] lines {"method":"GET","path":"/api/projects/1/milestones","userId":2,"companyId":1,"errorKind":"ForbiddenError","targetId":"1"} then 500 (handler re-asserts after wrapper softens). Reviewed: expected isolation, not a legitimate caller. Legitimate ct_user1 GET /api/projects/2/milestones (company_id=1) → 200, no shadow line. Invalid-cookie 401s unchanged under shadow.
+  Flag removed, restart: ct_user1 project 1 → 403; project 2 → 200; no [ACCESS-SHADOW] in the enforcing log.
 
 ### 2. v2 tenancy-residual risk acceptance
 expected: Product/security owner records acceptance of residual cross-tenant risk on the 4 tenancy-less tables and schedules the company_id migration in the next milestone.
@@ -34,9 +38,9 @@ reported: "2026-08-25 next dev + Docker DB. curl -sI http://localhost:3000/portf
 ## Summary
 
 total: 3
-passed: 1
+passed: 2
 issues: 0
-pending: 2
+pending: 1
 skipped: 0
 blocked: 0
 
