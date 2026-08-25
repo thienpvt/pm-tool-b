@@ -51,24 +51,41 @@ export async function getProject(projectId: number | string) {
 const LIST_SELECT = `SELECT p.*, c.name as program_name, c.industry as program_industry
    FROM projects p LEFT JOIN customers c ON p.customer_id = c.id`;
 
+/** PM identity columns for interim D-14 assignment checks. */
+export async function getProjectPmIdentity(projectId: number | string) {
+  const db = await getDb();
+  return db.get<{ pm_name: string; pm_email: string }>(
+    'SELECT pm_name, pm_email FROM projects WHERE id = ?',
+    Number(projectId),
+  );
+}
+
 /**
  * Project list, company-scoped.
  *
- * Takes the resolved `companyId` and `isAdmin` rather than a session (REPO-02). The
- * three branches match the route's current behavior exactly: admin sees everything,
- * a user with a company sees rows matching either the project's or its customer's
- * company, and a user with a null company sees only unassigned rows.
+ * Takes the resolved `companyId` rather than a session (REPO-02). Optional PM
+ * opts AND the D-14 assignment predicate for PM-only list filtering (D-14).
  */
-export async function listProjects(companyId: number | null, isAdmin: boolean) {
+export async function listProjects(
+  companyId: number | null,
+  opts?: { pmEmail?: string; pmName?: string; username?: string },
+) {
   const db = await getDb();
-  if (isAdmin) {
-    return db.all(`${LIST_SELECT} ORDER BY p.created_at DESC`);
-  }
   if (companyId !== null) {
-    return db.all(
-      `${LIST_SELECT} WHERE (p.company_id = ? OR c.company_id = ?) ORDER BY p.created_at DESC`,
-      companyId, companyId,
-    );
+    let sql = `${LIST_SELECT} WHERE (p.company_id = ? OR c.company_id = ?)`;
+    const params: unknown[] = [companyId, companyId];
+    if (opts) {
+      sql += ` AND (
+        (TRIM(COALESCE(p.pm_email, '')) != '' AND LOWER(p.pm_email) = LOWER(?))
+        OR (TRIM(COALESCE(p.pm_email, '')) = '' AND (
+          LOWER(TRIM(COALESCE(p.pm_name, ''))) = LOWER(TRIM(?))
+          OR LOWER(TRIM(COALESCE(p.pm_name, ''))) = LOWER(TRIM(?))
+        ))
+      )`;
+      params.push(opts.pmEmail ?? '', opts.pmName ?? '', opts.username ?? '');
+    }
+    sql += ' ORDER BY p.created_at DESC';
+    return db.all(sql, ...params);
   }
   return db.all(
     `${LIST_SELECT} WHERE p.company_id IS NULL

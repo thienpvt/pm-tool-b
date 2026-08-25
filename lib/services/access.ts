@@ -1,4 +1,4 @@
-import { projectAccessRow, type ProjectAccessRow } from '@/lib/repositories/projects.repo';
+import { getProjectPmIdentity, projectAccessRow, type ProjectAccessRow } from '@/lib/repositories/projects.repo';
 import { ForbiddenError, NotFoundError } from './errors';
 
 export type AppRole = 'cpmo' | 'pm' | 'viewer';
@@ -36,6 +36,26 @@ export function isCpmo(actor: AccessActor): boolean {
   return hasRole(actor, 'cpmo');
 }
 
+function isPmOnly(actor: AccessActor): boolean {
+  return hasRole(actor, 'pm') && !hasRole(actor, 'cpmo') && !hasRole(actor, 'viewer');
+}
+
+function matchesPmAssignment(
+  project: { pm_name: string | null; pm_email: string | null },
+  actor: AccessActor,
+): boolean {
+  const email = (project.pm_email ?? '').trim();
+  if (email) {
+    return actor.email.toLowerCase() === email.toLowerCase();
+  }
+  const pmName = (project.pm_name ?? '').trim().toLowerCase();
+  if (!pmName) return false;
+  return (
+    pmName === actor.display_name.trim().toLowerCase() ||
+    pmName === actor.username.trim().toLowerCase()
+  );
+}
+
 export function toAccessActor(user: AccessActorSource): AccessActor {
   return {
     company_id: user.company_id,
@@ -68,7 +88,8 @@ export function assertCanMutate(actor: AccessActor): void {
  * Order is fixed (T-04-03 existence oracle contract):
  * 1. missing project → NotFoundError
  * 2. CPMO company match (D-13) or tenant owner via company_id / customer_company_id
- * 3. null-company actor allowed ONLY when BOTH tenancy columns are null (CR-01)
+ * 3. PM-only D-14 assignment on read after tenant match (D-14, D-24)
+ * 4. null-company actor allowed ONLY when BOTH tenancy columns are null (CR-01)
  */
 export async function assertProjectAccess(
   projectId: number | string,
@@ -92,10 +113,37 @@ export async function assertProjectAccess(
     const allowed =
       row.company_id === actor.company_id || row.customer_company_id === actor.company_id;
     if (!allowed) throw new ForbiddenError();
-    return row;
+  } else if (row.company_id !== null || row.customer_company_id !== null) {
+    throw new ForbiddenError();
   }
 
-  // Null-company actor: only fully unassigned projects (mirrors listProjects CR-01).
-  if (row.company_id === null && row.customer_company_id === null) return row;
-  throw new ForbiddenError();
+  if (isPmOnly(actor)) {
+    const identity = await getProjectPmIdentity(projectId);
+    if (!identity || !matchesPmAssignment(identity, actor)) {
+      throw new ForbiddenError();
+    }
+  }
+
+  return row;
+}
+
+/** Interim D-14 PM write gate — Phase 11 replaces the lookup, not this function name. */
+export async function assertPmWriteAccess(
+  projectId: number | string,
+  actor: AccessActor,
+): Promise<void> {
+  if (isCpmo(actor)) return;
+  const identity = await getProjectPmIdentity(projectId);
+  if (!identity || !matchesPmAssignment(identity, actor)) {
+    throw new ForbiddenError();
+  }
+}
+
+export async function assertProjectWriteAccess(
+  projectId: number | string,
+  actor: AccessActor,
+): Promise<void> {
+  await assertProjectAccess(projectId, actor);
+  assertCanMutate(actor);
+  await assertPmWriteAccess(projectId, actor);
 }
