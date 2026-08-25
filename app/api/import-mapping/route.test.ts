@@ -2,23 +2,21 @@ import { NextRequest } from 'next/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const {
-  listTimelineMappingsRepo,
-  createTimelineMappingRepo,
+  listTimelineMappings,
+  createTimelineMapping,
   updateTimelineMapping,
   deleteTimelineMapping,
 } = vi.hoisted(() => ({
-  listTimelineMappingsRepo: vi.fn(),
-  createTimelineMappingRepo: vi.fn(),
+  listTimelineMappings: vi.fn(),
+  createTimelineMapping: vi.fn(),
   updateTimelineMapping: vi.fn(),
   deleteTimelineMapping: vi.fn(),
 }));
 
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
-vi.mock('@/lib/repositories/import-mapping.repo', () => ({
-  listTimelineMappings: listTimelineMappingsRepo,
-  createTimelineMapping: createTimelineMappingRepo,
-}));
 vi.mock('@/lib/services/import-mapping.service', () => ({
+  listTimelineMappings,
+  createTimelineMapping,
   updateTimelineMapping,
   deleteTimelineMapping,
 }));
@@ -53,42 +51,56 @@ describe('GET/POST /api/import-mapping', () => {
     });
   }
 
-  it('GET returns 401 with no session, repo not called', async () => {
+  it('GET returns 401 with no session, service not called', async () => {
     vi.mocked(getSessionFromRequest).mockResolvedValue(null);
     const res = await GET(req('GET'), params());
     expect(res.status).toBe(401);
     await expect(res.json()).resolves.toEqual({ error: 'Unauthorized' });
-    expect(listTimelineMappingsRepo).not.toHaveBeenCalled();
+    expect(listTimelineMappings).not.toHaveBeenCalled();
   });
 
-  it('POST returns 401 with no session, repo not called', async () => {
+  it('POST returns 401 with no session, service not called', async () => {
     vi.mocked(getSessionFromRequest).mockResolvedValue(null);
     const res = await POST(req('POST', undefined, { name: 'x', mappings_json: '{}' }), params());
     expect(res.status).toBe(401);
     await expect(res.json()).resolves.toEqual({ error: 'Unauthorized' });
-    expect(createTimelineMappingRepo).not.toHaveBeenCalled();
+    expect(createTimelineMapping).not.toHaveBeenCalled();
   });
 
   it('GET returns the prior list shape for an owner', async () => {
     vi.mocked(getSessionFromRequest).mockResolvedValue(ownerSession as never);
     const rows = [{ id: 1, name: 'tpl', mappings_json: '{}' }];
-    listTimelineMappingsRepo.mockResolvedValue(rows);
+    listTimelineMappings.mockResolvedValue(rows);
 
     const res = await GET(req('GET'), params());
 
     expect(res.status).toBe(200);
     await expect(res.json()).resolves.toEqual(rows);
+    expect(listTimelineMappings).toHaveBeenCalledWith(expect.objectContaining({ company_id: 5 }));
   });
 
   it('POST creates for an owner with 201', async () => {
     vi.mocked(getSessionFromRequest).mockResolvedValue(ownerSession as never);
     const created = { id: 2, name: 'tpl2', mappings_json: '{}' };
-    createTimelineMappingRepo.mockResolvedValue(created);
+    createTimelineMapping.mockResolvedValue(created);
 
     const res = await POST(req('POST', undefined, { name: 'tpl2', mappings_json: '{}' }), params());
 
     expect(res.status).toBe(201);
     await expect(res.json()).resolves.toEqual(created);
+    expect(createTimelineMapping).toHaveBeenCalledWith(
+      expect.objectContaining({ company_id: 5 }),
+      'tpl2',
+      '{}',
+    );
+  });
+
+  it('POST returns 400 { error: Missing fields } on schema failure', async () => {
+    vi.mocked(getSessionFromRequest).mockResolvedValue(ownerSession as never);
+    const res = await POST(req('POST', undefined, { mappings_json: '{}' }), params());
+    expect(res.status).toBe(400);
+    await expect(res.json()).resolves.toEqual({ error: 'Missing fields' });
+    expect(createTimelineMapping).not.toHaveBeenCalled();
   });
 });
 

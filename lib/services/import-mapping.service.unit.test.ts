@@ -3,12 +3,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const {
   listTimelineMappingsRepo,
   getTimelineMappingById,
+  findTimelineMappingByName,
   createTimelineMappingRepo,
   updateTimelineMappingRepo,
   deleteTimelineMappingRepo,
 } = vi.hoisted(() => ({
   listTimelineMappingsRepo: vi.fn(),
   getTimelineMappingById: vi.fn(),
+  findTimelineMappingByName: vi.fn(),
   createTimelineMappingRepo: vi.fn(),
   updateTimelineMappingRepo: vi.fn(),
   deleteTimelineMappingRepo: vi.fn(),
@@ -17,16 +19,19 @@ const {
 vi.mock('@/lib/repositories/import-mapping.repo', () => ({
   listTimelineMappings: listTimelineMappingsRepo,
   getTimelineMappingById,
+  findTimelineMappingByName,
   createTimelineMapping: createTimelineMappingRepo,
   updateTimelineMapping: updateTimelineMappingRepo,
   deleteTimelineMapping: deleteTimelineMappingRepo,
 }));
 
 import {
+  createTimelineMapping,
   deleteTimelineMapping,
+  listTimelineMappings,
   updateTimelineMapping,
 } from './import-mapping.service';
-import { ForbiddenError, NotFoundError } from './errors';
+import { ConflictError, ForbiddenError, NotFoundError } from './errors';
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -89,5 +94,36 @@ describe('import-mapping.service by-id tenant assert', () => {
     deleteTimelineMappingRepo.mockResolvedValue({ changes: 1 });
     await deleteTimelineMapping(1, owner);
     expect(deleteTimelineMappingRepo).toHaveBeenCalledWith(5, 1);
+  });
+});
+
+describe('import-mapping.service list and create', () => {
+  it('listTimelineMappings calls repo with session company', async () => {
+    listTimelineMappingsRepo.mockResolvedValue([row]);
+    await expect(listTimelineMappings(owner)).resolves.toEqual([row]);
+    expect(listTimelineMappingsRepo).toHaveBeenCalledWith(5);
+  });
+
+  it('listTimelineMappings throws ForbiddenError when company_id is null', async () => {
+    await expect(listTimelineMappings(noCompany)).rejects.toBeInstanceOf(ForbiddenError);
+    expect(listTimelineMappingsRepo).not.toHaveBeenCalled();
+  });
+
+  it('createTimelineMapping stamps actor company_id', async () => {
+    findTimelineMappingByName.mockResolvedValue(undefined);
+    createTimelineMappingRepo.mockResolvedValue(row);
+    await createTimelineMapping(owner, 'tpl', '{}');
+    expect(createTimelineMappingRepo).toHaveBeenCalledWith(5, 'tpl', '{}');
+  });
+
+  it('createTimelineMapping throws ForbiddenError when company_id is null', async () => {
+    await expect(createTimelineMapping(noCompany, 'tpl', '{}')).rejects.toBeInstanceOf(ForbiddenError);
+    expect(createTimelineMappingRepo).not.toHaveBeenCalled();
+  });
+
+  it('createTimelineMapping throws ConflictError on duplicate name within company', async () => {
+    findTimelineMappingByName.mockResolvedValue(row);
+    await expect(createTimelineMapping(owner, 'tpl', '{}')).rejects.toBeInstanceOf(ConflictError);
+    expect(createTimelineMappingRepo).not.toHaveBeenCalled();
   });
 });
