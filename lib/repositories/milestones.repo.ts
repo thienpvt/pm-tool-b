@@ -17,6 +17,15 @@ export async function listMilestones(projectId: number | string) {
   return db.all('SELECT * FROM milestones WHERE project_id = ? ORDER BY start_date, id', projectId);
 }
 
+export async function getMilestone(projectId: number | string, milestoneId: number | string) {
+  const db = await getDb();
+  return db.get(
+    'SELECT * FROM milestones WHERE id = ? AND project_id = ?',
+    milestoneId,
+    projectId,
+  );
+}
+
 export async function createMilestone(projectId: number | string, body: Record<string, unknown>) {
   const db = await getDb();
   const r = await db.run(
@@ -38,9 +47,17 @@ export async function updateMilestone(
   );
 }
 
-export async function deleteMilestone(projectId: number | string, milestoneId: number | string) {
+export async function cancelMilestone(
+  projectId: number | string,
+  milestoneId: number | string,
+  cancelledBy: number,
+) {
   const db = await getDb();
-  return db.run('DELETE FROM milestones WHERE id = ? AND project_id = ?', milestoneId, projectId);
+  return db.get(
+    `UPDATE milestones SET status = 'cancelled', cancelled_at = now(), cancelled_by = ?
+     WHERE id = ? AND project_id = ? AND status != 'cancelled' RETURNING *`,
+    cancelledBy, milestoneId, projectId,
+  );
 }
 
 export async function listEpics(milestoneId: number | string) {

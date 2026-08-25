@@ -1,6 +1,7 @@
 import {
+  cancelMilestone as cancelMilestoneRepo,
   createMilestone as createMilestoneRepo,
-  deleteMilestone as deleteMilestoneRepo,
+  getMilestone as getMilestoneRepo,
   linkEpic as linkEpicRepo,
   listEpics as listEpicsRepo,
   listMilestones as listMilestonesRepo,
@@ -8,6 +9,7 @@ import {
   updateMilestone as updateMilestoneRepo,
 } from '@/lib/repositories/milestones.repo';
 import { assertProjectAccess, assertProjectWriteAccess, type AccessActor } from './access';
+import { auditLog } from './audit.service';
 import { NotFoundError } from './errors';
 
 export async function listMilestones(projectId: number | string, actor: AccessActor) {
@@ -40,17 +42,25 @@ export async function updateMilestone(
   return updated;
 }
 
-export async function deleteMilestone(
+export async function cancelMilestone(
   projectId: number | string,
   actor: AccessActor,
   milestoneId: number | string,
 ) {
   await assertProjectWriteAccess(projectId, actor);
-  const result = await deleteMilestoneRepo(projectId, milestoneId);
-  if (!result || Number(result.changes ?? 0) === 0) {
-    throw new NotFoundError('Not found', 'milestone');
-  }
-  return result;
+  const prior = await getMilestoneRepo(projectId, milestoneId);
+  const updated = await cancelMilestoneRepo(projectId, milestoneId, actor.user_id);
+  if (!updated) throw new NotFoundError('Not found', 'milestone');
+  await auditLog({
+    actor_id: actor.user_id,
+    company_id: actor.company_id,
+    entity_type: 'milestone',
+    entity_id: String(milestoneId),
+    action: 'cancel',
+    before: { status: prior?.status ?? null },
+    after: { status: 'cancelled' },
+  });
+  return updated;
 }
 
 /**

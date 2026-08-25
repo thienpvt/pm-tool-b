@@ -6,8 +6,8 @@ vi.mock('@/lib/db', () => ({ getDb: vi.fn(async () => testDb()) }));
 
 import { createActivity } from './activities.repo';
 import {
+  cancelMilestone,
   createMilestone,
-  deleteMilestone,
   linkEpic,
   listEpics,
   listMilestones,
@@ -68,12 +68,21 @@ describe.skipIf(!hasTestDb)('milestones.repo', () => {
     expect(rows.find(r => Number(r.id) === foreign.id)?.name).toBe('Untouched');
   });
 
-  it('deletes only within the scoping project', async () => {
-    const other = await seedProject('Delete Scope Milestones');
+  it('cancelMilestone does not affect a milestone belonging to another project', async () => {
+    const other = await seedProject('Cancel Scope Milestones');
     const foreign = await createMilestone(other, { name: 'Theirs' }) as { id: number };
+    const { lastInsertRowid: userId } = await testDb().run(
+      'INSERT INTO users (username, password_hash, display_name) VALUES (?,?,?)',
+      'cancel-scope-user', 'hash', 'Cancel Scope User',
+    );
 
-    const result = await deleteMilestone(projectId, foreign.id);
-    expect(result.changes).toBe(0);
+    const result = await cancelMilestone(projectId, foreign.id, Number(userId));
+    expect(result).toBeUndefined();
+
+    const rows = await listMilestones(other) as Record<string, string>[];
+    const row = rows.find(r => Number(r.id) === foreign.id);
+    expect(row?.name).toBe('Theirs');
+    expect(row?.status ?? 'planned').toBe('planned');
   });
 
   it('links an epic, lists it, and is idempotent on a repeat link', async () => {

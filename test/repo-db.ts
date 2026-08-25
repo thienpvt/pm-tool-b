@@ -154,12 +154,14 @@ CREATE TABLE IF NOT EXISTS activities (
 CREATE TABLE IF NOT EXISTS risks (
   id SERIAL PRIMARY KEY, project_id INTEGER, risk_id TEXT, description TEXT,
   category TEXT, owner TEXT, trigger TEXT, mitigation TEXT, due_date TEXT,
-  status TEXT, priority TEXT, impact TEXT, affected_activity_id INTEGER
+  status TEXT, priority TEXT, impact TEXT, affected_activity_id INTEGER,
+  code TEXT, deactivated_at TIMESTAMPTZ
 );
 CREATE TABLE IF NOT EXISTS issues (
   id SERIAL PRIMARY KEY, project_id INTEGER, issue_id TEXT, description TEXT,
   root_cause TEXT, category TEXT, owner TEXT, trigger TEXT, mitigation TEXT,
-  due_date TEXT, status TEXT, priority TEXT, impact TEXT, affected_activity_id INTEGER
+  due_date TEXT, status TEXT, priority TEXT, impact TEXT, affected_activity_id INTEGER,
+  code TEXT, technology_council BOOLEAN DEFAULT FALSE, deactivated_at TIMESTAMPTZ
 );
 CREATE TABLE IF NOT EXISTS meetings (
   id SERIAL PRIMARY KEY, project_id INTEGER, name TEXT, frequency TEXT,
@@ -174,7 +176,18 @@ CREATE TABLE IF NOT EXISTS escalation_levels (
   channel TEXT, participants TEXT, input TEXT, output TEXT
 );
 CREATE TABLE IF NOT EXISTS milestones (
-  id SERIAL PRIMARY KEY, project_id INTEGER, name TEXT, start_date TEXT, end_date TEXT
+  id SERIAL PRIMARY KEY, project_id INTEGER, name TEXT, start_date TEXT, end_date TEXT,
+  status TEXT NOT NULL DEFAULT 'planned', plan_end TEXT, adjusted_end TEXT,
+  cancelled_at TIMESTAMPTZ, cancelled_by INTEGER REFERENCES users(id)
+);
+CREATE TABLE IF NOT EXISTS raid_due_date_history (
+  id BIGSERIAL PRIMARY KEY,
+  entity_type TEXT NOT NULL CHECK (entity_type IN ('risk','issue')),
+  entity_id TEXT NOT NULL,
+  old_due TEXT,
+  new_due TEXT,
+  changed_at TIMESTAMPTZ DEFAULT now(),
+  changed_by INTEGER REFERENCES users(id)
 );
 -- Mirrors lib/db.ts: SERIAL id plus a UNIQUE pair, NOT a composite primary key.
 -- The id column is load-bearing here: lib/db.ts appends RETURNING id to every

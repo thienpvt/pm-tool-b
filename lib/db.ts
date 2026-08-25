@@ -613,6 +613,8 @@ export async function getDb(): Promise<DbClient> {
   await migrateUsersRolesAndAudit(pool);
   const { migrateProjectMaster } = await import('./db-project-master');
   await migrateProjectMaster(pool);
+  const { migrateRaidMasters } = await import('./db-raid-masters');
+  await migrateRaidMasters(pool);
   await backfillWeightedCompletion(pool);
   _client = client;
 
