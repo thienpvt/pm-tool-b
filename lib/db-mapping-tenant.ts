@@ -2,11 +2,15 @@ import type { Pool } from 'pg';
 
 const TIMELINE_FLAG = 'mapping_tenant_timeline_import_mappings_v1';
 const BUG_FLAG = 'mapping_tenant_bug_import_mappings_v1';
+const JQL_FLAG = 'mapping_tenant_jira_jql_presets_v1';
+const SYNC_FLAG = 'mapping_tenant_jira_sync_mappings_v1';
 
 type MappingTableSpec = {
   table: string;
-  nameColumn: string;
+  nameColumn?: string;
   payloadColumns: string[];
+  /** Composite UNIQUE columns; defaults to (company_id, nameColumn) when nameColumn is set. */
+  uniqueIndexColumns?: string[];
 };
 
 const TIMELINE_SPEC: MappingTableSpec = {
@@ -21,6 +25,18 @@ const BUG_SPEC: MappingTableSpec = {
   payloadColumns: ['mappings_json'],
 };
 
+const JQL_SPEC: MappingTableSpec = {
+  table: 'jira_jql_presets',
+  nameColumn: 'name',
+  payloadColumns: ['jql', 'context'],
+  uniqueIndexColumns: ['company_id', 'name', 'context'],
+};
+
+const SYNC_SPEC: MappingTableSpec = {
+  table: 'jira_sync_mappings',
+  payloadColumns: ['mappings_json'],
+};
+
 /**
  * Idempotent per-table mapping tenancy migration (D-01, D-02).
  * Order: nullable column → backfill → NOT NULL+FK → UNIQUE(company_id, name) → index.
@@ -28,6 +44,8 @@ const BUG_SPEC: MappingTableSpec = {
 export async function migrateMappingTableTenancy(pool: Pool): Promise<void> {
   await migrateOneTable(pool, TIMELINE_SPEC, TIMELINE_FLAG);
   await migrateOneTable(pool, BUG_SPEC, BUG_FLAG);
+  await migrateOneTable(pool, JQL_SPEC, JQL_FLAG);
+  await migrateOneTable(pool, SYNC_SPEC, SYNC_FLAG);
 }
 
 async function migrateOneTable(pool: Pool, spec: MappingTableSpec, flagKey: string): Promise<void> {
@@ -61,8 +79,14 @@ async function migrateOneTable(pool: Pool, spec: MappingTableSpec, flagKey: stri
            WHERE company_id IS NULL`,
         );
       } else if (companyCount > 1) {
-        const insertCols = [nameColumn, ...payloadColumns, 'company_id', 'created_at'].join(', ');
-        const selectCols = [`t.${nameColumn}`, ...payloadColumns.map(c => `t.${c}`), 'c.id', 't.created_at'].join(', ');
+        const dataCols = nameColumn ? [nameColumn, ...payloadColumns] : payloadColumns;
+        const insertCols = [...dataCols, 'company_id', 'created_at'].join(', ');
+        const selectCols = [
+          ...(nameColumn ? [`t.${nameColumn}`] : []),
+          ...payloadColumns.map(c => `t.${c}`),
+          'c.id',
+          't.created_at',
+        ].join(', ');
         await pool.query(
           `INSERT INTO ${table} (${insertCols})
            SELECT ${selectCols}
@@ -89,13 +113,17 @@ async function migrateOneTable(pool: Pool, spec: MappingTableSpec, flagKey: stri
       await pool.query(`DROP INDEX IF EXISTS ${table}_name_key`).catch(() => {});
       await pool.query(`DROP INDEX IF EXISTS idx_${table}_name`).catch(() => {});
 
-      try {
-        await pool.query(
-          `CREATE UNIQUE INDEX IF NOT EXISTS idx_${table}_company_name
-           ON ${table} (company_id, ${nameColumn})`,
-        );
-      } catch {
-        /* index exists */
+      const uniqueCols =
+        spec.uniqueIndexColumns ?? (nameColumn ? ['company_id', nameColumn] : undefined);
+      if (uniqueCols && uniqueCols.length > 0) {
+        try {
+          await pool.query(
+            `CREATE UNIQUE INDEX IF NOT EXISTS idx_${table}_company_unique
+             ON ${table} (${uniqueCols.join(', ')})`,
+          );
+        } catch {
+          /* index exists */
+        }
       }
 
       try {

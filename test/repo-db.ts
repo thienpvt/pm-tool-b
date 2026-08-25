@@ -220,6 +220,19 @@ CREATE TABLE IF NOT EXISTS bug_import_mappings (
   created_at TIMESTAMP DEFAULT now(),
   UNIQUE (company_id, name)
 );
+CREATE TABLE IF NOT EXISTS jira_jql_presets (
+  id SERIAL PRIMARY KEY, name TEXT NOT NULL, jql TEXT NOT NULL,
+  context TEXT DEFAULT '',
+  company_id INTEGER REFERENCES companies(id),
+  created_at TIMESTAMP DEFAULT now(),
+  UNIQUE (company_id, name, context)
+);
+CREATE TABLE IF NOT EXISTS jira_sync_mappings (
+  id SERIAL PRIMARY KEY, mappings_json TEXT NOT NULL,
+  company_id INTEGER REFERENCES companies(id),
+  created_at TIMESTAMP DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_jira_sync_mappings_company_id ON jira_sync_mappings (company_id);
 `;
 
 /** Advisory lock key serialising DDL across parallel vitest worker processes. */
