@@ -28,33 +28,63 @@ export async function setCompanyJiraConfig(companyId: number, config: JiraConfig
   );
 }
 
-export async function listJqlPresets(context: string) {
+export async function getJqlPresetById(presetId: number | string) {
   const db = await getDb();
-  return db.all(
-    'SELECT * FROM jira_jql_presets WHERE context = ? ORDER BY created_at DESC',
+  return db.get('SELECT * FROM jira_jql_presets WHERE id = ?', presetId);
+}
+
+export async function findJqlPresetByName(companyId: number, name: string, context: string) {
+  const db = await getDb();
+  return db.get(
+    'SELECT * FROM jira_jql_presets WHERE company_id = ? AND name = ? AND context = ?',
+    companyId,
+    name,
     context,
   );
 }
 
-export async function createJqlPreset(name: string, jql: string, context: string, maxPresets = 10) {
+export async function listJqlPresets(companyId: number, context: string) {
+  const db = await getDb();
+  return db.all(
+    'SELECT * FROM jira_jql_presets WHERE company_id = ? AND context = ? ORDER BY created_at DESC',
+    companyId,
+    context,
+  );
+}
+
+export async function createJqlPreset(
+  companyId: number,
+  name: string,
+  jql: string,
+  context: string,
+  maxPresets = 10,
+) {
   const db = await getDb();
   const existing = await db.all<{ id: number }>(
-    'SELECT id FROM jira_jql_presets WHERE context = ? ORDER BY created_at DESC',
+    'SELECT id FROM jira_jql_presets WHERE company_id = ? AND context = ? ORDER BY created_at DESC',
+    companyId,
     context,
   );
   if (existing.length >= maxPresets) {
-    await db.run('DELETE FROM jira_jql_presets WHERE id = ?', existing[existing.length - 1].id);
+    await db.run(
+      'DELETE FROM jira_jql_presets WHERE id = ? AND company_id = ?',
+      existing[existing.length - 1].id,
+      companyId,
+    );
   }
   return db.get(
-    `INSERT INTO jira_jql_presets (name, jql, context) VALUES (?, ?, ?)
+    `INSERT INTO jira_jql_presets (name, jql, context, company_id) VALUES (?, ?, ?, ?)
      RETURNING *`,
-    name, jql, context,
+    name,
+    jql,
+    context,
+    companyId,
   );
 }
 
-export async function deleteJqlPreset(presetId: number | string) {
+export async function deleteJqlPreset(companyId: number, presetId: number | string) {
   const db = await getDb();
-  return db.run('DELETE FROM jira_jql_presets WHERE id = ?', presetId);
+  return db.run('DELETE FROM jira_jql_presets WHERE id = ? AND company_id = ?', presetId, companyId);
 }
 
 export async function listRecentJiraSyncMappings() {
