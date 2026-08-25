@@ -1,18 +1,43 @@
 import {
+  createTimelineMapping as createTimelineMappingRepo,
   deleteTimelineMapping as deleteTimelineMappingRepo,
+  findTimelineMappingByName,
   getTimelineMappingById,
+  listTimelineMappings as listTimelineMappingsRepo,
   updateTimelineMapping as updateTimelineMappingRepo,
 } from '@/lib/repositories/import-mapping.repo';
 import type { AccessActor } from './access';
-import { ForbiddenError, NotFoundError } from './errors';
+import { ConflictError, ForbiddenError, NotFoundError } from './errors';
 
 type CompanyRow = { company_id: number };
+
+function requireCompanyId(actor: AccessActor): number {
+  if (actor.company_id === null) throw new ForbiddenError();
+  return actor.company_id;
+}
 
 function assertCompanyRow(actor: AccessActor, row: CompanyRow | undefined) {
   if (!row) throw new NotFoundError('Not found');
   if (actor.company_id === null || row.company_id !== actor.company_id) {
     throw new ForbiddenError();
   }
+}
+
+export async function listTimelineMappings(actor: AccessActor) {
+  const companyId = requireCompanyId(actor);
+  return listTimelineMappingsRepo(companyId);
+}
+
+export async function createTimelineMapping(
+  actor: AccessActor,
+  name: string,
+  mappingsJson: string,
+) {
+  const companyId = requireCompanyId(actor);
+  if (await findTimelineMappingByName(companyId, name)) {
+    throw new ConflictError('Template name already exists');
+  }
+  return createTimelineMappingRepo(companyId, name, mappingsJson);
 }
 
 export async function updateTimelineMapping(

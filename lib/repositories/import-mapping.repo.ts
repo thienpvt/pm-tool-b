@@ -11,9 +11,12 @@ import { getDb } from '@/lib/db';
 
 // ── Timeline mappings (company-scoped) ────────────────────────────────────────
 
-export async function listTimelineMappings() {
+export async function listTimelineMappings(companyId: number) {
   const db = await getDb();
-  return db.all('SELECT * FROM timeline_import_mappings ORDER BY created_at DESC');
+  return db.all(
+    'SELECT * FROM timeline_import_mappings WHERE company_id = ? ORDER BY created_at DESC',
+    companyId,
+  );
 }
 
 export async function getTimelineMappingById(id: number | string) {
@@ -24,11 +27,19 @@ export async function getTimelineMappingById(id: number | string) {
   );
 }
 
-export async function createTimelineMapping(name: string, mappingsJson: string) {
+export async function findTimelineMappingByName(companyId: number, name: string) {
+  const db = await getDb();
+  return db.get(
+    'SELECT * FROM timeline_import_mappings WHERE company_id = ? AND name = ?',
+    companyId, name,
+  );
+}
+
+export async function createTimelineMapping(companyId: number, name: string, mappingsJson: string) {
   const db = await getDb();
   const r = await db.run(
-    'INSERT INTO timeline_import_mappings (name, mappings_json) VALUES (?, ?)',
-    name, mappingsJson,
+    'INSERT INTO timeline_import_mappings (name, mappings_json, company_id) VALUES (?, ?, ?)',
+    name, mappingsJson, companyId,
   );
   return db.get('SELECT * FROM timeline_import_mappings WHERE id = ?', r.lastInsertRowid);
 }
