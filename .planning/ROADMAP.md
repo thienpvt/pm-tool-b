@@ -87,26 +87,26 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 10-01-PLAN.md — Tracer: Inactive/Locked login reject, SessionUser.roles, Viewer createRisk 403
+- [ ] 10-01-PLAN.md — Tracer: Inactive/Locked login reject, SessionUser.roles, Viewer createRisk 403, withAuth actor tests
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
 - [ ] 10-02-PLAN.md — Session extend, mid-session revoke, logout, GET /api/auth/me
-- [ ] 10-03-PLAN.md — Company-scoped CPMO, interim PM assignment, list/create
+- [ ] 10-03-PLAN.md — Company-scoped CPMO, interim PM assignment, D-14 nested GET, list/create
 - [ ] 10-05-PLAN.md — CPMO user admin API, audit on create/update, lock/deactivate
 
 **Wave 3** *(blocked on Wave 2 plan 10-03 or 10-05 as listed)*
 
 - [ ] 10-04-PLAN.md — Nested mutators A: risks, issues, milestones (linkEpic/unlinkEpic), activities (importActivities)
 - [ ] 10-06-PLAN.md — Nested mutators B: meetings, team, bugs (replaceSnapshot), escalations
-- [ ] 10-07-PLAN.md — Holidays, documents (upsertDocument), budget, budget-items
+- [ ] 10-07-PLAN.md — Holidays, documents (upsertDocument), budget, budget-items, createExpense/deleteExpense
 - [ ] 10-08-PLAN.md — AI POSTs: project/portfolio report, generate-email, send-email
-- [ ] 10-09-PLAN.md — Company-scoped programs/portfolio/roadmap lists + writes; allocations POST
+- [ ] 10-09-PLAN.md — Company-scoped programs/portfolio/roadmap lists + writes; allocations POST; resource-audit; listResourceMembers
 - [ ] 10-11-PLAN.md — /admin Users UI and Sidebar CPMO nav
 
 **Wave 4** *(blocked on Wave 3 plans 10-04 and 10-09)*
 
-- [ ] 10-10-PLAN.md — toAccessActor on leftover portfolio actors + role-matrix
+- [ ] 10-10-PLAN.md — toAccessActor on leftover portfolio/programs/milestones/report GET/epics actors + role-matrix
 
 **UI hint**: yes
 
