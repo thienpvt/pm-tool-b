@@ -39,7 +39,9 @@ const DEFAULT_CONFIG: CompanyWeeklyConfigRow = {
 };
 
 async function withPgTransaction<T>(fn: (client: PoolClient) => Promise<T>): Promise<T> {
-  const url = process.env.DATABASE_URL;
+  const url = process.env.VITEST
+    ? (process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL)
+    : process.env.DATABASE_URL;
   if (!url) throw new Error('DATABASE_URL is required');
   const pool = new Pool({ connectionString: url });
   const client = await pool.connect();
