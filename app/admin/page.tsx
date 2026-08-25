@@ -56,8 +56,7 @@ function canAccessAdmin(me: Me): boolean {
 
 function canMutateUsers(me: Me): boolean {
   if (me.is_admin) return true;
-  const roles = me.roles ?? [];
-  return roles.includes('cpmo') || roles.includes('pm');
+  return me.roles?.includes('cpmo') ?? false;
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
