@@ -197,7 +197,7 @@ Plans:
   4. Each decomposed page has a component test covering its primary render path and one interaction
   5. Each decomposition is verified against the pre-refactor page for identical behavior on load, filter, and export paths
 
-**Plans**: 6/9 plans executed across 5 waves
+**Plans**: 8/9 plans executed across 5 waves
 
 Plans:
 **Wave 0**
@@ -218,7 +218,7 @@ Plans:
 **Wave 3** *(parallel)*
 
 - [x] 07-06-PLAN.md — Decompose `app/portfolio/roadmap/page.tsx` (UI-06)
-- [ ] 07-07-PLAN.md — Decompose `components/timeline/ImportMappingDialog.tsx` in place (UI-07)
+- [x] 07-07-PLAN.md — Decompose `components/timeline/ImportMappingDialog.tsx` in place (UI-07)
 
 **Wave 4**
 
@@ -236,4 +236,4 @@ Plans:
 | 4. Service Layer | 7/7 | Complete    | 2026-08-11 |
 | 5. Route Thinning & Validation | 3/3 | Complete    | 2026-08-11 |
 | 6. Access Enforcement Rollout | 6/7 | In Progress|  |
-| 7. UI Decomposition | 6/9 | In Progress|  |
+| 7. UI Decomposition | 8/9 | In Progress|  |
