@@ -8,16 +8,23 @@ import {
   finalizeWeeklyReportSubmit,
   getLatestVersionSnapshot,
   getPriorPeriodSubmittedRag,
+  getWeeklyPeriodByCompany,
   getWeeklyReportFullRow,
   getWeeklyReportWithPeriod,
   insertWeeklyReportVersion,
+  listPeriodShellsRepo,
   listProjectWeeklyHistoryRepo,
   openCorrectionOnShell,
   updatePrevWeekRag,
   updateWeeklyReportDraft,
   type DraftUpdateFields,
 } from '@/lib/repositories/weekly-reports.repo';
-import { getProject } from '@/lib/repositories/projects.repo';
+import { getProject, updateProject } from '@/lib/repositories/projects.repo';
+import { getMilestone } from '@/lib/repositories/milestones.repo';
+import { getRisk } from '@/lib/repositories/risks.repo';
+import { getIssue } from '@/lib/repositories/issues.repo';
+import { createRisk, updateRisk } from './risks.service';
+import { createIssue, updateIssue } from './issues.service';
 import { ISO_WEEK_PATTERN } from '@/lib/iso-week';
 import {
   assertCompanyWrite,
@@ -26,7 +33,7 @@ import {
   type AccessActor,
 } from './access';
 import { auditLog } from './audit.service';
-import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors';
+import { ConflictError, ForbiddenError, NotFoundError, SubmitValidationError, ValidationError } from './errors';
 
 const DEFAULT_CONFIG = { due_weekday: 5, due_time_utc: '18:00:00' };
 
@@ -75,7 +82,6 @@ function buildSnapshotFromShell(shell: {
   leadership_support: string | null;
   this_week_rag: string | null;
   prev_week_rag: string | null;
-  draft_raid_json: unknown | null;
 }): Record<string, unknown> {
   return {
     highlights: shell.highlights,
@@ -89,7 +95,93 @@ function buildSnapshotFromShell(shell: {
     leadership_support: shell.leadership_support,
     this_week_rag: shell.this_week_rag,
     prev_week_rag: shell.prev_week_rag,
-    draft_raid_json: shell.draft_raid_json,
+  };
+}
+
+type DraftRaidEntry = { id: number | 'new'; fields: Record<string, unknown> };
+
+function parseDraftRaidJson(raw: unknown): { risks: DraftRaidEntry[]; issues: DraftRaidEntry[] } {
+  if (!raw || typeof raw !== 'object') return { risks: [], issues: [] };
+  const obj = raw as Record<string, unknown>;
+  const risks = Array.isArray(obj.risks) ? (obj.risks as DraftRaidEntry[]) : [];
+  const issues = Array.isArray(obj.issues) ? (obj.issues as DraftRaidEntry[]) : [];
+  return { risks, issues };
+}
+
+function isDeactivatedRaidRow(row: Record<string, unknown>): boolean {
+  return row.status === 'deactivated' || row.deactivated_at != null;
+}
+
+async function validateSubmitDraft(
+  projectId: number,
+  shell: {
+    nearest_milestone_id: number | null;
+    draft_raid_json: unknown | null;
+  },
+): Promise<{ fields: string[]; milestoneRow: Record<string, unknown> | null }> {
+  const fields: string[] = [];
+  let milestoneRow: Record<string, unknown> | null = null;
+  const draftRaid = parseDraftRaidJson(shell.draft_raid_json);
+
+  for (let i = 0; i < draftRaid.risks.length; i++) {
+    const entry = draftRaid.risks[i];
+    if (!entry || typeof entry !== 'object') {
+      fields.push(`raid.risks[${i}]`);
+      continue;
+    }
+    const entryFields = entry.fields && typeof entry.fields === 'object' ? entry.fields : {};
+    if (entry.id === 'new') {
+      const desc = typeof entryFields.description === 'string' ? entryFields.description.trim() : '';
+      if (!desc) fields.push(`raid.risks[${i}].description`);
+    } else if (typeof entry.id === 'number') {
+      const risk = await getRisk(projectId, entry.id);
+      if (!risk || isDeactivatedRaidRow(risk as Record<string, unknown>)) {
+        fields.push(`raid.risks[${i}].id`);
+      }
+    } else {
+      fields.push(`raid.risks[${i}].id`);
+    }
+  }
+
+  for (let i = 0; i < draftRaid.issues.length; i++) {
+    const entry = draftRaid.issues[i];
+    if (!entry || typeof entry !== 'object') {
+      fields.push(`raid.issues[${i}]`);
+      continue;
+    }
+    const entryFields = entry.fields && typeof entry.fields === 'object' ? entry.fields : {};
+    if (entry.id === 'new') {
+      const desc = typeof entryFields.description === 'string' ? entryFields.description.trim() : '';
+      if (!desc) fields.push(`raid.issues[${i}].description`);
+    } else if (typeof entry.id === 'number') {
+      const issue = await getIssue(projectId, entry.id);
+      if (!issue || isDeactivatedRaidRow(issue as Record<string, unknown>)) {
+        fields.push(`raid.issues[${i}].id`);
+      }
+    } else {
+      fields.push(`raid.issues[${i}].id`);
+    }
+  }
+
+  if (shell.nearest_milestone_id != null) {
+    milestoneRow = (await getMilestone(projectId, shell.nearest_milestone_id)) as Record<
+      string,
+      unknown
+    > | null;
+    if (!milestoneRow) fields.push('nearest_milestone_id');
+  }
+
+  return { fields, milestoneRow };
+}
+
+function copyMilestoneSnapshot(row: Record<string, unknown>) {
+  return {
+    id: row.id,
+    name: row.name,
+    plan_end: row.plan_end ?? null,
+    adjusted_end: row.adjusted_end ?? null,
+    status: row.status ?? null,
+    end_date: row.end_date ?? null,
   };
 }
 
@@ -270,9 +362,66 @@ export async function submitWeeklyReport(
   }
   validateRag(shell.this_week_rag);
 
+  const validation = await validateSubmitDraft(pid, shell);
+  if (validation.fields.length > 0) {
+    throw new SubmitValidationError('Submit validation failed', validation.fields);
+  }
+
+  const draftRaid = parseDraftRaidJson(shell.draft_raid_json);
+  const riskIds: number[] = [];
+  for (const entry of draftRaid.risks) {
+    if (!entry || typeof entry !== 'object') continue;
+    const fields = entry.fields && typeof entry.fields === 'object' ? entry.fields : {};
+    if (entry.id === 'new') {
+      const created = await createRisk(pid, actor, fields);
+      riskIds.push(Number(created.id));
+    } else if (typeof entry.id === 'number') {
+      await updateRisk(pid, actor, entry.id, fields);
+      riskIds.push(entry.id);
+    }
+  }
+
+  const issueIds: number[] = [];
+  for (const entry of draftRaid.issues) {
+    if (!entry || typeof entry !== 'object') continue;
+    const fields = entry.fields && typeof entry.fields === 'object' ? entry.fields : {};
+    if (entry.id === 'new') {
+      const created = await createIssue(pid, actor, fields);
+      issueIds.push(Number(created.id));
+    } else if (typeof entry.id === 'number') {
+      await updateIssue(pid, actor, entry.id, fields);
+      issueIds.push(entry.id);
+    }
+  }
+
+  const project = await getProject(pid);
+  const progressPct = project && typeof project.progress_pct === 'number'
+    ? project.progress_pct
+    : Number(project?.progress_pct ?? 0) || 0;
+
+  if (project && shell.this_week_rag !== project.rag) {
+    await updateProject(pid, { rag: shell.this_week_rag });
+  }
+
+  const lockedRisks = [];
+  for (const id of riskIds) {
+    const row = await getRisk(pid, id);
+    if (row) lockedRisks.push({ ...row });
+  }
+  const lockedIssues = [];
+  for (const id of issueIds) {
+    const row = await getIssue(pid, id);
+    if (row) lockedIssues.push({ ...row });
+  }
+
   const prevWeekRag = await ensurePrevWeekRag(pid, rid, shell);
   const shellForSnapshot = { ...shell, prev_week_rag: prevWeekRag };
-  const snapshot = buildSnapshotFromShell(shellForSnapshot);
+  const snapshot = {
+    ...buildSnapshotFromShell(shellForSnapshot),
+    progress_pct: progressPct,
+    raid: { risks: lockedRisks, issues: lockedIssues },
+    milestones: validation.milestoneRow ? [copyMilestoneSnapshot(validation.milestoneRow)] : [],
+  };
   const newVersion = shell.latest_version + 1;
   const now = new Date().toISOString();
   const isFirstSubmit = shell.first_submitted_at === null;
@@ -284,7 +433,7 @@ export async function submitWeeklyReport(
     submittedAt: now,
     submittedBy: actor.user_id,
     rag: shell.this_week_rag,
-    progressPct: null,
+    progressPct,
   });
 
   const dueAt = new Date(shell.due_at);
@@ -361,5 +510,28 @@ export async function listProjectWeeklyHistory(
     latest_version: row.latest_version,
     report_id: row.report_id,
     period_id: row.period_id,
+  }));
+}
+
+export async function listPeriodShells(
+  companyId: number,
+  periodId: number,
+  actor: AccessActor,
+) {
+  assertCompanyWrite(actor);
+  if (actor.company_id !== companyId) throw new ForbiddenError();
+  const period = await getWeeklyPeriodByCompany(companyId, periodId);
+  if (!period) throw new NotFoundError('Not found', 'weekly_period');
+  const rows = await listPeriodShellsRepo(periodId);
+  const now = new Date();
+  return rows.map((row) => ({
+    project_id: row.project_id,
+    status: row.status,
+    overdue: isWeeklyReportOverdue(row.status, row.due_at, now),
+    rag: row.rag,
+    first_lateness: row.first_lateness,
+    first_submitted_at: row.first_submitted_at,
+    latest_version: row.latest_version,
+    report_id: row.report_id,
   }));
 }

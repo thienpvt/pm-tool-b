@@ -42,3 +42,14 @@ export class ConflictError extends Error {
     this.name = 'ConflictError';
   }
 }
+
+/** Multi-field submit validation (RAID-03). Maps to 400 { error, fields: string[] }. */
+export class SubmitValidationError extends Error {
+  readonly fields: string[];
+
+  constructor(message: string, fields: string[]) {
+    super(message);
+    this.name = 'SubmitValidationError';
+    this.fields = fields;
+  }
+}

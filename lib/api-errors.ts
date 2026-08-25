@@ -5,6 +5,7 @@ import {
   ConflictError,
   ForbiddenError,
   NotFoundError,
+  SubmitValidationError,
   ValidationError,
 } from '@/lib/services/errors';
 
@@ -50,6 +51,9 @@ export function serviceErrorResponse(e: unknown) {
     const body: { error: string; field?: string } = { error: e.message };
     if (e.field !== undefined) body.field = e.field;
     return NextResponse.json(body, { status: 400 });
+  }
+  if (e instanceof SubmitValidationError) {
+    return NextResponse.json({ error: e.message, fields: e.fields }, { status: 400 });
   }
   if (e instanceof ConflictError) {
     return NextResponse.json({ error: e.message }, { status: 409 });

@@ -344,3 +344,41 @@ export async function listProjectWeeklyHistoryRepo(
     projectId,
   );
 }
+
+export type PeriodShellListRow = {
+  project_id: number;
+  status: string;
+  first_submitted_at: string | null;
+  first_lateness: string | null;
+  latest_version: number;
+  report_id: number;
+  due_at: string;
+  rag: string | null;
+};
+
+export async function getWeeklyPeriodByCompany(
+  companyId: number,
+  periodId: number,
+): Promise<{ id: number; due_at: string } | undefined> {
+  const db = await getDb();
+  return db.get<{ id: number; due_at: string }>(
+    `SELECT id, due_at FROM weekly_periods WHERE id = ? AND company_id = ?`,
+    periodId,
+    companyId,
+  );
+}
+
+export async function listPeriodShellsRepo(periodId: number): Promise<PeriodShellListRow[]> {
+  const db = await getDb();
+  return db.all<PeriodShellListRow>(
+    `SELECT wr.project_id, wr.status, wr.first_submitted_at, wr.first_lateness,
+            wr.latest_version, wr.id AS report_id, wp.due_at, wv.rag
+     FROM weekly_reports wr
+     JOIN weekly_periods wp ON wp.id = wr.period_id
+     LEFT JOIN weekly_report_versions wv
+       ON wv.report_id = wr.id AND wv.version = wr.latest_version
+     WHERE wr.period_id = ?
+     ORDER BY wr.project_id`,
+    periodId,
+  );
+}
