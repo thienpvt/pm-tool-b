@@ -9,7 +9,12 @@ export async function POST(req: NextRequest) {
   }
 
   const user = await findUserByUsername(String(username).trim());
-  if (!user || !verifyPassword(String(password), user.password_hash)) {
+  const status = user?.status ?? 'active';
+  if (
+    !user
+    || status !== 'active'
+    || !verifyPassword(String(password), user.password_hash)
+  ) {
     return NextResponse.json({ error: 'Invalid username or password' }, { status: 401 });
   }
 

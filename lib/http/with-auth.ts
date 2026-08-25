@@ -4,13 +4,10 @@ import type { z } from 'zod';
 import { getSessionFromRequest, type SessionUser } from '@/lib/auth';
 import { repoErrorResponse, serviceErrorResponse } from '@/lib/api-errors';
 import { UnknownColumnError } from '@/lib/repositories/_helpers';
+import { toAccessActor, type AccessActor } from '@/lib/services/access';
 import { ForbiddenError, NotFoundError } from '@/lib/services/errors';
 
-/** Plain actor fields peeled off the session — matches lib/services/access.ts's AccessActor. */
-export type AccessActor = {
-  company_id: number | null;
-  is_admin: number | boolean;
-};
+export type { AccessActor };
 
 export type HandlerContext<
   TParams extends Record<string, string> = Record<string, string>,
@@ -95,7 +92,7 @@ export function withAuth<
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const params = await rawCtx.params;
-    const actor: AccessActor = { company_id: user.company_id, is_admin: user.is_admin };
+    const actor: AccessActor = toAccessActor(user);
 
     let body: unknown;
     if (opts?.schema) {

@@ -98,7 +98,26 @@ CREATE TABLE IF NOT EXISTS companies (
 );
 CREATE TABLE IF NOT EXISTS users (
   id SERIAL PRIMARY KEY, username TEXT, password_hash TEXT, display_name TEXT,
-  company_id INTEGER, is_admin INTEGER DEFAULT 0, created_at TIMESTAMPTZ DEFAULT now()
+  company_id INTEGER, is_admin INTEGER DEFAULT 0, created_at TIMESTAMPTZ DEFAULT now(),
+  email TEXT, status TEXT NOT NULL DEFAULT 'active', locked_at TIMESTAMPTZ,
+  locked_by INTEGER REFERENCES users(id), deleted_at TIMESTAMPTZ
+);
+CREATE TABLE IF NOT EXISTS user_roles (
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  role TEXT NOT NULL CHECK (role IN ('cpmo', 'pm', 'viewer')),
+  company_id INTEGER REFERENCES companies(id),
+  PRIMARY KEY (user_id, role)
+);
+CREATE TABLE IF NOT EXISTS audit_logs (
+  id BIGSERIAL PRIMARY KEY,
+  company_id INTEGER REFERENCES companies(id),
+  actor_id INTEGER REFERENCES users(id),
+  entity_type TEXT,
+  entity_id TEXT,
+  action TEXT,
+  before JSONB,
+  after JSONB,
+  created_at TIMESTAMPTZ DEFAULT now()
 );
 CREATE TABLE IF NOT EXISTS activities (
   id SERIAL PRIMARY KEY, project_id INTEGER, phase TEXT, no TEXT, activity TEXT,

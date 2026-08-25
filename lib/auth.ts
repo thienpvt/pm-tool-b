@@ -1,8 +1,11 @@
 import crypto from 'crypto';
 import { getDb } from './db';
 import type { NextRequest } from 'next/server';
+import type { AppRole, UserStatus } from './services/access';
 
 export const SESSION_COOKIE_NAME = 'pm_session';
+
+export type { AppRole, UserStatus };
 
 export function hashPassword(password: string): string {
   const salt = crypto.randomBytes(16).toString('hex');
@@ -28,20 +31,46 @@ export type SessionUser = {
   company_name: string | null;
   is_admin: number;
   onboarding_completed: number;
+  roles: AppRole[];
+  status: UserStatus;
+  email: string;
 };
+
+type SessionUserRow = Omit<SessionUser, 'roles'> & { roles: AppRole[] | null };
 
 export async function getSessionUser(sessionId: string): Promise<SessionUser | null> {
   const db = await getDb();
   const now = new Date().toISOString();
-  return (await db.get<SessionUser>(`
+  const row = await db.get<SessionUserRow>(`
     SELECT u.id, u.username, u.display_name, u.company_id, u.is_admin,
            COALESCE(u.onboarding_completed, 0) as onboarding_completed,
+           COALESCE(u.email, '') as email,
+           COALESCE(u.status, 'active') as status,
+           COALESCE(
+             ARRAY_AGG(ur.role ORDER BY ur.role) FILTER (WHERE ur.role IS NOT NULL),
+             ARRAY[]::text[]
+           ) as roles,
            c.name as company_name
     FROM sessions s
     JOIN users u ON s.user_id = u.id
     LEFT JOIN companies c ON u.company_id = c.id
+    LEFT JOIN user_roles ur ON ur.user_id = u.id
     WHERE s.id = ? AND s.expires_at > ?
-  `, sessionId, now)) ?? null;
+    GROUP BY u.id, c.name
+  `, sessionId, now);
+
+  if (!row) return null;
+
+  const status = (row.status ?? 'active') as UserStatus;
+  if (status !== 'active') {
+    await deleteSession(sessionId);
+    return null;
+  }
+
+  return {
+    ...row,
+    roles: (row.roles ?? []) as AppRole[],
+  };
 }
 
 export async function getSessionFromRequest(req: NextRequest): Promise<SessionUser | null> {

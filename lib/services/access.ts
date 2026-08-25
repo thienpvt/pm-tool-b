@@ -1,11 +1,56 @@
 import { projectAccessRow, type ProjectAccessRow } from '@/lib/repositories/projects.repo';
 import { ForbiddenError, NotFoundError } from './errors';
 
+export type AppRole = 'cpmo' | 'pm' | 'viewer';
+export type UserStatus = 'active' | 'inactive' | 'locked';
+
 /** Plain actor fields the route peels off the session before calling a service. */
 export type AccessActor = {
   company_id: number | null;
   is_admin: number | boolean;
+  roles: AppRole[];
+  status: UserStatus;
+  user_id: number;
+  username: string;
+  display_name: string;
+  email: string;
 };
+
+/** Session fields required to build an AccessActor (avoids auth ↔ access circular import). */
+export type AccessActorSource = {
+  id: number;
+  username: string;
+  display_name: string;
+  company_id: number | null;
+  is_admin: number;
+  roles: AppRole[];
+  status: UserStatus;
+  email: string;
+};
+
+export function hasRole(actor: AccessActor, role: AppRole): boolean {
+  return actor.roles.includes(role);
+}
+
+export function toAccessActor(user: AccessActorSource): AccessActor {
+  return {
+    company_id: user.company_id,
+    is_admin: user.is_admin,
+    roles: user.roles ?? [],
+    status: user.status,
+    user_id: user.id,
+    username: user.username,
+    display_name: user.display_name,
+    email: user.email ?? '',
+  };
+}
+
+/** Viewer-only actors cannot mutate; cpmo/pm union grants write (D-01, D-15). */
+export function assertCanMutate(actor: AccessActor): void {
+  if (hasRole(actor, 'viewer') && !hasRole(actor, 'cpmo') && !hasRole(actor, 'pm')) {
+    throw new ForbiddenError();
+  }
+}
 
 /**
  * Tenant-ownership assert for project-scoped services (SVC-04).

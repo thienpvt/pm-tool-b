@@ -4,7 +4,7 @@ import {
   listRisks as listRisksRepo,
   updateRisk as updateRiskRepo,
 } from '@/lib/repositories/risks.repo';
-import { assertProjectAccess, type AccessActor } from './access';
+import { assertCanMutate, assertProjectAccess, type AccessActor } from './access';
 import { NotFoundError } from './errors';
 
 export async function listRisks(projectId: number | string, actor: AccessActor) {
@@ -18,6 +18,7 @@ export async function createRisk(
   body: Record<string, unknown>,
 ) {
   await assertProjectAccess(projectId, actor);
+  assertCanMutate(actor);
   return createRiskRepo(projectId, body);
 }
 
