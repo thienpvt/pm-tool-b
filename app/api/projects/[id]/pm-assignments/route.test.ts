@@ -7,6 +7,8 @@ const {
   insertPmAssignment,
   getActivePrimaryAssignment,
   hasOverlappingPmAssignment,
+  hasActivePmAssignmentForUserRole,
+  replaceActivePrimary,
   syncProjectPmDisplay,
   findUserById,
   auditLogFn,
@@ -16,6 +18,8 @@ const {
   insertPmAssignment: vi.fn(),
   getActivePrimaryAssignment: vi.fn(),
   hasOverlappingPmAssignment: vi.fn(),
+  hasActivePmAssignmentForUserRole: vi.fn(),
+  replaceActivePrimary: vi.fn(),
   syncProjectPmDisplay: vi.fn(),
   findUserById: vi.fn(),
   auditLogFn: vi.fn(),
@@ -29,6 +33,8 @@ vi.mock('@/lib/repositories/pm-assignments.repo', () => ({
   insertPmAssignment,
   getActivePrimaryAssignment,
   hasOverlappingPmAssignment,
+  hasActivePmAssignmentForUserRole,
+  replaceActivePrimary,
   syncProjectPmDisplay,
   getPmAssignmentById: vi.fn(),
   softEndPmAssignment: vi.fn(),
@@ -77,6 +83,7 @@ describe('/api/projects/[id]/pm-assignments', () => {
     hasActivePmAssignment.mockResolvedValue(true);
     getActivePrimaryAssignment.mockResolvedValue(undefined);
     hasOverlappingPmAssignment.mockResolvedValue(false);
+    hasActivePmAssignmentForUserRole.mockResolvedValue(false);
     findUserById.mockResolvedValue({
       id: 3,
       company_id: 5,
@@ -84,6 +91,14 @@ describe('/api/projects/[id]/pm-assignments', () => {
       email: 'pat@acme.com',
     });
     insertPmAssignment.mockResolvedValue({
+      id: 10,
+      project_id: 7,
+      user_id: 3,
+      role: 'primary',
+      effective_from: '2026-08-26',
+      effective_to: null,
+    });
+    replaceActivePrimary.mockResolvedValue({
       id: 10,
       project_id: 7,
       user_id: 3,
@@ -128,7 +143,7 @@ describe('/api/projects/[id]/pm-assignments', () => {
     const res = await POST(req('POST', { user_id: 3, role: 'primary' }), params);
     expect(res.status).toBe(201);
     await expect(res.json()).resolves.toMatchObject({ id: 10, role: 'primary' });
-    expect(insertPmAssignment).toHaveBeenCalled();
+    expect(replaceActivePrimary).toHaveBeenCalled();
   });
 
   it('does not export DELETE (D-11)', () => {
