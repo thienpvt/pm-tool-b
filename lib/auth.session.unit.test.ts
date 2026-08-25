@@ -26,7 +26,8 @@ beforeEach(() => {
 });
 
 describe('extendSession', () => {
-  it('UPDATEs expires_at for an unexpired session and returns true', async () => {
+  it('UPDATEs expires_at for an unexpired active session and returns true', async () => {
+    db.get.mockResolvedValue(activeRow);
     db.run.mockResolvedValue({ lastInsertRowid: 0, changes: 1 });
 
     await expect(extendSession('session-abc')).resolves.toBe(true);
@@ -42,12 +43,36 @@ describe('extendSession', () => {
   });
 
   it('returns false when the session is missing or already expired', async () => {
-    db.run.mockResolvedValue({ lastInsertRowid: 0, changes: 0 });
+    db.get.mockResolvedValue(undefined);
 
     await expect(extendSession('missing-or-expired')).resolves.toBe(false);
 
+    expect(db.run).not.toHaveBeenCalled();
+  });
+
+  it('returns false and does not extend when user status is locked (D-10)', async () => {
+    db.get.mockResolvedValue({ ...activeRow, status: 'locked' });
+    db.run.mockResolvedValue({ lastInsertRowid: 0, changes: 1 });
+
+    await expect(extendSession('session-locked')).resolves.toBe(false);
+
+    expect(db.run).toHaveBeenCalledWith('DELETE FROM sessions WHERE id = ?', 'session-locked');
     expect(db.run).toHaveBeenCalledTimes(1);
-    expect(db.run.mock.calls[0][2]).toBe('missing-or-expired');
+  });
+
+  it('returns false and does not extend when user status is inactive (D-10)', async () => {
+    db.get.mockResolvedValue({ ...activeRow, status: 'inactive' });
+    db.run.mockResolvedValue({ lastInsertRowid: 0, changes: 1 });
+
+    await expect(extendSession('session-inactive')).resolves.toBe(false);
+
+    expect(db.run).toHaveBeenCalledWith('DELETE FROM sessions WHERE id = ?', 'session-inactive');
+    expect(db.run).not.toHaveBeenCalledWith(
+      expect.stringContaining('UPDATE sessions SET expires_at'),
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+    );
   });
 });
 

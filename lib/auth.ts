@@ -90,6 +90,8 @@ export async function createSession(userId: number): Promise<string> {
 }
 
 export async function extendSession(sessionId: string): Promise<boolean> {
+  const user = await getSessionUser(sessionId);
+  if (!user) return false;
   const db = await getDb();
   const now = new Date().toISOString();
   const expires = new Date(Date.now() + SESSION_DURATION_MS).toISOString();
