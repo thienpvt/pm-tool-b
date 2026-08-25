@@ -32,7 +32,7 @@ Audit: [.planning/milestones/v1.0-MILESTONE-AUDIT.md](milestones/v1.0-MILESTONE-
 </details>
 
 - [x] **Phase 9: Mapping Table Tenant Isolation** - Company-scope the four leftover mapping tables (completed 2026-08-26)
-- [ ] **Phase 10: Users, Roles & Server Authorization** - Admin user lifecycle plus CPMO / PM / Viewer enforcement
+- [x] **Phase 10: Users, Roles & Server Authorization** - Admin user lifecycle plus CPMO / PM / Viewer enforcement (completed 2026-08-26)
 - [ ] **Phase 11: Project Master, PM Assignment & Stakeholders** - L0–L5 master data, assignment windows, stakeholder records
 - [ ] **Phase 12: Milestone & RAID Master Registers** - Upcoming/overdue masters with soft-delete and Viewer read-only
 - [ ] **Phase 13: Weekly Periods & PM Submit** - CPMO periods, versioned submit, RAID/milestone snapshots
@@ -82,7 +82,7 @@ Plans:
   3. CPMO can view the full company portfolio; PM can view and update only assigned projects; Viewer can read but cannot mutate; every API and screen enforces this on the server — hiding a UI control is not treated as access control
   4. A user who has generated business data cannot be physically deleted; history still shows their display name; lock, unlock, and other user-record changes record who changed the record and when
 
-**Plans:** 11/11 plans executed
+**Plans:** 11/11 plans complete
 
 Plans:
 **Wave 1**
@@ -247,7 +247,7 @@ Phases execute in numeric order: 9 → 10 → 11 → 12 → 13 → 14 → 15 →
 | 7. UI Decomposition | v1.0 | 9/9 | Complete | 2026-08-25 |
 | 8. INTG-08 Credential Cutover | v1.0 | 1/1 | Complete | 2026-08-25 |
 | 9. Mapping Table Tenant Isolation | v2.0 | 3/3 | Complete    | 2026-08-26 |
-| 10. Users, Roles & Server Authorization | v2.0 | 11/11 | In Progress|  |
+| 10. Users, Roles & Server Authorization | v2.0 | 11/11 | Complete    | 2026-08-26 |
 | 11. Project Master, PM Assignment & Stakeholders | v2.0 | 0/? | Not started | - |
 | 12. Milestone & RAID Master Registers | v2.0 | 0/? | Not started | - |
 | 13. Weekly Periods & PM Submit | v2.0 | 0/? | Not started | - |
