@@ -32,6 +32,10 @@ export function hasRole(actor: AccessActor, role: AppRole): boolean {
   return actor.roles.includes(role);
 }
 
+export function isCpmo(actor: AccessActor): boolean {
+  return hasRole(actor, 'cpmo');
+}
+
 export function toAccessActor(user: AccessActorSource): AccessActor {
   return {
     company_id: user.company_id,
@@ -62,23 +66,27 @@ export function assertCanMutate(actor: AccessActor): void {
  * second query.
  *
  * Order is fixed (T-04-03 existence oracle contract):
- * 1. admin bypass (still fetches the row, so it can be returned — no ownership DECISION query)
- * 2. missing project → NotFoundError
- * 3. owner via company_id OR customer_company_id
- * 4. null-company actor allowed ONLY when BOTH tenancy columns are null (CR-01)
+ * 1. missing project → NotFoundError
+ * 2. CPMO company match (D-13) or tenant owner via company_id / customer_company_id
+ * 3. null-company actor allowed ONLY when BOTH tenancy columns are null (CR-01)
  */
 export async function assertProjectAccess(
   projectId: number | string,
   actor: AccessActor,
 ): Promise<ProjectAccessRow> {
-  if (actor.is_admin) {
-    const row = await projectAccessRow(projectId);
-    if (!row) throw new NotFoundError('Not found', 'project');
-    return row;
-  }
-
   const row = await projectAccessRow(projectId);
   if (!row) throw new NotFoundError('Not found', 'project');
+
+  if (isCpmo(actor)) {
+    if (actor.company_id === null) {
+      if (row.company_id === null && row.customer_company_id === null) return row;
+      throw new ForbiddenError();
+    }
+    const allowed =
+      row.company_id === actor.company_id || row.customer_company_id === actor.company_id;
+    if (!allowed) throw new ForbiddenError();
+    return row;
+  }
 
   if (actor.company_id !== null) {
     const allowed =
