@@ -5,16 +5,16 @@ milestone_name: Portfolio One View
 current_phase: 10
 current_phase_name: Users, Roles & Server Authorization
 status: executing
-stopped_at: Completed 10-08-PLAN.md
-last_updated: "2026-08-25T18:58:35.184Z"
+stopped_at: Completed 10-11-PLAN.md
+last_updated: "2026-08-25T19:01:57.371Z"
 last_activity: 2026-08-26
 last_activity_desc: Phase 9 complete, transitioned to Phase 10
-state_head: e66c119e0f88d009404077a3a77a34f5c5a7e98c
+state_head: e2560d71096b6b165af7ca2c3dd4f76bbe7d5b2a
 progress:
   total_phases: 10
   completed_phases: 1
   total_plans: 14
-  completed_plans: 12
+  completed_plans: 13
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-08-25)
 ## Current Position
 
 Phase: 10 (Users, Roles & Server Authorization) — IN PROGRESS
-Plan: 9 of 11 complete (10-01)
+Plan: 10 of 11 complete (10-01)
 Status: Ready to execute
 Last activity: 2026-08-26 — Completed 10-01 auth spine tracer
 
@@ -66,6 +66,8 @@ Progress: [█░░░░░░░░░] 10%
 | Phase 10-users-roles-server-authorization P06 | 4min | 2 tasks | 8 files |
 | Phase 10-users-roles-server-authorization P07 | 5min | 2 tasks | 8 files |
 | Phase 10-users-roles-server-authorization P08 | 12min | 2 tasks | 12 files |
+| Phase 10-users-roles-server-authorization P09 | 25 | 3 tasks | 27 files |
+| Phase 10-users-roles-server-authorization P11 | 8min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -97,6 +99,10 @@ Recent decisions affecting current work:
 - [Phase 10]: Named expense mutators createExpense/deleteExpense per D-24 same bar as budget-item CRUD
 - [Phase 10]: D-23 carve-out unchanged — no role asserts on operations/** or /api/admin/companies
 - [Phase 10]: AI report POST write gates at route boundary; portfolio list helpers use company_id only until 10-09 repo cleanup
+- [Phase 10]: assertCompanyWrite is actor-only; tenant assert must scope resource company first (D-16)
+- [Phase 10]: Repo list helpers dropped isAdmin param; company_id-only SQL (D-13)
+- [Phase 10]: Sidebar Admin Panel shown for cpmo role without break-glass; platform tabs stay is_admin-only
+- [Phase 10]: Admin Users form uses roles[] and email against 10-05 API; company_id from session not UI
 
 ### Pending Todos
 
@@ -117,6 +123,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-08-25T18:51:52.656Z
-Stopped at: Completed 10-08-PLAN.md
+Last session: 2026-08-25T19:01:57.281Z
+Stopped at: Completed 10-11-PLAN.md
 Resume file: None
