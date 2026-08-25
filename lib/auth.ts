@@ -5,6 +5,8 @@ import type { AppRole, UserStatus } from './services/access';
 
 export const SESSION_COOKIE_NAME = 'pm_session';
 
+const SESSION_DURATION_MS = 7 * 24 * 60 * 60 * 1000;
+
 export type { AppRole, UserStatus };
 
 export function hashPassword(password: string): string {
@@ -82,9 +84,22 @@ export async function getSessionFromRequest(req: NextRequest): Promise<SessionUs
 export async function createSession(userId: number): Promise<string> {
   const sessionId = crypto.randomBytes(32).toString('hex');
   const db = await getDb();
-  const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+  const expires = new Date(Date.now() + SESSION_DURATION_MS).toISOString();
   await db.run('INSERT INTO sessions (id, user_id, expires_at) VALUES (?, ?, ?)', sessionId, userId, expires);
   return sessionId;
+}
+
+export async function extendSession(sessionId: string): Promise<boolean> {
+  const db = await getDb();
+  const now = new Date().toISOString();
+  const expires = new Date(Date.now() + SESSION_DURATION_MS).toISOString();
+  const result = await db.run(
+    'UPDATE sessions SET expires_at = ? WHERE id = ? AND expires_at > ?',
+    expires,
+    sessionId,
+    now,
+  );
+  return (result.changes ?? 0) > 0;
 }
 
 export async function deleteSession(sessionId: string): Promise<void> {
