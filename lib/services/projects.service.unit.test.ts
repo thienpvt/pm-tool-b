@@ -123,6 +123,7 @@ describe('projects.service', () => {
     it('CPMO in-place project_code change audits code_change without deleteProject (D-02, D-19, PROJ-02)', async () => {
       getProjectRepo.mockResolvedValue({
         id: 7,
+        company_id: 5,
         project_code: 'PRJ-OLD',
         progress_pct: 50,
         status: 'Active',
@@ -130,7 +131,7 @@ describe('projects.service', () => {
       findProjectByCompanyCode.mockResolvedValue(undefined);
       updateProjectRepo.mockResolvedValue({ id: 7, project_code: 'PRJ-NEW' });
       await updateProject(7, cpmoActor, { project_code: 'PRJ-NEW' });
-      expect(findProjectByCompanyCode).toHaveBeenCalledWith(cpmoActor.company_id, 'PRJ-NEW');
+      expect(findProjectByCompanyCode).toHaveBeenCalledWith(5, 'PRJ-NEW');
       expect(updateProjectRepo).toHaveBeenCalledWith(7, { project_code: 'PRJ-NEW' });
       expect(deleteProjectRepo).not.toHaveBeenCalled();
       expect(auditLogFn).toHaveBeenCalledWith(
@@ -144,9 +145,40 @@ describe('projects.service', () => {
       );
     });
 
+    it('CPMO PATCH duplicate check uses project company_id not actor company (CR-02, D-01)', async () => {
+      getProjectRepo.mockResolvedValue({
+        id: 7,
+        company_id: 99,
+        project_code: 'PRJ-OLD',
+        progress_pct: 50,
+        status: 'Active',
+      });
+      findProjectByCompanyCode.mockResolvedValue({ id: 88 });
+      await expect(updateProject(7, cpmoActor, { project_code: 'PRJ-DUP' })).rejects.toBeInstanceOf(
+        ConflictError,
+      );
+      expect(findProjectByCompanyCode).toHaveBeenCalledWith(99, 'PRJ-DUP');
+      expect(updateProjectRepo).not.toHaveBeenCalled();
+    });
+
+    it('CPMO PATCH rejects empty or whitespace project_code (WR-02, PROJ-01)', async () => {
+      getProjectRepo.mockResolvedValue({
+        id: 7,
+        company_id: 5,
+        project_code: 'PRJ-OLD',
+        progress_pct: 50,
+        status: 'Active',
+      });
+      await expect(updateProject(7, cpmoActor, { project_code: '   ' })).rejects.toBeInstanceOf(
+        ValidationError,
+      );
+      expect(updateProjectRepo).not.toHaveBeenCalled();
+    });
+
     it('CPMO duplicate project_code throws ConflictError excluding current id (D-01)', async () => {
       getProjectRepo.mockResolvedValue({
         id: 7,
+        company_id: 5,
         project_code: 'PRJ-OLD',
         progress_pct: 50,
         status: 'Active',

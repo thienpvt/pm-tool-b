@@ -110,14 +110,27 @@ export async function updateProject(
     delete clone.project_code;
   } else if (typeof clone.project_code === 'string') {
     const newCode = clone.project_code.trim();
+    if (!newCode) {
+      throw new ValidationError('project_code cannot be empty', 'project_code');
+    }
     const currentCode =
-      typeof current.project_code === 'string' ? current.project_code : '';
-    if (newCode && newCode !== currentCode) {
-      const clash = await findProjectByCompanyCode(actor.company_id!, newCode);
+      typeof current.project_code === 'string' ? current.project_code.trim() : '';
+    if (newCode !== currentCode) {
+      const ownerCompanyId =
+        (current.company_id as number | null) ?? actor.company_id;
+      if (ownerCompanyId == null) {
+        throw new ValidationError(
+          'project has no company_id; cannot change code',
+          'project_code',
+        );
+      }
+      const clash = await findProjectByCompanyCode(ownerCompanyId, newCode);
       if (clash && clash.id !== Number(projectId)) {
         throw new ConflictError('Project code already exists');
       }
       clone.project_code = newCode;
+    } else {
+      delete clone.project_code;
     }
   }
 
