@@ -4,7 +4,7 @@ import {
   listIssues as listIssuesRepo,
   updateIssue as updateIssueRepo,
 } from '@/lib/repositories/issues.repo';
-import { assertProjectAccess, type AccessActor } from './access';
+import { assertProjectAccess, assertProjectWriteAccess, type AccessActor } from './access';
 import { NotFoundError } from './errors';
 
 export async function listIssues(projectId: number | string, actor: AccessActor) {
@@ -17,7 +17,7 @@ export async function createIssue(
   actor: AccessActor,
   body: Record<string, unknown>,
 ) {
-  await assertProjectAccess(projectId, actor);
+  await assertProjectWriteAccess(projectId, actor);
   return createIssueRepo(projectId, body);
 }
 
@@ -27,7 +27,7 @@ export async function updateIssue(
   rowId: number | string,
   fields: Record<string, unknown>,
 ) {
-  await assertProjectAccess(projectId, actor);
+  await assertProjectWriteAccess(projectId, actor);
   const updated = await updateIssueRepo(projectId, rowId, fields);
   if (!updated) throw new NotFoundError('Not found', 'issue');
   return updated;
@@ -38,7 +38,7 @@ export async function deleteIssue(
   actor: AccessActor,
   rowId: number | string,
 ) {
-  await assertProjectAccess(projectId, actor);
+  await assertProjectWriteAccess(projectId, actor);
   const result = await deleteIssueRepo(projectId, rowId);
   if (!result || Number(result.changes ?? 0) === 0) {
     throw new NotFoundError('Not found', 'issue');
