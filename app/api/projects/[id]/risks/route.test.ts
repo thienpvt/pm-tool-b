@@ -2,24 +2,37 @@ import { NextRequest } from 'next/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { UnknownColumnError } from '@/lib/repositories/_helpers';
 
-const { projectAccessRow, hasActivePmAssignment, listRisksRepo, createRiskRepo, updateRiskRepo, deleteRiskRepo } = vi.hoisted(() => ({
+const {
+  projectAccessRow,
+  hasActivePmAssignment,
+  listRisksRepo,
+  createRiskRepo,
+  updateRiskRepo,
+  findRiskByCode,
+  getRiskRepo,
+  deactivateRiskRepo,
+} = vi.hoisted(() => ({
   projectAccessRow: vi.fn(),
   hasActivePmAssignment: vi.fn(),
   listRisksRepo: vi.fn(),
   createRiskRepo: vi.fn(),
   updateRiskRepo: vi.fn(),
-  deleteRiskRepo: vi.fn(),
+  findRiskByCode: vi.fn(),
+  getRiskRepo: vi.fn(),
+  deactivateRiskRepo: vi.fn(),
 }));
 
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
+vi.mock('@/lib/services/audit.service', () => ({ auditLog: vi.fn().mockResolvedValue(undefined) }));
 vi.mock('@/lib/repositories/projects.repo', () => ({ projectAccessRow }));
 vi.mock('@/lib/repositories/pm-assignments.repo', () => ({ hasActivePmAssignment }));
 vi.mock('@/lib/repositories/risks.repo', () => ({
   listRisks: listRisksRepo,
   createRisk: createRiskRepo,
   updateRisk: updateRiskRepo,
-  deleteRisk: deleteRiskRepo,
-  // re-exported names the service does not use still need to exist if imported
+  findRiskByCode,
+  getRisk: getRiskRepo,
+  deactivateRisk: deactivateRiskRepo,
   countRisks: vi.fn(),
   listOpenRisks: vi.fn(),
   listNotClosedByPriority: vi.fn(),
@@ -40,6 +53,7 @@ describe('GET/POST/PUT/DELETE /api/projects/[id]/risks', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     hasActivePmAssignment.mockResolvedValue(true);
+    findRiskByCode.mockResolvedValue(undefined);
   });
 
   const params = (id = '7') => ({ params: Promise.resolve({ id }) });
@@ -149,14 +163,16 @@ describe('GET/POST/PUT/DELETE /api/projects/[id]/risks', () => {
     });
   });
 
-  it('DELETE returns { ok: true } for an owner', async () => {
+  it('DELETE returns { ok: true } and deactivates for an owner', async () => {
     vi.mocked(getSessionFromRequest).mockResolvedValue(ownerSession as never);
     projectAccessRow.mockResolvedValue({ company_id: 5, customer_company_id: null });
-    deleteRiskRepo.mockResolvedValue({ lastInsertRowid: 0, changes: 1 });
+    getRiskRepo.mockResolvedValue({ id: 1, status: 'Open' });
+    deactivateRiskRepo.mockResolvedValue({ id: 1, status: 'deactivated' });
 
     const res = await DELETE(req('DELETE', 'http://localhost/api/projects/7/risks?rowId=1'), params());
 
     expect(res.status).toBe(200);
     await expect(res.json()).resolves.toEqual({ ok: true });
+    expect(deactivateRiskRepo).toHaveBeenCalledWith('7', '1');
   });
 });
