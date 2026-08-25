@@ -36,8 +36,9 @@ describe.skipIf(!hasTestDb)('risks.repo', () => {
   });
 
   it('increments auto code among existing R-nnn rows', async () => {
-    await createRisk(projectId, { code: 'R-001', description: 'First coded' });
-    const created = await createRisk(projectId, { description: 'Second auto' }) as Record<string, string>;
+    const isolated = await seedProject('risks auto increment');
+    await createRisk(isolated, { code: 'R-001', description: 'First coded' });
+    const created = await createRisk(isolated, { description: 'Second auto' }) as Record<string, string>;
     expect(created.code).toBe('R-002');
   });
 

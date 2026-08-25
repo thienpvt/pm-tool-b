@@ -121,6 +121,7 @@ Route: `app/api/projects/[id]/risks/route.ts` PUT.
 | `id` | yes | — | **no** | WHERE key |
 | `project_id` | yes | — | **no** | scoping param |
 | `risk_id` | yes | — | yes | display id (`R{n}`), editable |
+| `code` | no | yes (Phase 12) | yes | **migrateRaidMasters** — unique per project |
 | `description` | yes | — | yes | |
 | `category` | yes | — | yes | |
 | `owner` | yes | — | yes | |
@@ -207,7 +208,7 @@ Route: `app/api/projects/[id]/escalations/route.ts` PUT. No migration-added colu
 |---|---|---|---|
 | `projects` | any key the DB accepted | 15 | `id`, `company_id`, `customer_id`, `created_at` |
 | `activities` | any | 23 | `id`, `project_id` |
-| `risks` | any | 11 | `id`, `project_id` |
+| `risks` | any | 12 | `id`, `project_id` |
 | `issues` | any | 12 | `id`, `project_id` |
 | `meetings` | any | 6 | `id`, `project_id` |
 | `team_members` | any | 6 | `id`, `project_id` |

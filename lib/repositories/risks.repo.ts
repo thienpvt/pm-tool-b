@@ -6,7 +6,7 @@ import { buildUpdate } from './_helpers';
  * migration-added — see ALLOWLIST-DIFF.md.
  */
 export const RISK_COLUMNS = [
-  'risk_id', 'description', 'category', 'owner', 'trigger', 'mitigation', 'due_date',
+  'risk_id', 'code', 'description', 'category', 'owner', 'trigger', 'mitigation', 'due_date',
   'status', 'priority', 'impact', 'affected_activity_id',
 ] as const;
 
@@ -21,15 +21,57 @@ export async function countRisks(projectId: number | string): Promise<number> {
   return Number(row?.c ?? 0);
 }
 
+export async function getRisk(projectId: number | string, rowId: number | string) {
+  const db = await getDb();
+  return db.get('SELECT * FROM risks WHERE id = ? AND project_id = ?', rowId, projectId);
+}
+
+export async function findRiskByCode(
+  projectId: number | string,
+  code: string,
+  excludeId?: number | string,
+) {
+  const db = await getDb();
+  return db.get<{ id: number }>(
+    `SELECT id FROM risks
+     WHERE project_id = ? AND LOWER(code) = LOWER(?)
+       AND id != COALESCE(?, -1)
+     LIMIT 1`,
+    projectId,
+    code,
+    excludeId ?? null,
+  );
+}
+
+async function nextAutoRiskCode(projectId: number | string): Promise<string> {
+  const db = await getDb();
+  const rows = await db.all<{ code: string }>(
+    `SELECT code FROM risks WHERE project_id = ? AND code ~ '^R-[0-9]+$'`,
+    projectId,
+  );
+  let max = 0;
+  for (const row of rows) {
+    const m = /^R-(\d+)$/.exec(row.code);
+    if (m) max = Math.max(max, parseInt(m[1], 10));
+  }
+  const next = max > 0 ? max + 1 : (await countRisks(projectId)) + 1;
+  return `R-${String(next).padStart(3, '0')}`;
+}
+
 export async function createRisk(projectId: number | string, body: Record<string, unknown>) {
   const db = await getDb();
   const b = body as Record<string, never>;
-  // Display id derives from COUNT(*), matching current behavior. Not a sequence —
-  // switching would change assigned ids.
-  const riskId = b.risk_id || `R${(await countRisks(projectId)) + 1}`;
+  let code = typeof b.code === 'string' ? b.code.trim() : '';
+  if (!code) {
+    do {
+      code = await nextAutoRiskCode(projectId);
+    } while (await findRiskByCode(projectId, code));
+  }
+  const riskId = b.risk_id || code;
   const r = await db.run(
-    'INSERT INTO risks (project_id, risk_id, description, category, owner, trigger, mitigation, due_date, status, priority, impact, affected_activity_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',
-    projectId, riskId, b.description ?? '', b.category ?? '', b.owner ?? '', b.trigger ?? '',
+    `INSERT INTO risks (project_id, risk_id, code, description, category, owner, trigger, mitigation, due_date, status, priority, impact, affected_activity_id)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+    projectId, riskId, code, b.description ?? '', b.category ?? '', b.owner ?? '', b.trigger ?? '',
     b.mitigation ?? '', b.due_date ?? '', b.status ?? 'Open', b.priority ?? 'Medium',
     b.impact ?? 'Major', b.affected_activity_id ?? null);
   return db.get('SELECT * FROM risks WHERE id = ?', r.lastInsertRowid);
@@ -49,9 +91,13 @@ export async function updateRisk(
   );
 }
 
-export async function deleteRisk(projectId: number | string, rowId: number | string) {
+export async function deactivateRisk(projectId: number | string, rowId: number | string) {
   const db = await getDb();
-  return db.run('DELETE FROM risks WHERE id = ? AND project_id = ?', rowId, projectId);
+  return db.get(
+    `UPDATE risks SET status = 'deactivated', deactivated_at = now()
+     WHERE id = ? AND project_id = ? RETURNING *`,
+    rowId, projectId,
+  );
 }
 
 /** Open risks for the weekly report: status Open or In Progress, ordered by priority text. */
