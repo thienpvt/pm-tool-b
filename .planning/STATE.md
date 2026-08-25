@@ -5,16 +5,16 @@ milestone_name: Portfolio One View
 current_phase: 13
 current_phase_name: Weekly Periods & PM Submit
 status: planning
-stopped_at: Completed 13-01-PLAN.md
-last_updated: "2026-08-25T23:42:49.507Z"
+stopped_at: Completed 13-02-PLAN.md
+last_updated: "2026-08-25T23:46:02.570Z"
 last_activity: 2026-08-26
 last_activity_desc: Phase 12 complete, transitioned to Phase 13
-state_head: abe01aca1f7e7a23a69e5c72caa8fa2f142b96db
+state_head: 90aaa2f95f132268ad463d796826a0708061815d
 progress:
   total_phases: 10
   completed_phases: 4
   total_plans: 25
-  completed_plans: 23
+  completed_plans: 24
 ---
 
 # Project State
@@ -78,6 +78,7 @@ Progress: [█░░░░░░░░░] 10%
 | Phase 12-milestone-raid-master-registers P02 | 8min | 3 tasks | 18 files |
 | Phase 12-milestone-raid-master-registers P03 | 4min | 3 tasks | 11 files |
 | Phase 13-weekly-periods-pm-submit P01 | 25 | 2 tasks | 18 files |
+| Phase 13-weekly-periods-pm-submit P02 | 25min | 2 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -127,6 +128,8 @@ Recent decisions affecting current work:
 - [Phase 12]: Due-date history loads prior row only when due_date is in the update payload
 - [Phase 12]: listHighOpenRaid count equals UNION ALL record length, never distinct project_id
 - [Phase 13]: Transaction uses PoolClient for period+shell inserts on one connection
+- [Phase 13]: Submit route uses rawBody:true for body-less POST
+- [Phase 13]: Snapshot stores draft_raid_json on shell only until 13-03 submit RAID writes
 
 ### Pending Todos
 
@@ -147,6 +150,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-08-25T23:42:49.137Z
-Stopped at: Completed 13-01-PLAN.md
+Last session: 2026-08-25T23:46:02.199Z
+Stopped at: Completed 13-02-PLAN.md
 Resume file: None

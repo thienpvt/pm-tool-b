@@ -92,11 +92,11 @@ Requirements for this milestone. Each maps to roadmap phases. Jira import, AI re
 ### Weekly Report Submit
 
 - [x] **WKRP-01**: System creates at most one report obligation per project per period, and only when the project is obligated
-- [ ] **WKRP-02**: PM can save a draft and submit a structured weekly report (highlights, completed work, next-week goals, nearest milestone, RAID/dependency, leadership support)
-- [ ] **WKRP-03**: Previous-week RAG is prefilled read-only; this-week RAG is chosen by the PM and syncs to master on submit when it differs
-- [ ] **WKRP-04**: Submit records submitter, first-submit timestamp, and on-time vs late; later corrections do not change first-submit lateness
-- [ ] **WKRP-05**: A submitted report is an immutable snapshot; a later correction creates a new version and keeps prior versions
-- [ ] **WKRP-06**: History shows one row per period (latest submitted version), newest period first, with period, status, RAG, submit time, submitter, and on-time/late
+- [x] **WKRP-02**: PM can save a draft and submit a structured weekly report (highlights, completed work, next-week goals, nearest milestone, RAID/dependency, leadership support)
+- [x] **WKRP-03**: Previous-week RAG is prefilled read-only; this-week RAG is chosen by the PM and syncs to master on submit when it differs
+- [x] **WKRP-04**: Submit records submitter, first-submit timestamp, and on-time vs late; later corrections do not change first-submit lateness
+- [x] **WKRP-05**: A submitted report is an immutable snapshot; a later correction creates a new version and keeps prior versions
+- [x] **WKRP-06**: History shows one row per period (latest submitted version), newest period first, with period, status, RAG, submit time, submitter, and on-time/late
 
 ### CPMO Weekly Tracking and Export
 
@@ -237,11 +237,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PERD-02 | Phase 13 | Complete |
 | PERD-03 | Phase 13 | Complete |
 | WKRP-01 | Phase 13 | Complete |
-| WKRP-02 | Phase 13 | Pending |
-| WKRP-03 | Phase 13 | Pending |
-| WKRP-04 | Phase 13 | Pending |
-| WKRP-05 | Phase 13 | Pending |
-| WKRP-06 | Phase 13 | Pending |
+| WKRP-02 | Phase 13 | Complete |
+| WKRP-03 | Phase 13 | Complete |
+| WKRP-04 | Phase 13 | Complete |
+| WKRP-05 | Phase 13 | Complete |
+| WKRP-06 | Phase 13 | Complete |
 | CPMO-01 | Phase 14 | Pending |
 | CPMO-02 | Phase 14 | Pending |
 | CPMO-03 | Phase 14 | Pending |

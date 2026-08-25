@@ -186,7 +186,7 @@ Plans:
   4. The RAID register remains the master: draft weekly-report RAID edits stay on the draft until submit; submit validates, writes the master, stores a version, locks the snapshot, and refreshes dashboards — or rejects the submit with the fields to fix; later RAID edits do not change old reports
   5. Submitted weekly reports store a milestone snapshot; later milestone edits do not change old reports
 
-**Plans:** 1/3 plans executed
+**Plans:** 2/3 plans executed
 
 Plans:
 **Wave 1**
@@ -195,7 +195,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 13-02-PLAN.md — Draft save, prev RAG, submit versioning, first lateness, history
+- [x] 13-02-PLAN.md — Draft save, prev RAG, submit versioning, first lateness, history
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
@@ -297,7 +297,7 @@ Phases execute in numeric order: 9 → 10 → 11 → 12 → 13 → 14 → 15 →
 | 10. Users, Roles & Server Authorization | v2.0 | 11/11 | Complete    | 2026-08-26 |
 | 11. Project Master, PM Assignment & Stakeholders | v2.0 | 5/5 | Complete    | 2026-08-26 |
 | 12. Milestone & RAID Master Registers | v2.0 | 3/3 | Complete    | 2026-08-26 |
-| 13. Weekly Periods & PM Submit | v2.0 | 1/3 | In Progress|  |
+| 13. Weekly Periods & PM Submit | v2.0 | 2/3 | In Progress|  |
 | 14. CPMO Tracking & Consolidated Export | v2.0 | 0/? | Not started | - |
 | 15. Budget, Value, ROI & Dependencies | v2.0 | 0/? | Not started | - |
 | 16. Portfolio & PM Dashboards | v2.0 | 0/? | Not started | - |
