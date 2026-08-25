@@ -3,17 +3,17 @@ gsd_state_version: 1.0
 milestone: v1.0
 current_phase: 8
 current_phase_name: INTG-08 Credential Cutover
-status: executing
-stopped_at: Phase 8 added, ready to plan INTG-08 credential cutover
-last_updated: "2026-08-25T15:02:02.516Z"
+status: complete
+stopped_at: Completed 08-01-PLAN.md
+last_updated: "2026-08-25T15:07:00.000Z"
 last_activity: 2026-08-25
-last_activity_desc: Phase 6 complete, transitioned to Phase 07
-state_head: b40962e734b94a2cbac763c567b5c109ae1f5c10
+last_activity_desc: Phase 8 INTG-08 credential cutover complete
+state_head: 80c39bc1ec6d2e422294463e276208b8e66a152e
 progress:
   total_phases: 8
-  completed_phases: 7
+  completed_phases: 8
   total_plans: 35
-  completed_plans: 34
+  completed_plans: 35
 milestone_name: milestone
 ---
 
@@ -24,16 +24,16 @@ milestone_name: milestone
 See: .planning/PROJECT.md (updated 2026-08-07)
 
 **Core value:** Every project-scoped request is tenant-isolated and every layer has one job — so a new route or page cannot silently reintroduce IDOR or a 2000-line god component.
-**Current focus:** v1.0 milestone — Phase 8 INTG-08 credential cutover
+**Current focus:** v1.0 milestone — all phases complete; ready for milestone audit/ship
 
 ## Current Position
 
-Phase: 8 (INTG-08 Credential Cutover) — READY TO EXECUTE
-Plan: —
-Status: Ready to execute
-Last activity: 2026-08-25 — Phase 6 human UAT closed; Phase 7 already complete
+Phase: 8 (INTG-08 Credential Cutover) — COMPLETE
+Plan: 01/01
+Status: Complete
+Last activity: 2026-08-25 — INTG-08 cutover evidence + HYG-01 deletion landed
 
-Progress: [██████████] 96% (phase 04 plans complete; await verify)
+Progress: [██████████] 100% (35/35 plans complete)
 
 ## Performance Metrics
 
@@ -86,6 +86,7 @@ Progress: [██████████] 96% (phase 04 plans complete; await v
 | Phase 07-ui-decomposition P06 | 45min | 3 tasks | 14 files |
 | Phase 07-ui-decomposition P07 | 45min | 3 tasks | 12 files |
 | Phase 07-ui-decomposition P08 | 8 | 2 tasks | 7 files |
+| Phase 08-intg-08-credential-cutover P01 | 12 | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -142,6 +143,7 @@ Recent decisions affecting current work:
 - [Phase 7]: Phase 07-06: RoadmapPhaseGrid and RoadmapMilestoneView sub-split for 400-line gate
 - [Phase 7]: Phase 07-07: useImportMapping owns fetch-on-open; importLogic.ts holds Jira/preview helpers; dialog stays at components/timeline/
 - [Phase 7]: Phase 07-08: Gate fixes limited to test mock typing and auth/me coverage — no product changes
+- [Phase 8]: INTG-08 closed: cutover script exit 0 (vacuous zero-row + anthropic match), HYG-01 deletion e0b2cea
 
 ### Pending Todos
 
@@ -150,7 +152,6 @@ None yet.
 ### Blockers/Concerns
 
 - Whether `proxy.ts` executes in the deployed Docker runtime is unconfirmed (ROUTE-11, Phase 6) — treat as open, do not build route-level enforcement as if it depends on proxy.ts working.
-- INTG-08 credential cutover is now **Phase 8**. Still needs a reachable `DATABASE_URL`: run `npx tsx scripts/verify-credential-cutover.ts`, then land the HYG-01 deletion commit when every row reports `match: yes`. Old inline Jira credential blocks remain as marked dead code in `app/api/jira/search/route.ts` + `fields/route.ts` until that commit.
 - HYG-02 behavior change awaiting operator confirmation (Phase 3): a malformed Anthropic response on the three report routes now returns 502 where it returned 500. Deliberate — INTG-06 forbids a 500 for a shape mismatch, and validation is an error kind Phase 3 introduced so it had no prior behavior to freeze. Confirm no dashboard or alert keys off the old 500.
 
 ### Roadmap Evolution
@@ -175,6 +176,6 @@ None. Phase 6 human UAT closed 2026-08-25 (`06-UAT.md`: shadow review, residual-
 
 ## Session Continuity
 
-Last session: 2026-08-25T14:31:35.874Z
-Stopped at: Phase 8 added, ready to plan INTG-08 credential cutover
+Last session: 2026-08-25T15:06:06.458Z
+Stopped at: Completed 08-01-PLAN.md
 Resume file: None

@@ -241,11 +241,11 @@ Plans:
   3. Live Jira search, fields, and test paths still resolve credentials only through `resolveJiraCredentials` — no old env-var-names-in-DB path remains
   4. INTG-08 is checked off in `.planning/REQUIREMENTS.md` with the cutover evidence recorded
 
-**Plans**: 1 plan
+**Plans**: 1/1 plans executed
 
 Plans:
 
-- [ ] 08-01-PLAN.md — Cutover evidence script, then HYG-01-delete dead Jira credential helpers
+- [x] 08-01-PLAN.md — Cutover evidence script, then HYG-01-delete dead Jira credential helpers
 
 ## Progress
 
@@ -258,4 +258,4 @@ Plans:
 | 5. Route Thinning & Validation | 3/3 | Complete    | 2026-08-11 |
 | 6. Access Enforcement Rollout | 7/7 | Complete    | 2026-08-25 |
 | 7. UI Decomposition | 9/9 | Complete    | 2026-08-25 |
-| 8. INTG-08 Credential Cutover | 0/1 | Planned | — |
+| 8. INTG-08 Credential Cutover | 1/1 | In Progress|  |

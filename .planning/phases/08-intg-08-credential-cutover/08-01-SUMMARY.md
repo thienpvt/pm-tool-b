@@ -108,7 +108,7 @@ Notes:
 
 1. **Task 1: End-to-end cutover evidence** — no commit (read-only script run; no file changes)
 2. **Task 2: Delete dead helpers after evidence** — `e0b2cea` (refactor)
-3. **Task 3: Full suite, INTG-08 checkoff, WINDOWS close** — pending in this commit batch
+3. **Task 3: Full suite, INTG-08 checkoff, WINDOWS close** — `80c39bc` (docs)
 
 **HYG-01 commit:** `e0b2cea` — `refactor(08): delete old inline credential paths after resolver cutover verified (INTG-08, HYG-01)`
 
