@@ -10,9 +10,34 @@ export const RISK_COLUMNS = [
   'status', 'priority', 'impact', 'affected_activity_id',
 ] as const;
 
+function raidTodayUtc(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+const RAID_IS_OVERDUE = `(due_date < ? AND status IN ('Open','In Progress')) AS is_overdue`;
+
+const RAID_OPEN_ORDER = `
+  CASE priority WHEN 'High' THEN 1 WHEN 'Medium' THEN 2 WHEN 'Low' THEN 3 ELSE 4 END,
+  CASE WHEN (due_date < ? AND status IN ('Open','In Progress')) THEN 0 ELSE 1 END,
+  due_date NULLS LAST,
+  id`;
+
+const RAID_ALL_ORDER = `
+  CASE WHEN status IN ('Open','In Progress') THEN 0 ELSE 1 END,
+  CASE priority WHEN 'High' THEN 1 WHEN 'Medium' THEN 2 WHEN 'Low' THEN 3 ELSE 4 END,
+  CASE WHEN (due_date < ? AND status IN ('Open','In Progress')) THEN 0 ELSE 1 END,
+  due_date NULLS LAST,
+  id`;
+
 export async function listRisks(projectId: number | string) {
   const db = await getDb();
-  return db.all('SELECT * FROM risks WHERE project_id = ? ORDER BY id', projectId);
+  const today = raidTodayUtc();
+  return db.all(
+    `SELECT *, ${RAID_IS_OVERDUE} FROM risks WHERE project_id = ? ORDER BY ${RAID_ALL_ORDER}`,
+    today,
+    projectId,
+    today,
+  );
 }
 
 export async function countRisks(projectId: number | string): Promise<number> {
@@ -100,12 +125,17 @@ export async function deactivateRisk(projectId: number | string, rowId: number |
   );
 }
 
-/** Open risks for the weekly report: status Open or In Progress, ordered by priority text. */
+/** Open risks for the weekly report: status Open or In Progress, ordered by priority severity with overdue first (D-07). */
 export async function listOpenRisks(projectId: number | string) {
   const db = await getDb();
+  const today = raidTodayUtc();
   return db.all(
-    "SELECT * FROM risks WHERE project_id = ? AND (status='Open' OR status='In Progress') ORDER BY priority",
+    `SELECT *, ${RAID_IS_OVERDUE} FROM risks
+     WHERE project_id = ? AND (status='Open' OR status='In Progress')
+     ORDER BY ${RAID_OPEN_ORDER}`,
+    today,
     projectId,
+    today,
   );
 }
 
