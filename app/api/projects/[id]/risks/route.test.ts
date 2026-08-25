@@ -2,8 +2,9 @@ import { NextRequest } from 'next/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { UnknownColumnError } from '@/lib/repositories/_helpers';
 
-const { projectAccessRow, listRisksRepo, createRiskRepo, updateRiskRepo, deleteRiskRepo } = vi.hoisted(() => ({
+const { projectAccessRow, getProjectPmIdentity, listRisksRepo, createRiskRepo, updateRiskRepo, deleteRiskRepo } = vi.hoisted(() => ({
   projectAccessRow: vi.fn(),
+  getProjectPmIdentity: vi.fn(),
   listRisksRepo: vi.fn(),
   createRiskRepo: vi.fn(),
   updateRiskRepo: vi.fn(),
@@ -11,7 +12,7 @@ const { projectAccessRow, listRisksRepo, createRiskRepo, updateRiskRepo, deleteR
 }));
 
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
-vi.mock('@/lib/repositories/projects.repo', () => ({ projectAccessRow }));
+vi.mock('@/lib/repositories/projects.repo', () => ({ projectAccessRow, getProjectPmIdentity }));
 vi.mock('@/lib/repositories/risks.repo', () => ({
   listRisks: listRisksRepo,
   createRisk: createRiskRepo,
@@ -37,6 +38,7 @@ import { DELETE, GET, POST, PUT } from './route';
 describe('GET/POST/PUT/DELETE /api/projects/[id]/risks', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    getProjectPmIdentity.mockResolvedValue({ pm_name: 'Ava', pm_email: 'ava@example.com' });
   });
 
   const params = (id = '7') => ({ params: Promise.resolve({ id }) });
@@ -57,6 +59,9 @@ describe('GET/POST/PUT/DELETE /api/projects/[id]/risks', () => {
     company_name: 'Acme',
     is_admin: 0,
     onboarding_completed: 1,
+    roles: ['pm'],
+    status: 'active',
+    email: 'ava@example.com',
   };
 
   const foreignSession = { ...ownerSession, company_id: 9, username: 'bob' };

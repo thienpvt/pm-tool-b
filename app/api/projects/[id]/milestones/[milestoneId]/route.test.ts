@@ -1,13 +1,14 @@
 import { NextRequest } from 'next/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { projectAccessRow, updateMilestoneRepo } = vi.hoisted(() => ({
+const { projectAccessRow, getProjectPmIdentity, updateMilestoneRepo } = vi.hoisted(() => ({
   projectAccessRow: vi.fn(),
+  getProjectPmIdentity: vi.fn(),
   updateMilestoneRepo: vi.fn(),
 }));
 
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
-vi.mock('@/lib/repositories/projects.repo', () => ({ projectAccessRow }));
+vi.mock('@/lib/repositories/projects.repo', () => ({ projectAccessRow, getProjectPmIdentity }));
 vi.mock('@/lib/repositories/milestones.repo', () => ({
   listMilestones: vi.fn(),
   createMilestone: vi.fn(),
@@ -24,11 +25,15 @@ import { PUT } from './route';
 const owner = {
   id: 2, username: 'ava', display_name: 'Ava', company_id: 5, company_name: 'Acme',
   is_admin: 0, onboarding_completed: 1,
+  roles: ['pm'], status: 'active', email: 'ava@example.com',
 };
 const foreign = { ...owner, company_id: 9 };
 
 describe('PUT /api/projects/[id]/milestones/[milestoneId]', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getProjectPmIdentity.mockResolvedValue({ pm_name: 'Ava', pm_email: 'ava@example.com' });
+  });
   const params = { params: Promise.resolve({ id: '7', milestoneId: '3' }) };
   const req = () =>
     new NextRequest('http://localhost/api/projects/7/milestones/3', {

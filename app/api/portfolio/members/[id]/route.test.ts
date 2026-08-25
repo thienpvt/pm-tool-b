@@ -18,6 +18,7 @@ import { DELETE, PUT } from './route';
 const foreign = {
   id: 2, username: 'bob', display_name: 'Bob', company_id: 9, company_name: 'Other',
   is_admin: 0, onboarding_completed: 1,
+  roles: ['cpmo'], status: 'active', email: 'bob@example.com',
 };
 
 describe('PUT/DELETE /api/portfolio/members/[id]', () => {

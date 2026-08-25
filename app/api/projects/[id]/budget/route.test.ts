@@ -3,12 +3,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const {
   projectAccessRow,
+  getProjectPmIdentity,
   listBudgetItems,
   listExpenses,
   activityStats,
   createBudgetItemRepo,
 } = vi.hoisted(() => ({
   projectAccessRow: vi.fn(),
+  getProjectPmIdentity: vi.fn(),
   listBudgetItems: vi.fn(),
   listExpenses: vi.fn(),
   activityStats: vi.fn(),
@@ -16,7 +18,7 @@ const {
 }));
 
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
-vi.mock('@/lib/repositories/projects.repo', () => ({ projectAccessRow }));
+vi.mock('@/lib/repositories/projects.repo', () => ({ projectAccessRow, getProjectPmIdentity }));
 vi.mock('@/lib/repositories/budget.repo', () => ({
   listBudgetItems,
   listExpenses,
@@ -30,6 +32,7 @@ import { GET, POST } from './route';
 describe('GET/POST /api/projects/[id]/budget', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    getProjectPmIdentity.mockResolvedValue({ pm_name: 'Ava', pm_email: 'ava@example.com' });
   });
 
   const params = (id = '7') => ({ params: Promise.resolve({ id }) });
@@ -50,6 +53,9 @@ describe('GET/POST /api/projects/[id]/budget', () => {
     company_name: 'Acme',
     is_admin: 0,
     onboarding_completed: 1,
+    roles: ['pm'],
+    status: 'active',
+    email: 'ava@example.com',
   };
 
   const foreignSession = { ...ownerSession, company_id: 9, username: 'bob' };

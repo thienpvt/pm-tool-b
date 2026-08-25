@@ -16,8 +16,10 @@ import { GET, POST } from './route';
 const owner = {
   id: 2, username: 'ava', display_name: 'Ava', company_id: 5, company_name: 'Acme',
   is_admin: 0, onboarding_completed: 1,
+  roles: ['cpmo'], status: 'active', email: 'ava@example.com',
 };
-const admin = { ...owner, id: 1, username: 'root', is_admin: 1 };
+const cpmoOwner = owner;
+const admin = { ...owner, id: 1, username: 'root', is_admin: 1, roles: ['cpmo'] };
 
 function req(body?: unknown) {
   return new NextRequest('http://localhost/api/programs', {
@@ -47,7 +49,9 @@ describe('GET /api/programs', () => {
 
     expect(res.status).toBe(200);
     await expect(res.json()).resolves.toEqual([{ id: 1, name: 'Alpha', project_count: 2 }]);
-    expect(listProgramsWithCounts).toHaveBeenCalledWith({ company_id: owner.company_id, is_admin: owner.is_admin });
+    expect(listProgramsWithCounts).toHaveBeenCalledWith(
+      expect.objectContaining({ company_id: owner.company_id, user_id: owner.id }),
+    );
   });
 });
 
@@ -72,28 +76,28 @@ describe('POST /api/programs', () => {
     await expect(res.json()).resolves.toEqual({ error: 'Name required' });
   });
 
-  it('places a non-admin created program via the actor, regardless of body.company_id', async () => {
-    vi.mocked(getSessionFromRequest).mockResolvedValue(owner as never);
+  it('places a CPMO-created program via the actor company, regardless of body.company_id', async () => {
+    vi.mocked(getSessionFromRequest).mockResolvedValue(cpmoOwner as never);
     createProgram.mockResolvedValue({ id: 1, name: 'Alpha', company_id: owner.company_id });
 
     const res = await POST(req({ name: 'Alpha', company_id: 999 }));
 
     expect(res.status).toBe(201);
     expect(createProgram).toHaveBeenCalledWith(
-      { company_id: owner.company_id, is_admin: owner.is_admin },
+      expect.objectContaining({ company_id: owner.company_id, roles: ['cpmo'] }),
       { name: 'Alpha', company_id: 999 },
     );
   });
 
-  it('passes the admin actor through so the service can honor body.company_id', async () => {
+  it('stamps actor.company_id for admin CPMO; body.company_id does not override tenancy', async () => {
     vi.mocked(getSessionFromRequest).mockResolvedValue(admin as never);
-    createProgram.mockResolvedValue({ id: 2, name: 'Beta', company_id: 42 });
+    createProgram.mockResolvedValue({ id: 2, name: 'Beta', company_id: admin.company_id });
 
     const res = await POST(req({ name: 'Beta', company_id: 42 }));
 
     expect(res.status).toBe(201);
     expect(createProgram).toHaveBeenCalledWith(
-      { company_id: admin.company_id, is_admin: admin.is_admin },
+      expect.objectContaining({ company_id: admin.company_id, is_admin: 1, roles: ['cpmo'] }),
       { name: 'Beta', company_id: 42 },
     );
   });

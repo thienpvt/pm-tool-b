@@ -9,7 +9,10 @@ const { assertProjectAccess } = vi.hoisted(() => ({
 }));
 
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest }));
-vi.mock('@/lib/services/access', () => ({ assertProjectAccess }));
+vi.mock('@/lib/services/access', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/services/access')>();
+  return { ...actual, assertProjectAccess };
+});
 
 import { withProjectAccess } from './with-project-access';
 
@@ -25,6 +28,20 @@ const ownerSession = {
   company_name: 'Acme',
   is_admin: 0,
   onboarding_completed: 1,
+  roles: ['pm'],
+  status: 'active',
+  email: 'ava@example.com',
+};
+
+const expectedActor = {
+  user_id: 2,
+  username: 'ava',
+  display_name: 'Ava',
+  company_id: 5,
+  is_admin: 0,
+  roles: ['pm'],
+  status: 'active',
+  email: 'ava@example.com',
 };
 
 function req(method: string, url = 'http://localhost/api/projects/7/risks') {
@@ -46,10 +63,10 @@ describe('withProjectAccess', () => {
     const res = await wrapped(req('GET'), rawCtx());
 
     expect(res.status).toBe(200);
-    expect(assertProjectAccess).toHaveBeenCalledWith('7', { company_id: 5, is_admin: 0 });
+    expect(assertProjectAccess).toHaveBeenCalledWith('7', expectedActor);
     const [, ctx] = handler.mock.calls[0];
     expect(ctx.project).toEqual(projectRow);
-    expect(ctx.actor).toEqual({ company_id: 5, is_admin: 0 });
+    expect(ctx.actor).toEqual(expectedActor);
     expect(ctx.params).toEqual({ id: '7' });
   });
 

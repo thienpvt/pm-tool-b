@@ -2,14 +2,15 @@ import { NextRequest } from 'next/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { IntegrationError } from '@/lib/integrations/errors';
 
-const { projectAccessRow, createMessage, resolveAnthropicCredentials } = vi.hoisted(() => ({
+const { projectAccessRow, getProjectPmIdentity, createMessage, resolveAnthropicCredentials } = vi.hoisted(() => ({
   projectAccessRow: vi.fn(),
+  getProjectPmIdentity: vi.fn(),
   createMessage: vi.fn(),
   resolveAnthropicCredentials: vi.fn(),
 }));
 
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
-vi.mock('@/lib/repositories/projects.repo', () => ({ projectAccessRow }));
+vi.mock('@/lib/repositories/projects.repo', () => ({ projectAccessRow, getProjectPmIdentity }));
 vi.mock('@/lib/integrations/credentials', () => ({ resolveAnthropicCredentials }));
 vi.mock('@/lib/integrations/anthropic/client', () => ({ createMessage }));
 
@@ -25,6 +26,7 @@ import { POST } from './route';
 describe('POST /api/projects/[id]/project-report/generate-email', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    getProjectPmIdentity.mockResolvedValue({ pm_name: 'Ava', pm_email: 'ava@example.com' });
   });
 
   const params = (id = '7') => ({ params: Promise.resolve({ id }) });
@@ -45,6 +47,9 @@ describe('POST /api/projects/[id]/project-report/generate-email', () => {
     company_name: 'Acme',
     is_admin: 0,
     onboarding_completed: 1,
+    roles: ['pm'],
+    status: 'active',
+    email: 'ava@example.com',
   };
 
   const foreignSession = { ...ownerSession, company_id: 9, username: 'bob' };

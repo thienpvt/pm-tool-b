@@ -64,6 +64,7 @@ const ROUTE_MATRIX: MatrixEntry[] = [
   { path: '/app/api/auth/change-password/route.ts', methods: ['POST'], group: 'legacy-getSessionFromRequest' },
   { path: '/app/api/auth/complete-onboarding/route.ts', methods: ['POST'], group: 'legacy-getSessionFromRequest' },
   { path: '/app/api/auth/me/route.ts', methods: ['GET'], group: 'legacy-getSessionFromRequest' },
+  { path: '/app/api/auth/session/extend/route.ts', methods: ['POST'], group: 'legacy-getSessionFromRequest' },
   { path: '/app/api/bug-import-mapping/[id]/route.ts', methods: ['DELETE'], group: 'wrapped-auth' },
   { path: '/app/api/bug-import-mapping/route.ts', methods: ['GET', 'POST'], group: 'wrapped-auth' },
   { path: '/app/api/config/route.ts', methods: ['GET', 'POST'], group: 'wrapped-auth' },

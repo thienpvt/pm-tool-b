@@ -15,6 +15,10 @@ const session = {
   company_id: 3,
   company_name: 'Acme',
   is_admin: 0,
+  onboarding_completed: 1,
+  roles: ['cpmo'],
+  status: 'active',
+  email: 'pm1@example.com',
 };
 
 function req(url = 'http://localhost/api/projects') {
@@ -55,7 +59,7 @@ describe('GET /api/projects', () => {
     expect(params).toContain(session.company_id);
   });
 
-  it('does not scope the query for an admin', async () => {
+  it('scopes the query to the caller company even for an admin', async () => {
     const all = vi.fn().mockResolvedValue([]);
     vi.mocked(getSessionFromRequest).mockResolvedValue({ ...session, is_admin: 1 } as never);
     vi.mocked(getDb).mockResolvedValue({ all } as never);
@@ -64,8 +68,8 @@ describe('GET /api/projects', () => {
 
     expect(res.status).toBe(200);
     const [sql, ...params] = all.mock.calls[0];
-    expect(sql).not.toContain('WHERE');
-    expect(params).toEqual([]);
+    expect(sql).toContain('WHERE');
+    expect(params).toContain(session.company_id);
   });
 
   it('returns 500 when the db layer throws', async () => {

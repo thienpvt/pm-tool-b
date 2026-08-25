@@ -207,7 +207,7 @@ describe('getPortfolioReport', () => {
 
     const result = await getPortfolioReport(scoped, { milestone_ids: '1,2' });
 
-    expect(portfolioMilestoneSelection).toHaveBeenCalledWith([1, 2], 5, false);
+    expect(portfolioMilestoneSelection).toHaveBeenCalledWith([1, 2], 5);
     // Only projects 10 and 20 — 30 excluded by milestone set
     expect(result.projects.map((p: { id: number }) => p.id).sort()).toEqual([10, 20]);
     expect(result.kpi.totalProjects).toBe(2);
@@ -220,10 +220,10 @@ describe('getPortfolioReport', () => {
 
   it('passes company scope without leftover is_admin all-rows bypass', async () => {
     await getPortfolioReport(scoped, {});
-    expect(listPortfolioReportProjects).toHaveBeenCalledWith(5, false);
+    expect(listPortfolioReportProjects).toHaveBeenCalledWith(5);
 
     await getPortfolioReport({ ...scoped, is_admin: 1 }, {});
-    expect(listPortfolioReportProjects).toHaveBeenLastCalledWith(5, false);
+    expect(listPortfolioReportProjects).toHaveBeenLastCalledWith(5);
   });
 });
 

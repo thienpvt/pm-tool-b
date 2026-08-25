@@ -1,14 +1,15 @@
 import { NextRequest } from 'next/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { projectAccessRow, getExpenseInItemRepo, deleteExpenseRepo } = vi.hoisted(() => ({
+const { projectAccessRow, getProjectPmIdentity, getExpenseInItemRepo, deleteExpenseRepo } = vi.hoisted(() => ({
   projectAccessRow: vi.fn(),
+  getProjectPmIdentity: vi.fn(),
   getExpenseInItemRepo: vi.fn(),
   deleteExpenseRepo: vi.fn(),
 }));
 
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
-vi.mock('@/lib/repositories/projects.repo', () => ({ projectAccessRow }));
+vi.mock('@/lib/repositories/projects.repo', () => ({ projectAccessRow, getProjectPmIdentity }));
 vi.mock('@/lib/repositories/budget.repo', () => ({
   getExpenseInItem: getExpenseInItemRepo,
   deleteExpense: deleteExpenseRepo,
@@ -25,6 +26,7 @@ import { DELETE } from './route';
 describe('DELETE /api/projects/[id]/budget/[itemId]/expenses/[expId] access control', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    getProjectPmIdentity.mockResolvedValue({ pm_name: 'Ava', pm_email: 'ava@example.com' });
   });
 
   const params = () => ({ params: Promise.resolve({ id: '1', itemId: '2', expId: '9' }) });
@@ -36,6 +38,7 @@ describe('DELETE /api/projects/[id]/budget/[itemId]/expenses/[expId] access cont
   const ownerSession = {
     id: 2, username: 'ava', display_name: 'Ava', company_id: 5, company_name: 'Acme',
     is_admin: 0, onboarding_completed: 1,
+    roles: ['pm'], status: 'active', email: 'ava@example.com',
   };
   const foreignSession = { ...ownerSession, company_id: 9, username: 'bob' };
 

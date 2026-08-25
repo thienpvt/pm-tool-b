@@ -1,16 +1,17 @@
 import { NextRequest } from 'next/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { getProgramRepo, projectAccessRow, programProjectAllocationsRepo, upsertProgramProjectAllocationRepo } =
+const { getProgramRepo, projectAccessRow, getProjectPmIdentity, programProjectAllocationsRepo, upsertProgramProjectAllocationRepo } =
   vi.hoisted(() => ({
     getProgramRepo: vi.fn(),
     projectAccessRow: vi.fn(),
+    getProjectPmIdentity: vi.fn(),
     programProjectAllocationsRepo: vi.fn(),
     upsertProgramProjectAllocationRepo: vi.fn(),
   }));
 
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
-vi.mock('@/lib/repositories/projects.repo', () => ({ projectAccessRow }));
+vi.mock('@/lib/repositories/projects.repo', () => ({ projectAccessRow, getProjectPmIdentity }));
 vi.mock('@/lib/repositories/programs.repo', () => ({
   getProgram: getProgramRepo,
   listProgramProjects: vi.fn(),
@@ -32,6 +33,7 @@ import { GET, POST } from './route';
 describe('GET/POST /api/programs/[id]/project-allocations', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    getProjectPmIdentity.mockResolvedValue({ pm_name: 'Ava', pm_email: 'ava@example.com' });
   });
 
   const params = () => ({ params: Promise.resolve({ id: '3' }) });
@@ -51,6 +53,7 @@ describe('GET/POST /api/programs/[id]/project-allocations', () => {
   const ownerSession = {
     id: 2, username: 'ava', display_name: 'Ava', company_id: 5, company_name: 'Acme',
     is_admin: 0, onboarding_completed: 1,
+    roles: ['cpmo'], status: 'active', email: 'ava@example.com',
   };
   const foreignSession = { ...ownerSession, company_id: 9, username: 'bob' };
 
