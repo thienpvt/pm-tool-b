@@ -56,7 +56,12 @@ export async function updateTimelineMapping(
 ) {
   const row = await getTimelineMappingById(id);
   assertCompanyRow(actor, row);
-  return updateTimelineMappingRepo(actor.company_id!, id, name, mappingsJson);
+  const companyId = requireCompanyId(actor);
+  const existing = await findTimelineMappingByName(companyId, name);
+  if (existing && existing.id !== Number(id)) {
+    throw new ConflictError('Template name already exists');
+  }
+  return updateTimelineMappingRepo(companyId, id, name, mappingsJson);
 }
 
 export async function deleteTimelineMapping(id: number | string, actor: AccessActor) {

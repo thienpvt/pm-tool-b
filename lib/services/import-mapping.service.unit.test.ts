@@ -105,9 +105,25 @@ describe('import-mapping.service by-id tenant assert', () => {
 
   it('updateTimelineMapping calls repo with owner company when allowed', async () => {
     getTimelineMappingById.mockResolvedValue(row);
+    findTimelineMappingByName.mockResolvedValue(undefined);
     updateTimelineMappingRepo.mockResolvedValue({ ...row, name: 'y' });
     await updateTimelineMapping(1, owner, 'y', '{}');
     expect(updateTimelineMappingRepo).toHaveBeenCalledWith(5, 1, 'y', '{}');
+  });
+
+  it('updateTimelineMapping throws ConflictError on duplicate name within company', async () => {
+    getTimelineMappingById.mockResolvedValue(row);
+    findTimelineMappingByName.mockResolvedValue({ id: 2, company_id: 5, name: 'taken', mappings_json: '{}' });
+    await expect(updateTimelineMapping(1, owner, 'taken', '{}')).rejects.toBeInstanceOf(ConflictError);
+    expect(updateTimelineMappingRepo).not.toHaveBeenCalled();
+  });
+
+  it('updateTimelineMapping allows rename to same name on same row', async () => {
+    getTimelineMappingById.mockResolvedValue(row);
+    findTimelineMappingByName.mockResolvedValue(row);
+    updateTimelineMappingRepo.mockResolvedValue(row);
+    await updateTimelineMapping(1, owner, 'tpl', '{}');
+    expect(updateTimelineMappingRepo).toHaveBeenCalledWith(5, 1, 'tpl', '{}');
   });
 
   it('deleteTimelineMapping calls repo with owner company when allowed', async () => {
