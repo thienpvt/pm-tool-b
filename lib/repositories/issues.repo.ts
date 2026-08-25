@@ -6,8 +6,8 @@ import { buildUpdate } from './_helpers';
  * migration-added — see ALLOWLIST-DIFF.md.
  */
 export const ISSUE_COLUMNS = [
-  'issue_id', 'description', 'root_cause', 'category', 'owner', 'trigger', 'mitigation',
-  'due_date', 'status', 'priority', 'impact', 'affected_activity_id',
+  'issue_id', 'code', 'description', 'root_cause', 'category', 'owner', 'trigger', 'mitigation',
+  'due_date', 'status', 'priority', 'impact', 'affected_activity_id', 'technology_council',
 ] as const;
 
 export async function listIssues(projectId: number | string) {
@@ -21,16 +21,60 @@ export async function countIssues(projectId: number | string): Promise<number> {
   return Number(row?.c ?? 0);
 }
 
+export async function getIssue(projectId: number | string, rowId: number | string) {
+  const db = await getDb();
+  return db.get('SELECT * FROM issues WHERE id = ? AND project_id = ?', rowId, projectId);
+}
+
+export async function findIssueByCode(
+  projectId: number | string,
+  code: string,
+  excludeId?: number | string,
+) {
+  const db = await getDb();
+  return db.get<{ id: number }>(
+    `SELECT id FROM issues
+     WHERE project_id = ? AND LOWER(code) = LOWER(?)
+       AND id != COALESCE(?, -1)
+     LIMIT 1`,
+    projectId,
+    code,
+    excludeId ?? null,
+  );
+}
+
+async function nextAutoIssueCode(projectId: number | string): Promise<string> {
+  const db = await getDb();
+  const rows = await db.all<{ code: string }>(
+    `SELECT code FROM issues WHERE project_id = ? AND code ~ '^I-[0-9]+$'`,
+    projectId,
+  );
+  let max = 0;
+  for (const row of rows) {
+    const m = /^I-(\d+)$/.exec(row.code);
+    if (m) max = Math.max(max, parseInt(m[1], 10));
+  }
+  const next = max > 0 ? max + 1 : (await countIssues(projectId)) + 1;
+  return `I-${String(next).padStart(3, '0')}`;
+}
+
 export async function createIssue(projectId: number | string, body: Record<string, unknown>) {
   const db = await getDb();
   const b = body as Record<string, never>;
-  // Display id derives from COUNT(*), matching current behavior.
-  const issueId = b.issue_id || `I${(await countIssues(projectId)) + 1}`;
+  let code = typeof b.code === 'string' ? b.code.trim() : '';
+  if (!code) {
+    do {
+      code = await nextAutoIssueCode(projectId);
+    } while (await findIssueByCode(projectId, code));
+  }
+  const issueId = b.issue_id || code;
   const r = await db.run(
-    'INSERT INTO issues (project_id, issue_id, description, root_cause, category, owner, trigger, mitigation, due_date, status, priority, impact, affected_activity_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)',
-    projectId, issueId, b.description ?? '', b.root_cause ?? '', b.category ?? '', b.owner ?? '',
+    `INSERT INTO issues (project_id, issue_id, code, description, root_cause, category, owner, trigger, mitigation, due_date, status, priority, impact, affected_activity_id, technology_council)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+    projectId, issueId, code, b.description ?? '', b.root_cause ?? '', b.category ?? '', b.owner ?? '',
     b.trigger ?? '', b.mitigation ?? '', b.due_date ?? '', b.status ?? 'Open',
-    b.priority ?? 'Medium', b.impact ?? 'Major', b.affected_activity_id ?? null);
+    b.priority ?? 'Medium', b.impact ?? 'Major', b.affected_activity_id ?? null,
+    b.technology_council ?? false);
   return db.get('SELECT * FROM issues WHERE id = ?', r.lastInsertRowid);
 }
 
@@ -48,9 +92,13 @@ export async function updateIssue(
   );
 }
 
-export async function deleteIssue(projectId: number | string, rowId: number | string) {
+export async function deactivateIssue(projectId: number | string, rowId: number | string) {
   const db = await getDb();
-  return db.run('DELETE FROM issues WHERE id = ? AND project_id = ?', rowId, projectId);
+  return db.get(
+    `UPDATE issues SET status = 'deactivated', deactivated_at = now()
+     WHERE id = ? AND project_id = ? RETURNING *`,
+    rowId, projectId,
+  );
 }
 
 /** Open issues for the weekly report: status Open or In Progress, ordered by priority text. */
