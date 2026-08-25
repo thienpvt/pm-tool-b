@@ -6,6 +6,7 @@ import { createMessage } from '@/lib/integrations/anthropic/client';
 import { MODEL_OPUS_4_7 } from '@/lib/integrations/anthropic/models';
 import { integrationErrorResponse, serviceErrorResponse } from '@/lib/api-errors';
 import { IntegrationError } from '@/lib/integrations/errors';
+import { assertProjectWriteAccess } from '@/lib/services/access';
 import { getProjectReport } from '@/lib/services/project-report.service';
 
 export const GET = withProjectAccess(async (req, { params, actor }) => {
@@ -28,7 +29,9 @@ export const GET = withProjectAccess(async (req, { params, actor }) => {
   }
 });
 
-export const POST = withProjectAccess(async (req) => {
+export const POST = withProjectAccess(async (req, { params, actor }) => {
+  await assertProjectWriteAccess(params.id, actor);
+
   const creds = await resolveAnthropicCredentials();
   if (!creds) return NextResponse.json({ error: 'NO_API_KEY' }, { status: 503 });
 

@@ -4,6 +4,7 @@ import { resolveAnthropicCredentials } from '@/lib/integrations/credentials';
 import { createMessage } from '@/lib/integrations/anthropic/client';
 import { MODEL_SONNET_4_6 } from '@/lib/integrations/anthropic/models';
 import { integrationErrorResponse } from '@/lib/api-errors';
+import { assertProjectWriteAccess } from '@/lib/services/access';
 
 const SYSTEM_PROMPT = `Bạn là Project Manager cấp Senior đang soạn email báo cáo chính thức gửi Project Sponsor và Ban Lãnh đạo.
 
@@ -29,7 +30,9 @@ const SYSTEM_PROMPT = `Bạn là Project Manager cấp Senior đang soạn email
 - Tone: chuyên nghiệp, tự tin, khách quan
 - Khuyến nghị phải cụ thể, có thể hành động được`;
 
-export const POST = withProjectAccess(async (req) => {
+export const POST = withProjectAccess(async (req, { params, actor }) => {
+  await assertProjectWriteAccess(params.id, actor);
+
   const creds = await resolveAnthropicCredentials();
   if (!creds) return NextResponse.json({ error: 'NO_API_KEY' }, { status: 503 });
 

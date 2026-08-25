@@ -6,6 +6,7 @@ import { createMessage } from '@/lib/integrations/anthropic/client';
 import { MODEL_OPUS_4_7 } from '@/lib/integrations/anthropic/models';
 import { integrationErrorResponse, serviceErrorResponse } from '@/lib/api-errors';
 import { IntegrationError } from '@/lib/integrations/errors';
+import { assertProjectWriteAccess } from '@/lib/services/access';
 import { getWeeklyProjectReport } from '@/lib/services/project-report.service';
 
 type ActivityRow = { activity: string; deliverable: string; completion_pct: number; plan_start: string; plan_end: string; };
@@ -31,7 +32,9 @@ export const GET = withProjectAccess(async (req, { params, actor }) => {
   }
 });
 
-export const POST = withProjectAccess(async (req) => {
+export const POST = withProjectAccess(async (req, { params, actor }) => {
+  await assertProjectWriteAccess(params.id, actor);
+
   // WR-05: reject a malformed/oversized body with a JSON 400 instead of letting
   // req.json() reject the handler and surface a bare 500.
   let body: any;
