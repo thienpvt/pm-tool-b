@@ -1,0 +1,1 @@
+No external API integration: Phase 13 adds company-scoped weekly period rows and versioned PM submit snapshots using existing Postgres, session auth, and RAID/milestone services — no new third-party API or SDK.
