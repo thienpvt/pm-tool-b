@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { hasTestDb } from '../../test/db';
 import { seedProject, setupRepoTables, testDb } from '../../test/repo-db';
 
@@ -11,6 +11,7 @@ import {
   createRisk,
   deactivateRisk,
   findRiskByCode,
+  listOpenRisks,
   listRisks,
   updateRisk,
 } from './risks.repo';
@@ -108,5 +109,77 @@ describe.skipIf(!hasTestDb)('risks.repo', () => {
     const foreign = await createRisk(other, { description: 'Foreign' }) as { id: number };
     const result = await deactivateRisk(projectId, foreign.id);
     expect(result).toBeUndefined();
+  });
+
+  describe('listOpenRisks ordering and is_overdue', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-08-26T12:00:00Z'));
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('orders High overdue before High not-overdue before Medium with is_overdue flag', async () => {
+      const isolated = await seedProject('listOpenRisks order');
+      await createRisk(isolated, {
+        code: 'R-101', description: 'High overdue', priority: 'High', status: 'Open', due_date: '2026-08-20',
+      });
+      await createRisk(isolated, {
+        code: 'R-102', description: 'High future', priority: 'High', status: 'Open', due_date: '2026-08-30',
+      });
+      await createRisk(isolated, {
+        code: 'R-103', description: 'Medium overdue', priority: 'Medium', status: 'In Progress', due_date: '2026-08-15',
+      });
+      await createRisk(isolated, {
+        code: 'R-104', description: 'Closed overdue', priority: 'High', status: 'Closed', due_date: '2026-08-10',
+      });
+
+      const rows = await listOpenRisks(isolated) as { description: string; is_overdue: boolean }[];
+      expect(rows.map(r => r.description)).toEqual(['High overdue', 'High future', 'Medium overdue']);
+      expect(rows[0].is_overdue).toBe(true);
+      expect(rows[1].is_overdue).toBe(false);
+      expect(rows[2].is_overdue).toBe(true);
+    });
+  });
+
+  describe('listRisks ordering and is_overdue', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-08-26T12:00:00Z'));
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('orders Open/In Progress before Closed and never marks closed rows overdue', async () => {
+      const isolated = await seedProject('listRisks order');
+      await createRisk(isolated, {
+        code: 'R-201', description: 'Closed High overdue', priority: 'High', status: 'Closed', due_date: '2026-08-10',
+      });
+      await createRisk(isolated, {
+        code: 'R-202', description: 'Open Medium future', priority: 'Medium', status: 'Open', due_date: '2026-09-01',
+      });
+      await createRisk(isolated, {
+        code: 'R-203', description: 'Open High overdue', priority: 'High', status: 'Open', due_date: '2026-08-10',
+      });
+      const deactivated = await createRisk(isolated, {
+        code: 'R-204', description: 'Deactivated overdue', priority: 'High', status: 'Open', due_date: '2026-08-05',
+      }) as { id: number };
+      await deactivateRisk(isolated, deactivated.id);
+
+      const rows = await listRisks(isolated) as { description: string; status: string; is_overdue: boolean }[];
+      const openIdx = rows.findIndex(r => r.description === 'Open High overdue');
+      const mediumIdx = rows.findIndex(r => r.description === 'Open Medium future');
+      const closedIdx = rows.findIndex(r => r.description === 'Closed High overdue');
+      const deactivatedIdx = rows.findIndex(r => r.description === 'Deactivated overdue');
+      expect(openIdx).toBeLessThan(closedIdx);
+      expect(mediumIdx).toBeLessThan(closedIdx);
+      expect(rows[openIdx].is_overdue).toBe(true);
+      expect(rows[closedIdx].is_overdue).toBe(false);
+      expect(rows[deactivatedIdx].is_overdue).toBe(false);
+    });
   });
 });
