@@ -10,6 +10,7 @@ const {
   createProjectRepo,
   findProjectByCompanyCode,
   getProgram,
+  auditLogFn,
 } = vi.hoisted(() => ({
   assertProjectAccess: vi.fn(),
   assertProjectWriteAccess: vi.fn(),
@@ -20,6 +21,7 @@ const {
   createProjectRepo: vi.fn(),
   findProjectByCompanyCode: vi.fn(),
   getProgram: vi.fn(),
+  auditLogFn: vi.fn(),
 }));
 
 vi.mock('@/lib/services/access', () => ({
@@ -38,6 +40,9 @@ vi.mock('@/lib/repositories/projects.repo', () => ({
 }));
 vi.mock('@/lib/repositories/programs.repo', () => ({
   getProgram,
+}));
+vi.mock('@/lib/services/audit.service', () => ({
+  auditLog: auditLogFn,
 }));
 
 import { UnknownColumnError } from '@/lib/repositories/_helpers';
@@ -91,13 +96,96 @@ describe('projects.service', () => {
 
   describe('updateProject', () => {
     it('asserts write access before updating', async () => {
+      getProjectRepo.mockResolvedValue({ id: 7, name: 'Before', progress_pct: 50, status: 'Active' });
       updateProjectRepo.mockResolvedValue({ id: 7, name: 'Renamed' });
       await expect(updateProject(7, pmActor, { name: 'Renamed' })).resolves.toEqual({
         id: 7,
         name: 'Renamed',
+        warnings: [],
       });
       expect(assertProjectWriteAccess).toHaveBeenCalledWith(7, pmActor);
       expect(updateProjectRepo).toHaveBeenCalledWith(7, { name: 'Renamed' });
+    });
+
+    it('strips project_code from PM update payload (D-03)', async () => {
+      getProjectRepo.mockResolvedValue({
+        id: 7,
+        project_code: 'PRJ-OLD',
+        progress_pct: 50,
+        status: 'Active',
+      });
+      updateProjectRepo.mockResolvedValue({ id: 7, name: 'Renamed', project_code: 'PRJ-OLD' });
+      await updateProject(7, pmActor, { name: 'Renamed', project_code: 'PRJ-HACK' });
+      expect(updateProjectRepo).toHaveBeenCalledWith(7, { name: 'Renamed' });
+      expect(deleteProjectRepo).not.toHaveBeenCalled();
+    });
+
+    it('CPMO in-place project_code change audits code_change without deleteProject (D-02, D-19, PROJ-02)', async () => {
+      getProjectRepo.mockResolvedValue({
+        id: 7,
+        project_code: 'PRJ-OLD',
+        progress_pct: 50,
+        status: 'Active',
+      });
+      findProjectByCompanyCode.mockResolvedValue(undefined);
+      updateProjectRepo.mockResolvedValue({ id: 7, project_code: 'PRJ-NEW' });
+      await updateProject(7, cpmoActor, { project_code: 'PRJ-NEW' });
+      expect(findProjectByCompanyCode).toHaveBeenCalledWith(cpmoActor.company_id, 'PRJ-NEW');
+      expect(updateProjectRepo).toHaveBeenCalledWith(7, { project_code: 'PRJ-NEW' });
+      expect(deleteProjectRepo).not.toHaveBeenCalled();
+      expect(auditLogFn).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'code_change',
+          entity_type: 'project',
+          entity_id: '7',
+          before: { project_code: 'PRJ-OLD' },
+          after: { project_code: 'PRJ-NEW' },
+        }),
+      );
+    });
+
+    it('CPMO duplicate project_code throws ConflictError excluding current id (D-01)', async () => {
+      getProjectRepo.mockResolvedValue({
+        id: 7,
+        project_code: 'PRJ-OLD',
+        progress_pct: 50,
+        status: 'Active',
+      });
+      findProjectByCompanyCode.mockResolvedValue({ id: 99 });
+      await expect(updateProject(7, cpmoActor, { project_code: 'PRJ-DUP' })).rejects.toBeInstanceOf(
+        ConflictError,
+      );
+      expect(updateProjectRepo).not.toHaveBeenCalled();
+    });
+
+    it('stage L5 returns id and warnings on 200-shaped object (D-07)', async () => {
+      getProjectRepo.mockResolvedValue({
+        id: 7,
+        progress_pct: 40,
+        status: 'Active',
+        rag: 'Green',
+        stage: 'L4',
+      });
+      updateProjectRepo.mockResolvedValue({
+        id: 7,
+        stage: 'L5',
+        status: 'Completed',
+        rag: 'Not applicable',
+        progress_pct: 100,
+      });
+      const result = await updateProject(7, pmActor, { stage: 'L5', status: 'Active', rag: 'Green' });
+      expect(result.id).toBe(7);
+      expect(Array.isArray(result.warnings)).toBe(true);
+      expect(result.warnings.length).toBeGreaterThan(0);
+      expect(updateProjectRepo).toHaveBeenCalledWith(
+        7,
+        expect.objectContaining({
+          stage: 'L5',
+          status: 'Completed',
+          rag: 'Not applicable',
+          progress_pct: 100,
+        }),
+      );
     });
 
     it('does not call the repository when write access is denied', async () => {
@@ -107,6 +195,7 @@ describe('projects.service', () => {
     });
 
     it('propagates UnknownColumnError from the repository untouched (REPO-03/T-04-25)', async () => {
+      getProjectRepo.mockResolvedValue({ id: 7, progress_pct: 50, status: 'Active' });
       updateProjectRepo.mockRejectedValue(new UnknownColumnError(['company_id']));
       await expect(updateProject(7, pmActor, { company_id: 99 })).rejects.toBeInstanceOf(
         UnknownColumnError,
@@ -236,12 +325,13 @@ describe('projects.service', () => {
         customer_id: 10,
         company_id: cpmoActor.company_id,
       });
-      await createProject(cpmoActor, {
+      const result = await createProject(cpmoActor, {
         name: 'Alpha',
         project_code: 'PRJ-001',
         portfolio_year: 2026,
         customer_id: 10,
       });
+      expect(result.warnings).toEqual([]);
       expect(getProgram).toHaveBeenCalledWith(10);
       expect(findProjectByCompanyCode).toHaveBeenCalledWith(cpmoActor.company_id, 'PRJ-001');
       expect(createProjectRepo).toHaveBeenCalledWith(cpmoActor.company_id, {
@@ -250,6 +340,32 @@ describe('projects.service', () => {
         portfolio_year: 2026,
         customer_id: 10,
       });
+    });
+
+    it('createProject attaches warnings from applyProjectGovernance (D-07)', async () => {
+      getProgram.mockResolvedValue({ id: 10, company_id: cpmoActor.company_id, name: 'Prog' });
+      findProjectByCompanyCode.mockResolvedValue(undefined);
+      createProjectRepo.mockResolvedValue({
+        id: 1,
+        name: 'Alpha',
+        project_code: 'PRJ-001',
+        portfolio_year: 2026,
+        customer_id: 10,
+        stage: 'L5',
+        status: 'Completed',
+        rag: 'Not applicable',
+        progress_pct: 100,
+      });
+      const result = await createProject(cpmoActor, {
+        name: 'Alpha',
+        project_code: 'PRJ-001',
+        portfolio_year: 2026,
+        customer_id: 10,
+        stage: 'L5',
+        status: 'Active',
+      });
+      expect(Array.isArray(result.warnings)).toBe(true);
+      expect(result.warnings.length).toBeGreaterThan(0);
     });
 
     it('throws ConflictError for duplicate project_code in same company (D-01, PROJ-01)', async () => {
