@@ -1,7 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { integrationErrorResponse, serviceErrorResponse } from './api-errors';
 import { IntegrationError } from './integrations/errors';
-import { ForbiddenError, NotFoundError, ValidationError } from './services/errors';
+import {
+  ForbiddenError,
+  NotFoundError,
+  SubmitValidationError,
+  ValidationError,
+} from './services/errors';
 
 /**
  * INTG-06: a malformed upstream response must log server-side and must not
@@ -69,6 +74,20 @@ describe('serviceErrorResponse', () => {
 
     expect(res.status).toBe(400);
     expect(body).toEqual({ error: 'bad category', field: 'category' });
+  });
+
+  it('maps SubmitValidationError to 400 with fields array not singular field (D-11, RAID-03)', async () => {
+    const res = serviceErrorResponse(
+      new SubmitValidationError('fix fields', ['raid.risks[0].description']),
+    );
+    const body = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(body).toEqual({
+      error: 'fix fields',
+      fields: ['raid.risks[0].description'],
+    });
+    expect(body).not.toHaveProperty('field');
   });
 
   it('maps unknown errors to a generic 500 without String(e)', async () => {

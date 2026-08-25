@@ -19,7 +19,13 @@ const {
   openCorrectionOnShell,
   getLatestVersionSnapshot,
   listProjectWeeklyHistoryRepo,
+  getWeeklyPeriodByCompanyRepo,
+  listPeriodShellsRepo,
   getProjectRepo,
+  updateProjectRepo,
+  getMilestoneRepo,
+  getRiskRepo,
+  getIssueRepo,
   createRiskFn,
   updateRiskFn,
   createIssueFn,
@@ -43,7 +49,13 @@ const {
   openCorrectionOnShell: vi.fn(),
   getLatestVersionSnapshot: vi.fn(),
   listProjectWeeklyHistoryRepo: vi.fn(),
+  getWeeklyPeriodByCompanyRepo: vi.fn(),
+  listPeriodShellsRepo: vi.fn(),
   getProjectRepo: vi.fn(),
+  updateProjectRepo: vi.fn(),
+  getMilestoneRepo: vi.fn(),
+  getRiskRepo: vi.fn(),
+  getIssueRepo: vi.fn(),
   createRiskFn: vi.fn(),
   updateRiskFn: vi.fn(),
   createIssueFn: vi.fn(),
@@ -73,9 +85,21 @@ vi.mock('@/lib/repositories/weekly-reports.repo', () => ({
   openCorrectionOnShell,
   getLatestVersionSnapshot,
   listProjectWeeklyHistoryRepo,
+  getWeeklyPeriodByCompany: getWeeklyPeriodByCompanyRepo,
+  listPeriodShellsRepo,
 }));
 vi.mock('@/lib/repositories/projects.repo', () => ({
   getProject: getProjectRepo,
+  updateProject: updateProjectRepo,
+}));
+vi.mock('@/lib/repositories/milestones.repo', () => ({
+  getMilestone: getMilestoneRepo,
+}));
+vi.mock('@/lib/repositories/risks.repo', () => ({
+  getRisk: getRiskRepo,
+}));
+vi.mock('@/lib/repositories/issues.repo', () => ({
+  getIssue: getIssueRepo,
 }));
 vi.mock('./audit.service', () => ({ auditLog: auditLogFn }));
 vi.mock('./risks.service', () => ({
@@ -93,13 +117,14 @@ import {
   getWeeklyReportShell,
   isWeeklyReportOverdue,
   listProjectWeeklyHistory,
+  listPeriodShells,
   listWeeklyPeriods,
   openWeeklyReportCorrection,
   saveWeeklyReportDraft,
   submitWeeklyReport,
   upsertCompanyWeeklyConfig,
 } from './weekly-reports.service';
-import { ConflictError, ForbiddenError, NotFoundError } from './errors';
+import { ConflictError, ForbiddenError, NotFoundError, SubmitValidationError } from './errors';
 import type { AccessActor } from './access';
 
 const cpmoActor: AccessActor = {
@@ -502,6 +527,207 @@ describe('submitWeeklyReport', () => {
       expect.objectContaining({ action: 'weekly_correct' }),
     );
   });
+
+  it('throws SubmitValidationError on invalid new RAID description without createRisk or version insert (D-11, RAID-03)', async () => {
+    getWeeklyReportWithPeriod.mockResolvedValue({
+      ...baseShell,
+      status: 'draft',
+      this_week_rag: 'Green',
+      prev_week_rag: 'Amber',
+      draft_raid_json: {
+        risks: [{ id: 'new', fields: { description: '  ' } }],
+        issues: [],
+      },
+    });
+
+    await expect(submitWeeklyReport(100, 10, pmActor)).rejects.toBeInstanceOf(
+      SubmitValidationError,
+    );
+    expect(createRiskFn).not.toHaveBeenCalled();
+    expect(insertWeeklyReportVersion).not.toHaveBeenCalled();
+  });
+
+  it('calls createRisk and stores returned row in snapshot.raid.risks (D-11, RAID-02)', async () => {
+    const createdRisk = { id: 99, description: 'New risk', status: 'Open' };
+    createRiskFn.mockResolvedValue(createdRisk);
+    getRiskRepo.mockResolvedValue(createdRisk);
+    getProjectRepo.mockResolvedValue({ rag: 'Green', progress_pct: 42 });
+
+    getWeeklyReportWithPeriod
+      .mockResolvedValueOnce({
+        ...baseShell,
+        status: 'draft',
+        this_week_rag: 'Green',
+        prev_week_rag: 'Amber',
+        draft_raid_json: {
+          risks: [{ id: 'new', fields: { description: 'New risk' } }],
+          issues: [],
+        },
+      })
+      .mockResolvedValue({
+        ...baseShell,
+        status: 'submitted',
+        latest_version: 1,
+        this_week_rag: 'Green',
+        prev_week_rag: 'Amber',
+      });
+    finalizeWeeklyReportSubmit.mockResolvedValue({});
+
+    await submitWeeklyReport(100, 10, pmActor);
+
+    expect(createRiskFn).toHaveBeenCalledWith(
+      100,
+      pmActor,
+      expect.objectContaining({ description: 'New risk' }),
+    );
+    expect(insertWeeklyReportVersion).toHaveBeenCalledWith(
+      expect.objectContaining({
+        snapshot: expect.objectContaining({
+          raid: expect.objectContaining({
+            risks: [createdRisk],
+            issues: [],
+          }),
+        }),
+      }),
+    );
+  });
+
+  it('calls updateRisk and snapshot holds post-update row immune to later master change (D-11, RAID-02)', async () => {
+    const postUpdate = { id: 5, description: 'Updated', status: 'Open' };
+    updateRiskFn.mockResolvedValue(postUpdate);
+    getRiskRepo.mockResolvedValueOnce({ id: 5, status: 'Open', deactivated_at: null });
+    getRiskRepo.mockResolvedValueOnce(postUpdate);
+    getProjectRepo.mockResolvedValue({ rag: 'Green', progress_pct: 10 });
+
+    getWeeklyReportWithPeriod
+      .mockResolvedValueOnce({
+        ...baseShell,
+        status: 'draft',
+        this_week_rag: 'Green',
+        prev_week_rag: 'Amber',
+        draft_raid_json: {
+          risks: [{ id: 5, fields: { description: 'Updated' } }],
+          issues: [],
+        },
+      })
+      .mockResolvedValue({
+        ...baseShell,
+        status: 'submitted',
+        latest_version: 1,
+      });
+    finalizeWeeklyReportSubmit.mockResolvedValue({});
+
+    await submitWeeklyReport(100, 10, pmActor);
+
+    expect(updateRiskFn).toHaveBeenCalledWith(100, pmActor, 5, { description: 'Updated' });
+    const insertArg = insertWeeklyReportVersion.mock.calls[0][0];
+    expect(insertArg.snapshot.raid.risks[0]).toEqual(postUpdate);
+    getRiskRepo.mockResolvedValue({ id: 5, description: 'Changed later', status: 'Open' });
+    expect(insertArg.snapshot.raid.risks[0]).toEqual(postUpdate);
+  });
+
+  it('snapshot.milestones includes plan_end adjusted_end status from getMilestone (D-12, MS-04)', async () => {
+    const milestone = {
+      id: 3,
+      name: 'M1',
+      plan_end: '2026-03-01',
+      adjusted_end: '2026-03-15',
+      status: 'in_progress',
+      end_date: '2026-03-15',
+    };
+    getMilestoneRepo.mockResolvedValue(milestone);
+    getProjectRepo.mockResolvedValue({ rag: 'Green', progress_pct: 55 });
+
+    getWeeklyReportWithPeriod
+      .mockResolvedValueOnce({
+        ...baseShell,
+        status: 'draft',
+        this_week_rag: 'Green',
+        prev_week_rag: 'Amber',
+        nearest_milestone: 'M1',
+        nearest_milestone_id: 3,
+      })
+      .mockResolvedValue({
+        ...baseShell,
+        status: 'submitted',
+        latest_version: 1,
+      });
+    finalizeWeeklyReportSubmit.mockResolvedValue({});
+
+    await submitWeeklyReport(100, 10, pmActor);
+
+    expect(getMilestoneRepo).toHaveBeenCalledWith(100, 3);
+    expect(insertWeeklyReportVersion).toHaveBeenCalledWith(
+      expect.objectContaining({
+        snapshot: expect.objectContaining({
+          milestones: [
+            {
+              id: 3,
+              name: 'M1',
+              plan_end: '2026-03-01',
+              adjusted_end: '2026-03-15',
+              status: 'in_progress',
+              end_date: '2026-03-15',
+            },
+          ],
+        }),
+      }),
+    );
+  });
+
+  it('copies progress_pct and syncs rag only when this_week_rag differs (D-10, WKRP-03)', async () => {
+    getProjectRepo.mockResolvedValue({ rag: 'Amber', progress_pct: 73 });
+
+    getWeeklyReportWithPeriod
+      .mockResolvedValueOnce({
+        ...baseShell,
+        status: 'draft',
+        this_week_rag: 'Red',
+        prev_week_rag: 'Amber',
+      })
+      .mockResolvedValue({
+        ...baseShell,
+        status: 'submitted',
+        latest_version: 1,
+      });
+    finalizeWeeklyReportSubmit.mockResolvedValue({});
+
+    await submitWeeklyReport(100, 10, pmActor);
+
+    expect(insertWeeklyReportVersion).toHaveBeenCalledWith(
+      expect.objectContaining({
+        progressPct: 73,
+        snapshot: expect.objectContaining({ progress_pct: 73 }),
+      }),
+    );
+    expect(updateProjectRepo).toHaveBeenCalledWith(100, { rag: 'Red' });
+    expect(updateProjectRepo).not.toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ progress_pct: expect.anything() }),
+    );
+  });
+
+  it('does not call updateProject when this_week_rag matches project rag (D-10)', async () => {
+    getProjectRepo.mockResolvedValue({ rag: 'Green', progress_pct: 50 });
+
+    getWeeklyReportWithPeriod
+      .mockResolvedValueOnce({
+        ...baseShell,
+        status: 'draft',
+        this_week_rag: 'Green',
+        prev_week_rag: 'Amber',
+      })
+      .mockResolvedValue({
+        ...baseShell,
+        status: 'submitted',
+        latest_version: 1,
+      });
+    finalizeWeeklyReportSubmit.mockResolvedValue({});
+
+    await submitWeeklyReport(100, 10, pmActor);
+
+    expect(updateProjectRepo).not.toHaveBeenCalled();
+  });
 });
 
 describe('openWeeklyReportCorrection', () => {
@@ -579,5 +805,62 @@ describe('listProjectWeeklyHistory', () => {
     expect(rows[0].overdue).toBe(true);
     expect(rows[1].iso_week).toBe('2026-W01');
     expect(rows[1].overdue).toBe(false);
+  });
+});
+
+describe('listPeriodShells', () => {
+  it('throws ForbiddenError when actor.company_id does not match companyId (D-13, D-18, T-13-01)', async () => {
+    assertCompanyWrite.mockImplementation(() => undefined);
+
+    await expect(listPeriodShells(5, 1, { ...cpmoActor, company_id: 9 })).rejects.toBeInstanceOf(
+      ForbiddenError,
+    );
+    expect(getWeeklyPeriodByCompanyRepo).not.toHaveBeenCalled();
+  });
+
+  it('throws ForbiddenError when assertCompanyWrite fails (D-13)', async () => {
+    assertCompanyWrite.mockImplementation(() => {
+      throw new ForbiddenError();
+    });
+
+    await expect(listPeriodShells(5, 1, pmActor)).rejects.toBeInstanceOf(ForbiddenError);
+    expect(listPeriodShellsRepo).not.toHaveBeenCalled();
+  });
+
+  it('returns shells with overdue flag for period owned by company (D-05, D-18)', async () => {
+    getWeeklyPeriodByCompanyRepo.mockResolvedValue({ id: 1, due_at: '2020-01-01T00:00:00.000Z' });
+    listPeriodShellsRepo.mockResolvedValue([
+      {
+        project_id: 100,
+        status: 'draft',
+        first_submitted_at: null,
+        first_lateness: null,
+        latest_version: 0,
+        report_id: 10,
+        due_at: '2020-01-01T00:00:00.000Z',
+        rag: null,
+      },
+      {
+        project_id: 101,
+        status: 'submitted',
+        first_submitted_at: '2026-01-02T10:00:00.000Z',
+        first_lateness: 'on_time',
+        latest_version: 1,
+        report_id: 11,
+        due_at: '2020-01-01T00:00:00.000Z',
+        rag: 'Green',
+      },
+    ]);
+
+    const rows = await listPeriodShells(5, 1, cpmoActor);
+
+    expect(assertCompanyWrite).toHaveBeenCalledWith(cpmoActor);
+    expect(getWeeklyPeriodByCompanyRepo).toHaveBeenCalledWith(5, 1);
+    expect(rows).toHaveLength(2);
+    expect(rows[0].overdue).toBe(true);
+    expect(rows[0].project_id).toBe(100);
+    expect(rows[1].overdue).toBe(false);
+    expect(rows[1].rag).toBe('Green');
+    expect(rows[1].first_lateness).toBe('on_time');
   });
 });

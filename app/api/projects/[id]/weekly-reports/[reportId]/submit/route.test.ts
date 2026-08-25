@@ -9,6 +9,8 @@ const {
   finalizeWeeklyReportSubmit,
   updatePrevWeekRag,
   getPriorPeriodSubmittedRag,
+  getProjectRepo,
+  getRiskRepo,
 } = vi.hoisted(() => ({
   projectAccessRow: vi.fn(),
   hasActivePmAssignment: vi.fn(),
@@ -17,12 +19,15 @@ const {
   finalizeWeeklyReportSubmit: vi.fn(),
   updatePrevWeekRag: vi.fn(),
   getPriorPeriodSubmittedRag: vi.fn(),
+  getProjectRepo: vi.fn(),
+  getRiskRepo: vi.fn(),
 }));
 
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
 vi.mock('@/lib/services/audit.service', () => ({ auditLog: vi.fn().mockResolvedValue(undefined) }));
-vi.mock('@/lib/repositories/projects.repo', () => ({ projectAccessRow }));
+vi.mock('@/lib/repositories/projects.repo', () => ({ projectAccessRow, getProject: getProjectRepo }));
 vi.mock('@/lib/repositories/pm-assignments.repo', () => ({ hasActivePmAssignment }));
+vi.mock('@/lib/repositories/risks.repo', () => ({ getRisk: getRiskRepo }));
 vi.mock('@/lib/repositories/weekly-reports.repo', () => ({
   getWeeklyReportWithPeriod,
   insertWeeklyReportVersion,
@@ -42,6 +47,7 @@ describe('POST /api/projects/[id]/weekly-reports/[reportId]/submit', () => {
     updatePrevWeekRag.mockResolvedValue(undefined);
     insertWeeklyReportVersion.mockResolvedValue({});
     finalizeWeeklyReportSubmit.mockResolvedValue({});
+    getProjectRepo.mockResolvedValue({ rag: 'Green', progress_pct: 0 });
   });
 
   const params = () => ({ params: Promise.resolve({ id: '7', reportId: '10' }) });
@@ -100,5 +106,30 @@ describe('POST /api/projects/[id]/weekly-reports/[reportId]/submit', () => {
 
     expect(res.status).toBe(201);
     expect(insertWeeklyReportVersion).toHaveBeenCalled();
+  });
+
+  it('returns 400 with fields array on SubmitValidationError (D-11, RAID-03)', async () => {
+    vi.mocked(getSessionFromRequest).mockResolvedValue(pmSession as never);
+    projectAccessRow.mockResolvedValue({ company_id: 5, customer_company_id: null });
+    getWeeklyReportWithPeriod.mockResolvedValue({
+      ...shell,
+      draft_raid_json: {
+        risks: [{ id: 'new', fields: { description: '' } }],
+        issues: [],
+      },
+    });
+
+    const res = await POST(
+      new NextRequest('http://localhost/api/projects/7/weekly-reports/10/submit', {
+        method: 'POST',
+      }),
+      params(),
+    );
+
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.fields).toEqual(['raid.risks[0].description']);
+    expect(body).not.toHaveProperty('field');
+    expect(insertWeeklyReportVersion).not.toHaveBeenCalled();
   });
 });

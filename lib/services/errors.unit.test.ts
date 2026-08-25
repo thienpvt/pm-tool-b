@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ForbiddenError, NotFoundError, ValidationError } from './errors';
+import { ForbiddenError, NotFoundError, SubmitValidationError, ValidationError } from './errors';
 
 describe('service errors', () => {
   it('ForbiddenError is an Error with matching name and no status field', () => {
@@ -26,6 +26,18 @@ describe('service errors', () => {
     expect(err).toBeInstanceOf(ValidationError);
     expect(err.name).toBe('ValidationError');
     expect(err.field).toBe('category');
+    expect('status' in err).toBe(false);
+  });
+
+  it('SubmitValidationError carries fields array and does not subclass ValidationError (D-11)', () => {
+    const err = new SubmitValidationError('fix fields', ['raid.risks[0].description']);
+    expect(err).toBeInstanceOf(Error);
+    expect(err).toBeInstanceOf(SubmitValidationError);
+    expect(err).not.toBeInstanceOf(ValidationError);
+    expect(err.name).toBe('SubmitValidationError');
+    expect(err.message).toBe('fix fields');
+    expect(err.fields).toEqual(['raid.risks[0].description']);
+    expect('field' in err).toBe(false);
     expect('status' in err).toBe(false);
   });
 
