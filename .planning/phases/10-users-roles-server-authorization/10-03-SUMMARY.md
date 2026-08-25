@@ -107,7 +107,7 @@ Each task was committed atomically (TDD test → feat pairs):
 2. **Task 2: Interim PM assignment seam and project list/create** - `04cbb16` (test), `8bae1f5` (feat)
 3. **Task 3: Keep cross-company 403 on project GET/PATCH** - `a6badd7` (test), `4cdda6a` (feat)
 
-**Plan metadata:** pending (docs commit)
+**Plan metadata:** `3165411` (docs: complete plan)
 
 ## Files Created/Modified
 
