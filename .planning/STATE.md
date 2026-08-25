@@ -1,19 +1,17 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-status: Awaiting next milestone
-stopped_at: Phase 8 complete — all phases complete
-last_updated: "2026-08-25T15:15:05.247Z"
+milestone: v2.0
+milestone_name: Portfolio One View
+status: planning
+last_updated: "2026-08-25T15:52:00.000Z"
 last_activity: 2026-08-25
-last_activity_desc: Milestone v1.0 completed and archived
-state_head: 8c2af3784ea75e53644a9e88efa24ae079415cda
+last_activity_desc: Completed quick task 260825-vq9 - summary milestone v1.0 work in Vietnamese
 progress:
-  total_phases: 8
-  completed_phases: 8
-  total_plans: 35
-  completed_plans: 35
-milestone_name: milestone
-current_phase: 8
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -27,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-08-25)
 
 ## Current Position
 
-Phase: Milestone v1.0 complete
+Phase: Not started (defining requirements)
 Plan: —
-Status: Awaiting next milestone
-Last activity: 2026-08-25 — Milestone v1.0 completed and archived
+Status: Defining requirements
+Last activity: 2026-08-25 — Milestone v2.0 started
 
 ## Performance Metrics
 
@@ -151,6 +149,12 @@ None yet.
 
 - Whether `proxy.ts` executes in the deployed Docker runtime is unconfirmed (ROUTE-11, Phase 6) — treat as open, do not build route-level enforcement as if it depends on proxy.ts working.
 - HYG-02 behavior change awaiting operator confirmation (Phase 3): a malformed Anthropic response on the three report routes now returns 502 where it returned 500. Deliberate — INTG-06 forbids a 500 for a shape mismatch, and validation is an error kind Phase 3 introduced so it had no prior behavior to freeze. Confirm no dashboard or alert keys off the old 500.
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 260825-vq9 | summary milestone v1.0 work in Vietnamese | 2026-08-25 | pending | [260825-vq9-summary-milestone-v1-0-work-in-vietnames](./quick/260825-vq9-summary-milestone-v1-0-work-in-vietnames/) |
 
 ### Roadmap Evolution
 
