@@ -43,17 +43,19 @@ function jsonReq(method: string, body?: unknown) {
 
 beforeEach(() => vi.clearAllMocks());
 
+const ctx = { params: Promise.resolve({}) };
+
 describe('GET /api/admin/users', () => {
   it('returns 401 without session (D-19)', async () => {
     vi.mocked(getSessionFromRequest).mockResolvedValue(null);
-    const res = await GET(jsonReq('GET'));
+    const res = await GET(jsonReq('GET'), ctx);
     expect(res.status).toBe(401);
     expect(listUsers).not.toHaveBeenCalled();
   });
 
   it('returns 403 for non-cpmo session (D-21)', async () => {
     vi.mocked(getSessionFromRequest).mockResolvedValue(pmSession as never);
-    const res = await GET(jsonReq('GET'));
+    const res = await GET(jsonReq('GET'), ctx);
     expect(res.status).toBe(403);
     expect(listUsers).not.toHaveBeenCalled();
   });
@@ -61,7 +63,7 @@ describe('GET /api/admin/users', () => {
   it('returns 200 for cpmo and calls listUsers (D-21)', async () => {
     vi.mocked(getSessionFromRequest).mockResolvedValue(cpmoSession as never);
     listUsers.mockResolvedValue([{ id: 10, username: 'u1' }]);
-    const res = await GET(jsonReq('GET'));
+    const res = await GET(jsonReq('GET'), ctx);
     expect(res.status).toBe(200);
     await expect(res.json()).resolves.toEqual([{ id: 10, username: 'u1' }]);
     expect(listUsers).toHaveBeenCalled();
@@ -78,6 +80,7 @@ describe('POST /api/admin/users', () => {
         email: 'new@acme.com',
         roles: ['pm'],
       }),
+      ctx,
     );
     expect(res.status).toBe(401);
     expect(createUser).not.toHaveBeenCalled();
@@ -92,6 +95,7 @@ describe('POST /api/admin/users', () => {
         email: 'new@acme.com',
         roles: ['pm'],
       }),
+      ctx,
     );
     expect(res.status).toBe(403);
     expect(createUser).not.toHaveBeenCalled();
@@ -107,6 +111,7 @@ describe('POST /api/admin/users', () => {
         email: 'new@acme.com',
         roles: ['pm'],
       }),
+      ctx,
     );
     expect(res.status).toBe(201);
     expect(createUser).toHaveBeenCalled();
@@ -116,7 +121,7 @@ describe('POST /api/admin/users', () => {
 describe('PUT /api/admin/users', () => {
   it('returns 403 for non-cpmo', async () => {
     vi.mocked(getSessionFromRequest).mockResolvedValue(pmSession as never);
-    const res = await PUT(jsonReq('PUT', { id: 10, display_name: 'X' }));
+    const res = await PUT(jsonReq('PUT', { id: 10, display_name: 'X' }), ctx);
     expect(res.status).toBe(403);
     expect(updateUser).not.toHaveBeenCalled();
   });

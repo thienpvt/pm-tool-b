@@ -14,6 +14,7 @@ import {
   type UserListFilters,
   type UserRow,
 } from '@/lib/repositories/users.repo';
+import { auditLog } from '@/lib/services/audit.service';
 import { hasRole, isCpmo, type AccessActor, type AppRole, type UserStatus } from './access';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors';
 
@@ -72,6 +73,19 @@ async function loadUserInCompany(
   return row;
 }
 
+function auditSnapshot(row: UserRow | undefined) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    username: row.username,
+    display_name: row.display_name,
+    email: row.email,
+    status: row.status,
+    roles: row.roles,
+    company_id: row.company_id,
+  };
+}
+
 export async function listUsers(actor: AccessActor, filters: UserListFilters = {}) {
   assertCpmoCompany(actor);
   return listUsersRepo(actor.company_id!, filters);
@@ -93,7 +107,17 @@ export async function createUser(actor: AccessActor, input: CreateUserInput) {
     status: input.status ?? 'active',
   });
   await replaceUserRoles(created.id, actor.company_id!, roles);
-  return findUserById(created.id);
+  const after = await findUserById(created.id);
+  await auditLog({
+    actor_id: actor.user_id,
+    company_id: actor.company_id,
+    entity_type: 'user',
+    entity_id: String(created.id),
+    action: 'create',
+    before: null,
+    after: auditSnapshot(after),
+  });
+  return after;
 }
 
 export async function updateUser(
@@ -102,12 +126,12 @@ export async function updateUser(
   input: UpdateUserInput,
 ) {
   assertCpmoCompany(actor);
-  const existing = await loadUserInCompany(actor, userId);
+  const before = await loadUserInCompany(actor, userId);
 
-  const username = existing.username;
-  const email = input.email?.trim() ?? existing.email;
+  const username = before.username;
+  const email = input.email?.trim() ?? before.email;
   if (input.email !== undefined) {
-    await assertUniqueCredentials(username, email, existing.id);
+    await assertUniqueCredentials(username, email, before.id);
   }
 
   const patch: Parameters<typeof updateUserRow>[1] = {};
@@ -125,7 +149,17 @@ export async function updateUser(
     await replaceUserRoles(userId, actor.company_id!, roles);
   }
 
-  return findUserById(userId);
+  const after = await findUserById(userId);
+  await auditLog({
+    actor_id: actor.user_id,
+    company_id: actor.company_id,
+    entity_type: 'user',
+    entity_id: String(userId),
+    action: 'update',
+    before: auditSnapshot(before),
+    after: auditSnapshot(after),
+  });
+  return after;
 }
 
 export async function lockUser(actor: AccessActor, userId: number | string) {

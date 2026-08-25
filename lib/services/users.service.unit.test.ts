@@ -126,6 +126,15 @@ describe('users.service createUser', () => {
   });
 
   it('stamps company_id from actor, not body (D-21)', async () => {
+    findUserById.mockResolvedValue({
+      id: 10,
+      username: 'newuser',
+      company_id: 5,
+      status: 'active',
+      email: 'new@example.com',
+      display_name: 'New User',
+      roles: ['pm'],
+    });
     await createUser(cpmoActor, input);
     expect(insertUser).toHaveBeenCalledWith(
       expect.objectContaining({ company_id: 5, username: 'newuser', password_hash: 'hashed:password1' }),
