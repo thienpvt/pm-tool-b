@@ -1,16 +1,23 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { projectAccessRow } = vi.hoisted(() => ({
+const { projectAccessRow, getProjectPmIdentity } = vi.hoisted(() => ({
   projectAccessRow: vi.fn(),
+  getProjectPmIdentity: vi.fn(),
 }));
 
-vi.mock('@/lib/repositories/projects.repo', () => ({ projectAccessRow }));
+vi.mock('@/lib/repositories/projects.repo', () => ({ projectAccessRow, getProjectPmIdentity }));
 
-import { assertCanMutate, assertProjectAccess } from './access';
+import {
+  assertCanMutate,
+  assertPmWriteAccess,
+  assertProjectAccess,
+  assertProjectWriteAccess,
+} from './access';
 import { ForbiddenError, NotFoundError } from './errors';
 
 beforeEach(() => {
   vi.clearAllMocks();
+  getProjectPmIdentity.mockResolvedValue({ pm_name: 'Ava', pm_email: 'ava@example.com' });
 });
 
 const baseActor = {
@@ -65,15 +72,17 @@ describe('assertProjectAccess', () => {
     expect(projectAccessRow).toHaveBeenCalledWith(99);
   });
 
-  it('allows an owner via project.company_id', async () => {
+  it('allows an owner via project.company_id when D-14 matches', async () => {
     const row = { company_id: 5, customer_company_id: 9 };
     projectAccessRow.mockResolvedValue(row);
+    getProjectPmIdentity.mockResolvedValue({ pm_name: 'Ava', pm_email: 'ava@example.com' });
     await expect(assertProjectAccess(1, owner)).resolves.toEqual(row);
   });
 
-  it('allows an owner via customer_company_id', async () => {
+  it('allows an owner via customer_company_id when D-14 matches', async () => {
     const row = { company_id: 9, customer_company_id: 5 };
     projectAccessRow.mockResolvedValue(row);
+    getProjectPmIdentity.mockResolvedValue({ pm_name: 'Ava', pm_email: 'ava@example.com' });
     await expect(assertProjectAccess(1, owner)).resolves.toEqual(row);
   });
 
@@ -81,6 +90,29 @@ describe('assertProjectAccess', () => {
     projectAccessRow.mockResolvedValue({ company_id: 9, customer_company_id: 8 });
     await expect(assertProjectAccess(1, owner)).rejects.toBeInstanceOf(ForbiddenError);
     await expect(assertProjectAccess(1, owner)).rejects.not.toBeInstanceOf(NotFoundError);
+  });
+
+  it('denies PM-only on an in-company unassigned project after tenant match (D-14, D-24)', async () => {
+    projectAccessRow.mockResolvedValue({ company_id: 5, customer_company_id: null });
+    getProjectPmIdentity.mockResolvedValue({ pm_name: 'Bob', pm_email: 'bob@other.com' });
+    await expect(assertProjectAccess(1, owner)).rejects.toBeInstanceOf(ForbiddenError);
+  });
+
+  it('allows viewer-only in-company without D-14 matcher (D-24)', async () => {
+    const row = { company_id: 5, customer_company_id: null };
+    projectAccessRow.mockResolvedValue(row);
+    const viewer = { ...owner, roles: ['viewer'] as const };
+    await expect(assertProjectAccess(1, viewer)).resolves.toEqual(row);
+    expect(getProjectPmIdentity).not.toHaveBeenCalled();
+  });
+
+  it('allows pm+viewer union in-company without D-14 matcher on GET (D-24)', async () => {
+    const row = { company_id: 5, customer_company_id: null };
+    projectAccessRow.mockResolvedValue(row);
+    const union = { ...owner, roles: ['pm', 'viewer'] as const };
+    getProjectPmIdentity.mockResolvedValue({ pm_name: 'Bob', pm_email: 'bob@other.com' });
+    await expect(assertProjectAccess(1, union)).resolves.toEqual(row);
+    expect(getProjectPmIdentity).not.toHaveBeenCalled();
   });
 
   it('allows a null-company actor only for a fully unassigned project', async () => {
@@ -97,6 +129,48 @@ describe('assertProjectAccess', () => {
   it('denies a null-company actor a project whose customer_company_id is set', async () => {
     projectAccessRow.mockResolvedValue({ company_id: null, customer_company_id: 5 });
     await expect(assertProjectAccess(1, nullCompany)).rejects.toBeInstanceOf(ForbiddenError);
+  });
+});
+
+describe('assertPmWriteAccess', () => {
+  it('returns without matching for CPMO (D-13, D-14)', async () => {
+    await expect(assertPmWriteAccess(1, admin)).resolves.toBeUndefined();
+    expect(getProjectPmIdentity).not.toHaveBeenCalled();
+  });
+
+  it('allows PM when email matches pm_email case-insensitively (D-14)', async () => {
+    getProjectPmIdentity.mockResolvedValue({ pm_name: 'Other', pm_email: 'AVA@example.com' });
+    await expect(assertPmWriteAccess(1, owner)).resolves.toBeUndefined();
+  });
+
+  it('denies PM when email differs and name does not match (D-14)', async () => {
+    getProjectPmIdentity.mockResolvedValue({ pm_name: 'Bob', pm_email: 'bob@other.com' });
+    await expect(assertPmWriteAccess(1, owner)).rejects.toBeInstanceOf(ForbiddenError);
+  });
+
+  it('denies PM when pm_email is set but only display_name matches (D-14 email-first)', async () => {
+    getProjectPmIdentity.mockResolvedValue({ pm_name: 'Ava', pm_email: 'bob@other.com' });
+    await expect(assertPmWriteAccess(1, owner)).rejects.toBeInstanceOf(ForbiddenError);
+  });
+
+  it('allows PM via pm_name when pm_email is empty (D-14)', async () => {
+    getProjectPmIdentity.mockResolvedValue({ pm_name: 'Ava', pm_email: '' });
+    await expect(assertPmWriteAccess(1, owner)).resolves.toBeUndefined();
+  });
+
+  it('allows PM via username when pm_email is empty and display_name differs (D-14)', async () => {
+    getProjectPmIdentity.mockResolvedValue({ pm_name: 'ava', pm_email: '' });
+    const actor = { ...owner, display_name: 'Different' };
+    await expect(assertPmWriteAccess(1, actor)).resolves.toBeUndefined();
+  });
+});
+
+describe('assertProjectWriteAccess', () => {
+  it('denies viewer-only before PM write check (D-15)', async () => {
+    const row = { company_id: 5, customer_company_id: null };
+    projectAccessRow.mockResolvedValue(row);
+    const viewer = { ...owner, roles: ['viewer'] as const };
+    await expect(assertProjectWriteAccess(1, viewer)).rejects.toBeInstanceOf(ForbiddenError);
   });
 });
 

@@ -27,7 +27,7 @@ function normalizedSql(): string {
 
 describe('null-company project visibility', () => {
   it.each([
-    ['project list', () => listProjects(null, false)],
+    ['project list', () => listProjects(null)],
     ['resource list', () => listResourceMembers(null, false)],
     ['portfolio project list', () => listPortfolioProjects(null, false)],
     ['portfolio milestone list', () => listPortfolioMilestones(null, false)],
