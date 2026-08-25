@@ -11,12 +11,12 @@ Requirements for this milestone. Each maps to roadmap phases. Jira import, AI re
 
 ### Users and Roles
 
-- [ ] **USER-01**: Admin can list, search, and filter users by status, role, and unit
-- [ ] **USER-02**: Admin can create or update a user with unique username and unique email; a locked account's username/email cannot be reused on another account
+- [x] **USER-01**: Admin can list, search, and filter users by status, role, and unit
+- [x] **USER-02**: Admin can create or update a user with unique username and unique email; a locked account's username/email cannot be reused on another account
 - [x] **USER-03**: Admin can assign one or more roles to a user; effective permissions are the union of assigned roles
 - [x] **USER-04**: Admin can set account status to Active, Inactive, or Locked; only Active users can log in
-- [ ] **USER-05**: Admin can lock or unlock an account; the system records who changed the record and when
-- [ ] **USER-06**: A user who has generated business data cannot be physically deleted; history still shows their display name
+- [x] **USER-05**: Admin can lock or unlock an account; the system records who changed the record and when
+- [x] **USER-06**: A user who has generated business data cannot be physically deleted; history still shows their display name
 
 ### Login and Authorization
 
@@ -186,12 +186,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| USER-01 | Phase 10 | Pending |
-| USER-02 | Phase 10 | Pending |
+| USER-01 | Phase 10 | Complete |
+| USER-02 | Phase 10 | Complete |
 | USER-03 | Phase 10 | Complete |
 | USER-04 | Phase 10 | Complete |
-| USER-05 | Phase 10 | Pending |
-| USER-06 | Phase 10 | Pending |
+| USER-05 | Phase 10 | Complete |
+| USER-06 | Phase 10 | Complete |
 | AUTH-01 | Phase 10 | Complete |
 | AUTH-02 | Phase 10 | Complete |
 | AUTH-03 | Phase 10 | Complete |

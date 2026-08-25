@@ -5,16 +5,16 @@ milestone_name: Portfolio One View
 current_phase: 10
 current_phase_name: Users, Roles & Server Authorization
 status: executing
-stopped_at: Completed 10-03-PLAN.md
-last_updated: "2026-08-25T18:31:10.868Z"
+stopped_at: Completed 10-05-PLAN.md
+last_updated: "2026-08-25T18:36:52.010Z"
 last_activity: 2026-08-26
 last_activity_desc: Phase 9 complete, transitioned to Phase 10
-state_head: 4cdda6a6bd5d946fe977337d020d4b91076e5f32
+state_head: 163d175f0547c5b9ee695b4c87b2de3d3194ca17
 progress:
   total_phases: 10
   completed_phases: 1
   total_plans: 14
-  completed_plans: 6
+  completed_plans: 7
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-08-25)
 ## Current Position
 
 Phase: 10 (Users, Roles & Server Authorization) — IN PROGRESS
-Plan: 3 of 11 complete (10-01)
+Plan: 4 of 11 complete (10-01)
 Status: Ready to execute
 Last activity: 2026-08-26 — Completed 10-01 auth spine tracer
 
@@ -61,6 +61,7 @@ Progress: [█░░░░░░░░░] 10%
 | Phase 10-users-roles-server-authorization P01 | 12 | 2 tasks | 12 files |
 | Phase 10-users-roles-server-authorization P02 | 8min | 3 tasks | 7 files |
 | Phase 10-users-roles-server-authorization P03 | 8min | 3 tasks | 9 files |
+| Phase 10-users-roles-server-authorization P05 | 12min | 3 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -85,6 +86,8 @@ Recent decisions affecting current work:
 - [Phase 10]: POST /api/auth/session/extend does not Set-Cookie on success (D-11 draft preservation)
 - [Phase 10]: Removed is_admin bypass from assertProjectAccess; CPMO company-scoped (D-13)
 - [Phase 10]: PM-only D-14 matcher on GET after tenant; assertPmWriteAccess seam for Phase 11 (D-14, D-24)
+- [Phase 10]: CPMO user admin split from platform break-glass via withCpmo + company_id scope (D-21)
+- [Phase 10]: user_roles excluded from INSERT RETURNING id (composite PK)
 
 ### Pending Todos
 
@@ -105,6 +108,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-08-25T18:31:10.780Z
-Stopped at: Completed 10-03-PLAN.md
+Last session: 2026-08-25T18:36:51.925Z
+Stopped at: Completed 10-05-PLAN.md
 Resume file: None
