@@ -7,6 +7,63 @@ export type WeeklyReportShellRow = {
   status: string;
 };
 
+export type WeeklyReportFullRow = WeeklyReportShellRow & {
+  first_submitted_at: string | null;
+  first_lateness: string | null;
+  latest_version: number;
+  correction_open: boolean;
+  highlights: string | null;
+  completed_work: string | null;
+  next_week_goals: string | null;
+  nearest_milestone: string | null;
+  nearest_milestone_id: number | null;
+  raid_dependency: string | null;
+  leadership_support: string | null;
+  this_week_rag: string | null;
+  prev_week_rag: string | null;
+  draft_raid_json: unknown | null;
+};
+
+export type WeeklyReportWithPeriodRow = WeeklyReportFullRow & {
+  iso_week: string;
+  due_at: string;
+  display_name: string;
+  company_id: number;
+};
+
+export type WeeklyReportVersionRow = {
+  id: number;
+  report_id: number;
+  version: number;
+  snapshot: Record<string, unknown>;
+  submitted_at: string;
+  submitted_by: number;
+  rag: string | null;
+  progress_pct: number | null;
+};
+
+export type WeeklyHistoryRow = {
+  display_name: string;
+  iso_week: string;
+  status: string;
+  due_at: string;
+  first_lateness: string | null;
+  latest_version: number;
+  report_id: number;
+  period_id: number;
+  rag: string | null;
+  submitted_at: string | null;
+  submitted_by: number | null;
+};
+
+const FULL_SHELL_SELECT = `
+  SELECT wr.id, wr.period_id, wr.project_id, wr.status,
+         wr.first_submitted_at, wr.first_lateness, wr.latest_version, wr.correction_open,
+         wr.highlights, wr.completed_work, wr.next_week_goals, wr.nearest_milestone,
+         wr.nearest_milestone_id, wr.raid_dependency, wr.leadership_support,
+         wr.this_week_rag, wr.prev_week_rag, wr.draft_raid_json
+  FROM weekly_reports wr`;
+
 export async function insertShell(
   client: { query: (sql: string, params?: unknown[]) => Promise<{ rows: WeeklyReportShellRow[] }> },
   periodId: number,
@@ -27,5 +84,263 @@ export async function getShellsForPeriod(periodId: number): Promise<WeeklyReport
   return db.all<WeeklyReportShellRow>(
     `SELECT id, period_id, project_id, status FROM weekly_reports WHERE period_id = ? ORDER BY project_id`,
     periodId,
+  );
+}
+
+export async function getWeeklyReportFullRow(
+  projectId: number,
+  reportId: number,
+): Promise<WeeklyReportFullRow | undefined> {
+  const db = await getDb();
+  return db.get<WeeklyReportFullRow>(
+    `${FULL_SHELL_SELECT} WHERE wr.id = ? AND wr.project_id = ?`,
+    reportId,
+    projectId,
+  );
+}
+
+export async function getWeeklyReportWithPeriod(
+  projectId: number,
+  reportId: number,
+): Promise<WeeklyReportWithPeriodRow | undefined> {
+  const db = await getDb();
+  return db.get<WeeklyReportWithPeriodRow>(
+    `${FULL_SHELL_SELECT.replace('FROM weekly_reports wr', 'FROM weekly_reports wr')}
+     , wp.iso_week, wp.due_at, wp.display_name, wp.company_id
+     FROM weekly_reports wr
+     JOIN weekly_periods wp ON wp.id = wr.period_id
+     WHERE wr.id = ? AND wr.project_id = ?`,
+    reportId,
+    projectId,
+  );
+}
+
+export async function updatePrevWeekRag(
+  projectId: number,
+  reportId: number,
+  prevWeekRag: string | null,
+): Promise<void> {
+  const db = await getDb();
+  await db.run(
+    `UPDATE weekly_reports SET prev_week_rag = ?
+     WHERE id = ? AND project_id = ?`,
+    prevWeekRag,
+    reportId,
+    projectId,
+  );
+}
+
+export async function getPriorPeriodSubmittedRag(
+  companyId: number,
+  projectId: number,
+  currentIsoWeek: string,
+): Promise<string | null> {
+  const db = await getDb();
+  const row = await db.get<{ rag: string | null; snapshot: Record<string, unknown> }>(
+    `SELECT wv.rag, wv.snapshot
+     FROM weekly_periods wp
+     JOIN weekly_reports wr ON wr.period_id = wp.id AND wr.project_id = ?
+     JOIN weekly_report_versions wv ON wv.report_id = wr.id AND wv.version = wr.latest_version
+     WHERE wp.company_id = ?
+       AND wp.iso_week < ?
+       AND wr.status = 'submitted'
+     ORDER BY wp.iso_week DESC
+     LIMIT 1`,
+    projectId,
+    companyId,
+    currentIsoWeek,
+  );
+  if (!row) return null;
+  if (row.rag) return row.rag;
+  const snap = row.snapshot;
+  if (snap && typeof snap.this_week_rag === 'string') return snap.this_week_rag;
+  return null;
+}
+
+export type DraftUpdateFields = Partial<{
+  highlights: string | null;
+  completed_work: string | null;
+  next_week_goals: string | null;
+  nearest_milestone: string | null;
+  nearest_milestone_id: number | null;
+  raid_dependency: string | null;
+  leadership_support: string | null;
+  this_week_rag: string | null;
+  draft_raid_json: unknown | null;
+  status: string;
+}>;
+
+export async function updateWeeklyReportDraft(
+  projectId: number,
+  reportId: number,
+  fields: DraftUpdateFields,
+): Promise<WeeklyReportFullRow | undefined> {
+  const sets: string[] = [];
+  const params: unknown[] = [];
+
+  for (const [key, value] of Object.entries(fields)) {
+    if (value === undefined) continue;
+    sets.push(`${key} = ?`);
+    if (key === 'draft_raid_json') {
+      params.push(value === null ? null : JSON.stringify(value));
+    } else {
+      params.push(value);
+    }
+  }
+  if (sets.length === 0) {
+    return getWeeklyReportFullRow(projectId, reportId);
+  }
+
+  const db = await getDb();
+  return db.get<WeeklyReportFullRow>(
+    `UPDATE weekly_reports SET ${sets.join(', ')}
+     WHERE id = ? AND project_id = ?
+       AND (status IN ('not_submitted', 'draft') OR correction_open IS TRUE)
+     RETURNING id, period_id, project_id, status,
+               first_submitted_at, first_lateness, latest_version, correction_open,
+               highlights, completed_work, next_week_goals, nearest_milestone,
+               nearest_milestone_id, raid_dependency, leadership_support,
+               this_week_rag, prev_week_rag, draft_raid_json`,
+    ...params,
+    reportId,
+    projectId,
+  );
+}
+
+export async function insertWeeklyReportVersion(input: {
+  reportId: number;
+  version: number;
+  snapshot: Record<string, unknown>;
+  submittedAt: string;
+  submittedBy: number;
+  rag: string;
+  progressPct?: number | null;
+}): Promise<WeeklyReportVersionRow> {
+  const db = await getDb();
+  const row = await db.get<WeeklyReportVersionRow>(
+    `INSERT INTO weekly_report_versions
+       (report_id, version, snapshot, submitted_at, submitted_by, rag, progress_pct)
+     VALUES (?, ?, ?::jsonb, ?, ?, ?, ?)
+     RETURNING id, report_id, version, snapshot, submitted_at, submitted_by, rag, progress_pct`,
+    input.reportId,
+    input.version,
+    JSON.stringify(input.snapshot),
+    input.submittedAt,
+    input.submittedBy,
+    input.rag,
+    input.progressPct ?? null,
+  );
+  if (!row) throw new Error('insertWeeklyReportVersion failed');
+  return row;
+}
+
+export async function finalizeWeeklyReportSubmit(input: {
+  projectId: number;
+  reportId: number;
+  latestVersion: number;
+  firstSubmittedAt: string | null;
+  firstLateness: string | null;
+  now: string;
+}): Promise<WeeklyReportFullRow | undefined> {
+  const db = await getDb();
+  if (input.firstSubmittedAt === null) {
+    return db.get<WeeklyReportFullRow>(
+      `UPDATE weekly_reports SET
+         status = 'submitted',
+         latest_version = ?,
+         correction_open = FALSE,
+         first_submitted_at = ?,
+         first_lateness = ?
+       WHERE id = ? AND project_id = ?
+       RETURNING id, period_id, project_id, status,
+                 first_submitted_at, first_lateness, latest_version, correction_open,
+                 highlights, completed_work, next_week_goals, nearest_milestone,
+                 nearest_milestone_id, raid_dependency, leadership_support,
+                 this_week_rag, prev_week_rag, draft_raid_json`,
+      input.latestVersion,
+      input.now,
+      input.firstLateness,
+      input.reportId,
+      input.projectId,
+    );
+  }
+  return db.get<WeeklyReportFullRow>(
+    `UPDATE weekly_reports SET
+       status = 'submitted',
+       latest_version = ?,
+       correction_open = FALSE
+     WHERE id = ? AND project_id = ?
+     RETURNING id, period_id, project_id, status,
+               first_submitted_at, first_lateness, latest_version, correction_open,
+               highlights, completed_work, next_week_goals, nearest_milestone,
+               nearest_milestone_id, raid_dependency, leadership_support,
+               this_week_rag, prev_week_rag, draft_raid_json`,
+    input.latestVersion,
+    input.reportId,
+    input.projectId,
+  );
+}
+
+export async function openCorrectionOnShell(
+  projectId: number,
+  reportId: number,
+  draftFields: DraftUpdateFields,
+): Promise<WeeklyReportFullRow | undefined> {
+  const sets: string[] = ['correction_open = TRUE'];
+  const params: unknown[] = [];
+
+  for (const [key, value] of Object.entries(draftFields)) {
+    if (value === undefined) continue;
+    sets.push(`${key} = ?`);
+    if (key === 'draft_raid_json') {
+      params.push(value === null ? null : JSON.stringify(value));
+    } else {
+      params.push(value);
+    }
+  }
+
+  const db = await getDb();
+  return db.get<WeeklyReportFullRow>(
+    `UPDATE weekly_reports SET ${sets.join(', ')}
+     WHERE id = ? AND project_id = ? AND status = 'submitted'
+     RETURNING id, period_id, project_id, status,
+               first_submitted_at, first_lateness, latest_version, correction_open,
+               highlights, completed_work, next_week_goals, nearest_milestone,
+               nearest_milestone_id, raid_dependency, leadership_support,
+               this_week_rag, prev_week_rag, draft_raid_json`,
+    ...params,
+    reportId,
+    projectId,
+  );
+}
+
+export async function getLatestVersionSnapshot(
+  reportId: number,
+  version: number,
+): Promise<Record<string, unknown> | undefined> {
+  const db = await getDb();
+  const row = await db.get<{ snapshot: Record<string, unknown> }>(
+    `SELECT snapshot FROM weekly_report_versions WHERE report_id = ? AND version = ?`,
+    reportId,
+    version,
+  );
+  return row?.snapshot;
+}
+
+export async function listProjectWeeklyHistoryRepo(
+  projectId: number,
+): Promise<WeeklyHistoryRow[]> {
+  const db = await getDb();
+  return db.all<WeeklyHistoryRow>(
+    `SELECT wp.display_name, wp.iso_week, wr.status, wp.due_at,
+            wr.first_lateness, wr.latest_version, wr.id AS report_id, wp.id AS period_id,
+            wv.rag, wv.submitted_at, wv.submitted_by
+     FROM weekly_reports wr
+     JOIN weekly_periods wp ON wp.id = wr.period_id
+     LEFT JOIN weekly_report_versions wv
+       ON wv.report_id = wr.id AND wv.version = wr.latest_version
+     WHERE wr.project_id = ?
+     ORDER BY wp.iso_week DESC`,
+    projectId,
   );
 }
