@@ -44,7 +44,7 @@ class TestDbClient implements DbClient {
    */
   private needsReturningId(sql: string): boolean {
     const table = /INSERT\s+(?:OR\s+\w+\s+)?INTO\s+(\w+)/i.exec(sql)?.[1]?.toLowerCase();
-    return !!table && !['settings', 'company_jira_config', 'company_rag_config', 'user_roles'].includes(table);
+    return !!table && !['settings', 'company_jira_config', 'company_rag_config', 'company_weekly_config', 'user_roles'].includes(table);
   }
 
   async run(sql: string, ...params: unknown[]): Promise<{ lastInsertRowid: number | bigint; changes: number }> {

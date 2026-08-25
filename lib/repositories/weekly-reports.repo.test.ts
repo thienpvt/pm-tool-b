@@ -1,44 +1,46 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { closeTestPool, hasTestDb, testPool } from '@/test/db';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { hasTestDb, testPool } from '@/test/db';
+import { seedCompany, seedProject, setupRepoTables, testDb } from '@/test/repo-db';
+import { migrateWeeklyReports } from '@/lib/db-weekly-reports';
+
+vi.mock('@/lib/db', () => ({ getDb: vi.fn(async () => testDb()) }));
+
 import { getShellsForPeriod } from './weekly-reports.repo';
 import { createPeriodWithShells } from './weekly-periods.repo';
-import { migrateWeeklyReports } from '@/lib/db-weekly-reports';
-import { migrateProjectMaster } from '@/lib/db-project-master';
 
 describe.skipIf(!hasTestDb)('weekly-reports.repo', () => {
   let companyId: number;
 
   beforeAll(async () => {
+    await setupRepoTables();
     const pool = testPool();
-    await migrateProjectMaster(pool);
     await migrateWeeklyReports(pool);
-
-    const companyRes = await pool.query(
-      `INSERT INTO companies (name) VALUES ($1) RETURNING id`,
-      [`weekly-reports-test-${Date.now()}`],
-    );
-    companyId = companyRes.rows[0].id;
+    companyId = await seedCompany(`weekly-reports-${Date.now()}`);
   });
 
   afterAll(async () => {
+    const { closeTestPool } = await import('@/test/db');
     await closeTestPool();
   });
 
   beforeEach(async () => {
     const pool = testPool();
-    await pool.query('DELETE FROM weekly_reports WHERE period_id IN (SELECT id FROM weekly_periods WHERE company_id = $1)', [companyId]);
+    await pool.query(
+      'DELETE FROM weekly_reports WHERE period_id IN (SELECT id FROM weekly_periods WHERE company_id = $1)',
+      [companyId],
+    );
     await pool.query('DELETE FROM weekly_periods WHERE company_id = $1', [companyId]);
     await pool.query('DELETE FROM projects WHERE company_id = $1', [companyId]);
   });
 
   async function insertProject(name: string) {
-    const pool = testPool();
-    const res = await pool.query(
-      `INSERT INTO projects (name, company_id, weekly_report_enabled, weekly_report_start_period, stage, status)
-       VALUES ($1, $2, TRUE, '2026-W01', 'L3', 'Active') RETURNING id`,
-      [name, companyId],
-    );
-    return res.rows[0].id as number;
+    return seedProject(name, {
+      company_id: companyId,
+      weekly_report_enabled: true,
+      weekly_report_start_period: '2026-W01',
+      stage: 'L3',
+      status: 'Active',
+    });
   }
 
   it('UNIQUE (period_id, project_id) prevents duplicate shells (D-04)', async () => {
