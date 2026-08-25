@@ -69,7 +69,7 @@ Requirements for this milestone. Each maps to roadmap phases.
 - [x] **UI-03**: `app/projects/[id]/timeline/page.tsx` is decomposed the same way
 - [x] **UI-04**: `app/projects/[id]/report/page.tsx` is decomposed the same way
 - [x] **UI-05**: `app/projects/[id]/milestones/page.tsx` is decomposed the same way
-- [ ] **UI-06**: `app/portfolio/roadmap/page.tsx` is decomposed the same way
+- [x] **UI-06**: `app/portfolio/roadmap/page.tsx` is decomposed the same way
 - [ ] **UI-07**: `components/timeline/ImportMappingDialog.tsx` is decomposed the same way
 - [x] **UI-08**: `app/page.tsx` is decomposed the same way
 - [x] **UI-09**: No client component imports `@/lib/db`, a repository, a service, an integration client, or `pg`
@@ -168,7 +168,7 @@ Deferred. Tracked but not in this milestone's roadmap.
 | UI-03 | Phase 7 | Complete |
 | UI-04 | Phase 7 | Complete |
 | UI-05 | Phase 7 | Complete |
-| UI-06 | Phase 7 | Pending |
+| UI-06 | Phase 7 | Complete |
 | UI-07 | Phase 7 | Pending |
 | UI-08 | Phase 7 | Complete |
 | HYG-01 | All phases | Complete |

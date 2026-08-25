@@ -217,7 +217,7 @@ Plans:
 
 **Wave 3** *(parallel)*
 
-- [ ] 07-06-PLAN.md — Decompose `app/portfolio/roadmap/page.tsx` (UI-06)
+- [x] 07-06-PLAN.md — Decompose `app/portfolio/roadmap/page.tsx` (UI-06)
 - [ ] 07-07-PLAN.md — Decompose `components/timeline/ImportMappingDialog.tsx` in place (UI-07)
 
 **Wave 4**
