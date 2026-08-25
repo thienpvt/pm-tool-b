@@ -33,7 +33,7 @@ Audit: [.planning/milestones/v1.0-MILESTONE-AUDIT.md](milestones/v1.0-MILESTONE-
 
 - [x] **Phase 9: Mapping Table Tenant Isolation** - Company-scope the four leftover mapping tables (completed 2026-08-26)
 - [x] **Phase 10: Users, Roles & Server Authorization** - Admin user lifecycle plus CPMO / PM / Viewer enforcement (completed 2026-08-26)
-- [ ] **Phase 11: Project Master, PM Assignment & Stakeholders** - L0–L5 master data, assignment windows, stakeholder records
+- [x] **Phase 11: Project Master, PM Assignment & Stakeholders** - L0–L5 master data, assignment windows, stakeholder records (completed 2026-08-26)
 - [ ] **Phase 12: Milestone & RAID Master Registers** - Upcoming/overdue masters with soft-delete and Viewer read-only
 - [ ] **Phase 13: Weekly Periods & PM Submit** - CPMO periods, versioned submit, RAID/milestone snapshots
 - [ ] **Phase 14: CPMO Tracking & Consolidated Export** - Submission grid, lateness, snapshot-based pack export
@@ -122,7 +122,7 @@ Plans:
   3. CPMO can assign exactly one active primary PM per project or leave none; collaborating PMs only when a primary is active; a user cannot be both primary and collaborator on the same project; change/revoke keeps assignment history by period; a PM's write access starts and ends with the effective assignment window
   4. A user with write access can record sponsor, PSC chair, PSC members, project director, and key stakeholders (existing users or external parties) with effective date ranges, end a role without deleting history, and see the same stakeholder data on project info, dashboards, and reports
 
-**Plans:** 5/5 plans executed
+**Plans:** 5/5 plans complete
 
 Plans:
 **Wave 1**
@@ -267,7 +267,7 @@ Phases execute in numeric order: 9 → 10 → 11 → 12 → 13 → 14 → 15 →
 | 8. INTG-08 Credential Cutover | v1.0 | 1/1 | Complete | 2026-08-25 |
 | 9. Mapping Table Tenant Isolation | v2.0 | 3/3 | Complete    | 2026-08-26 |
 | 10. Users, Roles & Server Authorization | v2.0 | 11/11 | Complete    | 2026-08-26 |
-| 11. Project Master, PM Assignment & Stakeholders | v2.0 | 5/5 | In Progress|  |
+| 11. Project Master, PM Assignment & Stakeholders | v2.0 | 5/5 | Complete    | 2026-08-26 |
 | 12. Milestone & RAID Master Registers | v2.0 | 0/? | Not started | - |
 | 13. Weekly Periods & PM Submit | v2.0 | 0/? | Not started | - |
 | 14. CPMO Tracking & Consolidated Export | v2.0 | 0/? | Not started | - |
