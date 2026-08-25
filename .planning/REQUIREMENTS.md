@@ -85,13 +85,13 @@ Requirements for this milestone. Each maps to roadmap phases. Jira import, AI re
 
 ### Weekly Report Periods
 
-- [ ] **PERD-01**: CPMO can configure weekly periods with display name `YYYY-Wnn | start – end`, due datetime, and auto-create of report shells for obligated projects
-- [ ] **PERD-02**: Each created period stores a snapshot of the config used; later config changes do not alter already-created periods or reports
-- [ ] **PERD-03**: A report is overdue when now is after due datetime and status is Not submitted or Draft; PM can still submit late
+- [x] **PERD-01**: CPMO can configure weekly periods with display name `YYYY-Wnn | start – end`, due datetime, and auto-create of report shells for obligated projects
+- [x] **PERD-02**: Each created period stores a snapshot of the config used; later config changes do not alter already-created periods or reports
+- [x] **PERD-03**: A report is overdue when now is after due datetime and status is Not submitted or Draft; PM can still submit late
 
 ### Weekly Report Submit
 
-- [ ] **WKRP-01**: System creates at most one report obligation per project per period, and only when the project is obligated
+- [x] **WKRP-01**: System creates at most one report obligation per project per period, and only when the project is obligated
 - [ ] **WKRP-02**: PM can save a draft and submit a structured weekly report (highlights, completed work, next-week goals, nearest milestone, RAID/dependency, leadership support)
 - [ ] **WKRP-03**: Previous-week RAG is prefilled read-only; this-week RAG is chosen by the PM and syncs to master on submit when it differs
 - [ ] **WKRP-04**: Submit records submitter, first-submit timestamp, and on-time vs late; later corrections do not change first-submit lateness
@@ -233,10 +233,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | RAID-04 | Phase 12 | Complete |
 | RAID-05 | Phase 12 | Complete |
 | RAID-06 | Phase 12 | Complete |
-| PERD-01 | Phase 13 | Pending |
-| PERD-02 | Phase 13 | Pending |
-| PERD-03 | Phase 13 | Pending |
-| WKRP-01 | Phase 13 | Pending |
+| PERD-01 | Phase 13 | Complete |
+| PERD-02 | Phase 13 | Complete |
+| PERD-03 | Phase 13 | Complete |
+| WKRP-01 | Phase 13 | Complete |
 | WKRP-02 | Phase 13 | Pending |
 | WKRP-03 | Phase 13 | Pending |
 | WKRP-04 | Phase 13 | Pending |
