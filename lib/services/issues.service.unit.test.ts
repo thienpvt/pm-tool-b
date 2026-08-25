@@ -10,6 +10,7 @@ const {
   getIssueRepo,
   deactivateIssueRepo,
   auditLog,
+  appendDueDateHistory,
 } = vi.hoisted(() => ({
   assertProjectAccess: vi.fn(),
   assertProjectWriteAccess: vi.fn(),
@@ -20,6 +21,7 @@ const {
   getIssueRepo: vi.fn(),
   deactivateIssueRepo: vi.fn(),
   auditLog: vi.fn(),
+  appendDueDateHistory: vi.fn(),
 }));
 
 vi.mock('@/lib/services/access', () => ({ assertProjectAccess, assertProjectWriteAccess }));
@@ -32,6 +34,9 @@ vi.mock('@/lib/repositories/issues.repo', () => ({
   getIssue: getIssueRepo,
   deactivateIssue: deactivateIssueRepo,
 }));
+vi.mock('@/lib/repositories/raid-due-date-history.repo', () => ({
+  appendDueDateHistory,
+}));
 
 import { createIssue, deactivateIssue, listIssues, updateIssue } from './issues.service';
 import { ConflictError, ForbiddenError, NotFoundError } from './errors';
@@ -42,6 +47,7 @@ beforeEach(() => {
   assertProjectWriteAccess.mockResolvedValue(undefined);
   findIssueByCode.mockResolvedValue(undefined);
   auditLog.mockResolvedValue(undefined);
+  appendDueDateHistory.mockResolvedValue(undefined);
 });
 
 const owner = {
@@ -122,6 +128,55 @@ describe('issues.service', () => {
       assertProjectWriteAccess.mockRejectedValue(new ForbiddenError());
       await expect(updateIssue(7, foreign, 1, {})).rejects.toBeInstanceOf(ForbiddenError);
       expect(updateIssueRepo).not.toHaveBeenCalled();
+    });
+
+    it('appends due-date history and auditLog when due_date changes', async () => {
+      getIssueRepo.mockResolvedValue({ id: 1, due_date: '2026-01-01' });
+      updateIssueRepo.mockResolvedValue({ id: 1, due_date: '2026-02-01' });
+
+      await updateIssue(7, owner, 1, { due_date: '2026-02-01' });
+
+      expect(appendDueDateHistory).toHaveBeenCalledWith({
+        entity_type: 'issue',
+        entity_id: '1',
+        old_due: '2026-01-01',
+        new_due: '2026-02-01',
+        changed_by: owner.user_id,
+      });
+      expect(auditLog).toHaveBeenCalledWith({
+        actor_id: owner.user_id,
+        company_id: owner.company_id,
+        entity_type: 'issue',
+        entity_id: '1',
+        action: 'due_date_change',
+        before: { due_date: '2026-01-01' },
+        after: { due_date: '2026-02-01' },
+      });
+    });
+
+    it('does not append due-date history when due_date is unchanged', async () => {
+      getIssueRepo.mockResolvedValue({ id: 1, due_date: '2026-01-01' });
+      updateIssueRepo.mockResolvedValue({ id: 1, due_date: '2026-01-01' });
+
+      await updateIssue(7, owner, 1, { due_date: '2026-01-01' });
+
+      expect(appendDueDateHistory).not.toHaveBeenCalled();
+      expect(auditLog).not.toHaveBeenCalledWith(expect.objectContaining({ action: 'due_date_change' }));
+    });
+
+    it('does not append due-date history when due_date is omitted', async () => {
+      updateIssueRepo.mockResolvedValue({ id: 1, status: 'Closed' });
+
+      await updateIssue(7, owner, 1, { status: 'Closed' });
+
+      expect(getIssueRepo).not.toHaveBeenCalled();
+      expect(appendDueDateHistory).not.toHaveBeenCalled();
+    });
+
+    it('does not append history when write access is denied', async () => {
+      assertProjectWriteAccess.mockRejectedValue(new ForbiddenError());
+      await expect(updateIssue(7, foreign, 1, { due_date: '2026-02-01' })).rejects.toBeInstanceOf(ForbiddenError);
+      expect(appendDueDateHistory).not.toHaveBeenCalled();
     });
   });
 

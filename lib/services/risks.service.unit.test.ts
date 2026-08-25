@@ -10,6 +10,7 @@ const {
   getRiskRepo,
   deactivateRiskRepo,
   auditLog,
+  appendDueDateHistory,
 } = vi.hoisted(() => ({
   assertProjectAccess: vi.fn(),
   assertProjectWriteAccess: vi.fn(),
@@ -20,6 +21,7 @@ const {
   getRiskRepo: vi.fn(),
   deactivateRiskRepo: vi.fn(),
   auditLog: vi.fn(),
+  appendDueDateHistory: vi.fn(),
 }));
 
 vi.mock('@/lib/services/access', () => ({ assertProjectAccess, assertProjectWriteAccess }));
@@ -32,6 +34,9 @@ vi.mock('@/lib/repositories/risks.repo', () => ({
   getRisk: getRiskRepo,
   deactivateRisk: deactivateRiskRepo,
 }));
+vi.mock('@/lib/repositories/raid-due-date-history.repo', () => ({
+  appendDueDateHistory,
+}));
 
 import { createRisk, deactivateRisk, listRisks, updateRisk } from './risks.service';
 import { ConflictError, ForbiddenError, NotFoundError } from './errors';
@@ -42,6 +47,7 @@ beforeEach(() => {
   assertProjectWriteAccess.mockResolvedValue(undefined);
   findRiskByCode.mockResolvedValue(undefined);
   auditLog.mockResolvedValue(undefined);
+  appendDueDateHistory.mockResolvedValue(undefined);
 });
 
 const owner = {
@@ -140,6 +146,55 @@ describe('risks.service', () => {
       assertProjectWriteAccess.mockRejectedValue(new ForbiddenError());
       await expect(updateRisk(7, foreign, 3, {})).rejects.toBeInstanceOf(ForbiddenError);
       expect(updateRiskRepo).not.toHaveBeenCalled();
+    });
+
+    it('appends due-date history and auditLog when due_date changes', async () => {
+      getRiskRepo.mockResolvedValue({ id: 3, due_date: '2026-01-01' });
+      updateRiskRepo.mockResolvedValue({ id: 3, due_date: '2026-02-01' });
+
+      await updateRisk(7, owner, 3, { due_date: '2026-02-01' });
+
+      expect(appendDueDateHistory).toHaveBeenCalledWith({
+        entity_type: 'risk',
+        entity_id: '3',
+        old_due: '2026-01-01',
+        new_due: '2026-02-01',
+        changed_by: owner.user_id,
+      });
+      expect(auditLog).toHaveBeenCalledWith({
+        actor_id: owner.user_id,
+        company_id: owner.company_id,
+        entity_type: 'risk',
+        entity_id: '3',
+        action: 'due_date_change',
+        before: { due_date: '2026-01-01' },
+        after: { due_date: '2026-02-01' },
+      });
+    });
+
+    it('does not append due-date history when due_date is unchanged', async () => {
+      getRiskRepo.mockResolvedValue({ id: 3, due_date: '2026-01-01' });
+      updateRiskRepo.mockResolvedValue({ id: 3, due_date: '2026-01-01' });
+
+      await updateRisk(7, owner, 3, { due_date: '2026-01-01' });
+
+      expect(appendDueDateHistory).not.toHaveBeenCalled();
+      expect(auditLog).not.toHaveBeenCalledWith(expect.objectContaining({ action: 'due_date_change' }));
+    });
+
+    it('does not append due-date history when due_date is omitted', async () => {
+      updateRiskRepo.mockResolvedValue({ id: 3, status: 'Closed' });
+
+      await updateRisk(7, owner, 3, { status: 'Closed' });
+
+      expect(getRiskRepo).not.toHaveBeenCalled();
+      expect(appendDueDateHistory).not.toHaveBeenCalled();
+    });
+
+    it('does not append history when write access is denied', async () => {
+      assertProjectWriteAccess.mockRejectedValue(new ForbiddenError());
+      await expect(updateRisk(7, foreign, 3, { due_date: '2026-02-01' })).rejects.toBeInstanceOf(ForbiddenError);
+      expect(appendDueDateHistory).not.toHaveBeenCalled();
     });
   });
 
