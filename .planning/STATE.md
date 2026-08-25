@@ -74,15 +74,8 @@ Progress: [██████████] 96% (phase 04 plans complete; await v
 | Phase 05 P01 | 45min | 3 tasks | 12 files |
 | Phase 05 P02 | 40min | 3 tasks | 17 files |
 | Phase 05 P03 | 55min | 3 tasks | 62 files |
+| Phase 06 P06 | 45min | 4 tasks | 2 files |
 | Phase 07-ui-decomposition P00 | 5min | 2 tasks | 1 file |
-
-## Self-Check: PASSED
-
-- FOUND: vitest.config.ts
-- FOUND: .planning/phases/07-ui-decomposition/07-00-SUMMARY.md
-- FOUND: f608a46 (Task 1 commit)
-- FOUND: 256c949 (Task 2 commit)
-| Phase 07-ui-decomposition P00 | 5min | 2 tasks | 1 files |
 
 ## Accumulated Context
 

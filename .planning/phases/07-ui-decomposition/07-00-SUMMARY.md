@@ -84,7 +84,7 @@ Each task was committed atomically:
 1. **Task 1: Extend jsdom include for component tests** - `f608a46` (chore)
 2. **Task 2: Smoke-verify jsdom harness still green** - `256c949` (test)
 
-**Plan metadata:** pending (docs commit)
+**Plan metadata:** `a8a5431` (docs: complete plan)
 
 ## Self-Check: PASSED
 
