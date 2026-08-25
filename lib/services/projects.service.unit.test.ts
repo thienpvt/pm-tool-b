@@ -8,6 +8,8 @@ const {
   deleteProjectRepo,
   listProjectsRepo,
   createProjectRepo,
+  findProjectByCompanyCode,
+  getProgram,
 } = vi.hoisted(() => ({
   assertProjectAccess: vi.fn(),
   assertProjectWriteAccess: vi.fn(),
@@ -16,6 +18,8 @@ const {
   deleteProjectRepo: vi.fn(),
   listProjectsRepo: vi.fn(),
   createProjectRepo: vi.fn(),
+  findProjectByCompanyCode: vi.fn(),
+  getProgram: vi.fn(),
 }));
 
 vi.mock('@/lib/services/access', () => ({
@@ -30,11 +34,15 @@ vi.mock('@/lib/repositories/projects.repo', () => ({
   deleteProject: deleteProjectRepo,
   listProjects: listProjectsRepo,
   createProject: createProjectRepo,
+  findProjectByCompanyCode,
+}));
+vi.mock('@/lib/repositories/programs.repo', () => ({
+  getProgram,
 }));
 
 import { UnknownColumnError } from '@/lib/repositories/_helpers';
 import { createProject, deleteProject, getProject, listProjects, updateProject } from './projects.service';
-import { ForbiddenError, NotFoundError } from './errors';
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors';
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -157,9 +165,23 @@ describe('projects.service', () => {
     });
 
     it('stamps actor.company_id for CPMO, ignoring body.company_id (D-13)', async () => {
+      getProgram.mockResolvedValue({ id: 10, company_id: cpmoActor.company_id, name: 'Prog' });
+      findProjectByCompanyCode.mockResolvedValue(undefined);
       createProjectRepo.mockResolvedValue({ id: 1, name: 'Alpha', company_id: cpmoActor.company_id });
-      await createProject(cpmoActor, { name: 'Alpha', company_id: 999 });
-      expect(createProjectRepo).toHaveBeenCalledWith(cpmoActor.company_id, { name: 'Alpha', company_id: 999 });
+      await createProject(cpmoActor, {
+        name: 'Alpha',
+        company_id: 999,
+        project_code: 'PRJ-001',
+        portfolio_year: 2026,
+        customer_id: 10,
+      });
+      expect(createProjectRepo).toHaveBeenCalledWith(cpmoActor.company_id, {
+        name: 'Alpha',
+        company_id: 999,
+        project_code: 'PRJ-001',
+        portfolio_year: 2026,
+        customer_id: 10,
+      });
     });
 
     it('throws ForbiddenError when CPMO has null company_id', async () => {
@@ -169,8 +191,105 @@ describe('projects.service', () => {
     });
 
     it('propagates UnknownColumnError from the repository untouched', async () => {
+      getProgram.mockResolvedValue({ id: 10, company_id: cpmoActor.company_id, name: 'Prog' });
+      findProjectByCompanyCode.mockResolvedValue(undefined);
       createProjectRepo.mockRejectedValue(new UnknownColumnError(['company_id']));
-      await expect(createProject(cpmoActor, { name: 'Alpha' })).rejects.toBeInstanceOf(UnknownColumnError);
+      await expect(
+        createProject(cpmoActor, {
+          name: 'Alpha',
+          project_code: 'PRJ-001',
+          portfolio_year: 2026,
+          customer_id: 10,
+        }),
+      ).rejects.toBeInstanceOf(UnknownColumnError);
+    });
+
+    it('throws ValidationError when project_code is missing (PROJ-01, D-01)', async () => {
+      await expect(
+        createProject(cpmoActor, { name: 'Alpha', portfolio_year: 2026, customer_id: 1 }),
+      ).rejects.toBeInstanceOf(ValidationError);
+      expect(createProjectRepo).not.toHaveBeenCalled();
+    });
+
+    it('throws ValidationError when portfolio_year is missing (PROJ-01, D-04)', async () => {
+      await expect(
+        createProject(cpmoActor, { name: 'Alpha', project_code: 'PRJ-001', customer_id: 1 }),
+      ).rejects.toBeInstanceOf(ValidationError);
+      expect(createProjectRepo).not.toHaveBeenCalled();
+    });
+
+    it('throws ValidationError when customer_id is missing (PROJ-01, D-04)', async () => {
+      await expect(
+        createProject(cpmoActor, { name: 'Alpha', project_code: 'PRJ-001', portfolio_year: 2026 }),
+      ).rejects.toBeInstanceOf(ValidationError);
+      expect(createProjectRepo).not.toHaveBeenCalled();
+    });
+
+    it('creates project with project_code, portfolio_year, and in-company program (D-03, D-04, PROJ-01)', async () => {
+      getProgram.mockResolvedValue({ id: 10, company_id: cpmoActor.company_id, name: 'Prog' });
+      findProjectByCompanyCode.mockResolvedValue(undefined);
+      createProjectRepo.mockResolvedValue({
+        id: 1,
+        name: 'Alpha',
+        project_code: 'PRJ-001',
+        portfolio_year: 2026,
+        customer_id: 10,
+        company_id: cpmoActor.company_id,
+      });
+      await createProject(cpmoActor, {
+        name: 'Alpha',
+        project_code: 'PRJ-001',
+        portfolio_year: 2026,
+        customer_id: 10,
+      });
+      expect(getProgram).toHaveBeenCalledWith(10);
+      expect(findProjectByCompanyCode).toHaveBeenCalledWith(cpmoActor.company_id, 'PRJ-001');
+      expect(createProjectRepo).toHaveBeenCalledWith(cpmoActor.company_id, {
+        name: 'Alpha',
+        project_code: 'PRJ-001',
+        portfolio_year: 2026,
+        customer_id: 10,
+      });
+    });
+
+    it('throws ConflictError for duplicate project_code in same company (D-01, PROJ-01)', async () => {
+      getProgram.mockResolvedValue({ id: 10, company_id: cpmoActor.company_id, name: 'Prog' });
+      findProjectByCompanyCode.mockResolvedValue({ id: 99 });
+      await expect(
+        createProject(cpmoActor, {
+          name: 'Alpha',
+          project_code: 'prj-001',
+          portfolio_year: 2026,
+          customer_id: 10,
+        }),
+      ).rejects.toBeInstanceOf(ConflictError);
+      expect(createProjectRepo).not.toHaveBeenCalled();
+    });
+
+    it('throws ForbiddenError when program belongs to another company (D-04)', async () => {
+      getProgram.mockResolvedValue({ id: 10, company_id: 99, name: 'Foreign Prog' });
+      await expect(
+        createProject(cpmoActor, {
+          name: 'Alpha',
+          project_code: 'PRJ-002',
+          portfolio_year: 2026,
+          customer_id: 10,
+        }),
+      ).rejects.toBeInstanceOf(ForbiddenError);
+      expect(createProjectRepo).not.toHaveBeenCalled();
+    });
+
+    it('throws NotFoundError when program id does not exist (D-04)', async () => {
+      getProgram.mockResolvedValue(undefined);
+      await expect(
+        createProject(cpmoActor, {
+          name: 'Alpha',
+          project_code: 'PRJ-003',
+          portfolio_year: 2026,
+          customer_id: 10,
+        }),
+      ).rejects.toBeInstanceOf(NotFoundError);
+      expect(createProjectRepo).not.toHaveBeenCalled();
     });
   });
 });
