@@ -122,7 +122,26 @@ Plans:
   3. CPMO can assign exactly one active primary PM per project or leave none; collaborating PMs only when a primary is active; a user cannot be both primary and collaborator on the same project; change/revoke keeps assignment history by period; a PM's write access starts and ends with the effective assignment window
   4. A user with write access can record sponsor, PSC chair, PSC members, project director, and key stakeholders (existing users or external parties) with effective date ranges, end a role without deleting history, and see the same stakeholder data on project info, dashboards, and reports
 
-**Plans**: TBD
+**Plans:** 5 plans
+
+Plans:
+**Wave 1**
+
+- [ ] 11-01-PLAN.md — Tracer: schema, unique project_code, CPMO create with year/program
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 11-02-PLAN.md — L0–L5 governance, warnings JSON, CPMO in-place code change
+- [ ] 11-04-PLAN.md — Stakeholder history nested API and listProjectStakeholders
+
+**Wave 3** *(blocked on Wave 2 plan 11-02)*
+
+- [ ] 11-03-PLAN.md — PM assignment windows, D-14 backfill, rewire all three PM lookup sites
+
+**Wave 4** *(blocked on 11-02, 11-03, 11-04)*
+
+- [ ] 11-05-PLAN.md — Existing create/detail fields so CPMO can operate (no UI-SPEC)
+
 **UI hint**: yes
 
 ### Phase 12: Milestone & RAID Master Registers
