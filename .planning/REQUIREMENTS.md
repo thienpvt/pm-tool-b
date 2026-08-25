@@ -64,22 +64,22 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 ### UI Decomposition
 
-- [ ] **UI-01**: Data fetching in each god page is extracted into named hooks, separate from rendering
+- [x] **UI-01**: Data fetching in each god page is extracted into named hooks, separate from rendering
 - [ ] **UI-02**: `app/portfolio/report/page.tsx` is decomposed into a container plus feature modules, with no single file over 400 lines
 - [ ] **UI-03**: `app/projects/[id]/timeline/page.tsx` is decomposed the same way
 - [ ] **UI-04**: `app/projects/[id]/report/page.tsx` is decomposed the same way
 - [ ] **UI-05**: `app/projects/[id]/milestones/page.tsx` is decomposed the same way
 - [ ] **UI-06**: `app/portfolio/roadmap/page.tsx` is decomposed the same way
 - [ ] **UI-07**: `components/timeline/ImportMappingDialog.tsx` is decomposed the same way
-- [ ] **UI-08**: `app/page.tsx` is decomposed the same way
-- [ ] **UI-09**: No client component imports `@/lib/db`, a repository, a service, an integration client, or `pg`
+- [x] **UI-08**: `app/page.tsx` is decomposed the same way
+- [x] **UI-09**: No client component imports `@/lib/db`, a repository, a service, an integration client, or `pg`
 - [x] **UI-10**: Each decomposed page has a component test covering its primary render path and one interaction
-- [ ] **UI-11**: Each decomposition is verified against the pre-refactor page for identical behavior on load, filter, and export paths
+- [x] **UI-11**: Each decomposition is verified against the pre-refactor page for identical behavior on load, filter, and export paths
 
 ### Refactor Hygiene
 
-- [ ] **HYG-01**: Pure code moves are committed separately from behavior changes, so a regression can be bisected to one or the other
-- [ ] **HYG-02**: Every opportunistic bug fix made during the sweep is called out in its commit message as a behavior change
+- [x] **HYG-01**: Pure code moves are committed separately from behavior changes, so a regression can be bisected to one or the other
+- [x] **HYG-02**: Every opportunistic bug fix made during the sweep is called out in its commit message as a behavior change
 - [x] **HYG-03**: A layer is not marked done until its tests exist and pass — no layer advances on a promise to add tests later
 
 ## v2 Requirements
@@ -160,19 +160,19 @@ Deferred. Tracked but not in this milestone's roadmap.
 | ROUTE-09 | Phase 6 | Complete |
 | ROUTE-10 | Phase 6 | Complete |
 | ROUTE-11 | Phase 6 | Complete |
-| UI-01 | Phase 7 | Pending |
-| UI-09 | Phase 7 | Pending |
+| UI-01 | Phase 7 | Complete |
+| UI-09 | Phase 7 | Complete |
 | UI-10 | Phase 7 | Complete |
-| UI-11 | Phase 7 | Pending |
+| UI-11 | Phase 7 | Complete |
 | UI-02 | Phase 7 | Pending |
 | UI-03 | Phase 7 | Pending |
 | UI-04 | Phase 7 | Pending |
 | UI-05 | Phase 7 | Pending |
 | UI-06 | Phase 7 | Pending |
 | UI-07 | Phase 7 | Pending |
-| UI-08 | Phase 7 | Pending |
-| HYG-01 | All phases | Pending |
-| HYG-02 | All phases | Pending |
+| UI-08 | Phase 7 | Complete |
+| HYG-01 | All phases | Complete |
+| HYG-02 | All phases | Complete |
 | HYG-03 | All phases | Complete |
 
 **Coverage:**

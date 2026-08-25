@@ -1,19 +1,19 @@
 ---
 gsd_state_version: 1.0
 milestone: v1.0
-current_phase: 07
+current_phase: 7
 current_phase_name: UI Decomposition
 status: executing
-stopped_at: Completed 07-00-PLAN.md
-last_updated: "2026-08-25T11:45:07.150Z"
-last_activity: 2026-08-11
-last_activity_desc: Phase 06 execution started
-state_head: 256c949661012d43066346ee315d6ff79425dcae
+stopped_at: Completed 07-01-PLAN.md
+last_updated: "2026-08-25T12:05:04.962Z"
+last_activity: 2026-08-25
+last_activity_desc: Phase 7 execution started
+state_head: 2718bb74abc675c0151a5a02e744ba28ba521629
 progress:
   total_phases: 7
   completed_phases: 5
   total_plans: 34
-  completed_plans: 25
+  completed_plans: 26
 milestone_name: milestone
 ---
 
@@ -24,14 +24,14 @@ milestone_name: milestone
 See: .planning/PROJECT.md (updated 2026-08-07)
 
 **Core value:** Every project-scoped request is tenant-isolated and every layer has one job — so a new route or page cannot silently reintroduce IDOR or a 2000-line god component.
-**Current focus:** Phase 07 — UI Decomposition
+**Current focus:** Phase 7 — UI Decomposition
 
 ## Current Position
 
-Phase: 07 (UI Decomposition) — EXECUTING
-Plan: 1 of 9 complete (07-00 done; next: 07-01)
+Phase: 7 (UI Decomposition) — EXECUTING
+Plan: 2 of 9
 Status: Ready to execute
-Last activity: 2026-08-25 — Completed 07-00-PLAN.md (Wave 0 vitest include)
+Last activity: 2026-08-25 — Phase 7 execution started
 
 Progress: [██████████] 96% (phase 04 plans complete; await verify)
 
@@ -76,6 +76,7 @@ Progress: [██████████] 96% (phase 04 plans complete; await v
 | Phase 05 P03 | 55min | 3 tasks | 62 files |
 | Phase 06 P06 | 45min | 4 tasks | 2 files |
 | Phase 07-ui-decomposition P00 | 5min | 2 tasks | 1 file |
+| Phase 07-ui-decomposition P01 | 35 | 3 tasks | 19 files |
 
 ## Accumulated Context
 
@@ -118,6 +119,8 @@ Recent decisions affecting current work:
 - [Phase ?]: Zero-validation tree-B routes (operations/systems/[id] PUT, program-allocations, config, rag-config, jira-config POST) get passthrough-only schemas with a fallback-to-raw-body pattern -- ROUTE-06 coverage without inventing new 400s
 - [Phase ?]: [Phase 06-06]: 401 matrix uses import.meta.glob eager-load (single enumeration source shared by both the 401 assertions and the drift check); global getDb() canary suffices since a null session 401s before any repo/service import path runs
 - [Phase 06]: Phase 07-00: jsdom include lists both *.test.tsx and *.component.test.tsx — badge.test.tsx unchanged, page tests use .component.test.tsx naming
+- [Phase 7]: Phase 07-01: setMeUser exposed from usePortfolioDashboard for onboarding behavior freeze
+- [Phase 7]: Phase 07-01: Page banner sub-split into header/KPI/matrix modules to satisfy 400-line cap
 
 ### Pending Todos
 
@@ -149,6 +152,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-25T11:45:06.648Z
-Stopped at: Completed 07-00-PLAN.md
+Last session: 2026-08-25T12:05:04.452Z
+Stopped at: Completed 07-01-PLAN.md
 Resume file: None

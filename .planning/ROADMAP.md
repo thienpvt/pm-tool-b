@@ -197,7 +197,7 @@ Plans:
   4. Each decomposed page has a component test covering its primary render path and one interaction
   5. Each decomposition is verified against the pre-refactor page for identical behavior on load, filter, and export paths
 
-**Plans**: 1/9 plans executed across 5 waves
+**Plans**: 2/9 plans executed across 5 waves
 
 Plans:
 **Wave 0**
@@ -206,7 +206,7 @@ Plans:
 
 **Wave 1**
 
-- [ ] 07-01-PLAN.md — Tracer: decompose `app/page.tsx` (smallest god page; proves hook + `_components/` + test pattern)
+- [x] 07-01-PLAN.md — Tracer: decompose `app/page.tsx` (smallest god page; proves hook + `_components/` + test pattern)
 
 **Wave 2** *(parallel after Wave 1 — disjoint file ownership)*
 
@@ -236,4 +236,4 @@ Plans:
 | 4. Service Layer | 7/7 | Complete    | 2026-08-11 |
 | 5. Route Thinning & Validation | 3/3 | Complete    | 2026-08-11 |
 | 6. Access Enforcement Rollout | 6/7 | In Progress|  |
-| 7. UI Decomposition | 1/9 | In Progress|  |
+| 7. UI Decomposition | 2/9 | In Progress|  |
