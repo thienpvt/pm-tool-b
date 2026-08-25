@@ -1,0 +1,110 @@
+import type { Pool } from 'pg';
+
+const TIMELINE_FLAG = 'mapping_tenant_timeline_import_mappings_v1';
+
+type MappingTableSpec = {
+  table: string;
+  nameColumn: string;
+  payloadColumns: string[];
+};
+
+/** Timeline-only in 09-01; bug/jira tables register in 09-02/09-03. */
+const TIMELINE_SPEC: MappingTableSpec = {
+  table: 'timeline_import_mappings',
+  nameColumn: 'name',
+  payloadColumns: ['mappings_json'],
+};
+
+/**
+ * Idempotent per-table mapping tenancy migration (D-01, D-02).
+ * Order: nullable column → backfill → NOT NULL+FK → UNIQUE(company_id, name) → index.
+ */
+export async function migrateMappingTableTenancy(pool: Pool): Promise<void> {
+  await migrateOneTable(pool, TIMELINE_SPEC, TIMELINE_FLAG);
+}
+
+async function migrateOneTable(pool: Pool, spec: MappingTableSpec, flagKey: string): Promise<void> {
+  const { table, nameColumn, payloadColumns } = spec;
+
+  try {
+    const done = await pool.query('SELECT value FROM settings WHERE key = $1', [flagKey]);
+    if (done.rows.length > 0) return;
+
+    try {
+      await pool.query(
+        `ALTER TABLE ${table} ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id)`,
+      );
+    } catch {
+      /* column already exists with different definition — proceed */
+    }
+
+    const nullRes = await pool.query(
+      `SELECT COUNT(*)::int AS c FROM ${table} WHERE company_id IS NULL`,
+    );
+    const nullCount: number = nullRes.rows[0]?.c ?? 0;
+
+    if (nullCount > 0) {
+      const companyRes = await pool.query('SELECT COUNT(*)::int AS c FROM companies');
+      const companyCount: number = companyRes.rows[0]?.c ?? 0;
+
+      if (companyCount === 1) {
+        await pool.query(
+          `UPDATE ${table}
+           SET company_id = (SELECT id FROM companies LIMIT 1)
+           WHERE company_id IS NULL`,
+        );
+      } else if (companyCount > 1) {
+        const insertCols = [nameColumn, ...payloadColumns, 'company_id', 'created_at'].join(', ');
+        const selectCols = [`t.${nameColumn}`, ...payloadColumns.map(c => `t.${c}`), 'c.id', 't.created_at'].join(', ');
+        await pool.query(
+          `INSERT INTO ${table} (${insertCols})
+           SELECT ${selectCols}
+           FROM ${table} t
+           CROSS JOIN companies c
+           WHERE t.company_id IS NULL`,
+        );
+        await pool.query(`DELETE FROM ${table} WHERE company_id IS NULL`);
+      }
+    }
+
+    const remainingRes = await pool.query(
+      `SELECT COUNT(*)::int AS c FROM ${table} WHERE company_id IS NULL`,
+    );
+    const remainingNull: number = remainingRes.rows[0]?.c ?? 0;
+
+    if (remainingNull === 0) {
+      try {
+        await pool.query(`ALTER TABLE ${table} ALTER COLUMN company_id SET NOT NULL`);
+      } catch {
+        /* already NOT NULL */
+      }
+
+      await pool.query(`DROP INDEX IF EXISTS ${table}_name_key`).catch(() => {});
+      await pool.query(`DROP INDEX IF EXISTS idx_${table}_name`).catch(() => {});
+
+      try {
+        await pool.query(
+          `CREATE UNIQUE INDEX IF NOT EXISTS idx_${table}_company_name
+           ON ${table} (company_id, ${nameColumn})`,
+        );
+      } catch {
+        /* index exists */
+      }
+
+      try {
+        await pool.query(
+          `CREATE INDEX IF NOT EXISTS idx_${table}_company_id ON ${table} (company_id)`,
+        );
+      } catch {
+        /* index exists */
+      }
+
+      await pool.query(
+        `INSERT INTO settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO NOTHING`,
+        [flagKey, new Date().toISOString()],
+      );
+    }
+  } catch {
+    /* settings table may not exist yet on first run — will retry next boot */
+  }
+}

@@ -5,15 +5,23 @@ import { getDb } from '@/lib/db';
  * `timeline_import_mappings` (activity/timeline import) and `bug_import_mappings`
  * (bug snapshot import).
  *
- * Both tables are global, not company-scoped — that is the current behavior, and this
- * phase moves SQL without changing access rules. See 02-03-SUMMARY.md.
+ * Timeline mappings are company-scoped (Phase 9 TENANT-01). Bug mappings remain
+ * global until 09-02.
  */
 
-// ── Timeline mappings ─────────────────────────────────────────────────────────
+// ── Timeline mappings (company-scoped) ────────────────────────────────────────
 
 export async function listTimelineMappings() {
   const db = await getDb();
   return db.all('SELECT * FROM timeline_import_mappings ORDER BY created_at DESC');
+}
+
+export async function getTimelineMappingById(id: number | string) {
+  const db = await getDb();
+  return db.get<{ id: number; company_id: number; name: string; mappings_json: string }>(
+    'SELECT * FROM timeline_import_mappings WHERE id = ?',
+    id,
+  );
 }
 
 export async function createTimelineMapping(name: string, mappingsJson: string) {
@@ -25,21 +33,32 @@ export async function createTimelineMapping(name: string, mappingsJson: string) 
   return db.get('SELECT * FROM timeline_import_mappings WHERE id = ?', r.lastInsertRowid);
 }
 
-export async function updateTimelineMapping(id: number | string, name: string, mappingsJson: string) {
+export async function updateTimelineMapping(
+  companyId: number,
+  id: number | string,
+  name: string,
+  mappingsJson: string,
+) {
   const db = await getDb();
   await db.run(
-    'UPDATE timeline_import_mappings SET name = ?, mappings_json = ? WHERE id = ?',
-    name, mappingsJson, id,
+    'UPDATE timeline_import_mappings SET name = ?, mappings_json = ? WHERE id = ? AND company_id = ?',
+    name, mappingsJson, id, companyId,
   );
-  return db.get('SELECT * FROM timeline_import_mappings WHERE id = ?', id);
+  return db.get(
+    'SELECT * FROM timeline_import_mappings WHERE id = ? AND company_id = ?',
+    id, companyId,
+  );
 }
 
-export async function deleteTimelineMapping(id: number | string) {
+export async function deleteTimelineMapping(companyId: number, id: number | string) {
   const db = await getDb();
-  return db.run('DELETE FROM timeline_import_mappings WHERE id = ?', id);
+  return db.run(
+    'DELETE FROM timeline_import_mappings WHERE id = ? AND company_id = ?',
+    id, companyId,
+  );
 }
 
-// ── Bug mappings ──────────────────────────────────────────────────────────────
+// ── Bug mappings (global until 09-02) ─────────────────────────────────────────
 
 export async function listBugMappings() {
   const db = await getDb();

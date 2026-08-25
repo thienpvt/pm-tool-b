@@ -607,6 +607,8 @@ export async function getDb(): Promise<DbClient> {
   const client = new PostgresClient(pool);
   await initPostgresSchema(client);
   await migratePostgresSchema(pool);
+  const { migrateMappingTableTenancy } = await import('./db-mapping-tenant');
+  await migrateMappingTableTenancy(pool);
   await backfillWeightedCompletion(pool);
   _client = client;
 

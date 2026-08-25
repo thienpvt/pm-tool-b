@@ -39,18 +39,20 @@ describe('import-mapping.repo', () => {
     );
   });
 
-  it('updates and reloads a timeline mapping with the same id', async () => {
-    await updateTimelineMapping(21, 'Renamed', '{"name":"Title"}');
+  it('updates and reloads a timeline mapping with company scope', async () => {
+    await updateTimelineMapping(5, 21, 'Renamed', '{"name":"Title"}');
 
     expect(db.run).toHaveBeenCalledWith(
-      'UPDATE timeline_import_mappings SET name = ?, mappings_json = ? WHERE id = ?',
+      'UPDATE timeline_import_mappings SET name = ?, mappings_json = ? WHERE id = ? AND company_id = ?',
       'Renamed',
       '{"name":"Title"}',
       21,
+      5,
     );
     expect(db.get).toHaveBeenCalledWith(
-      'SELECT * FROM timeline_import_mappings WHERE id = ?',
+      'SELECT * FROM timeline_import_mappings WHERE id = ? AND company_id = ?',
       21,
+      5,
     );
   });
 });
