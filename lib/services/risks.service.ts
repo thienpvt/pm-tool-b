@@ -6,6 +6,7 @@ import {
   listRisks as listRisksRepo,
   updateRisk as updateRiskRepo,
 } from '@/lib/repositories/risks.repo';
+import { appendDueDateHistory } from '@/lib/repositories/raid-due-date-history.repo';
 import { assertProjectAccess, assertProjectWriteAccess, type AccessActor } from './access';
 import { auditLog } from './audit.service';
 import { ConflictError, NotFoundError } from './errors';
@@ -63,8 +64,31 @@ export async function updateRisk(
       'Risk code already exists',
     );
   }
+  const prior = fields.due_date !== undefined ? await getRiskRepo(projectId, rowId) : null;
   const updated = await updateRiskRepo(projectId, rowId, fields);
   if (!updated) throw new NotFoundError('Not found', 'risk');
+  if (
+    fields.due_date !== undefined
+    && prior
+    && String(fields.due_date) !== String(prior.due_date ?? '')
+  ) {
+    await appendDueDateHistory({
+      entity_type: 'risk',
+      entity_id: String(rowId),
+      old_due: prior.due_date != null ? String(prior.due_date) : null,
+      new_due: fields.due_date != null ? String(fields.due_date) : null,
+      changed_by: actor.user_id,
+    });
+    await auditLog({
+      actor_id: actor.user_id,
+      company_id: actor.company_id,
+      entity_type: 'risk',
+      entity_id: String(rowId),
+      action: 'due_date_change',
+      before: { due_date: prior.due_date ?? null },
+      after: { due_date: fields.due_date ?? null },
+    });
+  }
   return updated;
 }
 
