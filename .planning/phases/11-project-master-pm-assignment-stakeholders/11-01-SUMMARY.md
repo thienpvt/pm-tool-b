@@ -124,7 +124,7 @@ Each task was committed atomically (TDD RED/GREEN for tracer):
 1. **Task 11-01-01: End-to-end CPMO create with unique project_code** — `384997d` (test), `bcea835` (feat)
 2. **Task 11-01-02: Reject duplicate codes and foreign programs** — covered by tracer commits (no gap)
 
-**Plan metadata:** pending (docs commit)
+**Plan metadata:** `69f5ad4` (docs: complete plan)
 
 ## Files Created/Modified
 
