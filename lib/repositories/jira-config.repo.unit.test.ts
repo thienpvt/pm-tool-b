@@ -6,7 +6,7 @@ const { db } = vi.hoisted(() => ({
 
 vi.mock('@/lib/db', () => ({ getDb: vi.fn(async () => db) }));
 
-import { createJqlPreset, deleteJqlPreset, listJqlPresets, setCompanyJiraConfig } from './jira-config.repo';
+import { createJqlPreset, deleteJqlPreset, listJqlPresets, listRecentJiraSyncMappings, saveJiraSyncMapping, setCompanyJiraConfig } from './jira-config.repo';
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -67,6 +67,24 @@ describe('jira-config.repo', () => {
     expect(db.run).toHaveBeenCalledWith(
       'DELETE FROM jira_jql_presets WHERE id = ? AND company_id = ?',
       12,
+      5,
+    );
+  });
+
+  it('listRecentJiraSyncMappings filters by company_id', async () => {
+    await listRecentJiraSyncMappings(5);
+    const sql = db.all.mock.calls[0][0].replace(/\s+/g, ' ').trim();
+    expect(sql).toContain('WHERE company_id = ?');
+    expect(db.all).toHaveBeenCalledWith(expect.any(String), 5);
+  });
+
+  it('saveJiraSyncMapping scopes eviction DELETE by company_id', async () => {
+    await saveJiraSyncMapping(5, '{"a":1}');
+    const deleteSql = db.run.mock.calls[1][0].replace(/\s+/g, ' ').trim();
+    expect(deleteSql).toContain('WHERE company_id = ?');
+    expect(db.run).toHaveBeenCalledWith(
+      'INSERT INTO jira_sync_mappings (mappings_json, company_id) VALUES (?, ?)',
+      '{"a":1}',
       5,
     );
   });

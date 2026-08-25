@@ -6,12 +6,16 @@ const {
   findJqlPresetByName,
   createJqlPresetRepo,
   deleteJqlPresetRepo,
+  listRecentJiraSyncMappingsRepo,
+  saveJiraSyncMappingRepo,
 } = vi.hoisted(() => ({
   listJqlPresetsRepo: vi.fn(),
   getJqlPresetById: vi.fn(),
   findJqlPresetByName: vi.fn(),
   createJqlPresetRepo: vi.fn(),
   deleteJqlPresetRepo: vi.fn(),
+  listRecentJiraSyncMappingsRepo: vi.fn(),
+  saveJiraSyncMappingRepo: vi.fn(),
 }));
 
 vi.mock('@/lib/repositories/jira-config.repo', () => ({
@@ -20,12 +24,16 @@ vi.mock('@/lib/repositories/jira-config.repo', () => ({
   findJqlPresetByName,
   createJqlPreset: createJqlPresetRepo,
   deleteJqlPreset: deleteJqlPresetRepo,
+  listRecentJiraSyncMappings: listRecentJiraSyncMappingsRepo,
+  saveJiraSyncMapping: saveJiraSyncMappingRepo,
 }));
 
 import {
   createJqlPreset,
   deleteJqlPreset,
   listJqlPresets,
+  listRecentJiraSyncMappings,
+  saveJiraSyncMapping,
 } from './jira-mapping.service';
 import { ConflictError, ForbiddenError, NotFoundError } from './errors';
 
@@ -89,5 +97,30 @@ describe('jira-mapping.service JQL presets', () => {
     createJqlPresetRepo.mockResolvedValue(presetRow);
     await createJqlPreset(owner, 'Open', 'project = A', 'timeline', 10);
     expect(createJqlPresetRepo).toHaveBeenCalledWith(5, 'Open', 'project = A', 'timeline', 10);
+  });
+});
+
+describe('jira-mapping.service sync mappings', () => {
+  it('listRecentJiraSyncMappings passes session company to repo', async () => {
+    const rows = [{ id: 1, company_id: 5, mappings_json: '{}' }];
+    listRecentJiraSyncMappingsRepo.mockResolvedValue(rows);
+    await expect(listRecentJiraSyncMappings(owner)).resolves.toEqual(rows);
+    expect(listRecentJiraSyncMappingsRepo).toHaveBeenCalledWith(5);
+  });
+
+  it('listRecentJiraSyncMappings throws ForbiddenError when actor company_id is null', async () => {
+    await expect(listRecentJiraSyncMappings(noCompany)).rejects.toBeInstanceOf(ForbiddenError);
+    expect(listRecentJiraSyncMappingsRepo).not.toHaveBeenCalled();
+  });
+
+  it('saveJiraSyncMapping stamps company from actor', async () => {
+    saveJiraSyncMappingRepo.mockResolvedValue(undefined);
+    await saveJiraSyncMapping(owner, '{"a":1}');
+    expect(saveJiraSyncMappingRepo).toHaveBeenCalledWith(5, '{"a":1}');
+  });
+
+  it('saveJiraSyncMapping throws ForbiddenError when actor company_id is null', async () => {
+    await expect(saveJiraSyncMapping(noCompany, '{}')).rejects.toBeInstanceOf(ForbiddenError);
+    expect(saveJiraSyncMappingRepo).not.toHaveBeenCalled();
   });
 });

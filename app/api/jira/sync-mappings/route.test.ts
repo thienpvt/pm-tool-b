@@ -7,7 +7,7 @@ const { listRecentJiraSyncMappings, saveJiraSyncMapping } = vi.hoisted(() => ({
 }));
 
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
-vi.mock('@/lib/repositories/jira-config.repo', () => ({
+vi.mock('@/lib/services/jira-mapping.service', () => ({
   listRecentJiraSyncMappings,
   saveJiraSyncMapping,
 }));
@@ -39,7 +39,7 @@ describe('GET/POST /api/jira/sync-mappings', () => {
     });
   }
 
-  it('GET returns 401 with no session, repo not called', async () => {
+  it('GET returns 401 with no session, service not called', async () => {
     vi.mocked(getSessionFromRequest).mockResolvedValue(null);
     const res = await GET(req('GET'), params());
     expect(res.status).toBe(401);
@@ -47,7 +47,7 @@ describe('GET/POST /api/jira/sync-mappings', () => {
     expect(listRecentJiraSyncMappings).not.toHaveBeenCalled();
   });
 
-  it('POST returns 401 with no session, repo not called', async () => {
+  it('POST returns 401 with no session, service not called', async () => {
     vi.mocked(getSessionFromRequest).mockResolvedValue(null);
     const res = await POST(req('POST', undefined, { mappings_json: '{}' }), params());
     expect(res.status).toBe(401);
@@ -55,15 +55,18 @@ describe('GET/POST /api/jira/sync-mappings', () => {
     expect(saveJiraSyncMapping).not.toHaveBeenCalled();
   });
 
-  it('GET returns the prior list shape for an owner', async () => {
+  it('GET returns session-company list for an owner', async () => {
     vi.mocked(getSessionFromRequest).mockResolvedValue(ownerSession as never);
-    const rows = [{ id: 1, mappings_json: '{}' }];
+    const rows = [{ id: 1, mappings_json: '{}', company_id: 5 }];
     listRecentJiraSyncMappings.mockResolvedValue(rows);
 
     const res = await GET(req('GET'), params());
 
     expect(res.status).toBe(200);
     await expect(res.json()).resolves.toEqual(rows);
+    expect(listRecentJiraSyncMappings).toHaveBeenCalledWith(
+      expect.objectContaining({ company_id: 5 }),
+    );
   });
 
   it('POST saves for an owner, preserving { ok: true } shape', async () => {
@@ -74,6 +77,19 @@ describe('GET/POST /api/jira/sync-mappings', () => {
 
     expect(res.status).toBe(200);
     await expect(res.json()).resolves.toEqual({ ok: true });
-    expect(saveJiraSyncMapping).toHaveBeenCalledWith('{"a":1}');
+    expect(saveJiraSyncMapping).toHaveBeenCalledWith(
+      expect.objectContaining({ company_id: 5 }),
+      '{"a":1}',
+    );
+  });
+
+  it('POST rejects invalid body with 400 Missing mappings_json, before service call', async () => {
+    vi.mocked(getSessionFromRequest).mockResolvedValue(ownerSession as never);
+
+    const res = await POST(req('POST', undefined, {}), params());
+
+    expect(res.status).toBe(400);
+    await expect(res.json()).resolves.toEqual({ error: 'Missing mappings_json' });
+    expect(saveJiraSyncMapping).not.toHaveBeenCalled();
   });
 });
