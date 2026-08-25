@@ -1,5 +1,4 @@
-<!-- BEGIN:nextjs-agent-rules -->
-# This is NOT the Next.js you know
-
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
-<!-- END:nextjs-agent-rules -->
+Subagent models: never omit model on Task().
+Planner, plan-checker, debug, architecture → cursor-grok-4.6-xhigh-fast
+Research, pattern-mapper, execute, verify, code-fix, everything else → composer-2.5-fast
+Grok 4.6 is only for reasoning-heavy work. Composer 2.5 is the default.
