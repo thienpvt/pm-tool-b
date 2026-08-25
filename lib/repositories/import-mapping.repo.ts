@@ -5,8 +5,7 @@ import { getDb } from '@/lib/db';
  * `timeline_import_mappings` (activity/timeline import) and `bug_import_mappings`
  * (bug snapshot import).
  *
- * Timeline mappings are company-scoped (Phase 9 TENANT-01). Bug mappings remain
- * global until 09-02.
+ * Timeline and bug mappings are company-scoped (Phase 9 TENANT-01).
  */
 
 // ── Timeline mappings (company-scoped) ────────────────────────────────────────
@@ -69,29 +68,54 @@ export async function deleteTimelineMapping(companyId: number, id: number | stri
   );
 }
 
-// ── Bug mappings (global until 09-02) ─────────────────────────────────────────
+// ── Bug mappings (company-scoped) ─────────────────────────────────────────────
 
-export async function listBugMappings() {
+export async function listBugMappings(companyId: number) {
   const db = await getDb();
-  return db.all('SELECT * FROM bug_import_mappings ORDER BY created_at DESC');
+  return db.all(
+    'SELECT * FROM bug_import_mappings WHERE company_id = ? ORDER BY created_at DESC',
+    companyId,
+  );
 }
 
-/** Ids newest-first, used by the route to evict the oldest when the cap is reached. */
-export async function bugMappingIds() {
+export async function getBugMappingById(id: number | string) {
   const db = await getDb();
-  return db.all<{ id: number }>('SELECT id FROM bug_import_mappings ORDER BY created_at DESC');
+  return db.get<{ id: number; company_id: number; name: string; mappings_json: string }>(
+    'SELECT * FROM bug_import_mappings WHERE id = ?',
+    id,
+  );
 }
 
-export async function createBugMapping(name: string, mappingsJson: string) {
+export async function findBugMappingByName(companyId: number, name: string) {
+  const db = await getDb();
+  return db.get(
+    'SELECT * FROM bug_import_mappings WHERE company_id = ? AND name = ?',
+    companyId, name,
+  );
+}
+
+/** Ids newest-first, used by the service to evict the oldest when the cap is reached. */
+export async function bugMappingIds(companyId: number) {
+  const db = await getDb();
+  return db.all<{ id: number }>(
+    'SELECT id FROM bug_import_mappings WHERE company_id = ? ORDER BY created_at DESC',
+    companyId,
+  );
+}
+
+export async function createBugMapping(companyId: number, name: string, mappingsJson: string) {
   const db = await getDb();
   const r = await db.run(
-    'INSERT INTO bug_import_mappings (name, mappings_json) VALUES (?, ?)',
-    name, mappingsJson,
+    'INSERT INTO bug_import_mappings (name, mappings_json, company_id) VALUES (?, ?, ?)',
+    name, mappingsJson, companyId,
   );
   return db.get('SELECT * FROM bug_import_mappings WHERE id = ?', r.lastInsertRowid);
 }
 
-export async function deleteBugMapping(id: number | string) {
+export async function deleteBugMapping(companyId: number, id: number | string) {
   const db = await getDb();
-  return db.run('DELETE FROM bug_import_mappings WHERE id = ?', id);
+  return db.run(
+    'DELETE FROM bug_import_mappings WHERE id = ? AND company_id = ?',
+    id, companyId,
+  );
 }

@@ -4,7 +4,7 @@ import { seedCompany, setupRepoTables, testDb } from '../../test/repo-db';
 
 vi.mock('@/lib/db', () => ({ getDb: vi.fn(async () => testDb()) }));
 
-import { createTimelineMapping, listTimelineMappings } from './import-mapping.repo';
+import { createBugMapping, createTimelineMapping, listBugMappings, listTimelineMappings } from './import-mapping.repo';
 
 describe.skipIf(!hasTestDb)('import-mapping.repo tenant scope', () => {
   let companyA: number;
@@ -30,5 +30,21 @@ describe.skipIf(!hasTestDb)('import-mapping.repo tenant scope', () => {
     const unique = `Dup-${Date.now()}`;
     await createTimelineMapping(companyA, unique, '{}');
     await expect(createTimelineMapping(companyA, unique, '{}')).rejects.toThrow();
+  });
+
+  it('allows the same bug template name across companies', async () => {
+    await expect(createBugMapping(companyA, 'BugStandard', '{}')).resolves.toBeDefined();
+    await expect(createBugMapping(companyB, 'BugStandard', '{}')).resolves.toBeDefined();
+
+    const rowsA = await listBugMappings(companyA);
+    const rowsB = await listBugMappings(companyB);
+    expect(rowsA.some(r => (r as { name: string }).name === 'BugStandard')).toBe(true);
+    expect(rowsB.some(r => (r as { name: string }).name === 'BugStandard')).toBe(true);
+  });
+
+  it('rejects duplicate bug name within one company', async () => {
+    const unique = `BugDup-${Date.now()}`;
+    await createBugMapping(companyA, unique, '{}');
+    await expect(createBugMapping(companyA, unique, '{}')).rejects.toThrow();
   });
 });
