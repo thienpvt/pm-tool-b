@@ -2,17 +2,17 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Portfolio One View
-current_phase: 9
-current_phase_name: Mapping Table Tenant Isolation
-status: executing
-stopped_at: Completed 09-03-PLAN.md
-last_updated: "2026-08-25T17:05:25.426Z"
-last_activity: 2026-08-25
-last_activity_desc: Created v2.0 roadmap (Phases 9–18)
-state_head: cffedd68158886d9173e9444089338c14a64b01f
+current_phase: 10
+current_phase_name: Users, Roles & Server Authorization
+status: planning
+stopped_at: Phase 9 complete, ready to plan Phase 10
+last_updated: "2026-08-25T17:14:06.731Z"
+last_activity: 2026-08-26
+last_activity_desc: Phase 9 complete, transitioned to Phase 10
+state_head: 7f3cd31dfd8aab697059709a7f24b5a268806c24
 progress:
   total_phases: 10
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 3
   completed_plans: 3
 ---
@@ -24,26 +24,26 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-25)
 
 **Core value:** One source of truth for projects, milestones, RAID, and weekly reports — role- and project-scoped — so CPMO and PMs act on highlights, nearest milestones, open risks/issues, and items that need leadership support.
-**Current focus:** Phase 9 — Mapping Table Tenant Isolation
+**Current focus:** Phase 10 — Users, Roles & Server Authorization
 
 ## Current Position
 
-Phase: 9 (Mapping Table Tenant Isolation) — READY TO EXECUTE
-Plan: —
-Status: Ready to execute
-Last activity: 2026-08-25 — v2.0 roadmap created (Phases 9–18, 79/79 requirements mapped)
+Phase: 10 — Users, Roles & Server Authorization
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-08-26 — Phase 9 complete, transitioned to Phase 10
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [█░░░░░░░░░] 10%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 35 (v1.0)
+- Total plans completed: 38 (35 v1.0 + 3 Phase 9)
 - Average duration: - min
 - Total execution time: - hours
 
-**By Phase:** v1.0 Phases 1–8 complete (35 plans). v2.0 not started.
+**By Phase:** v1.0 Phases 1–8 complete (35 plans). v2.0 Phase 9 complete (3 plans).
 
 **Recent Trend:**
 
@@ -69,7 +69,7 @@ Recent decisions affecting current work:
 - v2.0 numbering continues from Phase 8; do not reset to Phase 1
 - Spec (GuiIT Portfolio One View) is source of truth; keep Jira / AI / Excel-PPT-Word export
 - Weekly reports are a parallel product surface, not an enhancement of activity-weighted report pages
-- TENANT-01 is the only v1.0 leftover in this milestone (four mapping tables)
+- TENANT-01 shipped in Phase 9 (four mapping tables company-scoped)
 - Audit wires incrementally from Phase 10; Phase 18 completes append-only coverage
 - Word spec stays local — do not commit the `.docx`
 - [Phase 9]: Timeline mapping ConflictError via findTimelineMappingByName pre-check
@@ -97,5 +97,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-08-25T17:05:25.413Z
-Stopped at: Completed 09-03-PLAN.md
+Stopped at: Phase 9 complete, ready to plan Phase 10
 Resume file: None

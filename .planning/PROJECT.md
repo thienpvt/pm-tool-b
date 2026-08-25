@@ -19,7 +19,6 @@ One source of truth for projects, milestones, RAID, and weekly reports — role-
 - Weekly-report period config, PM submit/versioning, CPMO tracking/export
 - Portfolio and PM dashboards
 - Project documents: templates + Confluence checklist (no file upload)
-- Tenant `company_id` on `timeline_import_mappings`, `bug_import_mappings`, `jira_jql_presets`, `jira_sync_mappings`
 
 ## Requirements
 
@@ -46,6 +45,7 @@ One source of truth for projects, milestones, RAID, and weekly reports — role-
 - ✓ Seven god pages split into hooks + feature modules (UI-01..11)
 - ✓ `withProjectAccess` on project-scoped, import, and export routes; 401/403 tests (ROUTE-03, 04, 08–11)
 - ✓ Vitest 4 harness + layer tests including cross-company 403 and mocked integration clients (727 passing)
+- ✓ TENANT-01 — `company_id` on `timeline_import_mappings`, `bug_import_mappings`, `jira_jql_presets`, `jira_sync_mappings`; multi-company CROSS JOIN backfill; cross-company 403 — Phase 9
 
 Remainder (ops/admin/config routes still repo-direct, proxy HTML-307 for API callers) is accepted v1.0 tech debt — see `.planning/milestones/v1.0-MILESTONE-AUDIT.md`.
 
@@ -68,7 +68,6 @@ Remainder (ops/admin/config routes still repo-direct, proxy HTML-307 for API cal
 - [ ] PR-13 Portfolio dashboard (active count, RAG, stage, high RAID, overdue milestones, drill-down)
 - [ ] PR-14 PM personal dashboard (assigned projects + weekly/milestone/RAID actions)
 - [ ] PR-15 Project documents: CPMO templates + Confluence checklist (PM does not upload files)
-- [ ] TENANT-01 `company_id` on `timeline_import_mappings`, `bug_import_mappings`, `jira_jql_presets`, `jira_sync_mappings`
 
 ### Out of Scope
 
@@ -86,7 +85,7 @@ Remainder (ops/admin/config routes still repo-direct, proxy HTML-307 for API cal
 
 **Shipped:** v1.0 Layer Reorg & Hardening (2026-08-25) — 8 phases, 35 plans. Archive: `.planning/milestones/`.
 
-**Now:** v2.0 Portfolio One View — product spec compliance on the post-reorg layers.
+**Now:** v2.0 Portfolio One View — Phase 9 (TENANT-01) shipped. Next is Phase 10: CPMO / PM / Viewer users, roles, and server authorization.
 
 The brownfield mess listed at kickoff is largely gone on the project-scoped path: tests exist (Vitest, 727 passing), SQL lives in repositories, Jira/Anthropic/Resend go through clients + one credential resolver, services own tenant checks, wrappers enforce access, and the seven named god pages are decomposed.
 
@@ -132,7 +131,8 @@ Still true and still not this milestone:
 | INTG-08 evidence before deleting dead Jira helpers | Resolver live paths already matched; deletion gated on `verify-credential-cutover.ts` | Closed Phase 8 (`e0b2cea`) |
 | Spec as source of truth for v2.0 | Bank PPM requirements are the product; existing screens that already match stay, mismatches change | — Pending |
 | Keep Jira / AI / Excel-PPT-Word export | Spec does not replace those integrations; they remain differentiators beside One View | — Pending |
-| v2.0 deferred pack is TENANT-01 only | User pointed at the four mapping-table `company_id` follow-up, not DATA/ENF/PERF or leftover route debt | — Pending |
+| v2.0 deferred pack is TENANT-01 only | User pointed at the four mapping-table `company_id` follow-up, not DATA/ENF/PERF or leftover route debt | Shipped Phase 9 |
+| Mapping tenancy via `migrateMappingTableTenancy` | Nullable column → duplicate-per-company backfill → NOT NULL+FK → `UNIQUE(company_id, name)` (JQL adds `context`); never collapse to company 1 | Shipped Phase 9 |
 | Word spec stays local, not committed | Reference document only; do not add the `.docx` to git | — Pending |
 
 ## Evolution
@@ -153,4 +153,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-08-25 after v2.0 milestone start*
+*Last updated: 2026-08-25 after Phase 9*
