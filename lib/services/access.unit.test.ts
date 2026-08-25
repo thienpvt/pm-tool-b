@@ -41,11 +41,22 @@ const nullCompany = {
 };
 
 describe('assertProjectAccess', () => {
-  it('fetches and returns the project row for admin (mirrors assertProgramAccess)', async () => {
-    const row = { company_id: 9, customer_company_id: null };
+  it('throws ForbiddenError when CPMO company does not match project company (D-13)', async () => {
+    projectAccessRow.mockResolvedValue({ company_id: 9, customer_company_id: null });
+    await expect(assertProjectAccess(1, admin)).rejects.toBeInstanceOf(ForbiddenError);
+    await expect(assertProjectAccess(1, admin)).rejects.not.toBeInstanceOf(NotFoundError);
+  });
+
+  it('allows CPMO when project.company_id matches actor company (D-13)', async () => {
+    const row = { company_id: 5, customer_company_id: null };
     projectAccessRow.mockResolvedValue(row);
     await expect(assertProjectAccess(1, admin)).resolves.toEqual(row);
-    expect(projectAccessRow).toHaveBeenCalledWith(1);
+  });
+
+  it('allows CPMO when customer_company_id matches actor company (D-13)', async () => {
+    const row = { company_id: 9, customer_company_id: 5 };
+    projectAccessRow.mockResolvedValue(row);
+    await expect(assertProjectAccess(1, admin)).resolves.toEqual(row);
   });
 
   it('throws NotFoundError when the project does not exist', async () => {
