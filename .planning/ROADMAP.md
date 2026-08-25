@@ -211,7 +211,7 @@ Plans:
 **Wave 2** *(parallel after Wave 1 — disjoint file ownership)*
 
 - [x] 07-02-PLAN.md — Decompose `app/portfolio/report/page.tsx` (2655 lines, UI-02)
-- [ ] 07-03-PLAN.md — Decompose `app/projects/[id]/timeline/page.tsx` (UI-03)
+- [x] 07-03-PLAN.md — Decompose `app/projects/[id]/timeline/page.tsx` (UI-03)
 - [ ] 07-04-PLAN.md — Decompose `app/projects/[id]/report/page.tsx` (UI-04)
 - [ ] 07-05-PLAN.md — Decompose `app/projects/[id]/milestones/page.tsx` (UI-05)
 
