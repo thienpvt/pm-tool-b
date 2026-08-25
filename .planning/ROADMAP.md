@@ -156,7 +156,21 @@ Plans:
   3. Assigned PM and CPMO can create, update, and deactivate risks and issues with a unique code per project; Viewer cannot mutate; the register defaults to Open / In progress, ordered High then Medium then Low, with overdue first within a severity
   4. Overdue open RAID items are flagged and shown on dashboards; changing a due date keeps prior due-date history; portfolio High RAID counts are open/in-progress records (not projects); technology-council issues are listable when that flag is set
 
-**Plans**: TBD
+**Plans:** 3 plans
+
+Plans:
+**Wave 1**
+
+- [ ] 12-01-PLAN.md — Schema, cancel-only milestones, upcoming/overdue helpers
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [ ] 12-02-PLAN.md — Unique RAID codes and HTTP DELETE → deactivate
+
+**Wave 3** *(blocked on Wave 1 and Wave 2)*
+
+- [ ] 12-03-PLAN.md — Due-date history, RAID-05 order, High/tech-council lists
+
 **UI hint**: yes
 
 ### Phase 13: Weekly Periods & PM Submit
