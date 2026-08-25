@@ -6,31 +6,42 @@ const {
   listRisksRepo,
   createRiskRepo,
   updateRiskRepo,
-  deleteRiskRepo,
+  findRiskByCode,
+  getRiskRepo,
+  deactivateRiskRepo,
+  auditLog,
 } = vi.hoisted(() => ({
   assertProjectAccess: vi.fn(),
   assertProjectWriteAccess: vi.fn(),
   listRisksRepo: vi.fn(),
   createRiskRepo: vi.fn(),
   updateRiskRepo: vi.fn(),
-  deleteRiskRepo: vi.fn(),
+  findRiskByCode: vi.fn(),
+  getRiskRepo: vi.fn(),
+  deactivateRiskRepo: vi.fn(),
+  auditLog: vi.fn(),
 }));
 
 vi.mock('@/lib/services/access', () => ({ assertProjectAccess, assertProjectWriteAccess }));
+vi.mock('@/lib/services/audit.service', () => ({ auditLog }));
 vi.mock('@/lib/repositories/risks.repo', () => ({
   listRisks: listRisksRepo,
   createRisk: createRiskRepo,
   updateRisk: updateRiskRepo,
-  deleteRisk: deleteRiskRepo,
+  findRiskByCode,
+  getRisk: getRiskRepo,
+  deactivateRisk: deactivateRiskRepo,
 }));
 
-import { createRisk, deleteRisk, listRisks, updateRisk } from './risks.service';
-import { ForbiddenError, NotFoundError } from './errors';
+import { createRisk, deactivateRisk, listRisks, updateRisk } from './risks.service';
+import { ConflictError, ForbiddenError, NotFoundError } from './errors';
 
 beforeEach(() => {
   vi.clearAllMocks();
   assertProjectAccess.mockResolvedValue(undefined);
   assertProjectWriteAccess.mockResolvedValue(undefined);
+  findRiskByCode.mockResolvedValue(undefined);
+  auditLog.mockResolvedValue(undefined);
 });
 
 const owner = {
@@ -68,31 +79,38 @@ describe('risks.service', () => {
       await expect(listRisks(7, foreign)).rejects.toBeInstanceOf(ForbiddenError);
       expect(listRisksRepo).not.toHaveBeenCalled();
     });
-
-    it('propagates ForbiddenError for a cross-company actor', async () => {
-      assertProjectAccess.mockRejectedValue(new ForbiddenError());
-      await expect(listRisks(7, foreign)).rejects.toBeInstanceOf(ForbiddenError);
-    });
   });
 
   describe('createRisk', () => {
     it('asserts write access before inserting', async () => {
       const body = { description: 'x' };
-      createRiskRepo.mockResolvedValue({ id: 2, description: 'x' });
-      await expect(createRisk(7, owner, body)).resolves.toEqual({ id: 2, description: 'x' });
+      createRiskRepo.mockResolvedValue({ id: 2, description: 'x', code: 'R-001' });
+      await expect(createRisk(7, owner, body)).resolves.toEqual({
+        id: 2,
+        description: 'x',
+        code: 'R-001',
+      });
       expect(assertProjectWriteAccess).toHaveBeenCalledWith(7, owner);
       expect(createRiskRepo).toHaveBeenCalledWith(7, body);
+    });
+
+    it('throws ConflictError when code duplicates an existing row (case-insensitive)', async () => {
+      findRiskByCode.mockResolvedValue({ id: 5 });
+      await expect(createRisk(7, owner, { code: 'R-001', description: 'dup' })).rejects.toBeInstanceOf(
+        ConflictError,
+      );
+      expect(createRiskRepo).not.toHaveBeenCalled();
+    });
+
+    it('maps SQLSTATE 23505 from the repository to ConflictError', async () => {
+      createRiskRepo.mockRejectedValue({ code: '23505' });
+      await expect(createRisk(7, owner, { code: 'R-002' })).rejects.toBeInstanceOf(ConflictError);
     });
 
     it('does not call the repository when write access is denied', async () => {
       assertProjectWriteAccess.mockRejectedValue(new ForbiddenError());
       await expect(createRisk(7, foreign, {})).rejects.toBeInstanceOf(ForbiddenError);
       expect(createRiskRepo).not.toHaveBeenCalled();
-    });
-
-    it('propagates ForbiddenError for a cross-company actor', async () => {
-      assertProjectWriteAccess.mockRejectedValue(new ForbiddenError());
-      await expect(createRisk(7, foreign, {})).rejects.toBeInstanceOf(ForbiddenError);
     });
   });
 
@@ -107,11 +125,15 @@ describe('risks.service', () => {
       expect(updateRiskRepo).toHaveBeenCalledWith(7, 3, { status: 'Closed' });
     });
 
+    it('throws ConflictError when changing code to a sibling row code', async () => {
+      findRiskByCode.mockResolvedValue({ id: 9 });
+      await expect(updateRisk(7, owner, 3, { code: 'R-009' })).rejects.toBeInstanceOf(ConflictError);
+      expect(updateRiskRepo).not.toHaveBeenCalled();
+    });
+
     it('throws NotFoundError when the repository returns undefined', async () => {
       updateRiskRepo.mockResolvedValue(undefined);
-      await expect(updateRisk(7, owner, 99, { status: 'Closed' })).rejects.toBeInstanceOf(
-        NotFoundError,
-      );
+      await expect(updateRisk(7, owner, 99, { status: 'Closed' })).rejects.toBeInstanceOf(NotFoundError);
     });
 
     it('does not call the repository when write access is denied', async () => {
@@ -119,35 +141,43 @@ describe('risks.service', () => {
       await expect(updateRisk(7, foreign, 3, {})).rejects.toBeInstanceOf(ForbiddenError);
       expect(updateRiskRepo).not.toHaveBeenCalled();
     });
-
-    it('propagates ForbiddenError for a cross-company actor', async () => {
-      assertProjectWriteAccess.mockRejectedValue(new ForbiddenError());
-      await expect(updateRisk(7, foreign, 3, {})).rejects.toBeInstanceOf(ForbiddenError);
-    });
   });
 
-  describe('deleteRisk', () => {
-    it('asserts write access before deleting', async () => {
-      deleteRiskRepo.mockResolvedValue({ lastInsertRowid: 0, changes: 1 });
-      await expect(deleteRisk(7, owner, 3)).resolves.toEqual({ lastInsertRowid: 0, changes: 1 });
+  describe('deactivateRisk', () => {
+    it('sets status deactivated, writes auditLog action deactivate, and does not delete the row', async () => {
+      getRiskRepo.mockResolvedValue({ id: 3, status: 'Open' });
+      deactivateRiskRepo.mockResolvedValue({ id: 3, status: 'deactivated', deactivated_at: '2026-01-01' });
+
+      await expect(deactivateRisk(7, owner, 3)).resolves.toMatchObject({
+        id: 3,
+        status: 'deactivated',
+      });
+
       expect(assertProjectWriteAccess).toHaveBeenCalledWith(7, owner);
-      expect(deleteRiskRepo).toHaveBeenCalledWith(7, 3);
+      expect(getRiskRepo).toHaveBeenCalledWith(7, 3);
+      expect(deactivateRiskRepo).toHaveBeenCalledWith(7, 3);
+      expect(auditLog).toHaveBeenCalledWith({
+        actor_id: owner.user_id,
+        company_id: owner.company_id,
+        entity_type: 'risk',
+        entity_id: '3',
+        action: 'deactivate',
+        before: { status: 'Open' },
+        after: { status: 'deactivated' },
+      });
     });
 
     it('throws NotFoundError when zero rows match', async () => {
-      deleteRiskRepo.mockResolvedValue({ lastInsertRowid: 0, changes: 0 });
-      await expect(deleteRisk(7, owner, 99)).rejects.toBeInstanceOf(NotFoundError);
+      getRiskRepo.mockResolvedValue({ id: 99, status: 'Open' });
+      deactivateRiskRepo.mockResolvedValue(undefined);
+      await expect(deactivateRisk(7, owner, 99)).rejects.toBeInstanceOf(NotFoundError);
     });
 
     it('does not call the repository when write access is denied', async () => {
       assertProjectWriteAccess.mockRejectedValue(new ForbiddenError());
-      await expect(deleteRisk(7, foreign, 3)).rejects.toBeInstanceOf(ForbiddenError);
-      expect(deleteRiskRepo).not.toHaveBeenCalled();
-    });
-
-    it('propagates ForbiddenError for a cross-company actor', async () => {
-      assertProjectWriteAccess.mockRejectedValue(new ForbiddenError());
-      await expect(deleteRisk(7, foreign, 3)).rejects.toBeInstanceOf(ForbiddenError);
+      await expect(deactivateRisk(7, foreign, 3)).rejects.toBeInstanceOf(ForbiddenError);
+      expect(deactivateRiskRepo).not.toHaveBeenCalled();
+      expect(auditLog).not.toHaveBeenCalled();
     });
   });
 });
