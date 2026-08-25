@@ -88,6 +88,24 @@ describe('GET/POST /api/bug-import-mapping', () => {
     );
   });
 
+  it('POST ignores company_id in body and stamps session company', async () => {
+    vi.mocked(getSessionFromRequest).mockResolvedValue(ownerSession as never);
+    const created = { id: 3, name: 'tpl3', mappings_json: '{}' };
+    createBugMapping.mockResolvedValue(created);
+
+    const res = await POST(
+      req('POST', undefined, { name: 'tpl3', mappings_json: '{}', company_id: 999 }),
+      params(),
+    );
+
+    expect(res.status).toBe(201);
+    expect(createBugMapping).toHaveBeenCalledWith(
+      expect.objectContaining({ company_id: 5 }),
+      'tpl3',
+      '{}',
+    );
+  });
+
   it('POST rejects invalid body with 400 Missing fields, before service call', async () => {
     vi.mocked(getSessionFromRequest).mockResolvedValue(ownerSession as never);
 

@@ -83,6 +83,22 @@ describe('GET/POST /api/jira/sync-mappings', () => {
     );
   });
 
+  it('POST ignores company_id in body and stamps session company', async () => {
+    vi.mocked(getSessionFromRequest).mockResolvedValue(ownerSession as never);
+    saveJiraSyncMapping.mockResolvedValue(undefined);
+
+    const res = await POST(
+      req('POST', undefined, { mappings_json: '{"b":2}', company_id: 999 }),
+      params(),
+    );
+
+    expect(res.status).toBe(200);
+    expect(saveJiraSyncMapping).toHaveBeenCalledWith(
+      expect.objectContaining({ company_id: 5 }),
+      '{"b":2}',
+    );
+  });
+
   it('POST rejects invalid body with 400 Missing mappings_json, before service call', async () => {
     vi.mocked(getSessionFromRequest).mockResolvedValue(ownerSession as never);
 

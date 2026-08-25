@@ -95,6 +95,29 @@ describe('GET/POST /api/import-mapping', () => {
     );
   });
 
+  it('POST ignores company_id in body and stamps session company', async () => {
+    vi.mocked(getSessionFromRequest).mockResolvedValue(ownerSession as never);
+    const created = { id: 3, name: 'tpl3', mappings_json: '{}' };
+    createTimelineMapping.mockResolvedValue(created);
+
+    const res = await POST(
+      req('POST', undefined, { name: 'tpl3', mappings_json: '{}', company_id: 999 }),
+      params(),
+    );
+
+    expect(res.status).toBe(201);
+    expect(createTimelineMapping).toHaveBeenCalledWith(
+      expect.objectContaining({ company_id: 5 }),
+      'tpl3',
+      '{}',
+    );
+    expect(createTimelineMapping).not.toHaveBeenCalledWith(
+      expect.objectContaining({ company_id: 999 }),
+      expect.anything(),
+      expect.anything(),
+    );
+  });
+
   it('POST returns 400 { error: Missing fields } on schema failure', async () => {
     vi.mocked(getSessionFromRequest).mockResolvedValue(ownerSession as never);
     const res = await POST(req('POST', undefined, { mappings_json: '{}' }), params());

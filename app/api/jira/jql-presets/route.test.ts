@@ -92,6 +92,26 @@ describe('GET/POST /api/jira/jql-presets', () => {
       10,
     );
   });
+
+  it('POST ignores company_id in body and stamps session company', async () => {
+    vi.mocked(getSessionFromRequest).mockResolvedValue(ownerSession as never);
+    const created = { id: 3, name: 'p3', jql: 'project = C', context: '' };
+    createJqlPreset.mockResolvedValue(created);
+
+    const res = await POST(
+      req('POST', undefined, { name: 'p3', jql: 'project = C', company_id: 999 }),
+      params(),
+    );
+
+    expect(res.status).toBe(201);
+    expect(createJqlPreset).toHaveBeenCalledWith(
+      expect.objectContaining({ company_id: 5 }),
+      'p3',
+      'project = C',
+      '',
+      10,
+    );
+  });
 });
 
 describe('DELETE /api/jira/jql-presets/[id]', () => {
