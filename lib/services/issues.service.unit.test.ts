@@ -1,15 +1,22 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { assertProjectAccess, listIssuesRepo, createIssueRepo, updateIssueRepo, deleteIssueRepo } =
-  vi.hoisted(() => ({
-    assertProjectAccess: vi.fn(),
-    listIssuesRepo: vi.fn(),
-    createIssueRepo: vi.fn(),
-    updateIssueRepo: vi.fn(),
-    deleteIssueRepo: vi.fn(),
-  }));
+const {
+  assertProjectAccess,
+  assertProjectWriteAccess,
+  listIssuesRepo,
+  createIssueRepo,
+  updateIssueRepo,
+  deleteIssueRepo,
+} = vi.hoisted(() => ({
+  assertProjectAccess: vi.fn(),
+  assertProjectWriteAccess: vi.fn(),
+  listIssuesRepo: vi.fn(),
+  createIssueRepo: vi.fn(),
+  updateIssueRepo: vi.fn(),
+  deleteIssueRepo: vi.fn(),
+}));
 
-vi.mock('@/lib/services/access', () => ({ assertProjectAccess }));
+vi.mock('@/lib/services/access', () => ({ assertProjectAccess, assertProjectWriteAccess }));
 vi.mock('@/lib/repositories/issues.repo', () => ({
   listIssues: listIssuesRepo,
   createIssue: createIssueRepo,
@@ -23,6 +30,7 @@ import { ForbiddenError, NotFoundError } from './errors';
 beforeEach(() => {
   vi.clearAllMocks();
   assertProjectAccess.mockResolvedValue(undefined);
+  assertProjectWriteAccess.mockResolvedValue(undefined);
 });
 
 const owner = { company_id: 5 as number | null, is_admin: 0 as number | boolean };
@@ -41,8 +49,15 @@ describe('issues.service', () => {
     expect(listIssuesRepo).not.toHaveBeenCalled();
   });
 
-  it('createIssue does not call the repository when access is denied', async () => {
-    assertProjectAccess.mockRejectedValue(new ForbiddenError());
+  it('createIssue asserts write access before inserting', async () => {
+    createIssueRepo.mockResolvedValue({ id: 2 });
+    await expect(createIssue(7, owner, { description: 'x' })).resolves.toEqual({ id: 2 });
+    expect(assertProjectWriteAccess).toHaveBeenCalledWith(7, owner);
+    expect(createIssueRepo).toHaveBeenCalledWith(7, { description: 'x' });
+  });
+
+  it('createIssue does not call the repository when write access is denied', async () => {
+    assertProjectWriteAccess.mockRejectedValue(new ForbiddenError());
     await expect(createIssue(7, foreign, {})).rejects.toBeInstanceOf(ForbiddenError);
     expect(createIssueRepo).not.toHaveBeenCalled();
   });
@@ -52,8 +67,8 @@ describe('issues.service', () => {
     await expect(updateIssue(7, owner, 99, {})).rejects.toBeInstanceOf(NotFoundError);
   });
 
-  it('updateIssue does not call the repository when access is denied', async () => {
-    assertProjectAccess.mockRejectedValue(new ForbiddenError());
+  it('updateIssue does not call the repository when write access is denied', async () => {
+    assertProjectWriteAccess.mockRejectedValue(new ForbiddenError());
     await expect(updateIssue(7, foreign, 1, {})).rejects.toBeInstanceOf(ForbiddenError);
     expect(updateIssueRepo).not.toHaveBeenCalled();
   });
@@ -63,8 +78,8 @@ describe('issues.service', () => {
     await expect(deleteIssue(7, owner, 99)).rejects.toBeInstanceOf(NotFoundError);
   });
 
-  it('deleteIssue does not call the repository when access is denied', async () => {
-    assertProjectAccess.mockRejectedValue(new ForbiddenError());
+  it('deleteIssue does not call the repository when write access is denied', async () => {
+    assertProjectWriteAccess.mockRejectedValue(new ForbiddenError());
     await expect(deleteIssue(7, foreign, 1)).rejects.toBeInstanceOf(ForbiddenError);
     expect(deleteIssueRepo).not.toHaveBeenCalled();
   });

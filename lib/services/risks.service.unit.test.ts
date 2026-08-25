@@ -1,15 +1,22 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { assertProjectAccess, assertCanMutate, listRisksRepo, createRiskRepo, updateRiskRepo, deleteRiskRepo } = vi.hoisted(() => ({
+const {
+  assertProjectAccess,
+  assertProjectWriteAccess,
+  listRisksRepo,
+  createRiskRepo,
+  updateRiskRepo,
+  deleteRiskRepo,
+} = vi.hoisted(() => ({
   assertProjectAccess: vi.fn(),
-  assertCanMutate: vi.fn(),
+  assertProjectWriteAccess: vi.fn(),
   listRisksRepo: vi.fn(),
   createRiskRepo: vi.fn(),
   updateRiskRepo: vi.fn(),
   deleteRiskRepo: vi.fn(),
 }));
 
-vi.mock('@/lib/services/access', () => ({ assertProjectAccess, assertCanMutate }));
+vi.mock('@/lib/services/access', () => ({ assertProjectAccess, assertProjectWriteAccess }));
 vi.mock('@/lib/repositories/risks.repo', () => ({
   listRisks: listRisksRepo,
   createRisk: createRiskRepo,
@@ -23,7 +30,7 @@ import { ForbiddenError, NotFoundError } from './errors';
 beforeEach(() => {
   vi.clearAllMocks();
   assertProjectAccess.mockResolvedValue(undefined);
-  assertCanMutate.mockImplementation(() => {});
+  assertProjectWriteAccess.mockResolvedValue(undefined);
 });
 
 const owner = {
@@ -69,34 +76,34 @@ describe('risks.service', () => {
   });
 
   describe('createRisk', () => {
-    it('asserts access before inserting', async () => {
+    it('asserts write access before inserting', async () => {
       const body = { description: 'x' };
       createRiskRepo.mockResolvedValue({ id: 2, description: 'x' });
       await expect(createRisk(7, owner, body)).resolves.toEqual({ id: 2, description: 'x' });
-      expect(assertProjectAccess).toHaveBeenCalledWith(7, owner);
+      expect(assertProjectWriteAccess).toHaveBeenCalledWith(7, owner);
       expect(createRiskRepo).toHaveBeenCalledWith(7, body);
     });
 
-    it('does not call the repository when access is denied', async () => {
-      assertProjectAccess.mockRejectedValue(new ForbiddenError());
+    it('does not call the repository when write access is denied', async () => {
+      assertProjectWriteAccess.mockRejectedValue(new ForbiddenError());
       await expect(createRisk(7, foreign, {})).rejects.toBeInstanceOf(ForbiddenError);
       expect(createRiskRepo).not.toHaveBeenCalled();
     });
 
     it('propagates ForbiddenError for a cross-company actor', async () => {
-      assertProjectAccess.mockRejectedValue(new ForbiddenError());
+      assertProjectWriteAccess.mockRejectedValue(new ForbiddenError());
       await expect(createRisk(7, foreign, {})).rejects.toBeInstanceOf(ForbiddenError);
     });
   });
 
   describe('updateRisk', () => {
-    it('asserts access before updating', async () => {
+    it('asserts write access before updating', async () => {
       updateRiskRepo.mockResolvedValue({ id: 3, status: 'Closed' });
       await expect(updateRisk(7, owner, 3, { status: 'Closed' })).resolves.toEqual({
         id: 3,
         status: 'Closed',
       });
-      expect(assertProjectAccess).toHaveBeenCalledWith(7, owner);
+      expect(assertProjectWriteAccess).toHaveBeenCalledWith(7, owner);
       expect(updateRiskRepo).toHaveBeenCalledWith(7, 3, { status: 'Closed' });
     });
 
@@ -107,23 +114,23 @@ describe('risks.service', () => {
       );
     });
 
-    it('does not call the repository when access is denied', async () => {
-      assertProjectAccess.mockRejectedValue(new ForbiddenError());
+    it('does not call the repository when write access is denied', async () => {
+      assertProjectWriteAccess.mockRejectedValue(new ForbiddenError());
       await expect(updateRisk(7, foreign, 3, {})).rejects.toBeInstanceOf(ForbiddenError);
       expect(updateRiskRepo).not.toHaveBeenCalled();
     });
 
     it('propagates ForbiddenError for a cross-company actor', async () => {
-      assertProjectAccess.mockRejectedValue(new ForbiddenError());
+      assertProjectWriteAccess.mockRejectedValue(new ForbiddenError());
       await expect(updateRisk(7, foreign, 3, {})).rejects.toBeInstanceOf(ForbiddenError);
     });
   });
 
   describe('deleteRisk', () => {
-    it('asserts access before deleting', async () => {
+    it('asserts write access before deleting', async () => {
       deleteRiskRepo.mockResolvedValue({ lastInsertRowid: 0, changes: 1 });
       await expect(deleteRisk(7, owner, 3)).resolves.toEqual({ lastInsertRowid: 0, changes: 1 });
-      expect(assertProjectAccess).toHaveBeenCalledWith(7, owner);
+      expect(assertProjectWriteAccess).toHaveBeenCalledWith(7, owner);
       expect(deleteRiskRepo).toHaveBeenCalledWith(7, 3);
     });
 
@@ -132,14 +139,14 @@ describe('risks.service', () => {
       await expect(deleteRisk(7, owner, 99)).rejects.toBeInstanceOf(NotFoundError);
     });
 
-    it('does not call the repository when access is denied', async () => {
-      assertProjectAccess.mockRejectedValue(new ForbiddenError());
+    it('does not call the repository when write access is denied', async () => {
+      assertProjectWriteAccess.mockRejectedValue(new ForbiddenError());
       await expect(deleteRisk(7, foreign, 3)).rejects.toBeInstanceOf(ForbiddenError);
       expect(deleteRiskRepo).not.toHaveBeenCalled();
     });
 
     it('propagates ForbiddenError for a cross-company actor', async () => {
-      assertProjectAccess.mockRejectedValue(new ForbiddenError());
+      assertProjectWriteAccess.mockRejectedValue(new ForbiddenError());
       await expect(deleteRisk(7, foreign, 3)).rejects.toBeInstanceOf(ForbiddenError);
     });
   });
