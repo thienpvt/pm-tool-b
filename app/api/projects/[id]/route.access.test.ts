@@ -1,16 +1,19 @@
 import { NextRequest } from 'next/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { projectAccessRow, getProjectRepo, updateProjectRepo, deleteProjectRepo } = vi.hoisted(() => ({
-  projectAccessRow: vi.fn(),
-  getProjectRepo: vi.fn(),
-  updateProjectRepo: vi.fn(),
-  deleteProjectRepo: vi.fn(),
-}));
+const { projectAccessRow, getProjectPmIdentity, getProjectRepo, updateProjectRepo, deleteProjectRepo } =
+  vi.hoisted(() => ({
+    projectAccessRow: vi.fn(),
+    getProjectPmIdentity: vi.fn(),
+    getProjectRepo: vi.fn(),
+    updateProjectRepo: vi.fn(),
+    deleteProjectRepo: vi.fn(),
+  }));
 
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
 vi.mock('@/lib/repositories/projects.repo', () => ({
   projectAccessRow,
+  getProjectPmIdentity,
   getProject: getProjectRepo,
   updateProject: updateProjectRepo,
   deleteProject: deleteProjectRepo,
@@ -21,15 +24,14 @@ import { UnknownColumnError } from '@/lib/repositories/_helpers';
 import { DELETE, GET, PATCH } from './route';
 
 /**
- * Route-level proof that GET/PATCH/DELETE now go through `projects.service.ts` and
- * the canonical `assertProjectAccess`, replacing the file-local `checkAccess` (T-04-24).
- * Mocks sit at the repository boundary (`projectAccessRow` + CRUD) so the real service
- * and the real `assertProjectAccess` logic run under test — same convention as
- * `app/api/projects/[id]/risks/route.test.ts`.
+ * Route-level proof that GET/PATCH/DELETE go through `projects.service.ts` and
+ * the canonical access asserts. Mocks sit at the repository boundary so the
+ * real service and access logic run under test.
  */
 describe('GET/PATCH/DELETE /api/projects/[id] access control', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    getProjectPmIdentity.mockResolvedValue({ pm_name: 'Ava', pm_email: 'ava@example.com' });
   });
 
   const params = (id = '7') => ({ params: Promise.resolve({ id }) });
@@ -50,9 +52,24 @@ describe('GET/PATCH/DELETE /api/projects/[id] access control', () => {
     company_name: 'Acme',
     is_admin: 0,
     onboarding_completed: 1,
+    roles: ['pm'],
+    status: 'active',
+    email: 'ava@example.com',
   };
 
-  const adminSession = { ...ownerSession, username: 'root', is_admin: 1, company_id: null };
+  const cpmoSession = {
+    ...ownerSession,
+    username: 'cpmo',
+    is_admin: 1,
+    roles: ['cpmo'],
+  };
+
+  const viewerSession = {
+    ...ownerSession,
+    username: 'viewer',
+    roles: ['viewer'],
+  };
+
   const foreignSession = { ...ownerSession, company_id: 9, username: 'bob' };
   const nullCompanySession = { ...ownerSession, company_id: null, username: 'nobody' };
 
@@ -86,7 +103,7 @@ describe('GET/PATCH/DELETE /api/projects/[id] access control', () => {
     expect(getProjectRepo).not.toHaveBeenCalled();
   });
 
-  it('returns 200 with the project for an owner on GET', async () => {
+  it('returns 200 with the project for an assigned PM owner on GET', async () => {
     vi.mocked(getSessionFromRequest).mockResolvedValue(ownerSession as never);
     projectAccessRow.mockResolvedValue({ company_id: 5, customer_company_id: null });
     const project = { id: 7, name: 'Acme Rollout' };
@@ -99,19 +116,14 @@ describe('GET/PATCH/DELETE /api/projects/[id] access control', () => {
     expect(getProjectRepo).toHaveBeenCalledWith('7');
   });
 
-  it('returns 200 for an admin regardless of company', async () => {
-    vi.mocked(getSessionFromRequest).mockResolvedValue(adminSession as never);
-    // Post-flip (05-01): the admin branch of assertProjectAccess now fetches the
-    // row too (mirrors assertProgramAccess) so it has something to return —
-    // wire behavior is unchanged, but the query now happens.
+  it('returns 403 for CPMO on a foreign-company project (D-13)', async () => {
+    vi.mocked(getSessionFromRequest).mockResolvedValue(cpmoSession as never);
     projectAccessRow.mockResolvedValue({ company_id: 9, customer_company_id: null });
-    const project = { id: 7, name: 'Acme Rollout' };
-    getProjectRepo.mockResolvedValue(project);
 
     const res = await GET(req('GET'), params());
 
-    expect(res.status).toBe(200);
-    expect(projectAccessRow).toHaveBeenCalledWith('7');
+    expect(res.status).toBe(403);
+    expect(getProjectRepo).not.toHaveBeenCalled();
   });
 
   it('allows a null-company actor only for a fully-unassigned project on GET', async () => {
@@ -133,7 +145,7 @@ describe('GET/PATCH/DELETE /api/projects/[id] access control', () => {
     expect(res.status).toBe(403);
   });
 
-  it('PATCH returns the updated row for an owner', async () => {
+  it('PATCH returns the updated row for an assigned PM owner', async () => {
     vi.mocked(getSessionFromRequest).mockResolvedValue(ownerSession as never);
     projectAccessRow.mockResolvedValue({ company_id: 5, customer_company_id: null });
     const updated = { id: 7, name: 'Renamed' };
@@ -155,6 +167,27 @@ describe('GET/PATCH/DELETE /api/projects/[id] access control', () => {
     expect(updateProjectRepo).not.toHaveBeenCalled();
   });
 
+  it('PATCH returns 403 for viewer-only in-company (D-15)', async () => {
+    vi.mocked(getSessionFromRequest).mockResolvedValue(viewerSession as never);
+    projectAccessRow.mockResolvedValue({ company_id: 5, customer_company_id: null });
+
+    const res = await PATCH(req('PATCH', { name: 'Renamed' }), params());
+
+    expect(res.status).toBe(403);
+    expect(updateProjectRepo).not.toHaveBeenCalled();
+  });
+
+  it('PATCH returns 403 for PM in-company that fails D-14 assignment (D-14)', async () => {
+    vi.mocked(getSessionFromRequest).mockResolvedValue(ownerSession as never);
+    projectAccessRow.mockResolvedValue({ company_id: 5, customer_company_id: null });
+    getProjectPmIdentity.mockResolvedValue({ pm_name: 'Bob', pm_email: 'bob@other.com' });
+
+    const res = await PATCH(req('PATCH', { name: 'Renamed' }), params());
+
+    expect(res.status).toBe(403);
+    expect(updateProjectRepo).not.toHaveBeenCalled();
+  });
+
   it('PATCH rejects company_id with 400 naming the column, not 403/404/500 (T-04-25)', async () => {
     vi.mocked(getSessionFromRequest).mockResolvedValue(ownerSession as never);
     projectAccessRow.mockResolvedValue({ company_id: 5, customer_company_id: null });
@@ -166,7 +199,7 @@ describe('GET/PATCH/DELETE /api/projects/[id] access control', () => {
     await expect(res.json()).resolves.toMatchObject({ columns: ['company_id'] });
   });
 
-  it('DELETE returns { ok: true } for an owner', async () => {
+  it('DELETE returns { ok: true } for an assigned PM owner', async () => {
     vi.mocked(getSessionFromRequest).mockResolvedValue(ownerSession as never);
     projectAccessRow.mockResolvedValue({ company_id: 5, customer_company_id: null });
     deleteProjectRepo.mockResolvedValue({ lastInsertRowid: 0, changes: 1 });
