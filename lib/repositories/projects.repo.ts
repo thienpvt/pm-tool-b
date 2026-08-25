@@ -25,6 +25,19 @@ export const PROJECT_COLUMNS = [
   'budget_currency',
   'headcount_quota',
   'budget_status',
+  'project_code',
+  'portfolio_year',
+  'stage',
+  'status_reason',
+  'rag',
+  'progress_pct',
+  'weekly_report_enabled',
+  'weekly_report_start_period',
+  'plan_end',
+  'adjusted_end',
+  'actual_end',
+  'classification',
+  'governance',
 ] as const;
 
 export type ProjectAccessRow = {
@@ -57,6 +70,18 @@ export async function getProjectPmIdentity(projectId: number | string) {
   return db.get<{ pm_name: string; pm_email: string }>(
     'SELECT pm_name, pm_email FROM projects WHERE id = ?',
     Number(projectId),
+  );
+}
+
+/** Case-insensitive per-company project code lookup (D-01). */
+export async function findProjectByCompanyCode(companyId: number, code: string) {
+  const db = await getDb();
+  return db.get<{ id: number }>(
+    `SELECT id FROM projects
+     WHERE company_id = ? AND LOWER(project_code) = LOWER(?)
+     LIMIT 1`,
+    companyId,
+    code,
   );
 }
 
@@ -116,12 +141,30 @@ const DEFAULT_ESCALATIONS = [
 export async function createProject(companyId: number | null, body: Record<string, unknown>) {
   const db = await getDb();
   const result = await db.run(
-    `INSERT INTO projects (name, client, customer_id, pm_name, pm_email, start_date, end_date, description, current_phase, objective, project_owner, budget, budget_currency, company_id)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    body.name, body.client ?? '', body.customer_id ?? null, body.pm_name ?? '', body.pm_email ?? '',
-    body.start_date ?? '', body.end_date ?? '', body.description ?? '', body.current_phase ?? 'Initiation',
-    body.objective ?? '', body.project_owner ?? '', body.budget ? Number(body.budget) : 0,
-    body.budget_currency ?? 'VND', companyId,
+    `INSERT INTO projects (
+      name, client, customer_id, pm_name, pm_email, start_date, end_date, description,
+      current_phase, objective, project_owner, budget, budget_currency, company_id,
+      project_code, portfolio_year, stage, progress_pct, weekly_report_enabled
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    body.name,
+    body.client ?? '',
+    body.customer_id ?? null,
+    body.pm_name ?? '',
+    body.pm_email ?? '',
+    body.start_date ?? '',
+    body.end_date ?? '',
+    body.description ?? '',
+    body.current_phase ?? 'Initiation',
+    body.objective ?? '',
+    body.project_owner ?? '',
+    body.budget ? Number(body.budget) : 0,
+    body.budget_currency ?? 'VND',
+    companyId,
+    body.project_code ?? null,
+    body.portfolio_year ?? null,
+    body.stage ?? null,
+    body.progress_pct ?? 0,
+    body.weekly_report_enabled ?? false,
   );
 
   const newId = result.lastInsertRowid;

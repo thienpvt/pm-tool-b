@@ -1,10 +1,12 @@
 import {
   createProject as createProjectRepo,
   deleteProject as deleteProjectRepo,
+  findProjectByCompanyCode,
   getProject as getProjectRepo,
   listProjects as listProjectsRepo,
   updateProject as updateProjectRepo,
 } from '@/lib/repositories/projects.repo';
+import { getProgram } from '@/lib/repositories/programs.repo';
 import {
   assertProjectAccess,
   assertProjectWriteAccess,
@@ -12,7 +14,7 @@ import {
   isCpmo,
   type AccessActor,
 } from './access';
-import { ForbiddenError, NotFoundError } from './errors';
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors';
 
 /**
  * Owner-scoped project CRUD for `app/api/projects/[id]/route.ts` — the canonical
@@ -49,7 +51,39 @@ export async function listProjects(actor: AccessActor) {
 export async function createProject(actor: AccessActor, body: Record<string, unknown>) {
   if (!isCpmo(actor)) throw new ForbiddenError();
   if (actor.company_id === null) throw new ForbiddenError();
-  return createProjectRepo(actor.company_id, body);
+
+  const projectCode = typeof body.project_code === 'string' ? body.project_code.trim() : '';
+  if (!projectCode) throw new ValidationError('project_code is required', 'project_code');
+
+  const portfolioYear = body.portfolio_year;
+  if (
+    portfolioYear === undefined ||
+    portfolioYear === null ||
+    portfolioYear === '' ||
+    !Number.isInteger(Number(portfolioYear))
+  ) {
+    throw new ValidationError('portfolio_year is required', 'portfolio_year');
+  }
+
+  const customerId = body.customer_id;
+  if (customerId === undefined || customerId === null || customerId === '') {
+    throw new ValidationError('customer_id is required', 'customer_id');
+  }
+
+  const program = await getProgram(Number(customerId));
+  if (!program) throw new NotFoundError('Program not found', 'program');
+  if (program.company_id !== actor.company_id) throw new ForbiddenError();
+
+  if (await findProjectByCompanyCode(actor.company_id, projectCode)) {
+    throw new ConflictError('Project code already exists');
+  }
+
+  return createProjectRepo(actor.company_id, {
+    ...body,
+    project_code: projectCode,
+    portfolio_year: Number(portfolioYear),
+    customer_id: Number(customerId),
+  });
 }
 
 export async function getProject(projectId: number | string, actor: AccessActor) {

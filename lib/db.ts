@@ -611,6 +611,8 @@ export async function getDb(): Promise<DbClient> {
   await migrateMappingTableTenancy(pool);
   const { migrateUsersRolesAndAudit } = await import('./db-roles');
   await migrateUsersRolesAndAudit(pool);
+  const { migrateProjectMaster } = await import('./db-project-master');
+  await migrateProjectMaster(pool);
   await backfillWeightedCompletion(pool);
   _client = client;
 

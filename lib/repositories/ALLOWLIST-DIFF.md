@@ -18,7 +18,7 @@ These are the silent-breakage risk:
 
 | Table | Migration-only columns |
 |---|---|
-| `projects` | `headcount_quota`, `budget_status` |
+| `projects` | `headcount_quota`, `budget_status`, `project_code`, `portfolio_year`, `stage`, `status_reason`, `rag`, `progress_pct`, `weekly_report_enabled`, `weekly_report_start_period`, `plan_end`, `adjusted_end`, `actual_end`, `classification`, `governance` (Phase 11 `migrateProjectMaster`) |
 | `activities` | `project_status`, `parent_id` |
 
 The rest of the migration list (`objective`, `project_owner`, `budget`,
@@ -52,6 +52,19 @@ Route: `app/api/projects/[id]/route.ts` PATCH. Current code:
 | `budget_currency` | yes | yes | yes | |
 | `headcount_quota` | no | yes | yes | **migration-only** |
 | `budget_status` | no | yes | yes | **migration-only** |
+| `project_code` | no | yes (Phase 11) | yes | **migrateProjectMaster** |
+| `portfolio_year` | no | yes (Phase 11) | yes | **migrateProjectMaster** |
+| `stage` | no | yes (Phase 11) | yes | **migrateProjectMaster** |
+| `status_reason` | no | yes (Phase 11) | yes | **migrateProjectMaster** |
+| `rag` | no | yes (Phase 11) | yes | **migrateProjectMaster** |
+| `progress_pct` | no | yes (Phase 11) | yes | **migrateProjectMaster** (D-09 live progress) |
+| `weekly_report_enabled` | no | yes (Phase 11) | yes | **migrateProjectMaster** |
+| `weekly_report_start_period` | no | yes (Phase 11) | yes | **migrateProjectMaster** |
+| `plan_end` | no | yes (Phase 11) | yes | **migrateProjectMaster** |
+| `adjusted_end` | no | yes (Phase 11) | yes | **migrateProjectMaster** |
+| `actual_end` | no | yes (Phase 11) | yes | **migrateProjectMaster** |
+| `classification` | no | yes (Phase 11) | yes | **migrateProjectMaster** |
+| `governance` | no | yes (Phase 11) | yes | **migrateProjectMaster** |
 | `customer_id` | yes | yes | **no** | tenancy — client-settable today; this is the IDOR vector |
 | `company_id` | yes | yes | **no** | tenancy — same |
 | `created_at` | yes | — | **no** | DB default |

@@ -78,7 +78,31 @@ CREATE TABLE IF NOT EXISTS projects (
   start_date TEXT, end_date TEXT, status TEXT, current_phase TEXT, description TEXT,
   objective TEXT, project_owner TEXT, budget NUMERIC, budget_currency TEXT,
   headcount_quota INTEGER, budget_status TEXT,
+  project_code TEXT, portfolio_year INTEGER, stage TEXT, status_reason TEXT, rag TEXT,
+  progress_pct INTEGER DEFAULT 0, weekly_report_enabled BOOLEAN DEFAULT FALSE,
+  weekly_report_start_period TEXT, plan_end TEXT, adjusted_end TEXT, actual_end TEXT,
+  classification TEXT, governance TEXT,
   customer_id INTEGER, company_id INTEGER, created_at TIMESTAMPTZ DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS project_pm_assignments (
+  id SERIAL PRIMARY KEY,
+  project_id INTEGER NOT NULL REFERENCES projects(id),
+  user_id INTEGER NOT NULL REFERENCES users(id),
+  role TEXT NOT NULL CHECK (role IN ('primary','collaborator')),
+  effective_from DATE NOT NULL,
+  effective_to DATE,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS project_stakeholders (
+  id SERIAL PRIMARY KEY,
+  project_id INTEGER NOT NULL REFERENCES projects(id),
+  stakeholder_role TEXT NOT NULL CHECK (stakeholder_role IN ('sponsor','psc_chair','psc_member','project_director','key_stakeholder')),
+  user_id INTEGER REFERENCES users(id),
+  external_name TEXT,
+  external_email TEXT,
+  effective_from DATE NOT NULL,
+  effective_to DATE,
+  created_at TIMESTAMPTZ DEFAULT now()
 );
 CREATE TABLE IF NOT EXISTS customers (
   id SERIAL PRIMARY KEY, name TEXT, industry TEXT, contact_name TEXT,
