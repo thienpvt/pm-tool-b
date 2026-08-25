@@ -2,7 +2,7 @@ import {
   listEscalations as listEscalationsRepo,
   updateEscalation as updateEscalationRepo,
 } from '@/lib/repositories/escalations.repo';
-import { assertProjectAccess, type AccessActor } from './access';
+import { assertProjectAccess, assertProjectWriteAccess, type AccessActor } from './access';
 import { NotFoundError } from './errors';
 
 export async function listEscalations(projectId: number | string, actor: AccessActor) {
@@ -16,7 +16,7 @@ export async function updateEscalation(
   rowId: number | string,
   fields: Record<string, unknown>,
 ) {
-  await assertProjectAccess(projectId, actor);
+  await assertProjectWriteAccess(projectId, actor);
   const updated = await updateEscalationRepo(projectId, rowId, fields);
   if (!updated) throw new NotFoundError('Not found', 'escalation');
   return updated;
