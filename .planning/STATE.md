@@ -5,16 +5,16 @@ milestone_name: Portfolio One View
 current_phase: 11
 current_phase_name: Project Master, PM Assignment & Stakeholders
 status: executing
-stopped_at: Completed 11-02-PLAN.md
-last_updated: "2026-08-25T19:47:48.109Z"
+stopped_at: Completed 11-04-PLAN.md
+last_updated: "2026-08-25T19:51:04.409Z"
 last_activity: 2026-08-26
 last_activity_desc: Phase 10 complete, transitioned to Phase 11
-state_head: 1c71ec5b5f7e50add7a60611d55a7c346b1c1972
+state_head: daf6fe04cf9418787b6d2fbafaf32dda020e3f07
 progress:
   total_phases: 10
   completed_phases: 2
   total_plans: 19
-  completed_plans: 16
+  completed_plans: 17
 ---
 
 # Project State
@@ -71,6 +71,7 @@ Progress: [█░░░░░░░░░] 10%
 | Phase 10-users-roles-server-authorization P10 | 5min | 3 tasks | 16 files |
 | Phase 11 P01 | 8 | 2 tasks | 8 files |
 | Phase 11 P02 | 8 | 2 tasks | 4 files |
+| Phase 11 P04 | 4 | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -110,6 +111,8 @@ Recent decisions affecting current work:
 - [Phase 11]: Tracer 11-01-01 implemented duplicate/foreign-program checks; task 11-01-02 required no additional production diff
 - [Phase 11]: Extended governance prior with status_reason for merged Other validation on PATCH
 - [Phase 11]: findProjectByCompanyCode clash filtered by excluding current project id in service
+- [Phase 11]: Singleton stakeholder roles enforced in service via hasActiveStakeholderForRole repo query
+- [Phase 11]: PATCH /stakeholders ends role by body.id with optional effective_to
 
 ### Pending Todos
 
@@ -130,6 +133,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-08-25T19:47:47.933Z
-Stopped at: Completed 11-02-PLAN.md
+Last session: 2026-08-25T19:51:04.230Z
+Stopped at: Completed 11-04-PLAN.md
 Resume file: None

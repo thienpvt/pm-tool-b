@@ -122,7 +122,7 @@ Plans:
   3. CPMO can assign exactly one active primary PM per project or leave none; collaborating PMs only when a primary is active; a user cannot be both primary and collaborator on the same project; change/revoke keeps assignment history by period; a PM's write access starts and ends with the effective assignment window
   4. A user with write access can record sponsor, PSC chair, PSC members, project director, and key stakeholders (existing users or external parties) with effective date ranges, end a role without deleting history, and see the same stakeholder data on project info, dashboards, and reports
 
-**Plans:** 2/5 plans executed
+**Plans:** 3/5 plans executed
 
 Plans:
 **Wave 1**
@@ -132,7 +132,7 @@ Plans:
 **Wave 2** *(blocked on Wave 1 completion)*
 
 - [x] 11-02-PLAN.md — L0–L5 governance, warnings JSON, CPMO in-place code change
-- [ ] 11-04-PLAN.md — Stakeholder history nested API and listProjectStakeholders
+- [x] 11-04-PLAN.md — Stakeholder history nested API and listProjectStakeholders
 
 **Wave 3** *(blocked on Wave 2 plan 11-02)*
 
@@ -267,7 +267,7 @@ Phases execute in numeric order: 9 → 10 → 11 → 12 → 13 → 14 → 15 →
 | 8. INTG-08 Credential Cutover | v1.0 | 1/1 | Complete | 2026-08-25 |
 | 9. Mapping Table Tenant Isolation | v2.0 | 3/3 | Complete    | 2026-08-26 |
 | 10. Users, Roles & Server Authorization | v2.0 | 11/11 | Complete    | 2026-08-26 |
-| 11. Project Master, PM Assignment & Stakeholders | v2.0 | 2/5 | In Progress|  |
+| 11. Project Master, PM Assignment & Stakeholders | v2.0 | 3/5 | In Progress|  |
 | 12. Milestone & RAID Master Registers | v2.0 | 0/? | Not started | - |
 | 13. Weekly Periods & PM Submit | v2.0 | 0/? | Not started | - |
 | 14. CPMO Tracking & Consolidated Export | v2.0 | 0/? | Not started | - |

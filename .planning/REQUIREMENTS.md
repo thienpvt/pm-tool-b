@@ -47,9 +47,9 @@ Requirements for this milestone. Each maps to roadmap phases. Jira import, AI re
 
 ### Stakeholders
 
-- [ ] **STKH-01**: User with write access can record sponsor, PSC chair, PSC members, project director, and key stakeholders, choosing existing users or external parties without accounts
-- [ ] **STKH-02**: User can set effective date ranges and end a stakeholder role without deleting history
-- [ ] **STKH-03**: Stakeholder data is the same source used on project info, dashboards, and reports
+- [x] **STKH-01**: User with write access can record sponsor, PSC chair, PSC members, project director, and key stakeholders, choosing existing users or external parties without accounts
+- [x] **STKH-02**: User can set effective date ranges and end a stakeholder role without deleting history
+- [x] **STKH-03**: Stakeholder data is the same source used on project info, dashboards, and reports
 
 ### Cross-Project Dependencies
 
@@ -210,9 +210,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PMAS-02 | Phase 11 | Pending |
 | PMAS-03 | Phase 11 | Pending |
 | PMAS-04 | Phase 11 | Pending |
-| STKH-01 | Phase 11 | Pending |
-| STKH-02 | Phase 11 | Pending |
-| STKH-03 | Phase 11 | Pending |
+| STKH-01 | Phase 11 | Complete |
+| STKH-02 | Phase 11 | Complete |
+| STKH-03 | Phase 11 | Complete |
 | DEP-01 | Phase 15 | Pending |
 | DEP-02 | Phase 15 | Pending |
 | DEP-03 | Phase 15 | Pending |
