@@ -14,7 +14,9 @@ import {
   isCpmo,
   type AccessActor,
 } from './access';
+import { auditLog } from './audit.service';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors';
+import { applyProjectGovernance } from './project-governance';
 
 /**
  * Owner-scoped project CRUD for `app/api/projects/[id]/route.ts` — the canonical
@@ -78,12 +80,15 @@ export async function createProject(actor: AccessActor, body: Record<string, unk
     throw new ConflictError('Project code already exists');
   }
 
-  return createProjectRepo(actor.company_id, {
+  const { fields, warnings } = applyProjectGovernance({
     ...body,
     project_code: projectCode,
     portfolio_year: Number(portfolioYear),
     customer_id: Number(customerId),
   });
+
+  const row = await createProjectRepo(actor.company_id, fields);
+  return { ...row, warnings };
 }
 
 export async function getProject(projectId: number | string, actor: AccessActor) {
@@ -99,7 +104,53 @@ export async function updateProject(
   fields: Record<string, unknown>,
 ) {
   await assertProjectWriteAccess(projectId, actor);
-  return updateProjectRepo(projectId, fields);
+
+  const current = await getProjectRepo(projectId);
+  if (!current) throw new NotFoundError('Not found', 'project');
+
+  const clone = { ...fields };
+
+  if (!isCpmo(actor)) {
+    delete clone.project_code;
+  } else if (typeof clone.project_code === 'string') {
+    const newCode = clone.project_code.trim();
+    const currentCode =
+      typeof current.project_code === 'string' ? current.project_code : '';
+    if (newCode && newCode !== currentCode) {
+      const clash = await findProjectByCompanyCode(actor.company_id!, newCode);
+      if (clash && clash.id !== Number(projectId)) {
+        throw new ConflictError('Project code already exists');
+      }
+      clone.project_code = newCode;
+    }
+  }
+
+  const { fields: governed, warnings } = applyProjectGovernance(clone, {
+    progress_pct: current.progress_pct as number | null | undefined,
+    status: current.status as string | null | undefined,
+    rag: current.rag as string | null | undefined,
+    stage: current.stage as string | null | undefined,
+    status_reason: current.status_reason as string | null | undefined,
+  });
+
+  if (
+    isCpmo(actor) &&
+    governed.project_code !== undefined &&
+    governed.project_code !== current.project_code
+  ) {
+    await auditLog({
+      actor_id: actor.user_id,
+      company_id: actor.company_id,
+      entity_type: 'project',
+      entity_id: String(projectId),
+      action: 'code_change',
+      before: { project_code: current.project_code },
+      after: { project_code: governed.project_code },
+    });
+  }
+
+  const row = await updateProjectRepo(projectId, governed);
+  return { ...row, warnings };
 }
 
 export async function deleteProject(projectId: number | string, actor: AccessActor) {
