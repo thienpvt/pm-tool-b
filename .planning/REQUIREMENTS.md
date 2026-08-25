@@ -186,91 +186,102 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| USER-01 | — | Pending |
-| USER-02 | — | Pending |
-| USER-03 | — | Pending |
-| USER-04 | — | Pending |
-| USER-05 | — | Pending |
-| USER-06 | — | Pending |
-| AUTH-01 | — | Pending |
-| AUTH-02 | — | Pending |
-| AUTH-03 | — | Pending |
-| AUTH-04 | — | Pending |
-| AUTH-05 | — | Pending |
-| AUTH-06 | — | Pending |
-| PROJ-01 | — | Pending |
-| PROJ-02 | — | Pending |
-| PROJ-03 | — | Pending |
-| PROJ-04 | — | Pending |
-| PROJ-05 | — | Pending |
-| PROJ-06 | — | Pending |
-| PROJ-07 | — | Pending |
-| PROJ-08 | — | Pending |
-| PMAS-01 | — | Pending |
-| PMAS-02 | — | Pending |
-| PMAS-03 | — | Pending |
-| PMAS-04 | — | Pending |
-| STKH-01 | — | Pending |
-| STKH-02 | — | Pending |
-| STKH-03 | — | Pending |
-| DEP-01 | — | Pending |
-| DEP-02 | — | Pending |
-| DEP-03 | — | Pending |
-| MS-01 | — | Pending |
-| MS-02 | — | Pending |
-| MS-03 | — | Pending |
-| MS-04 | — | Pending |
-| MS-05 | — | Pending |
-| BUDG-01 | — | Pending |
-| BUDG-02 | — | Pending |
-| BUDG-03 | — | Pending |
-| BUDG-04 | — | Pending |
-| BUDG-05 | — | Pending |
-| BUDG-06 | — | Pending |
-| RAID-01 | — | Pending |
-| RAID-02 | — | Pending |
-| RAID-03 | — | Pending |
-| RAID-04 | — | Pending |
-| RAID-05 | — | Pending |
-| RAID-06 | — | Pending |
-| PERD-01 | — | Pending |
-| PERD-02 | — | Pending |
-| PERD-03 | — | Pending |
-| WKRP-01 | — | Pending |
-| WKRP-02 | — | Pending |
-| WKRP-03 | — | Pending |
-| WKRP-04 | — | Pending |
-| WKRP-05 | — | Pending |
-| WKRP-06 | — | Pending |
-| CPMO-01 | — | Pending |
-| CPMO-02 | — | Pending |
-| CPMO-03 | — | Pending |
-| CPMO-04 | — | Pending |
-| PDSH-01 | — | Pending |
-| PDSH-02 | — | Pending |
-| PDSH-03 | — | Pending |
-| PDSH-04 | — | Pending |
-| PDSH-05 | — | Pending |
-| PDSH-06 | — | Pending |
-| MDSH-01 | — | Pending |
-| MDSH-02 | — | Pending |
-| MDSH-03 | — | Pending |
-| MDSH-04 | — | Pending |
-| MDSH-05 | — | Pending |
-| DOC-01 | — | Pending |
-| DOC-02 | — | Pending |
-| DOC-03 | — | Pending |
-| DOC-04 | — | Pending |
-| DOC-05 | — | Pending |
-| DOC-06 | — | Pending |
-| TENANT-01 | — | Pending |
-| AUDIT-01 | — | Pending |
+| USER-01 | Phase 10 | Pending |
+| USER-02 | Phase 10 | Pending |
+| USER-03 | Phase 10 | Pending |
+| USER-04 | Phase 10 | Pending |
+| USER-05 | Phase 10 | Pending |
+| USER-06 | Phase 10 | Pending |
+| AUTH-01 | Phase 10 | Pending |
+| AUTH-02 | Phase 10 | Pending |
+| AUTH-03 | Phase 10 | Pending |
+| AUTH-04 | Phase 10 | Pending |
+| AUTH-05 | Phase 10 | Pending |
+| AUTH-06 | Phase 10 | Pending |
+| PROJ-01 | Phase 11 | Pending |
+| PROJ-02 | Phase 11 | Pending |
+| PROJ-03 | Phase 11 | Pending |
+| PROJ-04 | Phase 11 | Pending |
+| PROJ-05 | Phase 11 | Pending |
+| PROJ-06 | Phase 11 | Pending |
+| PROJ-07 | Phase 11 | Pending |
+| PROJ-08 | Phase 11 | Pending |
+| PMAS-01 | Phase 11 | Pending |
+| PMAS-02 | Phase 11 | Pending |
+| PMAS-03 | Phase 11 | Pending |
+| PMAS-04 | Phase 11 | Pending |
+| STKH-01 | Phase 11 | Pending |
+| STKH-02 | Phase 11 | Pending |
+| STKH-03 | Phase 11 | Pending |
+| DEP-01 | Phase 15 | Pending |
+| DEP-02 | Phase 15 | Pending |
+| DEP-03 | Phase 15 | Pending |
+| MS-01 | Phase 12 | Pending |
+| MS-02 | Phase 12 | Pending |
+| MS-03 | Phase 12 | Pending |
+| MS-04 | Phase 13 | Pending |
+| MS-05 | Phase 12 | Pending |
+| BUDG-01 | Phase 15 | Pending |
+| BUDG-02 | Phase 15 | Pending |
+| BUDG-03 | Phase 15 | Pending |
+| BUDG-04 | Phase 15 | Pending |
+| BUDG-05 | Phase 15 | Pending |
+| BUDG-06 | Phase 15 | Pending |
+| RAID-01 | Phase 12 | Pending |
+| RAID-02 | Phase 13 | Pending |
+| RAID-03 | Phase 13 | Pending |
+| RAID-04 | Phase 12 | Pending |
+| RAID-05 | Phase 12 | Pending |
+| RAID-06 | Phase 12 | Pending |
+| PERD-01 | Phase 13 | Pending |
+| PERD-02 | Phase 13 | Pending |
+| PERD-03 | Phase 13 | Pending |
+| WKRP-01 | Phase 13 | Pending |
+| WKRP-02 | Phase 13 | Pending |
+| WKRP-03 | Phase 13 | Pending |
+| WKRP-04 | Phase 13 | Pending |
+| WKRP-05 | Phase 13 | Pending |
+| WKRP-06 | Phase 13 | Pending |
+| CPMO-01 | Phase 14 | Pending |
+| CPMO-02 | Phase 14 | Pending |
+| CPMO-03 | Phase 14 | Pending |
+| CPMO-04 | Phase 14 | Pending |
+| PDSH-01 | Phase 16 | Pending |
+| PDSH-02 | Phase 16 | Pending |
+| PDSH-03 | Phase 16 | Pending |
+| PDSH-04 | Phase 16 | Pending |
+| PDSH-05 | Phase 16 | Pending |
+| PDSH-06 | Phase 16 | Pending |
+| MDSH-01 | Phase 16 | Pending |
+| MDSH-02 | Phase 16 | Pending |
+| MDSH-03 | Phase 16 | Pending |
+| MDSH-04 | Phase 16 | Pending |
+| MDSH-05 | Phase 16 | Pending |
+| DOC-01 | Phase 17 | Pending |
+| DOC-02 | Phase 17 | Pending |
+| DOC-03 | Phase 17 | Pending |
+| DOC-04 | Phase 17 | Pending |
+| DOC-05 | Phase 17 | Pending |
+| DOC-06 | Phase 17 | Pending |
+| TENANT-01 | Phase 9 | Pending |
+| AUDIT-01 | Phase 18 | Pending |
 
 **Coverage:**
-- v1 requirements: 77 total
-- Mapped to phases: 0
-- Unmapped: 77 ⚠️ (filled by roadmap)
+- v1 requirements: 79 total
+- Mapped to phases: 79
+- Unmapped: 0 ✓
+
+Phase 9: TENANT-01 (1)
+Phase 10: USER-01..06, AUTH-01..06 (12)
+Phase 11: PROJ-01..08, PMAS-01..04, STKH-01..03 (15)
+Phase 12: MS-01, MS-02, MS-03, MS-05, RAID-01, RAID-04, RAID-05, RAID-06 (8)
+Phase 13: PERD-01..03, WKRP-01..06, MS-04, RAID-02, RAID-03 (12)
+Phase 14: CPMO-01..04 (4)
+Phase 15: BUDG-01..06, DEP-01..03 (9)
+Phase 16: PDSH-01..06, MDSH-01..05 (11)
+Phase 17: DOC-01..06 (6)
+Phase 18: AUDIT-01 (1)
 
 ---
 *Requirements defined: 2026-08-25*
-*Last updated: 2026-08-25 after initial definition*
+*Last updated: 2026-08-25 after roadmap (Phases 9–18)*
