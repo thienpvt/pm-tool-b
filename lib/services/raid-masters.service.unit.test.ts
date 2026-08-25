@@ -3,17 +3,32 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const {
   listUpcomingMilestonesRepo,
   listOverdueMilestonesRepo,
+  listHighOpenRaidRepo,
+  listTechnologyCouncilIssuesRepo,
 } = vi.hoisted(() => ({
   listUpcomingMilestonesRepo: vi.fn(),
   listOverdueMilestonesRepo: vi.fn(),
+  listHighOpenRaidRepo: vi.fn(),
+  listTechnologyCouncilIssuesRepo: vi.fn(),
 }));
 
 vi.mock('@/lib/repositories/milestones.repo', () => ({
   listUpcomingMilestones: listUpcomingMilestonesRepo,
   listOverdueMilestones: listOverdueMilestonesRepo,
 }));
+vi.mock('@/lib/repositories/risks.repo', () => ({
+  listHighOpenRaid: listHighOpenRaidRepo,
+}));
+vi.mock('@/lib/repositories/issues.repo', () => ({
+  listTechnologyCouncilIssues: listTechnologyCouncilIssuesRepo,
+}));
 
-import { listOverdueMilestones, listUpcomingMilestones } from './raid-masters.service';
+import {
+  listHighOpenRaid,
+  listOverdueMilestones,
+  listTechnologyCouncilIssues,
+  listUpcomingMilestones,
+} from './raid-masters.service';
 
 function addUtcDays(isoDate: string, days: number): string {
   const d = new Date(`${isoDate}T00:00:00Z`);
@@ -48,5 +63,29 @@ describe('raid-masters.service', () => {
     await listOverdueMilestones(5);
 
     expect(listOverdueMilestonesRepo).toHaveBeenCalledWith(5, '2026-08-26');
+  });
+
+  it('listHighOpenRaid returns record count not distinct projects (two risks one issue => 3)', async () => {
+    const records = [
+      { entity_type: 'risk', id: 1, project_id: 10, priority: 'High', status: 'Open' },
+      { entity_type: 'risk', id: 2, project_id: 10, priority: 'High', status: 'In Progress' },
+      { entity_type: 'issue', id: 3, project_id: 10, priority: 'High', status: 'Open' },
+    ];
+    listHighOpenRaidRepo.mockResolvedValue(records);
+
+    const result = await listHighOpenRaid(5);
+
+    expect(listHighOpenRaidRepo).toHaveBeenCalledWith(5);
+    expect(result.records).toEqual(records);
+    expect(result.count).toBe(3);
+  });
+
+  it('listTechnologyCouncilIssues delegates to repo with companyId', async () => {
+    const rows = [{ id: 1, technology_council: true, status: 'Open', project_name: 'Alpha' }];
+    listTechnologyCouncilIssuesRepo.mockResolvedValue(rows);
+
+    await expect(listTechnologyCouncilIssues(5)).resolves.toEqual(rows);
+
+    expect(listTechnologyCouncilIssuesRepo).toHaveBeenCalledWith(5);
   });
 });
