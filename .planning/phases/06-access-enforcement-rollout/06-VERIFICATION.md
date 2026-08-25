@@ -1,7 +1,7 @@
 ---
 phase: 06-access-enforcement-rollout
-verified: 2026-08-11T00:00:00Z
-status: human_needed
+verified: 2026-08-25T14:06:00Z
+status: passed
 score: 5/5 truths verified
 behavior_unverified: 0
 overrides_applied: 0
@@ -98,7 +98,7 @@ human_verification:
 | ----------- | ---------- | ----------- | ------ | -------- |
 | ROUTE-03 | 06-03, 06-05 | Every projects/[id] route uses project-access wrapper | ✓ SATISFIED | 21/21 wrapped (3 report routes in 06-03; 18 from Phase 5); programs tree via withProgramAccess |
 | ROUTE-04 | 06-02, 06-04, 06-05 | Import/export/config/file-parsing enforce same check | ✓ SATISFIED | All 8 target routes wrapped + 8 IDOR routes session-gated |
-| ROUTE-08 | 06-01, 06-02 | Shadow mode first; would-be-denials reviewed | ✓ SATISFIED (mechanism) | Shadow flag built + unit-tested; operational shadow-run review = operator task (human) |
+| ROUTE-08 | 06-01, 06-02 | Shadow mode first; would-be-denials reviewed | ✓ SATISFIED | Shadow flag unit-tested; operational review completed 2026-08-25 on Docker Postgres + next dev (`06-UAT.md` test 1) |
 | ROUTE-09 | 06-06 | 403 cross-company on every projects/[id] route | ✓ SATISFIED | 21/21 test files with toBe(403); report/project-report tests show foreign company_id → 403 |
 | ROUTE-10 | 06-06, 06-02 | 401 on every non-public route | ✓ SATISFIED | 81-entry drift-checked matrix; 8 IDOR + config GET now 401 |
 | ROUTE-11 | 06-07 | proxy.ts confirmed empirically or route-level sufficient | ✓ SATISFIED (code) / ⚠️ doc status stale | Finding committed fe63bb2; REQUIREMENTS.md line 62 still shows `- [ ] ROUTE-11` and ROADMAP shows 06-07 unchecked — doc-status not updated despite the work being complete and committed |
@@ -114,13 +114,15 @@ No `TBD`/`FIXME`/`XXX` debt markers found in any phase-6 modified file. No stub 
 
 ### Human Verification Required
 
-1. **Shadow-cutover operational review (SC3)** — Deploy with `ACCESS_ENFORCEMENT=shadow` + live `DATABASE_URL`, review recorded `[ACCESS-SHADOW]` would-be-denials, resolve any legitimate caller, then redeploy without the flag to enforce. The mechanism is unit-tested; the operational review needs an operator.
-2. **SVC tenancy residual acknowledgment (T-06-09)** — Human (product/security) acceptance of the v1 residual on the 4 tenancy-less tables and scheduling of the v2 `company_id` migration.
-3. **ROUTE-11 doc status** — Flip the REQUIREMENTS.md checkbox and ROADMAP 06-07 marker (trivial doc-only fix; the finding and code are complete).
+Completed 2026-08-25 — see `06-UAT.md`.
+
+1. **Shadow-cutover operational review (SC3)** — pass. `[ACCESS-SHADOW]` lines reviewed on live Docker `DATABASE_URL`; flag removed; enforcement restored (403).
+2. **SVC tenancy residual acknowledgment (T-06-09)** — pass. Owner accepted residual risk for v1; `company_id` migration scheduled for the next milestone.
+3. **ROUTE-11 doc status** — previously resolved at `aed4517`. Local curl 2026-08-25 reconfirmed 307.
 
 ### Gaps Summary
 
-No genuine code gaps. All automated checks pass: tsc 0, eslint 0, full suite 825/712/0/113 (exact skip count), all 5 success criteria have verified code evidence. Status is `human_needed` (not `gaps_found`) because the phase's own design deliberately defers the live shadow-run review and the SVC tenancy residual to human/operator action — both explicitly recorded, neither blocking per phase planning. The only codebase-level inconsistency is documentation status (ROUTE-11/06-07 checkboxes), which is informational.
+No remaining human items. Deferred residual tenancy (4 tables without `company_id`) stays a v2 follow-up, not a v1 blocker.
 
 ---
 

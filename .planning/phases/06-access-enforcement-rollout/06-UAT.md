@@ -1,18 +1,14 @@
 ---
-status: testing
+status: complete
 phase: 06-access-enforcement-rollout
 source: [06-VERIFICATION.md]
 started: 2026-08-25T13:58:00Z
-updated: 2026-08-25T14:05:00Z
+updated: 2026-08-25T14:06:00Z
 ---
 
 ## Current Test
 
-number: 2
-name: v2 tenancy-residual risk acceptance
-expected: |
-  Product/security owner records acceptance of residual cross-tenant risk on the 4 tenancy-less tables and schedules the company_id migration in the next milestone.
-awaiting: user response
+[testing complete]
 
 ## Tests
 
@@ -28,7 +24,8 @@ reported: |
 
 ### 2. v2 tenancy-residual risk acceptance
 expected: Product/security owner records acceptance of residual cross-tenant risk on the 4 tenancy-less tables and schedules the company_id migration in the next milestone.
-result: [pending]
+result: pass
+reported: "Owner accepted for v1 on 2026-08-25. Residual cross-tenant read/write on timeline_import_mappings, bug_import_mappings, jira_jql_presets, and jira_sync_mappings remains gated at withAuth (401) only. company_id migration scheduled for the next milestone (v2 / DATA/ENF backlog)."
 
 ### 3. proxy.ts runtime finding (ROUTE-11)
 expected: 307 redirect to /login?from=%2Fportfolio (and /api/portfolio) with no cookie.
@@ -38,9 +35,9 @@ reported: "2026-08-25 next dev + Docker DB. curl -sI http://localhost:3000/portf
 ## Summary
 
 total: 3
-passed: 2
+passed: 3
 issues: 0
-pending: 1
+pending: 0
 skipped: 0
 blocked: 0
 
