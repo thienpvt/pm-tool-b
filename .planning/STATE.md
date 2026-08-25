@@ -5,16 +5,16 @@ milestone_name: Portfolio One View
 current_phase: 10
 current_phase_name: Users, Roles & Server Authorization
 status: executing
-stopped_at: Completed 10-02-PLAN.md
-last_updated: "2026-08-25T18:27:36.105Z"
+stopped_at: Completed 10-03-PLAN.md
+last_updated: "2026-08-25T18:31:10.868Z"
 last_activity: 2026-08-26
 last_activity_desc: Phase 9 complete, transitioned to Phase 10
-state_head: d465f5b04eed404a89299ca382445d95b9165cc1
+state_head: 4cdda6a6bd5d946fe977337d020d4b91076e5f32
 progress:
   total_phases: 10
   completed_phases: 1
   total_plans: 14
-  completed_plans: 5
+  completed_plans: 6
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-08-25)
 ## Current Position
 
 Phase: 10 (Users, Roles & Server Authorization) — IN PROGRESS
-Plan: 2 of 11 complete (10-01)
+Plan: 3 of 11 complete (10-01)
 Status: Ready to execute
 Last activity: 2026-08-26 — Completed 10-01 auth spine tracer
 
@@ -60,6 +60,7 @@ Progress: [█░░░░░░░░░] 10%
 | Phase 09-mapping-table-tenant-isolation P03 | 25min | 3 tasks | 12 files |
 | Phase 10-users-roles-server-authorization P01 | 12 | 2 tasks | 12 files |
 | Phase 10-users-roles-server-authorization P02 | 8min | 3 tasks | 7 files |
+| Phase 10-users-roles-server-authorization P03 | 8min | 3 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -82,6 +83,8 @@ Recent decisions affecting current work:
 - [Phase 10]: Role backfill skips null company_id; does not set is_admin from roles
 - [Phase 10]: SESSION_DURATION_MS shared by createSession and extendSession
 - [Phase 10]: POST /api/auth/session/extend does not Set-Cookie on success (D-11 draft preservation)
+- [Phase 10]: Removed is_admin bypass from assertProjectAccess; CPMO company-scoped (D-13)
+- [Phase 10]: PM-only D-14 matcher on GET after tenant; assertPmWriteAccess seam for Phase 11 (D-14, D-24)
 
 ### Pending Todos
 
@@ -102,6 +105,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-08-25T18:27:36.022Z
-Stopped at: Completed 10-02-PLAN.md
+Last session: 2026-08-25T18:31:10.780Z
+Stopped at: Completed 10-03-PLAN.md
 Resume file: None
