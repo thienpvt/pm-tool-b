@@ -6,16 +6,39 @@ const { projectAccessRow } = vi.hoisted(() => ({
 
 vi.mock('@/lib/repositories/projects.repo', () => ({ projectAccessRow }));
 
-import { assertProjectAccess } from './access';
+import { assertCanMutate, assertProjectAccess } from './access';
 import { ForbiddenError, NotFoundError } from './errors';
 
 beforeEach(() => {
   vi.clearAllMocks();
 });
 
-const owner = { company_id: 5 as number | null, is_admin: 0 as number | boolean };
-const admin = { company_id: 5 as number | null, is_admin: 1 as number | boolean };
-const nullCompany = { company_id: null as number | null, is_admin: 0 as number | boolean };
+const baseActor = {
+  user_id: 2,
+  username: 'ava',
+  display_name: 'Ava',
+  email: 'ava@example.com',
+  status: 'active' as const,
+};
+
+const owner = {
+  ...baseActor,
+  company_id: 5 as number | null,
+  is_admin: 0 as number | boolean,
+  roles: ['pm'] as const,
+};
+const admin = {
+  ...baseActor,
+  company_id: 5 as number | null,
+  is_admin: 1 as number | boolean,
+  roles: ['cpmo'] as const,
+};
+const nullCompany = {
+  ...baseActor,
+  company_id: null as number | null,
+  is_admin: 0 as number | boolean,
+  roles: ['pm'] as const,
+};
 
 describe('assertProjectAccess', () => {
   it('fetches and returns the project row for admin (mirrors assertProgramAccess)', async () => {
@@ -63,5 +86,25 @@ describe('assertProjectAccess', () => {
   it('denies a null-company actor a project whose customer_company_id is set', async () => {
     projectAccessRow.mockResolvedValue({ company_id: null, customer_company_id: 5 });
     await expect(assertProjectAccess(1, nullCompany)).rejects.toBeInstanceOf(ForbiddenError);
+  });
+});
+
+describe('assertCanMutate', () => {
+  it('throws ForbiddenError for a viewer-only actor', () => {
+    const viewer = { ...owner, roles: ['viewer'] as const };
+    expect(() => assertCanMutate(viewer)).toThrow(ForbiddenError);
+  });
+
+  it('does not throw for an actor with pm role', () => {
+    expect(() => assertCanMutate(owner)).not.toThrow();
+  });
+
+  it('does not throw for an actor with cpmo role', () => {
+    expect(() => assertCanMutate(admin)).not.toThrow();
+  });
+
+  it('does not throw for cpmo+viewer union (union write)', () => {
+    const union = { ...owner, roles: ['cpmo', 'viewer'] as const };
+    expect(() => assertCanMutate(union)).not.toThrow();
   });
 });

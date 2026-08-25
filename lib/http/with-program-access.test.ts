@@ -25,6 +25,20 @@ const ownerSession = {
   company_name: 'Acme',
   is_admin: 0,
   onboarding_completed: 1,
+  roles: ['pm'],
+  status: 'active',
+  email: 'ava@example.com',
+};
+
+const expectedActor = {
+  user_id: 2,
+  username: 'ava',
+  display_name: 'Ava',
+  company_id: 5,
+  is_admin: 0,
+  roles: ['pm'],
+  status: 'active',
+  email: 'ava@example.com',
 };
 
 function req(method: string, url = 'http://localhost/api/programs/7') {
@@ -46,10 +60,10 @@ describe('withProgramAccess', () => {
     const res = await wrapped(req('GET'), rawCtx());
 
     expect(res.status).toBe(200);
-    expect(assertProgramAccess).toHaveBeenCalledWith('7', { company_id: 5, is_admin: 0 });
+    expect(assertProgramAccess).toHaveBeenCalledWith('7', expectedActor);
     const [, ctx] = handler.mock.calls[0];
     expect(ctx.program).toEqual(programRow);
-    expect(ctx.actor).toEqual({ company_id: 5, is_admin: 0 });
+    expect(ctx.actor).toEqual(expectedActor);
     expect(ctx.params).toEqual({ id: '7' });
   });
 

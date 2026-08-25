@@ -1,14 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { assertProjectAccess, listRisksRepo, createRiskRepo, updateRiskRepo, deleteRiskRepo } = vi.hoisted(() => ({
+const { assertProjectAccess, assertCanMutate, listRisksRepo, createRiskRepo, updateRiskRepo, deleteRiskRepo } = vi.hoisted(() => ({
   assertProjectAccess: vi.fn(),
+  assertCanMutate: vi.fn(),
   listRisksRepo: vi.fn(),
   createRiskRepo: vi.fn(),
   updateRiskRepo: vi.fn(),
   deleteRiskRepo: vi.fn(),
 }));
 
-vi.mock('@/lib/services/access', () => ({ assertProjectAccess }));
+vi.mock('@/lib/services/access', () => ({ assertProjectAccess, assertCanMutate }));
 vi.mock('@/lib/repositories/risks.repo', () => ({
   listRisks: listRisksRepo,
   createRisk: createRiskRepo,
@@ -22,10 +23,29 @@ import { ForbiddenError, NotFoundError } from './errors';
 beforeEach(() => {
   vi.clearAllMocks();
   assertProjectAccess.mockResolvedValue(undefined);
+  assertCanMutate.mockImplementation(() => {});
 });
 
-const owner = { company_id: 5 as number | null, is_admin: 0 as number | boolean };
-const foreign = { company_id: 9 as number | null, is_admin: 0 as number | boolean };
+const owner = {
+  company_id: 5 as number | null,
+  is_admin: 0 as number | boolean,
+  roles: ['pm'],
+  status: 'active',
+  user_id: 2,
+  username: 'ava',
+  display_name: 'Ava',
+  email: 'ava@example.com',
+};
+const foreign = {
+  company_id: 9 as number | null,
+  is_admin: 0 as number | boolean,
+  roles: ['pm'],
+  status: 'active',
+  user_id: 3,
+  username: 'bob',
+  display_name: 'Bob',
+  email: 'bob@example.com',
+};
 
 describe('risks.service', () => {
   describe('listRisks', () => {

@@ -28,6 +28,20 @@ const ownerSession = {
   company_name: 'Acme',
   is_admin: 0,
   onboarding_completed: 1,
+  roles: ['pm'],
+  status: 'active',
+  email: 'ava@example.com',
+};
+
+const expectedActor = {
+  user_id: 2,
+  username: 'ava',
+  display_name: 'Ava',
+  company_id: 5,
+  is_admin: 0,
+  roles: ['pm'],
+  status: 'active',
+  email: 'ava@example.com',
 };
 
 function req(method: string, url = 'http://localhost/api/x', body?: unknown) {
@@ -66,7 +80,7 @@ describe('withAuth', () => {
     expect(handler).toHaveBeenCalledTimes(1);
     const [, ctx] = handler.mock.calls[0];
     expect(ctx.user).toEqual(ownerSession);
-    expect(ctx.actor).toEqual({ company_id: 5, is_admin: 0 });
+    expect(ctx.actor).toEqual(expectedActor);
     expect(ctx.params).toEqual({ id: '7' });
     expect(ctx.body).toEqual({ a: 1 });
   });
