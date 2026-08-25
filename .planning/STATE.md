@@ -5,16 +5,16 @@ milestone_name: Portfolio One View
 current_phase: 12
 current_phase_name: Milestone & RAID Master Registers
 status: executing
-stopped_at: Phase 11 complete, ready to plan Phase 12
-last_updated: "2026-08-25T20:26:55.990Z"
+stopped_at: Completed 12-01-PLAN.md
+last_updated: "2026-08-25T20:32:01.670Z"
 last_activity: 2026-08-26
 last_activity_desc: Phase 11 complete, transitioned to Phase 12
-state_head: 1171715b40db16122472c6cac9b982c2c24a5f7a
+state_head: 95d5503146a9ceab7c8f3afea7c495a784e14b75
 progress:
   total_phases: 10
   completed_phases: 3
   total_plans: 22
-  completed_plans: 19
+  completed_plans: 20
 ---
 
 # Project State
@@ -74,6 +74,7 @@ Progress: [█░░░░░░░░░] 10%
 | Phase 11 P04 | 4 | 2 tasks | 6 files |
 | Phase 11-project-master-pm-assignment-stakeholders P03 | 4 | 2 tasks | 14 files |
 | Phase 11-project-master-pm-assignment-stakeholders P05 | 8 | 2 tasks | 2 files |
+| Phase 12-milestone-raid-master-registers P01 | 8 | 2 tasks | 14 files |
 
 ## Accumulated Context
 
@@ -116,6 +117,8 @@ Recent decisions affecting current work:
 - [Phase 11]: Singleton stakeholder roles enforced in service via hasActiveStakeholderForRole repo query
 - [Phase 11]: PATCH /stakeholders ends role by body.id with optional effective_to
 - [Phase 11]: Kept assertPmWriteAccess name; all PM access via hasActivePmAssignment after D-14 backfill
+- [Phase 12]: Three raid_masters settings flags run ddl then backfill then indexes
+- [Phase 12]: raid-masters.service owns company-scoped upcoming/overdue date window computation
 
 ### Pending Todos
 
@@ -136,6 +139,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-08-25T19:59:06.844Z
-Stopped at: Phase 11 complete, ready to plan Phase 12
+Last session: 2026-08-25T20:32:01.406Z
+Stopped at: Completed 12-01-PLAN.md
 Resume file: None

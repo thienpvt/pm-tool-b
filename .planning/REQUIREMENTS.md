@@ -59,11 +59,11 @@ Requirements for this milestone. Each maps to roadmap phases. Jira import, AI re
 
 ### Milestones
 
-- [ ] **MS-01**: PM (assigned) and CPMO can create, update, and cancel milestones on projects in their scope; Viewer cannot mutate
-- [ ] **MS-02**: Dashboard shows upcoming milestones (7 days before plan or adjusted end) excluding Completed/Cancelled
-- [ ] **MS-03**: A milestone is overdue when today is after plan or adjusted end and status is not Completed/Cancelled; it appears on the dashboard action list
+- [x] **MS-01**: PM (assigned) and CPMO can create, update, and cancel milestones on projects in their scope; Viewer cannot mutate
+- [x] **MS-02**: Dashboard shows upcoming milestones (7 days before plan or adjusted end) excluding Completed/Cancelled
+- [x] **MS-03**: A milestone is overdue when today is after plan or adjusted end and status is not Completed/Cancelled; it appears on the dashboard action list
 - [ ] **MS-04**: Submitted weekly reports store a milestone snapshot; later milestone edits do not change old reports
-- [ ] **MS-05**: A milestone that appeared in a submitted weekly report cannot be physically deleted
+- [x] **MS-05**: A milestone that appeared in a submitted weekly report cannot be physically deleted
 
 ### Budget and Value
 
@@ -216,11 +216,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DEP-01 | Phase 15 | Pending |
 | DEP-02 | Phase 15 | Pending |
 | DEP-03 | Phase 15 | Pending |
-| MS-01 | Phase 12 | Pending |
-| MS-02 | Phase 12 | Pending |
-| MS-03 | Phase 12 | Pending |
+| MS-01 | Phase 12 | Complete |
+| MS-02 | Phase 12 | Complete |
+| MS-03 | Phase 12 | Complete |
 | MS-04 | Phase 13 | Pending |
-| MS-05 | Phase 12 | Pending |
+| MS-05 | Phase 12 | Complete |
 | BUDG-01 | Phase 15 | Pending |
 | BUDG-02 | Phase 15 | Pending |
 | BUDG-03 | Phase 15 | Pending |
