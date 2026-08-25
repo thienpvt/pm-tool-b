@@ -5,16 +5,16 @@ milestone_name: Portfolio One View
 current_phase: 10
 current_phase_name: Users, Roles & Server Authorization
 status: executing
-stopped_at: Completed 10-11-PLAN.md
-last_updated: "2026-08-25T19:01:57.371Z"
+stopped_at: Completed 10-10-PLAN.md
+last_updated: "2026-08-25T19:04:44.140Z"
 last_activity: 2026-08-26
 last_activity_desc: Phase 9 complete, transitioned to Phase 10
-state_head: e2560d71096b6b165af7ca2c3dd4f76bbe7d5b2a
+state_head: 67c077e7fb356615551ecf8008f4c2e575ed2d9b
 progress:
   total_phases: 10
   completed_phases: 1
   total_plans: 14
-  completed_plans: 13
+  completed_plans: 14
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-08-25)
 ## Current Position
 
 Phase: 10 (Users, Roles & Server Authorization) — IN PROGRESS
-Plan: 10 of 11 complete (10-01)
+Plan: 11 of 11 complete (10-01)
 Status: Ready to execute
 Last activity: 2026-08-26 — Completed 10-01 auth spine tracer
 
@@ -68,6 +68,7 @@ Progress: [█░░░░░░░░░] 10%
 | Phase 10-users-roles-server-authorization P08 | 12min | 2 tasks | 12 files |
 | Phase 10-users-roles-server-authorization P09 | 25 | 3 tasks | 27 files |
 | Phase 10-users-roles-server-authorization P11 | 8min | 2 tasks | 2 files |
+| Phase 10-users-roles-server-authorization P10 | 5min | 3 tasks | 16 files |
 
 ## Accumulated Context
 
@@ -103,6 +104,7 @@ Recent decisions affecting current work:
 - [Phase 10]: Repo list helpers dropped isAdmin param; company_id-only SQL (D-13)
 - [Phase 10]: Sidebar Admin Panel shown for cpmo role without break-glass; platform tabs stay is_admin-only
 - [Phase 10]: Admin Users form uses roles[] and email against 10-05 API; company_id from session not UI
+- [Phase 10]: All portfolio/programs routes use toAccessActor(user) so roles reach write asserts (D-03, D-24)
 
 ### Pending Todos
 
@@ -123,6 +125,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-08-25T19:01:57.281Z
-Stopped at: Completed 10-11-PLAN.md
+Last session: 2026-08-25T19:04:44.051Z
+Stopped at: Completed 10-10-PLAN.md
 Resume file: None
