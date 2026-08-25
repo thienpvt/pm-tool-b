@@ -1,22 +1,21 @@
 import { NextRequest } from 'next/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { listBugMappings, createBugMapping, deleteBugMapping, bugMappingIds } = vi.hoisted(() => ({
+const { listBugMappings, createBugMapping, deleteBugMapping } = vi.hoisted(() => ({
   listBugMappings: vi.fn(),
   createBugMapping: vi.fn(),
   deleteBugMapping: vi.fn(),
-  bugMappingIds: vi.fn(),
 }));
 
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
-vi.mock('@/lib/repositories/import-mapping.repo', () => ({
+vi.mock('@/lib/services/import-mapping.service', () => ({
   listBugMappings,
   createBugMapping,
   deleteBugMapping,
-  bugMappingIds,
 }));
 
 import { getSessionFromRequest } from '@/lib/auth';
+import { ForbiddenError } from '@/lib/services/errors';
 import { GET, POST } from './route';
 import { DELETE } from './[id]/route';
 
@@ -45,7 +44,7 @@ describe('GET/POST /api/bug-import-mapping', () => {
     });
   }
 
-  it('GET returns 401 with no session, repo not called', async () => {
+  it('GET returns 401 with no session, service not called', async () => {
     vi.mocked(getSessionFromRequest).mockResolvedValue(null);
     const res = await GET(req('GET'), params());
     expect(res.status).toBe(401);
@@ -53,7 +52,7 @@ describe('GET/POST /api/bug-import-mapping', () => {
     expect(listBugMappings).not.toHaveBeenCalled();
   });
 
-  it('POST returns 401 with no session, repo not called', async () => {
+  it('POST returns 401 with no session, service not called', async () => {
     vi.mocked(getSessionFromRequest).mockResolvedValue(null);
     const res = await POST(req('POST', undefined, { name: 'x', mappings_json: '{}' }), params());
     expect(res.status).toBe(401);
@@ -70,11 +69,11 @@ describe('GET/POST /api/bug-import-mapping', () => {
 
     expect(res.status).toBe(200);
     await expect(res.json()).resolves.toEqual(rows);
+    expect(listBugMappings).toHaveBeenCalledWith(expect.objectContaining({ company_id: 5 }));
   });
 
-  it('POST creates for an owner with 201, preserving cap-eviction behavior', async () => {
+  it('POST creates for an owner with 201', async () => {
     vi.mocked(getSessionFromRequest).mockResolvedValue(ownerSession as never);
-    bugMappingIds.mockResolvedValue([]);
     const created = { id: 2, name: 'tpl2', mappings_json: '{}' };
     createBugMapping.mockResolvedValue(created);
 
@@ -82,9 +81,14 @@ describe('GET/POST /api/bug-import-mapping', () => {
 
     expect(res.status).toBe(201);
     await expect(res.json()).resolves.toEqual(created);
+    expect(createBugMapping).toHaveBeenCalledWith(
+      expect.objectContaining({ company_id: 5 }),
+      'tpl2',
+      '{}',
+    );
   });
 
-  it('POST rejects invalid body with 400 Missing fields, before repo call', async () => {
+  it('POST rejects invalid body with 400 Missing fields, before service call', async () => {
     vi.mocked(getSessionFromRequest).mockResolvedValue(ownerSession as never);
 
     const res = await POST(req('POST', undefined, { name: '' }), params());
@@ -105,6 +109,11 @@ describe('DELETE /api/bug-import-mapping/[id]', () => {
     company_name: 'Acme', is_admin: 0, onboarding_completed: 1,
   };
 
+  const foreignSession = {
+    id: 3, username: 'bob', display_name: 'Bob', company_id: 9,
+    company_name: 'Other', is_admin: 0, onboarding_completed: 1,
+  };
+
   const params = (id = '1') => ({ params: Promise.resolve({ id }) });
 
   function req(method: string, url = 'http://localhost/api/bug-import-mapping/1') {
@@ -119,6 +128,16 @@ describe('DELETE /api/bug-import-mapping/[id]', () => {
     expect(deleteBugMapping).not.toHaveBeenCalled();
   });
 
+  it('returns 403 for a cross-company mapping', async () => {
+    vi.mocked(getSessionFromRequest).mockResolvedValue(foreignSession as never);
+    deleteBugMapping.mockRejectedValue(new ForbiddenError());
+
+    const res = await DELETE(req('DELETE'), params());
+
+    expect(res.status).toBe(403);
+    await expect(res.json()).resolves.toEqual({ error: 'Forbidden' });
+  });
+
   it('returns { ok: true } for an authenticated caller (shape preserved)', async () => {
     vi.mocked(getSessionFromRequest).mockResolvedValue(ownerSession as never);
     deleteBugMapping.mockResolvedValue({ changes: 1 });
@@ -127,6 +146,6 @@ describe('DELETE /api/bug-import-mapping/[id]', () => {
 
     expect(res.status).toBe(200);
     await expect(res.json()).resolves.toEqual({ ok: true });
-    expect(deleteBugMapping).toHaveBeenCalledWith('1');
+    expect(deleteBugMapping).toHaveBeenCalledWith('1', expect.objectContaining({ company_id: 5 }));
   });
 });
