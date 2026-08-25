@@ -21,8 +21,8 @@ Requirements for this milestone. Each maps to roadmap phases. Jira import, AI re
 ### Login and Authorization
 
 - [x] **AUTH-01**: User can log in with username and password
-- [ ] **AUTH-02**: User session expires per policy; a valid session can be extended without losing in-progress draft input
-- [ ] **AUTH-03**: User can log out and end the session
+- [x] **AUTH-02**: User session expires per policy; a valid session can be extended without losing in-progress draft input
+- [x] **AUTH-03**: User can log out and end the session
 - [x] **AUTH-04**: CPMO can view the full company portfolio; PM can view and update only assigned projects; Viewer can read but cannot mutate
 - [x] **AUTH-05**: Every API and screen enforces authorization on the server; hiding a UI control is not treated as access control
 - [x] **AUTH-06**: Inactive or Locked users receive a login rejection and cannot obtain a session
@@ -193,8 +193,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | USER-05 | Phase 10 | Pending |
 | USER-06 | Phase 10 | Pending |
 | AUTH-01 | Phase 10 | Complete |
-| AUTH-02 | Phase 10 | Pending |
-| AUTH-03 | Phase 10 | Pending |
+| AUTH-02 | Phase 10 | Complete |
+| AUTH-03 | Phase 10 | Complete |
 | AUTH-04 | Phase 10 | Complete |
 | AUTH-05 | Phase 10 | Complete |
 | AUTH-06 | Phase 10 | Complete |

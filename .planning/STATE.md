@@ -5,16 +5,16 @@ milestone_name: Portfolio One View
 current_phase: 10
 current_phase_name: Users, Roles & Server Authorization
 status: executing
-stopped_at: Completed 10-01-PLAN.md
-last_updated: "2026-08-25T18:24:59.027Z"
+stopped_at: Completed 10-02-PLAN.md
+last_updated: "2026-08-25T18:27:36.105Z"
 last_activity: 2026-08-26
 last_activity_desc: Phase 9 complete, transitioned to Phase 10
-state_head: db3d984538a7afaa072adccd311561afb7c55f3f
+state_head: d465f5b04eed404a89299ca382445d95b9165cc1
 progress:
   total_phases: 10
   completed_phases: 1
   total_plans: 14
-  completed_plans: 4
+  completed_plans: 5
 ---
 
 # Project State
@@ -29,8 +29,8 @@ See: .planning/PROJECT.md (updated 2026-08-25)
 ## Current Position
 
 Phase: 10 (Users, Roles & Server Authorization) — IN PROGRESS
-Plan: 1 of 11 complete (10-01)
-Status: Executing
+Plan: 2 of 11 complete (10-01)
+Status: Ready to execute
 Last activity: 2026-08-26 — Completed 10-01 auth spine tracer
 
 Progress: [█░░░░░░░░░] 10%
@@ -59,6 +59,7 @@ Progress: [█░░░░░░░░░] 10%
 | Phase 09-mapping-table-tenant-isolation P02 | 25min | 3 tasks | 11 files |
 | Phase 09-mapping-table-tenant-isolation P03 | 25min | 3 tasks | 12 files |
 | Phase 10-users-roles-server-authorization P01 | 12 | 2 tasks | 12 files |
+| Phase 10-users-roles-server-authorization P02 | 8min | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -79,6 +80,8 @@ Recent decisions affecting current work:
 - [Phase 9]: findJqlPresetByName pre-check for ConflictError
 - [Phase 10]: AccessActor canonical in lib/services/access.ts; withAuth uses toAccessActor
 - [Phase 10]: Role backfill skips null company_id; does not set is_admin from roles
+- [Phase 10]: SESSION_DURATION_MS shared by createSession and extendSession
+- [Phase 10]: POST /api/auth/session/extend does not Set-Cookie on success (D-11 draft preservation)
 
 ### Pending Todos
 
@@ -99,6 +102,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-08-25T18:24:58.945Z
-Stopped at: Completed 10-01-PLAN.md
+Last session: 2026-08-25T18:27:36.022Z
+Stopped at: Completed 10-02-PLAN.md
 Resume file: None
