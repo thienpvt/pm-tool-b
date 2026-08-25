@@ -133,7 +133,7 @@ Requirements for this milestone. Each maps to roadmap phases. Jira import, AI re
 
 ### Tenant Isolation Follow-up
 
-- [ ] **TENANT-01**: `timeline_import_mappings`, `bug_import_mappings`, `jira_jql_presets`, and `jira_sync_mappings` are scoped by `company_id` with backfill, non-null company, unique keys including company, and cross-company 403 tests
+- [x] **TENANT-01**: `timeline_import_mappings`, `bug_import_mappings`, `jira_jql_presets`, and `jira_sync_mappings` are scoped by `company_id` with backfill, non-null company, unique keys including company, and cross-company 403 tests
 
 ### Audit
 
@@ -263,10 +263,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DOC-04 | Phase 17 | Pending |
 | DOC-05 | Phase 17 | Pending |
 | DOC-06 | Phase 17 | Pending |
-| TENANT-01 | Phase 9 | Pending |
+| TENANT-01 | Phase 9 | Complete |
 | AUDIT-01 | Phase 18 | Pending |
 
 **Coverage:**
+
 - v1 requirements: 79 total
 - Mapped to phases: 79
 - Unmapped: 0 ✓

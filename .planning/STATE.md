@@ -5,16 +5,16 @@ milestone_name: Portfolio One View
 current_phase: 9
 current_phase_name: Mapping Table Tenant Isolation
 status: executing
-stopped_at: Completed 09-02-PLAN.md
-last_updated: "2026-08-25T17:01:15.970Z"
+stopped_at: Completed 09-03-PLAN.md
+last_updated: "2026-08-25T17:05:25.426Z"
 last_activity: 2026-08-25
 last_activity_desc: Created v2.0 roadmap (Phases 9–18)
-state_head: 6d8be56cdf3ecd6a5aaf2b974b01ea390cc5331f
+state_head: cffedd68158886d9173e9444089338c14a64b01f
 progress:
   total_phases: 10
   completed_phases: 0
   total_plans: 3
-  completed_plans: 2
+  completed_plans: 3
 ---
 
 # Project State
@@ -57,6 +57,7 @@ Progress: [░░░░░░░░░░] 0%
 |------|----------|-------|-------|
 | Phase 09-mapping-table-tenant-isolation P01 | 45min | 3 tasks | 11 files |
 | Phase 09-mapping-table-tenant-isolation P02 | 25min | 3 tasks | 11 files |
+| Phase 09-mapping-table-tenant-isolation P03 | 25min | 3 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -73,6 +74,8 @@ Recent decisions affecting current work:
 - Word spec stays local — do not commit the `.docx`
 - [Phase 9]: Timeline mapping ConflictError via findTimelineMappingByName pre-check
 - [Phase 9]: Bug cap eviction scoped by bugMappingIds(companyId) in service not route
+- [Phase 9]: JQL unique (company_id, name, context); sync list+POST scoping only
+- [Phase 9]: findJqlPresetByName pre-check for ConflictError
 
 ### Pending Todos
 
@@ -93,6 +96,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-08-25T17:01:15.959Z
-Stopped at: Completed 09-02-PLAN.md
+Last session: 2026-08-25T17:05:25.413Z
+Stopped at: Completed 09-03-PLAN.md
 Resume file: None
