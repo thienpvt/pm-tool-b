@@ -1,18 +1,18 @@
 ---
 gsd_state_version: 1.0
 milestone: v1.0
-current_phase: 07
-current_phase_name: UI Decomposition
-status: planning
-stopped_at: Phase 6 complete, ready to plan Phase 07
-last_updated: "2026-08-25T14:07:41.837Z"
+current_phase: 8
+current_phase_name: INTG-08 Credential Cutover
+status: executing
+stopped_at: Phase 8 added, ready to plan INTG-08 credential cutover
+last_updated: "2026-08-25T15:02:02.516Z"
 last_activity: 2026-08-25
 last_activity_desc: Phase 6 complete, transitioned to Phase 07
-state_head: 27f7cb30775590925b251301d7dd7f38a72cf72a
+state_head: b40962e734b94a2cbac763c567b5c109ae1f5c10
 progress:
-  total_phases: 7
+  total_phases: 8
   completed_phases: 7
-  total_plans: 34
+  total_plans: 35
   completed_plans: 34
 milestone_name: milestone
 ---
@@ -24,13 +24,13 @@ milestone_name: milestone
 See: .planning/PROJECT.md (updated 2026-08-07)
 
 **Core value:** Every project-scoped request is tenant-isolated and every layer has one job — so a new route or page cannot silently reintroduce IDOR or a 2000-line god component.
-**Current focus:** v1.0 milestone — all 7 phases complete
+**Current focus:** v1.0 milestone — Phase 8 INTG-08 credential cutover
 
 ## Current Position
 
-Phase: — (milestone complete)
+Phase: 8 (INTG-08 Credential Cutover) — READY TO EXECUTE
 Plan: —
-Status: All phases verified
+Status: Ready to execute
 Last activity: 2026-08-25 — Phase 6 human UAT closed; Phase 7 already complete
 
 Progress: [██████████] 96% (phase 04 plans complete; await verify)
@@ -150,8 +150,12 @@ None yet.
 ### Blockers/Concerns
 
 - Whether `proxy.ts` executes in the deployed Docker runtime is unconfirmed (ROUTE-11, Phase 6) — treat as open, do not build route-level enforcement as if it depends on proxy.ts working.
-- INTG-08 credential cutover deletion DEFERRED (accepted by user 2026-08-10): no reachable DATABASE_URL, so scripts/verify-credential-cutover.ts evidence could not be gathered. Old inline Jira credential blocks preserved as marked, unreachable dead code in app/api/jira/search/route.ts + fields/route.ts. Operator: set DATABASE_URL, run npx tsx scripts/verify-credential-cutover.ts, land HYG-01 deletion commit when all rows match: yes. Not phase-blocking — all three routes call the resolver on their live paths.
+- INTG-08 credential cutover is now **Phase 8**. Still needs a reachable `DATABASE_URL`: run `npx tsx scripts/verify-credential-cutover.ts`, then land the HYG-01 deletion commit when every row reports `match: yes`. Old inline Jira credential blocks remain as marked dead code in `app/api/jira/search/route.ts` + `fields/route.ts` until that commit.
 - HYG-02 behavior change awaiting operator confirmation (Phase 3): a malformed Anthropic response on the three report routes now returns 502 where it returned 500. Deliberate — INTG-06 forbids a 500 for a shape mismatch, and validation is an error kind Phase 3 introduced so it had no prior behavior to freeze. Confirm no dashboard or alert keys off the old 500.
+
+### Roadmap Evolution
+
+- Phase 8 added: Close INTG-08 gap: credential cutover evidence and delete dead Jira credential blocks
 
 ## Deferred Items
 
@@ -171,6 +175,6 @@ None. Phase 6 human UAT closed 2026-08-25 (`06-UAT.md`: shadow review, residual-
 
 ## Session Continuity
 
-Last session: 2026-08-25T12:58:44.127Z
-Stopped at: Phase 6 complete, ready to plan Phase 07
+Last session: 2026-08-25T14:31:35.874Z
+Stopped at: Phase 8 added, ready to plan INTG-08 credential cutover
 Resume file: None

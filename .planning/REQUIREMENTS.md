@@ -17,12 +17,12 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 ### Repository Layer
 
-- [ ] **REPO-01**: Every SQL statement in the codebase lives in a `lib/repositories/*.repo.ts` module — no inline SQL in any `route.ts`, service, or component
-- [ ] **REPO-02**: Each repository function takes already-resolved scoping parameters (`companyId`, `projectId`) as explicit arguments and never inspects a session or request
-- [ ] **REPO-03**: Every write path accepts only columns on an explicit per-resource allowlist; an unknown key is rejected, not silently ignored
-- [ ] **REPO-04**: Each resource's column allowlist is verified against the fields the current `Object.keys(body)` code actually persists, with the comparison recorded so no field silently stops saving
-- [ ] **REPO-05**: Each repository module has tests covering read, write, and rejected-column cases
-- [ ] **REPO-06**: A repository module imports `@/lib/db` only — importing a service, `next/server`, or a session type fails review
+- [x] **REPO-01**: Every SQL statement in the codebase lives in a `lib/repositories/*.repo.ts` module — no inline SQL in any `route.ts`, service, or component <!-- 02-VERIFICATION.md SATISFIED; checkboxes lagged until v1.0-MILESTONE-AUDIT -->
+- [x] **REPO-02**: Each repository function takes already-resolved scoping parameters (`companyId`, `projectId`) as explicit arguments and never inspects a session or request
+- [x] **REPO-03**: Every write path accepts only columns on an explicit per-resource allowlist; an unknown key is rejected, not silently ignored
+- [x] **REPO-04**: Each resource's column allowlist is verified against the fields the current `Object.keys(body)` code actually persists, with the comparison recorded so no field silently stops saving
+- [x] **REPO-05**: Each repository module has tests covering read, write, and rejected-column cases
+- [x] **REPO-06**: A repository module imports `@/lib/db` only — importing a service, `next/server`, or a session type fails review
 
 ### Integration Clients
 
@@ -33,7 +33,7 @@ Requirements for this milestone. Each maps to roadmap phases.
 - [x] **INTG-05**: Jira REST responses are validated against a Zod schema at the client boundary; a shape mismatch produces a logged validation error, not a silent wrong value or a 500
 - [x] **INTG-06**: Anthropic model output is validated at the client boundary before any caller consumes it
 - [x] **INTG-07**: One credential resolver serves all integrations, replacing the split between Jira's env-var-names-in-DB pattern and Anthropic's env-then-DB fallback
-- [ ] **INTG-08**: The credential resolver preserves every currently-working tenant configuration — verified per configured company before the old paths are deleted <!-- DEFERRED: no reachable DATABASE_URL, so scripts/verify-credential-cutover.ts cannot gather per-tenant evidence. Old inline blocks preserved as marked dead code; operator runs the script then lands the HYG-01 deletion commit. See 03-VERIFICATION.md. -->
+- [ ] **INTG-08**: The credential resolver preserves every currently-working tenant configuration — verified per configured company before the old paths are deleted <!-- Phase 8: run scripts/verify-credential-cutover.ts against a live DATABASE_URL, then HYG-01 deletion of dead Jira credential blocks. See 03-VERIFICATION.md. -->
 - [x] **INTG-09**: An integration client never imports a repository; a service resolves credentials and passes values in
 - [x] **INTG-10**: Each integration client has tests using recorded/mocked external responses, including a malformed-response case
 
@@ -125,12 +125,12 @@ Deferred. Tracked but not in this milestone's roadmap.
 | TEST-03 | Phase 1 | Complete |
 | TEST-04 | Phase 1 | Complete |
 | TEST-05 | Phase 1 | Complete |
-| REPO-01 | Phase 2 | Pending |
-| REPO-02 | Phase 2 | Pending |
-| REPO-03 | Phase 2 | Pending |
-| REPO-04 | Phase 2 | Pending |
-| REPO-05 | Phase 2 | Pending |
-| REPO-06 | Phase 2 | Pending |
+| REPO-01 | Phase 2 | Complete |
+| REPO-02 | Phase 2 | Complete |
+| REPO-03 | Phase 2 | Complete |
+| REPO-04 | Phase 2 | Complete |
+| REPO-05 | Phase 2 | Complete |
+| REPO-06 | Phase 2 | Complete |
 | INTG-01 | Phase 3 | Complete |
 | INTG-02 | Phase 3 | Complete |
 | INTG-03 | Phase 3 | Complete |
@@ -138,7 +138,7 @@ Deferred. Tracked but not in this milestone's roadmap.
 | INTG-05 | Phase 3 | Complete |
 | INTG-06 | Phase 3 | Complete |
 | INTG-07 | Phase 3 | Complete |
-| INTG-08 | Phase 3 | Deferred — cutover evidence needs a live DATABASE_URL (HYG-01 deletion commit outstanding) |
+| INTG-08 | Phase 3, Phase 8 | Open — Phase 8 owns cutover evidence + HYG-01 deletion of dead Jira credential blocks |
 | INTG-09 | Phase 3 | Complete |
 | INTG-10 | Phase 3 | Complete |
 | SVC-01 | Phase 4 | Complete (04-07 gap closure — collection routes) |
@@ -177,10 +177,11 @@ Deferred. Tracked but not in this milestone's roadmap.
 
 **Coverage:**
 
-- v1 requirements: 52 total
-- Mapped to phases: 52
+- v1 requirements: 54 total
+- Mapped to phases: 54
 - Unmapped: 0 ✓
+- Checked off: 53/54 (INTG-08 open — Phase 8)
 
 ---
 *Requirements defined: 2026-08-07*
-*Last updated: 2026-08-07 after initial definition*
+*Last updated: 2026-08-25 after v1.0 milestone audit (REPO-01..06 checkboxes aligned to 02-VERIFICATION)*
