@@ -1,16 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionFromRequest } from '@/lib/auth';
 import { serviceErrorResponse } from '@/lib/api-errors';
+import { toAccessActor } from '@/lib/services/access';
 import { createMember, listMembers } from '@/lib/services/portfolio.service';
-
-function actorOf(user: { company_id: number | null; is_admin: number }) {
-  return { company_id: user.company_id, is_admin: user.is_admin };
-}
 
 export async function GET(req: NextRequest) {
   const user = await getSessionFromRequest(req);
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  return NextResponse.json(await listMembers(actorOf(user)));
+  return NextResponse.json(await listMembers(toAccessActor(user)));
 }
 
 export async function POST(req: NextRequest) {
@@ -18,7 +15,7 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const body = await req.json();
   try {
-    const row = await createMember(actorOf(user), body);
+    const row = await createMember(toAccessActor(user), body);
     return NextResponse.json(row, { status: 201 });
   } catch (e) {
     return serviceErrorResponse(e);

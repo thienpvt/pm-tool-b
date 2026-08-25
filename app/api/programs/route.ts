@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSessionFromRequest } from '@/lib/auth';
 import { repoErrorResponse, serviceErrorResponse } from '@/lib/api-errors';
 import { UnknownColumnError } from '@/lib/repositories/_helpers';
+import { toAccessActor } from '@/lib/services/access';
 import { createProgram, listProgramsWithCounts } from '@/lib/services/programs.service';
 
 function mapError(e: unknown) {
@@ -14,8 +15,7 @@ export async function GET(req: NextRequest) {
   const user = await getSessionFromRequest(req);
   if (!user) return NextResponse.json([], { status: 401 });
 
-  const actor = { company_id: user.company_id, is_admin: user.is_admin };
-  return NextResponse.json(await listProgramsWithCounts(actor));
+  return NextResponse.json(await listProgramsWithCounts(toAccessActor(user)));
 }
 
 export async function POST(req: NextRequest) {
@@ -24,8 +24,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const actor = { company_id: user.company_id, is_admin: user.is_admin };
-    return NextResponse.json(await createProgram(actor, body), { status: 201 });
+    return NextResponse.json(await createProgram(toAccessActor(user), body), { status: 201 });
   } catch (e) {
     return mapError(e);
   }
