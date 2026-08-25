@@ -34,7 +34,7 @@ Audit: [.planning/milestones/v1.0-MILESTONE-AUDIT.md](milestones/v1.0-MILESTONE-
 - [x] **Phase 9: Mapping Table Tenant Isolation** - Company-scope the four leftover mapping tables (completed 2026-08-26)
 - [x] **Phase 10: Users, Roles & Server Authorization** - Admin user lifecycle plus CPMO / PM / Viewer enforcement (completed 2026-08-26)
 - [x] **Phase 11: Project Master, PM Assignment & Stakeholders** - L0–L5 master data, assignment windows, stakeholder records (completed 2026-08-26)
-- [ ] **Phase 12: Milestone & RAID Master Registers** - Upcoming/overdue masters with soft-delete and Viewer read-only
+- [x] **Phase 12: Milestone & RAID Master Registers** - Upcoming/overdue masters with soft-delete and Viewer read-only (completed 2026-08-26)
 - [ ] **Phase 13: Weekly Periods & PM Submit** - CPMO periods, versioned submit, RAID/milestone snapshots
 - [ ] **Phase 14: CPMO Tracking & Consolidated Export** - Submission grid, lateness, snapshot-based pack export
 - [ ] **Phase 15: Budget, Value, ROI & Dependencies** - Fiscal budget ledger, honest ROI, cross-project links
@@ -156,7 +156,7 @@ Plans:
   3. Assigned PM and CPMO can create, update, and deactivate risks and issues with a unique code per project; Viewer cannot mutate; the register defaults to Open / In progress, ordered High then Medium then Low, with overdue first within a severity
   4. Overdue open RAID items are flagged and shown on dashboards; changing a due date keeps prior due-date history; portfolio High RAID counts are open/in-progress records (not projects); technology-council issues are listable when that flag is set
 
-**Plans:** 3/3 plans executed
+**Plans:** 3/3 plans complete
 
 Plans:
 **Wave 1**
@@ -282,7 +282,7 @@ Phases execute in numeric order: 9 → 10 → 11 → 12 → 13 → 14 → 15 →
 | 9. Mapping Table Tenant Isolation | v2.0 | 3/3 | Complete    | 2026-08-26 |
 | 10. Users, Roles & Server Authorization | v2.0 | 11/11 | Complete    | 2026-08-26 |
 | 11. Project Master, PM Assignment & Stakeholders | v2.0 | 5/5 | Complete    | 2026-08-26 |
-| 12. Milestone & RAID Master Registers | v2.0 | 3/3 | In Progress|  |
+| 12. Milestone & RAID Master Registers | v2.0 | 3/3 | Complete    | 2026-08-26 |
 | 13. Weekly Periods & PM Submit | v2.0 | 0/? | Not started | - |
 | 14. CPMO Tracking & Consolidated Export | v2.0 | 0/? | Not started | - |
 | 15. Budget, Value, ROI & Dependencies | v2.0 | 0/? | Not started | - |
