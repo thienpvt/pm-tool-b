@@ -149,3 +149,24 @@ export async function listNotClosedByPriority(projectId: number | string) {
     projectId,
   );
 }
+
+/** Open/In Progress technology-council issues for a company (D-08). */
+export async function listTechnologyCouncilIssues(companyId: number | null) {
+  const db = await getDb();
+  const base = `
+    SELECT i.*, p.name AS project_name
+    FROM issues i
+    JOIN projects p ON p.id = i.project_id
+    LEFT JOIN customers c ON p.customer_id = c.id
+    WHERE i.technology_council IS TRUE AND i.status IN ('Open','In Progress')`;
+  if (companyId !== null) {
+    return db.all(
+      `${base} AND (p.company_id = ? OR c.company_id = ?) ORDER BY p.name, i.id`,
+      companyId, companyId,
+    );
+  }
+  return db.all(
+    `${base} AND p.company_id IS NULL AND (p.customer_id IS NULL OR c.company_id IS NULL)
+     ORDER BY p.name, i.id`,
+  );
+}

@@ -151,3 +151,35 @@ export async function listNotClosedByPriority(projectId: number | string) {
     projectId,
   );
 }
+
+/** High Open/In Progress risks and issues company-wide; record count not distinct projects (D-08). */
+export async function listHighOpenRaid(companyId: number | null) {
+  const db = await getDb();
+  const riskSelect = `
+    SELECT 'risk' AS entity_type, r.*, p.name AS project_name
+    FROM risks r
+    JOIN projects p ON p.id = r.project_id
+    LEFT JOIN customers c ON p.customer_id = c.id
+    WHERE r.priority = 'High' AND r.status IN ('Open','In Progress')`;
+  const issueSelect = `
+    SELECT 'issue' AS entity_type, i.*, p.name AS project_name
+    FROM issues i
+    JOIN projects p ON p.id = i.project_id
+    LEFT JOIN customers c ON p.customer_id = c.id
+    WHERE i.priority = 'High' AND i.status IN ('Open','In Progress')`;
+  if (companyId !== null) {
+    return db.all(
+      `${riskSelect} AND (p.company_id = ? OR c.company_id = ?)
+       UNION ALL
+       ${issueSelect} AND (p.company_id = ? OR c.company_id = ?)
+       ORDER BY project_name, entity_type, id`,
+      companyId, companyId, companyId, companyId,
+    );
+  }
+  return db.all(
+    `${riskSelect} AND p.company_id IS NULL AND (p.customer_id IS NULL OR c.company_id IS NULL)
+     UNION ALL
+     ${issueSelect} AND p.company_id IS NULL AND (p.customer_id IS NULL OR c.company_id IS NULL)
+     ORDER BY project_name, entity_type, id`,
+  );
+}
