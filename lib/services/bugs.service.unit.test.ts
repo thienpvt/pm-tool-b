@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const {
   assertProjectAccess,
+  assertProjectWriteAccess,
   listBugsRepo,
   listSnapshotDatesRepo,
   replaceSnapshotRepo,
@@ -9,6 +10,7 @@ const {
   deleteAllBugsRepo,
 } = vi.hoisted(() => ({
   assertProjectAccess: vi.fn(),
+  assertProjectWriteAccess: vi.fn(),
   listBugsRepo: vi.fn(),
   listSnapshotDatesRepo: vi.fn(),
   replaceSnapshotRepo: vi.fn(),
@@ -16,7 +18,7 @@ const {
   deleteAllBugsRepo: vi.fn(),
 }));
 
-vi.mock('@/lib/services/access', () => ({ assertProjectAccess }));
+vi.mock('@/lib/services/access', () => ({ assertProjectAccess, assertProjectWriteAccess }));
 vi.mock('@/lib/repositories/bugs.repo', () => ({
   listBugs: listBugsRepo,
   listSnapshotDates: listSnapshotDatesRepo,
@@ -31,6 +33,7 @@ import { ForbiddenError, ValidationError } from './errors';
 beforeEach(() => {
   vi.clearAllMocks();
   assertProjectAccess.mockResolvedValue(undefined);
+  assertProjectWriteAccess.mockResolvedValue(undefined);
 });
 
 const owner = { company_id: 5 as number | null, is_admin: 0 as number | boolean };
@@ -55,19 +58,28 @@ describe('bugs.service', () => {
     expect(listSnapshotDatesRepo).not.toHaveBeenCalled();
   });
 
+  it('replaceSnapshot asserts write access before replacing', async () => {
+    replaceSnapshotRepo.mockResolvedValue(2);
+    await expect(replaceSnapshot(7, owner, [])).resolves.toEqual(
+      expect.objectContaining({ inserted: 2 }),
+    );
+    expect(assertProjectWriteAccess).toHaveBeenCalledWith(7, owner);
+    expect(replaceSnapshotRepo).toHaveBeenCalled();
+  });
+
   it('replaceSnapshot rejects non-array bugs', async () => {
     await expect(replaceSnapshot(7, owner, 'nope')).rejects.toBeInstanceOf(ValidationError);
     expect(replaceSnapshotRepo).not.toHaveBeenCalled();
   });
 
-  it('replaceSnapshot does not call the repository when access is denied', async () => {
-    assertProjectAccess.mockRejectedValue(new ForbiddenError());
+  it('replaceSnapshot does not call the repository when write access is denied', async () => {
+    assertProjectWriteAccess.mockRejectedValue(new ForbiddenError());
     await expect(replaceSnapshot(7, foreign, [])).rejects.toBeInstanceOf(ForbiddenError);
     expect(replaceSnapshotRepo).not.toHaveBeenCalled();
   });
 
-  it('deleteBugs does not call the repository when access is denied', async () => {
-    assertProjectAccess.mockRejectedValue(new ForbiddenError());
+  it('deleteBugs does not call the repository when write access is denied', async () => {
+    assertProjectWriteAccess.mockRejectedValue(new ForbiddenError());
     await expect(deleteBugs(7, foreign)).rejects.toBeInstanceOf(ForbiddenError);
     expect(deleteAllBugsRepo).not.toHaveBeenCalled();
   });
