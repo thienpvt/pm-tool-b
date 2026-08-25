@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionFromRequest } from '@/lib/auth';
 import { serviceErrorResponse } from '@/lib/api-errors';
-import { assertProjectAccess } from '@/lib/services/access';
+import { assertProjectAccess, toAccessActor } from '@/lib/services/access';
 import { statusPct, weightedProgress } from '@/lib/status-weights';
 import { roadmapEpicRows } from '@/lib/repositories/portfolio.repo';
 
@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
 
   // T-04-21 live read IDOR fix: assert ownership BEFORE the epic tree read.
   try {
-    await assertProjectAccess(projectId, { company_id: user.company_id, is_admin: user.is_admin });
+    await assertProjectAccess(projectId, toAccessActor(user));
   } catch (e) {
     return serviceErrorResponse(e);
   }
