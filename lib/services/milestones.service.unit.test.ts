@@ -6,36 +6,42 @@ const {
   listMilestonesRepo,
   createMilestoneRepo,
   updateMilestoneRepo,
-  deleteMilestoneRepo,
+  cancelMilestoneRepo,
+  getMilestoneRepo,
   listEpicsRepo,
   linkEpicRepo,
   unlinkEpicRepo,
+  auditLog,
 } = vi.hoisted(() => ({
   assertProjectAccess: vi.fn(),
   assertProjectWriteAccess: vi.fn(),
   listMilestonesRepo: vi.fn(),
   createMilestoneRepo: vi.fn(),
   updateMilestoneRepo: vi.fn(),
-  deleteMilestoneRepo: vi.fn(),
+  cancelMilestoneRepo: vi.fn(),
+  getMilestoneRepo: vi.fn(),
   listEpicsRepo: vi.fn(),
   linkEpicRepo: vi.fn(),
   unlinkEpicRepo: vi.fn(),
+  auditLog: vi.fn(),
 }));
 
 vi.mock('@/lib/services/access', () => ({ assertProjectAccess, assertProjectWriteAccess }));
+vi.mock('@/lib/services/audit.service', () => ({ auditLog }));
 vi.mock('@/lib/repositories/milestones.repo', () => ({
   listMilestones: listMilestonesRepo,
   createMilestone: createMilestoneRepo,
   updateMilestone: updateMilestoneRepo,
-  deleteMilestone: deleteMilestoneRepo,
+  cancelMilestone: cancelMilestoneRepo,
+  getMilestone: getMilestoneRepo,
   listEpics: listEpicsRepo,
   linkEpic: linkEpicRepo,
   unlinkEpic: unlinkEpicRepo,
 }));
 
 import {
+  cancelMilestone,
   createMilestone,
-  deleteMilestone,
   linkEpic,
   listEpics,
   listMilestones,
@@ -48,10 +54,29 @@ beforeEach(() => {
   vi.clearAllMocks();
   assertProjectAccess.mockResolvedValue(undefined);
   assertProjectWriteAccess.mockResolvedValue(undefined);
+  auditLog.mockResolvedValue(undefined);
 });
 
-const owner = { company_id: 5 as number | null, is_admin: 0 as number | boolean };
-const foreign = { company_id: 9 as number | null, is_admin: 0 as number | boolean };
+const owner = {
+  company_id: 5 as number | null,
+  is_admin: 0 as number | boolean,
+  roles: ['pm'],
+  status: 'active' as const,
+  user_id: 2,
+  username: 'ava',
+  display_name: 'Ava',
+  email: 'ava@example.com',
+};
+const foreign = {
+  company_id: 9 as number | null,
+  is_admin: 0 as number | boolean,
+  roles: ['viewer'],
+  status: 'active' as const,
+  user_id: 3,
+  username: 'bob',
+  display_name: 'Bob',
+  email: 'bob@example.com',
+};
 
 describe('milestones.service', () => {
   it('listMilestones does not call the repository when access is denied', async () => {
@@ -74,7 +99,6 @@ describe('milestones.service', () => {
   });
 
   it('updateMilestone throws NotFoundError when milestone is outside the parent project', async () => {
-    // Scoped update returns undefined when milestone belongs to another project (T-04-13).
     updateMilestoneRepo.mockResolvedValue(undefined);
     await expect(updateMilestone(7, owner, 99, { name: 'x' })).rejects.toBeInstanceOf(
       NotFoundError,
@@ -87,15 +111,46 @@ describe('milestones.service', () => {
     expect(updateMilestoneRepo).not.toHaveBeenCalled();
   });
 
-  it('deleteMilestone throws NotFoundError on zero changes', async () => {
-    deleteMilestoneRepo.mockResolvedValue({ lastInsertRowid: 0, changes: 0 });
-    await expect(deleteMilestone(7, owner, 99)).rejects.toBeInstanceOf(NotFoundError);
-  });
+  describe('cancelMilestone', () => {
+    it('does not call the repository when write access is denied', async () => {
+      assertProjectWriteAccess.mockRejectedValue(new ForbiddenError());
+      await expect(cancelMilestone(7, foreign, 1)).rejects.toBeInstanceOf(ForbiddenError);
+      expect(cancelMilestoneRepo).not.toHaveBeenCalled();
+      expect(auditLog).not.toHaveBeenCalled();
+    });
 
-  it('deleteMilestone does not call the repository when write access is denied', async () => {
-    assertProjectWriteAccess.mockRejectedValue(new ForbiddenError());
-    await expect(deleteMilestone(7, foreign, 1)).rejects.toBeInstanceOf(ForbiddenError);
-    expect(deleteMilestoneRepo).not.toHaveBeenCalled();
+    it('throws NotFoundError when milestone is missing or cross-project', async () => {
+      getMilestoneRepo.mockResolvedValue(undefined);
+      cancelMilestoneRepo.mockResolvedValue(undefined);
+      await expect(cancelMilestone(7, owner, 99)).rejects.toBeInstanceOf(NotFoundError);
+    });
+
+    it('sets status cancelled, writes auditLog action cancel, and does not delete the row', async () => {
+      getMilestoneRepo.mockResolvedValue({ id: 3, status: 'planned' });
+      cancelMilestoneRepo.mockResolvedValue({
+        id: 3,
+        status: 'cancelled',
+        cancelled_by: owner.user_id,
+      });
+
+      await expect(cancelMilestone(7, owner, 3)).resolves.toMatchObject({
+        id: 3,
+        status: 'cancelled',
+      });
+
+      expect(assertProjectWriteAccess).toHaveBeenCalledWith(7, owner);
+      expect(getMilestoneRepo).toHaveBeenCalledWith(7, 3);
+      expect(cancelMilestoneRepo).toHaveBeenCalledWith(7, 3, owner.user_id);
+      expect(auditLog).toHaveBeenCalledWith({
+        actor_id: owner.user_id,
+        company_id: owner.company_id,
+        entity_type: 'milestone',
+        entity_id: '3',
+        action: 'cancel',
+        before: { status: 'planned' },
+        after: { status: 'cancelled' },
+      });
+    });
   });
 
   it('listEpics asserts parent project access before listing', async () => {
