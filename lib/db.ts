@@ -28,7 +28,7 @@ class PostgresClient implements DbClient {
     // Tables that use non-SERIAL primary keys (no 'id' column to RETURNING).
     // company_rag_config was missing here: its PK is company_id, so the admin
     // rag-config upsert failed at runtime with `column "id" does not exist`.
-    const noIdTables = ['settings', 'company_jira_config', 'company_rag_config', 'user_roles'];
+    const noIdTables = ['settings', 'company_jira_config', 'company_rag_config', 'company_weekly_config', 'user_roles'];
     return !!table && !noIdTables.includes(table);
   }
 
@@ -615,6 +615,8 @@ export async function getDb(): Promise<DbClient> {
   await migrateProjectMaster(pool);
   const { migrateRaidMasters } = await import('./db-raid-masters');
   await migrateRaidMasters(pool);
+  const { migrateWeeklyReports } = await import('./db-weekly-reports');
+  await migrateWeeklyReports(pool);
   await backfillWeightedCompletion(pool);
   _client = client;
 
