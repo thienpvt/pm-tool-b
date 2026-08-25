@@ -40,10 +40,10 @@ Requirements for this milestone. Each maps to roadmap phases. Jira import, AI re
 
 ### PM Assignment
 
-- [ ] **PMAS-01**: CPMO can assign exactly one active primary PM per project, or leave a project with no PM
-- [ ] **PMAS-02**: CPMO can assign collaborating PMs only when a primary PM is active; a user cannot be both primary and collaborator on the same project at once
-- [ ] **PMAS-03**: CPMO can change or revoke assignments; the system keeps assignment history by period
-- [ ] **PMAS-04**: A PM's write access to a project starts and ends with the effective assignment window
+- [x] **PMAS-01**: CPMO can assign exactly one active primary PM per project, or leave a project with no PM
+- [x] **PMAS-02**: CPMO can assign collaborating PMs only when a primary PM is active; a user cannot be both primary and collaborator on the same project at once
+- [x] **PMAS-03**: CPMO can change or revoke assignments; the system keeps assignment history by period
+- [x] **PMAS-04**: A PM's write access to a project starts and ends with the effective assignment window
 
 ### Stakeholders
 
@@ -206,10 +206,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PROJ-06 | Phase 11 | Complete |
 | PROJ-07 | Phase 11 | Complete |
 | PROJ-08 | Phase 11 | Complete |
-| PMAS-01 | Phase 11 | Pending |
-| PMAS-02 | Phase 11 | Pending |
-| PMAS-03 | Phase 11 | Pending |
-| PMAS-04 | Phase 11 | Pending |
+| PMAS-01 | Phase 11 | Complete |
+| PMAS-02 | Phase 11 | Complete |
+| PMAS-03 | Phase 11 | Complete |
+| PMAS-04 | Phase 11 | Complete |
 | STKH-01 | Phase 11 | Complete |
 | STKH-02 | Phase 11 | Complete |
 | STKH-03 | Phase 11 | Complete |

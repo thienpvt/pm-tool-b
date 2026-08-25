@@ -5,16 +5,16 @@ milestone_name: Portfolio One View
 current_phase: 11
 current_phase_name: Project Master, PM Assignment & Stakeholders
 status: executing
-stopped_at: Completed 11-04-PLAN.md
-last_updated: "2026-08-25T19:51:04.409Z"
+stopped_at: Completed 11-03-PLAN.md
+last_updated: "2026-08-25T19:56:13.601Z"
 last_activity: 2026-08-26
 last_activity_desc: Phase 10 complete, transitioned to Phase 11
-state_head: daf6fe04cf9418787b6d2fbafaf32dda020e3f07
+state_head: ec360a3a43f2bbc8198224087d6145ae7d347fae
 progress:
   total_phases: 10
   completed_phases: 2
   total_plans: 19
-  completed_plans: 17
+  completed_plans: 18
 ---
 
 # Project State
@@ -72,6 +72,7 @@ Progress: [█░░░░░░░░░] 10%
 | Phase 11 P01 | 8 | 2 tasks | 8 files |
 | Phase 11 P02 | 8 | 2 tasks | 4 files |
 | Phase 11 P04 | 4 | 2 tasks | 6 files |
+| Phase 11-project-master-pm-assignment-stakeholders P03 | 4 | 2 tasks | 14 files |
 
 ## Accumulated Context
 
@@ -113,6 +114,7 @@ Recent decisions affecting current work:
 - [Phase 11]: findProjectByCompanyCode clash filtered by excluding current project id in service
 - [Phase 11]: Singleton stakeholder roles enforced in service via hasActiveStakeholderForRole repo query
 - [Phase 11]: PATCH /stakeholders ends role by body.id with optional effective_to
+- [Phase 11]: Kept assertPmWriteAccess name; all PM access via hasActivePmAssignment after D-14 backfill
 
 ### Pending Todos
 
@@ -133,6 +135,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-08-25T19:51:04.230Z
-Stopped at: Completed 11-04-PLAN.md
+Last session: 2026-08-25T19:56:13.424Z
+Stopped at: Completed 11-03-PLAN.md
 Resume file: None
