@@ -4,6 +4,8 @@ import {
   findJqlPresetByName,
   getJqlPresetById,
   listJqlPresets as listJqlPresetsRepo,
+  listRecentJiraSyncMappings as listRecentJiraSyncMappingsRepo,
+  saveJiraSyncMapping as saveJiraSyncMappingRepo,
 } from '@/lib/repositories/jira-config.repo';
 import type { AccessActor } from './access';
 import { ConflictError, ForbiddenError, NotFoundError } from './errors';
@@ -45,4 +47,14 @@ export async function deleteJqlPreset(id: number | string, actor: AccessActor) {
   const row = await getJqlPresetById(id);
   assertCompanyRow(actor, row);
   return deleteJqlPresetRepo(actor.company_id!, id);
+}
+
+export async function listRecentJiraSyncMappings(actor: AccessActor) {
+  const companyId = requireCompanyId(actor);
+  return listRecentJiraSyncMappingsRepo(companyId);
+}
+
+export async function saveJiraSyncMapping(actor: AccessActor, mappingsJson: string) {
+  const companyId = requireCompanyId(actor);
+  return saveJiraSyncMappingRepo(companyId, mappingsJson);
 }

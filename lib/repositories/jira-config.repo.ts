@@ -87,16 +87,33 @@ export async function deleteJqlPreset(companyId: number, presetId: number | stri
   return db.run('DELETE FROM jira_jql_presets WHERE id = ? AND company_id = ?', presetId, companyId);
 }
 
-export async function listRecentJiraSyncMappings() {
+export async function listRecentJiraSyncMappings(companyId: number) {
   const db = await getDb();
-  return db.all('SELECT * FROM jira_sync_mappings ORDER BY created_at DESC LIMIT 5');
+  return db.all(
+    'SELECT * FROM jira_sync_mappings WHERE company_id = ? ORDER BY created_at DESC LIMIT 5',
+    companyId,
+  );
 }
 
-export async function saveJiraSyncMapping(mappingsJson: string) {
+export async function saveJiraSyncMapping(companyId: number, mappingsJson: string) {
   const db = await getDb();
-  await db.run('INSERT INTO jira_sync_mappings (mappings_json) VALUES (?)', mappingsJson);
+  await db.run(
+    'INSERT INTO jira_sync_mappings (mappings_json, company_id) VALUES (?, ?)',
+    mappingsJson,
+    companyId,
+  );
   await db.run(
     `DELETE FROM jira_sync_mappings
-     WHERE id NOT IN (SELECT id FROM jira_sync_mappings ORDER BY created_at DESC LIMIT 5)`,
+     WHERE company_id = ?
+       AND id NOT IN (
+         SELECT id FROM (
+           SELECT id FROM jira_sync_mappings
+           WHERE company_id = ?
+           ORDER BY created_at DESC
+           LIMIT 5
+         ) AS keep_rows
+       )`,
+    companyId,
+    companyId,
   );
 }
