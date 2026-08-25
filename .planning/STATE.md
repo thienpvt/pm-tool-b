@@ -5,16 +5,16 @@ milestone_name: Portfolio One View
 current_phase: 10
 current_phase_name: Users, Roles & Server Authorization
 status: executing
-stopped_at: Phase 9 complete, ready to plan Phase 10
-last_updated: "2026-08-25T18:20:29.617Z"
+stopped_at: Completed 10-01-PLAN.md
+last_updated: "2026-08-25T18:24:59.027Z"
 last_activity: 2026-08-26
 last_activity_desc: Phase 9 complete, transitioned to Phase 10
-state_head: c092220f0526ea3c3a63013042640e381e02ab5e
+state_head: db3d984538a7afaa072adccd311561afb7c55f3f
 progress:
   total_phases: 10
   completed_phases: 1
   total_plans: 14
-  completed_plans: 3
+  completed_plans: 4
 ---
 
 # Project State
@@ -58,6 +58,7 @@ Progress: [█░░░░░░░░░] 10%
 | Phase 09-mapping-table-tenant-isolation P01 | 45min | 3 tasks | 11 files |
 | Phase 09-mapping-table-tenant-isolation P02 | 25min | 3 tasks | 11 files |
 | Phase 09-mapping-table-tenant-isolation P03 | 25min | 3 tasks | 12 files |
+| Phase 10-users-roles-server-authorization P01 | 12 | 2 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -76,6 +77,8 @@ Recent decisions affecting current work:
 - [Phase 9]: Bug cap eviction scoped by bugMappingIds(companyId) in service not route
 - [Phase 9]: JQL unique (company_id, name, context); sync list+POST scoping only
 - [Phase 9]: findJqlPresetByName pre-check for ConflictError
+- [Phase 10]: AccessActor canonical in lib/services/access.ts; withAuth uses toAccessActor
+- [Phase 10]: Role backfill skips null company_id; does not set is_admin from roles
 
 ### Pending Todos
 
@@ -96,6 +99,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-08-25T17:05:25.413Z
-Stopped at: Phase 9 complete, ready to plan Phase 10
+Last session: 2026-08-25T18:24:58.945Z
+Stopped at: Completed 10-01-PLAN.md
 Resume file: None

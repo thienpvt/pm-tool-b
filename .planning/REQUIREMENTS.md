@@ -13,19 +13,19 @@ Requirements for this milestone. Each maps to roadmap phases. Jira import, AI re
 
 - [ ] **USER-01**: Admin can list, search, and filter users by status, role, and unit
 - [ ] **USER-02**: Admin can create or update a user with unique username and unique email; a locked account's username/email cannot be reused on another account
-- [ ] **USER-03**: Admin can assign one or more roles to a user; effective permissions are the union of assigned roles
-- [ ] **USER-04**: Admin can set account status to Active, Inactive, or Locked; only Active users can log in
+- [x] **USER-03**: Admin can assign one or more roles to a user; effective permissions are the union of assigned roles
+- [x] **USER-04**: Admin can set account status to Active, Inactive, or Locked; only Active users can log in
 - [ ] **USER-05**: Admin can lock or unlock an account; the system records who changed the record and when
 - [ ] **USER-06**: A user who has generated business data cannot be physically deleted; history still shows their display name
 
 ### Login and Authorization
 
-- [ ] **AUTH-01**: User can log in with username and password
+- [x] **AUTH-01**: User can log in with username and password
 - [ ] **AUTH-02**: User session expires per policy; a valid session can be extended without losing in-progress draft input
 - [ ] **AUTH-03**: User can log out and end the session
-- [ ] **AUTH-04**: CPMO can view the full company portfolio; PM can view and update only assigned projects; Viewer can read but cannot mutate
-- [ ] **AUTH-05**: Every API and screen enforces authorization on the server; hiding a UI control is not treated as access control
-- [ ] **AUTH-06**: Inactive or Locked users receive a login rejection and cannot obtain a session
+- [x] **AUTH-04**: CPMO can view the full company portfolio; PM can view and update only assigned projects; Viewer can read but cannot mutate
+- [x] **AUTH-05**: Every API and screen enforces authorization on the server; hiding a UI control is not treated as access control
+- [x] **AUTH-06**: Inactive or Locked users receive a login rejection and cannot obtain a session
 
 ### Project Master Data
 
@@ -188,16 +188,16 @@ Which phases cover which requirements. Updated during roadmap creation.
 |-------------|-------|--------|
 | USER-01 | Phase 10 | Pending |
 | USER-02 | Phase 10 | Pending |
-| USER-03 | Phase 10 | Pending |
-| USER-04 | Phase 10 | Pending |
+| USER-03 | Phase 10 | Complete |
+| USER-04 | Phase 10 | Complete |
 | USER-05 | Phase 10 | Pending |
 | USER-06 | Phase 10 | Pending |
-| AUTH-01 | Phase 10 | Pending |
+| AUTH-01 | Phase 10 | Complete |
 | AUTH-02 | Phase 10 | Pending |
 | AUTH-03 | Phase 10 | Pending |
-| AUTH-04 | Phase 10 | Pending |
-| AUTH-05 | Phase 10 | Pending |
-| AUTH-06 | Phase 10 | Pending |
+| AUTH-04 | Phase 10 | Complete |
+| AUTH-05 | Phase 10 | Complete |
+| AUTH-06 | Phase 10 | Complete |
 | PROJ-01 | Phase 11 | Pending |
 | PROJ-02 | Phase 11 | Pending |
 | PROJ-03 | Phase 11 | Pending |
