@@ -48,6 +48,14 @@ export async function migrateMappingTableTenancy(pool: Pool): Promise<void> {
   await migrateOneTable(pool, SYNC_SPEC, SYNC_FLAG);
 }
 
+async function uniqueIndexExists(pool: Pool, indexName: string): Promise<boolean> {
+  const res = await pool.query(
+    'SELECT 1 FROM pg_indexes WHERE indexname = $1 LIMIT 1',
+    [indexName],
+  );
+  return res.rows.length > 0;
+}
+
 async function migrateOneTable(pool: Pool, spec: MappingTableSpec, flagKey: string): Promise<void> {
   const { table, nameColumn, payloadColumns } = spec;
 
@@ -87,14 +95,24 @@ async function migrateOneTable(pool: Pool, spec: MappingTableSpec, flagKey: stri
           'c.id',
           't.created_at',
         ].join(', ');
-        await pool.query(
-          `INSERT INTO ${table} (${insertCols})
-           SELECT ${selectCols}
-           FROM ${table} t
-           CROSS JOIN companies c
-           WHERE t.company_id IS NULL`,
-        );
-        await pool.query(`DELETE FROM ${table} WHERE company_id IS NULL`);
+        const client = await pool.connect();
+        try {
+          await client.query('BEGIN');
+          await client.query(
+            `INSERT INTO ${table} (${insertCols})
+             SELECT ${selectCols}
+             FROM ${table} t
+             CROSS JOIN companies c
+             WHERE t.company_id IS NULL`,
+          );
+          await client.query(`DELETE FROM ${table} WHERE company_id IS NULL`);
+          await client.query('COMMIT');
+        } catch (err) {
+          await client.query('ROLLBACK');
+          throw err;
+        } finally {
+          client.release();
+        }
       }
     }
 
@@ -115,14 +133,14 @@ async function migrateOneTable(pool: Pool, spec: MappingTableSpec, flagKey: stri
 
       const uniqueCols =
         spec.uniqueIndexColumns ?? (nameColumn ? ['company_id', nameColumn] : undefined);
+      const uniqueIndexName = `idx_${table}_company_unique`;
       if (uniqueCols && uniqueCols.length > 0) {
-        try {
-          await pool.query(
-            `CREATE UNIQUE INDEX IF NOT EXISTS idx_${table}_company_unique
-             ON ${table} (${uniqueCols.join(', ')})`,
-          );
-        } catch {
-          /* index exists */
+        await pool.query(
+          `CREATE UNIQUE INDEX IF NOT EXISTS ${uniqueIndexName}
+           ON ${table} (${uniqueCols.join(', ')})`,
+        );
+        if (!(await uniqueIndexExists(pool, uniqueIndexName))) {
+          return;
         }
       }
 
