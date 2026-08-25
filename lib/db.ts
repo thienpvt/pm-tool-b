@@ -28,7 +28,7 @@ class PostgresClient implements DbClient {
     // Tables that use non-SERIAL primary keys (no 'id' column to RETURNING).
     // company_rag_config was missing here: its PK is company_id, so the admin
     // rag-config upsert failed at runtime with `column "id" does not exist`.
-    const noIdTables = ['settings', 'company_jira_config', 'company_rag_config'];
+    const noIdTables = ['settings', 'company_jira_config', 'company_rag_config', 'user_roles'];
     return !!table && !noIdTables.includes(table);
   }
 
