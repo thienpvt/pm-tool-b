@@ -1,36 +1,33 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { NextResponse } from 'next/server';
+import { withProjectAccess } from '@/lib/http/with-project-access';
+import {
+  createTeamMember,
+  deleteTeamMember,
+  listTeam,
+  updateTeamMember,
+} from '@/lib/services/team.service';
+import { teamInputSchema, teamUpdateSchema } from './schema';
 
-type Params = { params: Promise<{ id: string }> };
+export const GET = withProjectAccess(async (_req, { params, actor }) =>
+  NextResponse.json(await listTeam(params.id, actor)),
+);
 
-export async function GET(_req: NextRequest, { params }: Params) {
-  const { id } = await params;
-  const db = await getDb();
-  return NextResponse.json(await db.all('SELECT * FROM team_members WHERE project_id = ? ORDER BY domain, id', id));
-}
+export const POST = withProjectAccess(
+  async (_req, { params, actor, body }) =>
+    NextResponse.json(await createTeamMember(params.id, actor, body as Record<string, unknown>), { status: 201 }),
+  { schema: teamInputSchema },
+);
 
-export async function POST(req: NextRequest, { params }: Params) {
-  const { id } = await params;
-  const body = await req.json();
-  const db = await getDb();
-  const r = await db.run('INSERT INTO team_members (project_id, domain, role, name, email, capacity_json, notes) VALUES (?,?,?,?,?,?,?)', id, body.domain ?? '', body.role ?? '', body.name ?? '', body.email ?? '', body.capacity_json ?? '{}', body.notes ?? '');
-  return NextResponse.json(await db.get('SELECT * FROM team_members WHERE id = ?', r.lastInsertRowid), { status: 201 });
-}
+export const PUT = withProjectAccess(
+  async (_req, { params, actor, body }) => {
+    const { id: rowId, ...fields } = body as Record<string, unknown>;
+    return NextResponse.json(await updateTeamMember(params.id, actor, rowId as string | number, fields));
+  },
+  { schema: teamUpdateSchema },
+);
 
-export async function PUT(req: NextRequest, { params }: Params) {
-  const { id } = await params;
-  const body = await req.json();
-  const db = await getDb();
-  const { id: rowId, ...fields } = body;
-  const sets = Object.keys(fields).map(k => `${k} = ?`).join(', ');
-  await db.run(`UPDATE team_members SET ${sets} WHERE id = ? AND project_id = ?`, ...Object.values(fields), rowId, id);
-  return NextResponse.json(await db.get('SELECT * FROM team_members WHERE id = ?', rowId));
-}
-
-export async function DELETE(req: NextRequest, { params }: Params) {
-  const { id } = await params;
-  const { searchParams } = new URL(req.url);
-  const db = await getDb();
-  await db.run('DELETE FROM team_members WHERE id = ? AND project_id = ?', searchParams.get('rowId'), id);
+export const DELETE = withProjectAccess(async (req, { params, actor }) => {
+  const rowId = new URL(req.url).searchParams.get('rowId') ?? '';
+  await deleteTeamMember(params.id, actor, rowId);
   return NextResponse.json({ ok: true });
-}
+});

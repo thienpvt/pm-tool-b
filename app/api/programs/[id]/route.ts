@@ -1,31 +1,19 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { NextResponse } from 'next/server';
+import { withProgramAccess } from '@/lib/http/with-program-access';
+import { deleteProgram, getProgramDetail, updateProgram } from '@/lib/services/programs.service';
 
-type Params = { params: Promise<{ id: string }> };
+// GET/PUT/DELETE all re-call the service, which re-runs assertProgramAccess
+// internally (defense in depth, matches the projects tree) — the wrapper's
+// assert is the route-level gate; ctx.program is unused here for the same
+// reason projects/[id]/route.ts skips ctx.project on GET.
+export const GET = withProgramAccess(async (_req, { params, actor }) =>
+  NextResponse.json(await getProgramDetail(params.id, actor)),
+);
 
-export async function GET(_req: NextRequest, { params }: Params) {
-  const { id } = await params;
-  const db = await getDb();
-  const program = await db.get('SELECT * FROM customers WHERE id = ?', id);
-  if (!program) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  const projects = await db.all('SELECT * FROM projects WHERE customer_id = ? ORDER BY created_at DESC', id);
-  return NextResponse.json({ program, projects });
-}
+export const PUT = withProgramAccess(async (_req, { params, actor, body }) =>
+  NextResponse.json(await updateProgram(params.id, actor, body as Record<string, unknown>)),
+);
 
-export async function PUT(req: NextRequest, { params }: Params) {
-  const { id } = await params;
-  const body = await req.json();
-  const db = await getDb();
-  await db.run(
-    'UPDATE customers SET name=?, industry=?, contact_name=?, contact_email=?, contact_phone=?, website=?, notes=? WHERE id=?',
-    body.name, body.industry ?? '', body.contact_name ?? '', body.contact_email ?? '', body.contact_phone ?? '', body.website ?? '', body.notes ?? '', id
-  );
-  return NextResponse.json(await db.get('SELECT * FROM customers WHERE id = ?', id));
-}
-
-export async function DELETE(_req: NextRequest, { params }: Params) {
-  const { id } = await params;
-  const db = await getDb();
-  await db.run('DELETE FROM customers WHERE id = ?', id);
-  return NextResponse.json({ ok: true });
-}
+export const DELETE = withProgramAccess(async (_req, { params, actor }) =>
+  NextResponse.json(await deleteProgram(params.id, actor)),
+);

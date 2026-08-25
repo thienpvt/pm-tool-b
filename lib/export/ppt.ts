@@ -1,5 +1,13 @@
 import PptxGenJS from 'pptxgenjs';
-import { getDb } from '@/lib/db';
+import { listActivities } from '@/lib/repositories/activities.repo';
+import { getDocumentForExport } from '@/lib/repositories/documents.repo';
+import { listMeetings } from '@/lib/repositories/meetings.repo';
+import { getProject } from '@/lib/repositories/projects.repo';
+import { listRisks } from '@/lib/repositories/risks.repo';
+import { listTeam } from '@/lib/repositories/team.repo';
+import type { AccessActor } from '@/lib/services/access';
+import { assertProjectAccess } from '@/lib/services/access';
+import { NotFoundError } from '@/lib/services/errors';
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const PRIMARY   = '1677FF';   // blue
@@ -81,6 +89,7 @@ function dataCell(text: string, opts: Partial<PptxGenJS.TableCellProps> = {}): P
 
 export async function generateKickoffPPT(
   projectId: number,
+  actor: AccessActor,
   extras: {
     presentation_date?: string;
     methodology?: string;
@@ -88,18 +97,19 @@ export async function generateKickoffPPT(
     agenda?: string;
   } = {}
 ): Promise<Buffer> {
-  const db = await getDb();
+  await assertProjectAccess(projectId, actor);
 
-  const project     = await db.get('SELECT * FROM projects WHERE id = ?', projectId) as Record<string, string> | undefined;
-  if (!project) throw new Error('Project not found');
+  const project = await getProject(projectId) as Record<string, string> | undefined;
+  if (!project) throw new NotFoundError('Project not found', 'project');
 
-  const team        = await db.all('SELECT * FROM team_members WHERE project_id = ? ORDER BY domain, id', projectId) as Record<string, string>[];
-  const meetings    = await db.all('SELECT * FROM meetings WHERE project_id = ? ORDER BY id', projectId) as Record<string, string>[];
-  const risks       = await db.all('SELECT * FROM risks WHERE project_id = ? ORDER BY id', projectId) as Record<string, string>[];
-  const activities  = await db.all('SELECT * FROM activities WHERE project_id = ? ORDER BY order_idx, id', projectId) as Record<string, string>[];
-  const docs        = await db.all('SELECT * FROM documents WHERE project_id = ?', projectId) as Record<string, string>[];
+  const [team, meetings, risks, activities, charter] = await Promise.all([
+    listTeam(projectId) as Promise<Record<string, string>[]>,
+    listMeetings(projectId) as Promise<Record<string, string>[]>,
+    listRisks(projectId) as Promise<Record<string, string>[]>,
+    listActivities(projectId) as Promise<Record<string, string>[]>,
+    getDocumentForExport(projectId, 'project_charter') as Promise<Record<string, string> | undefined>,
+  ]);
 
-  const charter = docs.find(d => d.type === 'project_charter');
   const charterContent = charter ? JSON.parse(charter.content_json || '{}') : {};
 
   const TOTAL = 10;

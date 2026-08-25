@@ -1,36 +1,33 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { NextResponse } from 'next/server';
+import { withProjectAccess } from '@/lib/http/with-project-access';
+import {
+  createMeeting,
+  deleteMeeting,
+  listMeetings,
+  updateMeeting,
+} from '@/lib/services/meetings.service';
+import { meetingInputSchema, meetingUpdateSchema } from './schema';
 
-type Params = { params: Promise<{ id: string }> };
+export const GET = withProjectAccess(async (_req, { params, actor }) =>
+  NextResponse.json(await listMeetings(params.id, actor)),
+);
 
-export async function GET(_req: NextRequest, { params }: Params) {
-  const { id } = await params;
-  const db = await getDb();
-  return NextResponse.json(await db.all('SELECT * FROM meetings WHERE project_id = ? ORDER BY id', id));
-}
+export const POST = withProjectAccess(
+  async (_req, { params, actor, body }) =>
+    NextResponse.json(await createMeeting(params.id, actor, body as Record<string, unknown>), { status: 201 }),
+  { schema: meetingInputSchema },
+);
 
-export async function POST(req: NextRequest, { params }: Params) {
-  const { id } = await params;
-  const body = await req.json();
-  const db = await getDb();
-  const r = await db.run('INSERT INTO meetings (project_id, name, frequency, content, participants, method, type) VALUES (?,?,?,?,?,?,?)', id, body.name ?? '', body.frequency ?? '', body.content ?? '', body.participants ?? '', body.method ?? '', body.type ?? 'regular');
-  return NextResponse.json(await db.get('SELECT * FROM meetings WHERE id = ?', r.lastInsertRowid), { status: 201 });
-}
+export const PUT = withProjectAccess(
+  async (_req, { params, actor, body }) => {
+    const { id: rowId, ...fields } = body as Record<string, unknown>;
+    return NextResponse.json(await updateMeeting(params.id, actor, rowId as string | number, fields));
+  },
+  { schema: meetingUpdateSchema },
+);
 
-export async function PUT(req: NextRequest, { params }: Params) {
-  const { id } = await params;
-  const body = await req.json();
-  const db = await getDb();
-  const { id: rowId, ...fields } = body;
-  const sets = Object.keys(fields).map(k => `${k} = ?`).join(', ');
-  await db.run(`UPDATE meetings SET ${sets} WHERE id = ? AND project_id = ?`, ...Object.values(fields), rowId, id);
-  return NextResponse.json(await db.get('SELECT * FROM meetings WHERE id = ?', rowId));
-}
-
-export async function DELETE(req: NextRequest, { params }: Params) {
-  const { id } = await params;
-  const { searchParams } = new URL(req.url);
-  const db = await getDb();
-  await db.run('DELETE FROM meetings WHERE id = ? AND project_id = ?', searchParams.get('rowId'), id);
+export const DELETE = withProjectAccess(async (req, { params, actor }) => {
+  const rowId = new URL(req.url).searchParams.get('rowId') ?? '';
+  await deleteMeeting(params.id, actor, rowId);
   return NextResponse.json({ ok: true });
-}
+});

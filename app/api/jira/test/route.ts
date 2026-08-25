@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
 import { getSessionFromRequest } from '@/lib/auth';
-import { serverError } from '@/lib/log';
+import { integrationErrorResponse } from '@/lib/api-errors';
+import { companyJiraConfig } from '@/lib/repositories/jira-config.repo';
+import { resolveJiraCredentials } from '@/lib/integrations/credentials';
+import { testConnection } from '@/lib/integrations/jira/client';
 
 type Cfg = { base_url_var: string; email_var: string; token_var: string };
 
@@ -10,6 +12,11 @@ type Cfg = { base_url_var: string; email_var: string; token_var: string };
  *  - Admin can pass a body with companyId and/or the var names being edited in the
  *    config dialog → test those, even before they're saved.
  *  - Otherwise fall back to the logged-in user's own company config (saved in DB).
+ *
+ * Returns the names only — actual values are resolved by resolveJiraCredentials,
+ * which serves both this path and the DB-config path (Pitfall 3). The resolver's
+ * null return carries no per-name detail, so the missing-var diagnostic below is
+ * computed from the names against process.env, exactly as before.
  */
 async function resolveCfg(req: NextRequest): Promise<
   | { ok: true; cfg: Cfg }
@@ -33,11 +40,7 @@ async function resolveCfg(req: NextRequest): Promise<
   const companyId = (user.is_admin && body.companyId) ? Number(body.companyId) : user.company_id;
   if (!companyId) return { ok: false, status: 400, error: 'Tài khoản chưa thuộc công ty nào' };
 
-  const db = await getDb();
-  const cfg = await db.get<Cfg>(
-    'SELECT base_url_var, email_var, token_var FROM company_jira_config WHERE company_id = ?',
-    companyId,
-  );
+  const cfg = await companyJiraConfig(companyId);
   if (!cfg?.base_url_var || !cfg?.email_var || !cfg?.token_var) {
     return { ok: false, status: 503, error: 'Công ty chưa được cấu hình Jira. Admin vào Quản trị → Companies → Cấu hình Jira.' };
   }
@@ -49,48 +52,54 @@ async function handle(req: NextRequest) {
   if (!resolved.ok) return NextResponse.json({ ok: false, error: resolved.error }, { status: resolved.status });
   const { cfg } = resolved;
 
-  const baseUrl = process.env[cfg.base_url_var]?.replace(/\/$/, '');
-  const email   = process.env[cfg.email_var];
-  const token   = process.env[cfg.token_var];
+  // INTG-07: values come from the shared resolver, never from an inline
+  // process.env read. `explicit` hands it the var names resolveCfg settled on —
+  // which for the admin path are un-saved form values with no DB row to find.
+  const creds = await resolveJiraCredentials(null, cfg);
 
-  if (!baseUrl || !email || !token) {
+  if (!creds) {
+    // The resolver's null carries no per-name detail, so the operator-facing
+    // diagnostic is recomputed from the names here (same as before).
     const missing = [
-      !baseUrl && cfg.base_url_var,
-      !email   && cfg.email_var,
-      !token   && cfg.token_var,
+      !process.env[cfg.base_url_var] && cfg.base_url_var,
+      !process.env[cfg.email_var]    && cfg.email_var,
+      !process.env[cfg.token_var]    && cfg.token_var,
     ].filter(Boolean);
     return NextResponse.json({
       ok: false,
-      error: `Biến môi trường chưa được set trên server: ${missing.join(', ')}`,
+      error: `Biến môi trường chưa được set trên Railway: ${missing.join(', ')}`,
       missing,
     }, { status: 503 });
   }
 
-  const auth = 'Basic ' + Buffer.from(`${email}:${token}`).toString('base64');
-
   try {
-    const resp = await fetch(`${baseUrl}/rest/api/3/myself`, {
-      headers: { Authorization: auth, Accept: 'application/json' },
-    });
-
-    if (!resp.ok) {
-      const errText = await resp.text();
-      let errMsg = `Jira trả về ${resp.status}`;
-      try { const j = JSON.parse(errText); if (j.message) errMsg = j.message; } catch { /* keep */ }
-      return NextResponse.json({ ok: false, error: errMsg }, { status: resp.status });
-    }
-
-    const me = await resp.json();
+    const me = await testConnection(creds);
     return NextResponse.json({
       ok: true,
       displayName: me.displayName,
       email: me.emailAddress,
       accountId: me.accountId,
-      baseUrl,
+      baseUrl: creds.baseUrl,
     });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    return serverError(req, err, { ok: false, error: `Lỗi kết nối: ${msg}` });
+    const e = err as { kind?: string; status?: number; message?: string };
+    // Route-level handling wins here: the test route's response shapes and the
+    // `Lỗi kết nối: ...` 500 prefix differ from the search route's mapper
+    // output, so the upstream/network cases are rendered with the test prefix.
+    // WR-04: the upstream `e.message` is the raw Jira error body echoed to the
+    // operator. Deliberate — behavior freeze (the old route echoed `j.message`
+    // verbatim) and the test route is an operator diagnostic where the upstream
+    // reason is the point. The network/timeout branch only ever sees the
+    // client's generated message ('IntegrationError[jira:network]'), never raw
+    // upstream text.
+    const upstreamMsg = typeof e.message === 'string' ? e.message : 'Lỗi kết nối Jira';
+    if (e.kind === 'upstream') {
+      return NextResponse.json({ ok: false, error: upstreamMsg }, { status: e.status ?? 500 });
+    }
+    if (e.kind === 'network' || e.kind === 'timeout') {
+      return NextResponse.json({ ok: false, error: `Lỗi kết nối: ${upstreamMsg}` }, { status: 500 });
+    }
+    return integrationErrorResponse(err);
   }
 }
 

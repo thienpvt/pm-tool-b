@@ -1,7 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import ExcelJS from 'exceljs';
-
-type Params = { params: Promise<{ id: string }> };
+import { withProjectAccess } from '@/lib/http/with-project-access';
 
 type Activity = { id: number; activity: string; deliverable: string; completion_pct: number; plan_end: string; actual_end: string; status: string; };
 type RiskIssue = { id: number; description: string; priority: string; mitigation: string; };
@@ -50,12 +49,21 @@ function info(ws: ExcelJS.Worksheet, rowNum: number, label: string, value: strin
   row.height = 18;
 }
 
-export async function POST(req: NextRequest, { params }: Params) {
-  void (await params); // params.id not needed for export, data comes from body
-  const { report, reportData, startDate, endDate, language } = await req.json() as {
+export const POST = withProjectAccess(async (_req, { body }) => {
+  const { report, reportData, startDate, endDate, language } = body as {
     report: string; reportData: ReportData; startDate: string; endDate: string; language: string;
   };
 
+  return await buildWeeklyReportResponse(report, reportData, startDate, endDate, language);
+});
+
+async function buildWeeklyReportResponse(
+  report: string,
+  reportData: ReportData,
+  startDate: string,
+  endDate: string,
+  language: string,
+) {
   const wb = new ExcelJS.Workbook();
   wb.creator = 'PM Tool';
   wb.created = new Date();
@@ -251,3 +259,4 @@ export async function POST(req: NextRequest, { params }: Params) {
     },
   });
 }
+

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
 import { getSessionFromRequest, unauthorized, forbidden } from '@/lib/auth';
 import { DEFAULT_RAG_CONFIG, RagConfig } from '@/lib/rag';
+import { companyRagConfig, setCompanyRagConfig } from '@/lib/repositories/rag-config.repo';
+import { ragConfigSchema } from './schema';
 
 type Params = { params: Promise<{ companyId: string }> };
 
@@ -17,11 +18,7 @@ export async function GET(req: NextRequest, { params }: Params) {
   if (err) return err;
 
   const { companyId } = await params;
-  const db = await getDb();
-  const row = await db.get<RagConfig>(
-    'SELECT spi_red_threshold, spi_amber_threshold, deadline_red_days, deadline_amber_days, risks_red, risks_amber, issues_amber, low_progress_amber FROM company_rag_config WHERE company_id = ?',
-    Number(companyId),
-  );
+  const row = await companyRagConfig(Number(companyId));
   return NextResponse.json(row ?? DEFAULT_RAG_CONFIG);
 }
 
@@ -30,7 +27,10 @@ export async function POST(req: NextRequest, { params }: Params) {
   if (err) return err;
 
   const { companyId } = await params;
-  const body = await req.json() as Partial<RagConfig>;
+  const raw = await req.json();
+  // Passthrough shape guard only — see schema.ts for why coercion stays here.
+  const parsed = ragConfigSchema.safeParse(raw);
+  const body = (parsed.success ? parsed.data : raw) as Partial<RagConfig>;
 
   const cfg: RagConfig = {
     spi_red_threshold:   Number(body.spi_red_threshold   ?? DEFAULT_RAG_CONFIG.spi_red_threshold),
@@ -43,26 +43,6 @@ export async function POST(req: NextRequest, { params }: Params) {
     low_progress_amber:  Number(body.low_progress_amber  ?? DEFAULT_RAG_CONFIG.low_progress_amber),
   };
 
-  const db = await getDb();
-  await db.run(
-    `INSERT INTO company_rag_config
-       (company_id, spi_red_threshold, spi_amber_threshold, deadline_red_days, deadline_amber_days, risks_red, risks_amber, issues_amber, low_progress_amber)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-     ON CONFLICT (company_id) DO UPDATE SET
-       spi_red_threshold    = excluded.spi_red_threshold,
-       spi_amber_threshold  = excluded.spi_amber_threshold,
-       deadline_red_days    = excluded.deadline_red_days,
-       deadline_amber_days  = excluded.deadline_amber_days,
-       risks_red            = excluded.risks_red,
-       risks_amber          = excluded.risks_amber,
-       issues_amber         = excluded.issues_amber,
-       low_progress_amber   = excluded.low_progress_amber,
-       updated_at           = CURRENT_TIMESTAMP`,
-    Number(companyId),
-    cfg.spi_red_threshold, cfg.spi_amber_threshold,
-    cfg.deadline_red_days, cfg.deadline_amber_days,
-    cfg.risks_red, cfg.risks_amber, cfg.issues_amber,
-    cfg.low_progress_amber,
-  );
+  await setCompanyRagConfig(Number(companyId), cfg);
   return NextResponse.json({ ok: true });
 }

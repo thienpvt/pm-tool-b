@@ -1,22 +1,14 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { NextResponse } from 'next/server';
+import { withProjectAccess } from '@/lib/http/with-project-access';
+import { createMilestone, listMilestones } from '@/lib/services/milestones.service';
+import { milestoneInputSchema } from './schema';
 
-type Params = { params: Promise<{ id: string }> };
+export const GET = withProjectAccess(async (_req, { params, actor }) =>
+  NextResponse.json(await listMilestones(params.id, actor)),
+);
 
-export async function GET(_req: NextRequest, { params }: Params) {
-  const { id } = await params;
-  const db = await getDb();
-  const milestones = await db.all('SELECT * FROM milestones WHERE project_id = ? ORDER BY start_date, id', id);
-  return NextResponse.json(milestones);
-}
-
-export async function POST(req: NextRequest, { params }: Params) {
-  const { id } = await params;
-  const body = await req.json();
-  const db = await getDb();
-  const r = await db.run(
-    'INSERT INTO milestones (project_id, name, start_date, end_date) VALUES (?,?,?,?)',
-    id, body.name ?? '', body.start_date ?? null, body.end_date ?? null
-  );
-  return NextResponse.json(await db.get('SELECT * FROM milestones WHERE id = ?', r.lastInsertRowid), { status: 201 });
-}
+export const POST = withProjectAccess(
+  async (_req, { params, actor, body }) =>
+    NextResponse.json(await createMilestone(params.id, actor, body as Record<string, unknown>), { status: 201 }),
+  { schema: milestoneInputSchema },
+);

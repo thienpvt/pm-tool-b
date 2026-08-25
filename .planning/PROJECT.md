@@ -2,7 +2,7 @@
 
 ## What This Is
 
-Multi-tenant project/portfolio management app (Next.js 16 App Router, React 19, PostgreSQL) with Jira import, AI-generated reports, and Excel/PPT/Word export. This milestone is not new features — it is a structural reorg of an existing messy codebase: introduce real layers front to back, then fix the security and integration concerns the codebase map surfaced.
+Multi-tenant project/portfolio management app (Next.js 16 App Router, React 19, PostgreSQL) with Jira import, AI-generated reports, and Excel/PPT/Word export. v1.0 was a structural reorg of a messy codebase: real layers front to back, then the security and integration concerns the codebase map surfaced. Feature work resumes after `$gsd-new-milestone`.
 
 ## Core Value
 
@@ -23,31 +23,29 @@ Every project-scoped request is tenant-isolated and every layer has one job — 
 - ✓ Export: Excel (`exceljs`), PowerPoint (`pptxgenjs`), Word (`docx`), client PDF
 - ✓ Deploy: Docker → GHCR via GH Actions; Railway + K8s manifests; `/api/health`
 
+### Validated (v1.0)
+
+- ✓ Layer structure: route handler → service → repository, `lib/integrations/*` for external clients
+- ✓ Core project-scoped routes thin: parse → authorize (`withAuth` / `withProjectAccess`) → service → respond
+- ✓ SQL behind repositories with column allowlists (REPO-01..06)
+- ✓ Typed Jira / Anthropic / Resend clients; unified `resolveJiraCredentials` / Anthropic / Resend resolvers (INTG-07, INTG-08 cutover)
+- ✓ Zod validation at Jira and Anthropic client boundaries
+- ✓ Seven god pages split into hooks + feature modules (UI-01..11)
+- ✓ `withProjectAccess` on project-scoped, import, and export routes; 401/403 tests (ROUTE-03, 04, 08–11)
+- ✓ Vitest 4 harness + layer tests including cross-company 403 and mocked integration clients (727 passing)
+
+Remainder (ops/admin/config routes still repo-direct, proxy HTML-307 for API callers) is accepted v1.0 tech debt — see `.planning/milestones/v1.0-MILESTONE-AUDIT.md`.
+
 ### Active
 
-**Layer reorg (full stack, layer-by-layer sweep):**
+**Next milestone** — not defined. Run `$gsd-new-milestone` to gather goals.
 
-- [ ] Define target layer structure: route handler → service → repository, and `lib/integrations/*` for external clients
-- [ ] Backend sweep: move all `app/api/**` business logic into services; routes become thin (parse → authorize → call service → respond)
-- [ ] Data sweep: all SQL behind repositories; no inline SQL in routes or services
-- [ ] Integration sweep: typed clients for Jira, Anthropic, Resend in `lib/integrations/` — no raw `fetch`/SDK calls in routes
-- [ ] Unified credential resolution: one resolver replacing the env-name-in-DB (Jira) vs env-then-DB (Anthropic) split patterns
-- [ ] Contract validation at external boundaries: parse/validate Jira responses and Claude output instead of trusting untyped shapes
-- [ ] UI sweep: break up god pages into feature modules + hooks — `app/portfolio/report/page.tsx` (~2828), `app/projects/[id]/timeline/page.tsx` (~1978), `app/projects/[id]/report/page.tsx` (~1426), `app/projects/[id]/milestones/page.tsx` (~1275), `components/timeline/ImportMappingDialog.tsx` (~1265), `app/portfolio/roadmap/page.tsx` (~1230), `app/page.tsx` (~1064)
+Carried-forward debt candidates:
 
-**Security fixes (first priority after reorg):**
-
-- [ ] `requireUser` + `assertProjectAccess(projectId, user)` enforced on every project-scoped, import, and export route — replaces uneven per-file checks
-- [ ] Eliminate dynamic SQL column assignment (`UPDATE ... SET ${k} = ?` from `Object.keys(body)`) — explicit column allowlists per resource
-- [ ] Real session validation at the edge, or guaranteed `getSessionFromRequest` on every route — `proxy.ts` currently checks cookie presence only
-- [ ] Confirm Next 16 actually runs `proxy.ts` in deploy (no `middleware.ts` present)
-
-**Tests (alongside each layer, not after):**
-
-- [ ] Stand up a test runner (none exists today — zero coverage)
-- [ ] Repository/service tests per layer as it is moved
-- [ ] Route-level authorization tests proving 403 on cross-company `project_id`
-- [ ] Integration client tests with mocked Jira/Anthropic/Resend responses
+- [ ] Service-layer remaining ops/admin/config/import-mapping routes (SVC-01 / ROUTE-05 remainder)
+- [ ] Confirm Anthropic malformed-output 502 vs old 500 with operators (HYG-02)
+- [ ] JSON 401 from `proxy.ts` for API callers (currently HTML 307)
+- [ ] Remove Jira search debug `console.log` / guard `req.json()`
 
 **Deferred to a later milestone (tracked, not in this scope):**
 
@@ -61,27 +59,31 @@ Every project-scoped request is tenant-isolated and every layer has one job — 
 - Rewriting `lib/db.ts` PostgresClient dialect bridge — fragile but working; touch only where a repository requires it
 - Perf work (grid virtualization, server components for chrome) — follows the UI sweep, not part of it
 
+## Current State
+
+**Shipped:** v1.0 Layer Reorg & Hardening (2026-08-25) — 8 phases, 35 plans. Archive: `.planning/milestones/`.
+
+The brownfield mess listed at kickoff is largely gone on the project-scoped path: tests exist (Vitest, 727 passing), SQL lives in repositories, Jira/Anthropic/Resend go through clients + one credential resolver, services own tenant checks, wrappers enforce access, and the seven named god pages are decomposed.
+
+## Next Milestone Goals
+
+Undefined. Start with `$gsd-new-milestone`. Likely inputs: remaining admin/ops service thinning, proxy API 401, operator confirm of Anthropic 502.
+
 ## Context
 
-Brownfield. Codebase already mapped — see `.planning/codebase/` (ARCHITECTURE, STRUCTURE, STACK, CONVENTIONS, INTEGRATIONS, CONCERNS, TESTING), analysis dated 2026-08-07.
+Brownfield, post-reorg. Codebase map still in `.planning/codebase/` (dated 2026-08-07; structure has moved).
 
-The mess, concretely:
+Still true:
 
-- **No layers.** Route handlers hold parsing, authorization, SQL, and external API calls in one file.
-- **Auth applied unevenly.** `app/api/projects/route.ts` and budget routes check access; activities, risks, issues, meetings, escalations, team, documents, bugs, holidays, milestones, import-mapping, export, config, parse-file-headers do not. New routes copy the unauthed template → silent IDOR.
-- **Integration layer absent.** Native `fetch` for Jira and Resend, `@anthropic-ai/sdk` inline. Each route reinvents auth, parsing, and error mapping.
-- **Two credential patterns.** Jira stores env-var *names* per company in `company_jira_config` and reads `process.env[name]`; Anthropic resolves env-then-DB `settings`. Neither is discoverable from the other.
-- **External responses untyped.** Jira field shapes and Claude output parsed ad-hoc per route.
-- **God UI pages.** Seven components 1000–2800 lines mixing fetch, state, tables, dialogs, export. No unit seams.
-- **Zero tests.** No runner, no `*.test.*`. Every refactor is currently unverifiable.
-- **Migrations in app code.** `getDb()` runs `initPostgresSchema` + a long `migratePostgresSchema` loop + backfill + seed on every cold start.
+- **Migrations in app code.** `getDb()` still runs schema init + migrate on cold start (deferred).
+- **Non-core routes.** operations/admin/config/import-mapping still call repos directly.
 
 ## Constraints
 
 - **Tech stack**: Next.js 16.2.4 / React 19.2.4 / TypeScript strict / PostgreSQL via `pg` — no framework swaps
 - **Compatibility**: Behavior freeze except intentional security changes (new 403s) and opportunistic bug fixes; existing endpoints and screens keep working
 - **Migration strategy**: Layer-by-layer sweep — establish target structure, move backend layers in one pass, UI in the next. Fewer half-states, larger blast radius per phase, so tests land with each layer
-- **Testing**: Zero coverage today; a layer is not done until it has tests. This is the only guardrail against a full-stack refactor
+- **Testing**: Vitest 4 is the gate; a layer is not done until its tests exist and pass (HYG-03)
 - **Deployment**: Docker/GHCR + Railway + K8s must keep building; `output: 'standalone'` and `serverExternalPackages` (`exceljs`, `pptxgenjs`) preserved
 - **Security**: Multi-tenant — tenant isolation is not optional; every project-scoped path must assert company access
 - **Import convention**: `@/` alias for all app-root imports
@@ -90,13 +92,14 @@ The mess, concretely:
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Reorg layers before fixing concerns | Fixing auth per-file in the current shape means copy-paste that the next route will skip; layers give one place to enforce it | — Pending |
-| Full stack incl. UI, not backend-only | God pages are as much of the mess as the routes; stopping at the backend leaves half the problem | — Pending |
-| Layer-by-layer sweep over per-feature incremental | Fewer coexisting old/new shapes; the codebase is already inconsistent enough | — Pending |
-| Security first among concerns | IDOR + mass-assignment SQL are live tenant-isolation holes; migrations and perf are not | — Pending |
-| Tests alongside reorg, not a pre-built safety net | Contract snapshots over endpoints that are about to move by design would mostly re-encode the mess | — Pending |
-| Refactor + opportunistic fixes, not pure freeze | Moving code surfaces real bugs; leaving them in place to preserve a bug-for-bug freeze wastes the pass | — Pending |
-| Migrations-out-of-`getDb()` deferred | Real problem, but cold-start slowness is not a correctness or isolation risk | — Pending |
+| Reorg layers before fixing concerns | Fixing auth per-file in the current shape means copy-paste that the next route will skip; layers give one place to enforce it | Shipped — wrappers + services are the enforcement point |
+| Full stack incl. UI, not backend-only | God pages are as much of the mess as the routes; stopping at the backend leaves half the problem | Shipped — Phase 7 decomposed the seven named pages |
+| Layer-by-layer sweep over per-feature incremental | Fewer coexisting old/new shapes; the codebase is already inconsistent enough | Shipped — 8 sequential phases |
+| Security first among concerns | IDOR + mass-assignment SQL are live tenant-isolation holes; migrations and perf are not | Shipped on project-scoped routes; two live IDORs closed in Phase 4 |
+| Tests alongside reorg, not a pre-built safety net | Contract snapshots over endpoints that are about to move by design would mostly re-encode the mess | Vitest 4 + 727 tests; HYG-03 held |
+| Refactor + opportunistic fixes, not pure freeze | Moving code surfaces real bugs; leaving them in place to preserve a bug-for-bug freeze wastes the pass | HYG-02: Anthropic 500→502 still needs operator confirm |
+| Migrations-out-of-`getDb()` deferred | Real problem, but cold-start slowness is not a correctness or isolation risk | Still deferred |
+| INTG-08 evidence before deleting dead Jira helpers | Resolver live paths already matched; deletion gated on `verify-credential-cutover.ts` | Closed Phase 8 (`e0b2cea`) |
 
 ## Evolution
 
@@ -116,4 +119,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-08-07 after project initialization*
+*Last updated: 2026-08-25 after v1.0 milestone complete*

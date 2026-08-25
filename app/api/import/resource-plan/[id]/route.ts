@@ -1,7 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import ExcelJS from 'exceljs';
-
-type Params = { params: Promise<{ id: string }> };
+import { withProjectAccess } from '@/lib/http/with-project-access';
 
 export type ParsedMember = {
   domain: string;
@@ -51,9 +50,7 @@ function cellNum(cell: ExcelJS.Cell): number | null {
   return isNaN(n) ? null : n;
 }
 
-export async function POST(req: NextRequest, { params }: Params) {
-  void (await params);
-
+export const POST = withProjectAccess(async (req) => {
   const formData = await req.formData();
   const file = formData.get('file') as File | null;
   if (!file) return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
@@ -145,4 +142,4 @@ export async function POST(req: NextRequest, { params }: Params) {
   }
 
   return NextResponse.json({ members, monthColumns: Object.values(monthColMap).sort() });
-}
+}, { rawBody: true });

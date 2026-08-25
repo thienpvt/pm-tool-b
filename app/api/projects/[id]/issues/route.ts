@@ -1,38 +1,28 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { NextResponse } from 'next/server';
+import { withProjectAccess } from '@/lib/http/with-project-access';
+import { createIssue, deleteIssue, listIssues, updateIssue } from '@/lib/services/issues.service';
+import { issueInputSchema, issueUpdateSchema } from './schema';
 
-type Params = { params: Promise<{ id: string }> };
+export const GET = withProjectAccess(async (_req, { params, actor }) =>
+  NextResponse.json(await listIssues(params.id, actor)),
+);
 
-export async function GET(_req: NextRequest, { params }: Params) {
-  const { id } = await params;
-  const db = await getDb();
-  return NextResponse.json(await db.all('SELECT * FROM issues WHERE project_id = ? ORDER BY id', id));
-}
+export const POST = withProjectAccess(
+  async (_req, { params, actor, body }) =>
+    NextResponse.json(await createIssue(params.id, actor, body as Record<string, unknown>), { status: 201 }),
+  { schema: issueInputSchema },
+);
 
-export async function POST(req: NextRequest, { params }: Params) {
-  const { id } = await params;
-  const body = await req.json();
-  const db = await getDb();
-  const countRow = await db.get('SELECT COUNT(*) as c FROM issues WHERE project_id = ?', id) as { c: number };
-  const issueId = body.issue_id || `I${Number(countRow.c) + 1}`;
-  const r = await db.run('INSERT INTO issues (project_id, issue_id, description, root_cause, category, owner, trigger, mitigation, due_date, status, priority, impact, affected_activity_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)', id, issueId, body.description ?? '', body.root_cause ?? '', body.category ?? '', body.owner ?? '', body.trigger ?? '', body.mitigation ?? '', body.due_date ?? '', body.status ?? 'Open', body.priority ?? 'Medium', body.impact ?? 'Major', body.affected_activity_id ?? null);
-  return NextResponse.json(await db.get('SELECT * FROM issues WHERE id = ?', r.lastInsertRowid), { status: 201 });
-}
+export const PUT = withProjectAccess(
+  async (_req, { params, actor, body }) => {
+    const { id: rowId, ...fields } = body as Record<string, unknown>;
+    return NextResponse.json(await updateIssue(params.id, actor, rowId as string | number, fields));
+  },
+  { schema: issueUpdateSchema },
+);
 
-export async function PUT(req: NextRequest, { params }: Params) {
-  const { id } = await params;
-  const body = await req.json();
-  const db = await getDb();
-  const { id: rowId, ...fields } = body;
-  const sets = Object.keys(fields).map(k => `${k} = ?`).join(', ');
-  await db.run(`UPDATE issues SET ${sets} WHERE id = ? AND project_id = ?`, ...Object.values(fields), rowId, id);
-  return NextResponse.json(await db.get('SELECT * FROM issues WHERE id = ?', rowId));
-}
-
-export async function DELETE(req: NextRequest, { params }: Params) {
-  const { id } = await params;
-  const { searchParams } = new URL(req.url);
-  const db = await getDb();
-  await db.run('DELETE FROM issues WHERE id = ? AND project_id = ?', searchParams.get('rowId'), id);
+export const DELETE = withProjectAccess(async (req, { params, actor }) => {
+  const rowId = new URL(req.url).searchParams.get('rowId') ?? '';
+  await deleteIssue(params.id, actor, rowId);
   return NextResponse.json({ ok: true });
-}
+});

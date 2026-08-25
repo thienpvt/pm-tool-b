@@ -1,651 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
 import { getSessionFromRequest } from '@/lib/auth';
-import Anthropic from '@anthropic-ai/sdk';
-import { statusWeight, DONE_STATUSES } from '@/lib/status-weights';
-import { calculateRAG, DEFAULT_RAG_CONFIG } from '@/lib/rag';
-import { serverError } from '@/lib/log';
+import { resolveAnthropicCredentials } from '@/lib/integrations/credentials';
+import { createMessage } from '@/lib/integrations/anthropic/client';
+import { MODEL_OPUS_4_7 } from '@/lib/integrations/anthropic/models';
+import { integrationErrorResponse, serviceErrorResponse } from '@/lib/api-errors';
+import { IntegrationError } from '@/lib/integrations/errors';
+import { getPortfolioReport } from '@/lib/services/portfolio-report.service';
 
 // ─── GET: Full portfolio report data ─────────────────────────────────────────
 export async function GET(req: NextRequest) {
   const user = await getSessionFromRequest(req);
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const db = await getDb();
-  const { searchParams } = new URL(req.url);
-
-  // Default to current Mon–Sun week
-  const today = new Date();
-  const dayOfWeek = today.getDay();
-  const monday = new Date(today);
-  monday.setDate(today.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
-  monday.setHours(0, 0, 0, 0);
-  const sunday = new Date(monday);
-  sunday.setDate(monday.getDate() + 6);
-  sunday.setHours(23, 59, 59, 999);
-
-  let startParam = searchParams.get('start') ?? monday.toISOString().slice(0, 10);
-  let endParam   = searchParams.get('end')   ?? sunday.toISOString().slice(0, 10);
-
-  // Company scoping: admin sees all, regular user sees only their company
-  const cc = user.is_admin ? '' : 'AND p.company_id = ?';
-  const cp = user.is_admin ? [] : [user.company_id];
-
-  // ─── Milestone mode (multi-select) ────────────────────────────────────────
-  const milestoneIdsParam = searchParams.get('milestone_ids'); // "1,2,3"
-  const milestoneProjectIds = new Set<number>();
-  let milestoneEpicIds: Set<number> = new Set();
-  type MilestoneInfoItem = { id: number; project_id: number; name: string; project_name: string; program_name: string; start_date: string; end_date: string };
-  const selectedMilestones: MilestoneInfoItem[] = [];
-  let milestoneMonth: string | null = null;
-
-  if (milestoneIdsParam) {
-    const ids = milestoneIdsParam.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
-    let periodMin: string | null = null;
-    let periodMax: string | null = null;
-
-    for (const msId of ids) {
-      const ms = await db.get<{ id: number; project_id: number; name: string; start_date: string; end_date: string }>(
-        'SELECT id, project_id, name, start_date, end_date FROM milestones WHERE id = ?', msId
-      );
-      if (!ms) continue;
-
-      milestoneProjectIds.add(ms.project_id);
-      const proj = await db.get<{ name: string; customer_id: number | null }>(
-        'SELECT name, customer_id FROM projects WHERE id = ?', ms.project_id
-      );
-      let programName = '';
-      if (proj?.customer_id) {
-        const cust = await db.get<{ name: string }>('SELECT name FROM customers WHERE id = ?', proj.customer_id);
-        programName = cust?.name ?? '';
-      }
-      selectedMilestones.push({ id: ms.id, project_id: ms.project_id, name: ms.name, project_name: proj?.name ?? '', program_name: programName, start_date: ms.start_date, end_date: ms.end_date });
-
-      const epicRows = await db.all<{ activity_id: number }>(
-        'SELECT activity_id FROM milestone_epics WHERE milestone_id = ?', ms.id
-      );
-      for (const r of epicRows) milestoneEpicIds.add(r.activity_id);
-
-      if (ms.start_date && (periodMin === null || ms.start_date < periodMin)) periodMin = ms.start_date;
-      if (ms.end_date   && (periodMax === null || ms.end_date   > periodMax)) periodMax = ms.end_date;
-    }
-
-    if (periodMin) startParam = periodMin;
-    if (periodMax) {
-      endParam = periodMax;
-      milestoneMonth = periodMax.slice(0, 7);
-    }
-  }
-
-  const milestoneInfo = selectedMilestones.length > 0 ? selectedMilestones : null;
-
-  // Milestone-project filter for SQL queries
-  const _projIdList = [...milestoneProjectIds];
-  const _epicIdList = [...milestoneEpicIds];
-  const mpWhere  = _projIdList.length === 1 ? `AND p.id = ${_projIdList[0]}`          : _projIdList.length > 1 ? `AND p.id IN (${_projIdList.join(',')})` : '';
-  const mpWhereR = _projIdList.length === 1 ? `AND r.project_id = ${_projIdList[0]}`  : _projIdList.length > 1 ? `AND r.project_id IN (${_projIdList.join(',')})` : '';
-  const mpWhereI = _projIdList.length === 1 ? `AND i.project_id = ${_projIdList[0]}`  : _projIdList.length > 1 ? `AND i.project_id IN (${_projIdList.join(',')})` : '';
-  const mpWhereA = _projIdList.length === 1 ? `AND a.project_id = ${_projIdList[0]}`  : _projIdList.length > 1 ? `AND a.project_id IN (${_projIdList.join(',')})` : '';
-  // In milestone mode: filter SQL queries to only activities directly stored in milestone_epics
-  const mpWhereAEpics = _epicIdList.length > 0 ? `AND a.id IN (${_epicIdList.join(',')})` : '';
-
-  const projects = await db.all(`
-    SELECT p.*, c.name as program_name, c.industry as program_industry
-    FROM projects p
-    LEFT JOIN customers c ON p.customer_id = c.id
-    WHERE 1=1 ${cc}
-    ORDER BY p.created_at DESC
-  `, ...cp) as any[];
-
-  const programs = user.is_admin
-    ? await db.all('SELECT * FROM customers ORDER BY name') as any[]
-    : await db.all('SELECT * FROM customers WHERE company_id = ? ORDER BY name', user.company_id) as any[];
-
-  const riskCounts = await db.all(`SELECT project_id, COUNT(*) as total, SUM(CASE WHEN status='Open' OR status='In Progress' THEN 1 ELSE 0 END) as open FROM risks GROUP BY project_id`) as any[];
-  const issueCounts = await db.all(`SELECT project_id, COUNT(*) as total, SUM(CASE WHEN status='Open' OR status='In Progress' THEN 1 ELSE 0 END) as open FROM issues GROUP BY project_id`) as any[];
-
-  // Fetch all activity statuses for weighted completion calculation
-  const allActivityRows = await db.all(
-    'SELECT id, project_id, no, parent_id, activity as epic_name, status, phase, plan_start, plan_end, actual_start, actual_end FROM activities'
-  ) as { id: number; project_id: number; no: string; parent_id: number | null; epic_name: string; status: string; phase: string; plan_start?: string; plan_end?: string; actual_start?: string; actual_end?: string }[];
-
-  // In milestone mode: only include activities explicitly stored in milestone_epics (direct match).
-  // Do NOT expand EPICs to all their children — milestone_epics already stores exactly what was added.
-  const activityRows = milestoneProjectIds.size > 0 && milestoneEpicIds.size > 0
-    ? allActivityRows.filter(row => milestoneEpicIds.has(row.id))
-    : allActivityRows;
-
-  // Build weighted stats per project (matching project weekly report logic)
-  type PhaseEntry = { total: number; done: number; weightedSum: number; planStartMin: string | null; planEndMax: string | null; actualStartMin: string | null; actualEndMax: string | null; };
-  type ProjectStats = {
-    total: number; weightedSum: number; done: number; inProgress: number; notStarted: number;
-    phases: Record<string, PhaseEntry>;
-  };
-  const minDate = (a: string | null, b: string | null | undefined): string | null => {
-    if (!a) return b ?? null;
-    if (!b) return a;
-    return a < b ? a : b;
-  };
-  const maxDate = (a: string | null, b: string | null | undefined): string | null => {
-    if (!a) return b ?? null;
-    if (!b) return a;
-    return a > b ? a : b;
-  };
-
-  // First pass: collect EPIC activities to enable Epic-based grouping
-  type EpicInfo = { project_id: number; epic_name: string; plan_start?: string; plan_end?: string; actual_start?: string; actual_end?: string };
-  const epicById: Record<number, EpicInfo> = {};
-  const projectHasEpics = new Set<number>();
-  for (const row of activityRows) {
-    if (row.no === 'EPIC') {
-      epicById[row.id] = {
-        project_id: row.project_id,
-        epic_name: row.epic_name || row.phase || `Epic ${row.id}`,
-        plan_start: row.plan_start,
-        plan_end: row.plan_end,
-        actual_start: row.actual_start,
-        actual_end: row.actual_end,
-      };
-      projectHasEpics.add(row.project_id);
-    }
-  }
-
-  // Second pass: build stats
-  const actWeightMap: Record<number, ProjectStats> = {};
-  for (const row of activityRows) {
-    // EPIC rows are containers — sub-items are the actual activities
-    if (row.no === 'EPIC') continue;
-
-    if (!actWeightMap[row.project_id]) {
-      actWeightMap[row.project_id] = { total: 0, weightedSum: 0, done: 0, inProgress: 0, notStarted: 0, phases: {} };
-    }
-    const w = statusWeight(row.status);
-    const s = actWeightMap[row.project_id];
-    s.total++;
-    s.weightedSum += w;
-    if (w >= 1) s.done++;
-    else if (w > 0) s.inProgress++;
-    else s.notStarted++;
-
-    // Determine grouping key: Epic name (if parent is an EPIC) or phase
-    let groupKey: string;
-    if (projectHasEpics.has(row.project_id) && row.parent_id !== null && epicById[row.parent_id]) {
-      groupKey = epicById[row.parent_id].epic_name;
-    } else {
-      groupKey = row.phase || 'General';
-    }
-
-    if (!s.phases[groupKey]) s.phases[groupKey] = { total: 0, done: 0, weightedSum: 0, planStartMin: null, planEndMax: null, actualStartMin: null, actualEndMax: null };
-    const ph = s.phases[groupKey];
-    ph.total++;
-    ph.weightedSum += w;
-    if (w >= 1) ph.done++;
-    ph.planStartMin = minDate(ph.planStartMin, row.plan_start);
-    ph.planEndMax = maxDate(ph.planEndMax, row.plan_end);
-    ph.actualStartMin = minDate(ph.actualStartMin, row.actual_start);
-    ph.actualEndMax = maxDate(ph.actualEndMax, row.actual_end);
-  }
-
-  // Ensure all EPICs appear in epicStats even if they have no child activities
-  for (const epic of Object.values(epicById)) {
-    const s = actWeightMap[epic.project_id];
-    if (!s) continue;
-    if (!s.phases[epic.epic_name]) {
-      s.phases[epic.epic_name] = {
-        total: 0, done: 0, weightedSum: 0,
-        planStartMin: epic.plan_start ?? null,
-        planEndMax: epic.plan_end ?? null,
-        actualStartMin: epic.actual_start ?? null,
-        actualEndMax: epic.actual_end ?? null,
-      };
-    }
-  }
-
-  const riskMap = Object.fromEntries(riskCounts.map((r: any) => [r.project_id, r]));
-  const issueMap = Object.fromEntries(issueCounts.map((r: any) => [r.project_id, r]));
-
-  const nowMs = Date.now();
-  const donePlaceholders = DONE_STATUSES.map(() => '?').join(',');
-
-  // RAG: build milestone date map for milestone mode
-  const milestoneDateByProject: Record<number, { start: string | null; end: string | null }> = {};
-  if (milestoneIdsParam) {
-    for (const ms of selectedMilestones) {
-      milestoneDateByProject[ms.project_id] = { start: ms.start_date ?? null, end: ms.end_date ?? null };
-    }
-  }
-
-  // RAG: batch query milestone date ranges as fallback for projects missing own dates (date range mode)
-  let msFallbackMap: Record<number, { min_s: string; max_e: string }> = {};
-  if (!milestoneIdsParam) {
-    const projectsMissingDates = projects.filter((p: any) => !p.start_date || !p.end_date);
-    if (projectsMissingDates.length > 0) {
-      const ids = projectsMissingDates.map((p: any) => p.id);
-      const rows = await db.all<{ project_id: number; min_s: string; max_e: string }>(
-        `SELECT project_id, MIN(start_date) as min_s, MAX(end_date) as max_e
-         FROM milestones
-         WHERE project_id IN (${ids.map(() => '?').join(',')}) AND start_date IS NOT NULL AND end_date IS NOT NULL
-         GROUP BY project_id`,
-        ...ids
-      );
-      msFallbackMap = Object.fromEntries(rows.map(r => [r.project_id, r]));
-    }
-  }
-
-  // RAG: load company config once for all projects
-  const ragCfg = (user.company_id
-    ? await db.get<Record<string, unknown>>('SELECT * FROM company_rag_config WHERE company_id = ?', user.company_id)
-    : null) ?? DEFAULT_RAG_CONFIG;
-
-  const projectsForReport = milestoneProjectIds.size > 0
-    ? projects.filter((p: any) => milestoneProjectIds.has(p.id))
-    : projects;
-
-  const enrichedProjects = projectsForReport.map((p: any) => {
-    const open_risks: number = riskMap[p.id]?.open ?? 0;
-    const open_issues: number = issueMap[p.id]?.open ?? 0;
-
-    const actStats = actWeightMap[p.id] ?? { total: 0, weightedSum: 0, done: 0, inProgress: 0, notStarted: 0, phases: {} };
-    const completion_pct = actStats.total > 0 ? Math.round((actStats.weightedSum / actStats.total) * 100) : 0;
-    const total_activities = actStats.total;
-    const done_activities = actStats.done;
-    const in_progress_activities = actStats.inProgress;
-    const not_started_activities = actStats.notStarted;
-    const epicStats = Object.entries(actStats.phases)
-      .map(([phase, { total: t, done: d, weightedSum: ws, planStartMin, planEndMax, actualStartMin, actualEndMax }]) => ({
-        phase, total: t, done: d,
-        pct: t > 0 ? Math.round((ws / t) * 100) : 0,
-        start_date: actualStartMin ?? planStartMin ?? null,
-        end_date: actualEndMax ?? planEndMax ?? null,
-      }))
-      .sort((a, b) => a.phase.localeCompare(b.phase));
-
-    const effectiveStart = milestoneIdsParam
-      ? milestoneDateByProject[p.id]?.start ?? null
-      : p.start_date ?? msFallbackMap[p.id]?.min_s ?? null;
-    const effectiveEnd = milestoneIdsParam
-      ? milestoneDateByProject[p.id]?.end ?? null
-      : p.end_date ?? msFallbackMap[p.id]?.max_e ?? null;
-
-    const { rag, days_until_deadline } = calculateRAG({
-      current_phase: p.current_phase,
-      effective_start: effectiveStart,
-      effective_end: effectiveEnd,
-      completion_pct,
-      total_activities,
-      open_risks,
-      open_issues,
-      nowMs,
-      config: ragCfg as any,
-    });
-
-    return {
-      ...p,
-      open_risks, total_risks: riskMap[p.id]?.total ?? 0,
-      open_issues, total_issues: issueMap[p.id]?.total ?? 0,
-      completion_pct, total_activities, done_activities,
-      in_progress_activities, not_started_activities, epicStats,
-      days_until_deadline, rag,
-    };
-  });
-
-  const byProgram = programs.map((c: any) => ({
-    ...c,
-    projects: enrichedProjects.filter((p: any) => p.customer_id === c.id),
-  }));
-  const noProgram = enrichedProjects.filter((p: any) => !p.customer_id);
-
-  const phases = ['Initiation', 'Planning', 'Execution', 'Closing'];
-  const phaseDist = phases.map(phase => ({
-    phase,
-    count: projectsForReport.filter((p: any) => p.current_phase === phase).length,
-  }));
-
-  const programBar = byProgram.map((c: any) => ({
-    name: c.name,
-    count: c.projects.length,
-    active: c.projects.filter((p: any) => p.current_phase !== 'Closing').length,
-  })).sort((a: any, b: any) => b.count - a.count).slice(0, 10);
-
-  const totalOpenRisks = enrichedProjects.reduce((s: number, p: any) => s + p.open_risks, 0);
-  const totalOpenIssues = enrichedProjects.reduce((s: number, p: any) => s + p.open_issues, 0);
-  const avgCompletion = enrichedProjects.length
-    ? Math.round(enrichedProjects.reduce((s: number, p: any) => s + p.completion_pct, 0) / enrichedProjects.length)
-    : 0;
-
-  // ─── Additional report data ────────────────────────────────────────────────
-  const topRisks = await db.all(`
-    SELECT r.*, p.name as project_name, c.name as program_name
-    FROM risks r
-    JOIN projects p ON r.project_id = p.id
-    LEFT JOIN customers c ON p.customer_id = c.id
-    WHERE (r.status='Open' OR r.status='In Progress') ${cc} ${mpWhereR}
-    ORDER BY CASE r.priority WHEN 'Critical' THEN 1 WHEN 'High' THEN 2 WHEN 'Medium' THEN 3 ELSE 4 END, r.id DESC
-    LIMIT 12
-  `, ...cp) as any[];
-
-  const topIssues = await db.all(`
-    SELECT i.*, p.name as project_name, c.name as program_name
-    FROM issues i
-    JOIN projects p ON i.project_id = p.id
-    LEFT JOIN customers c ON p.customer_id = c.id
-    WHERE (i.status='Open' OR i.status='In Progress') ${cc} ${mpWhereI}
-    ORDER BY CASE i.priority WHEN 'Critical' THEN 1 WHEN 'High' THEN 2 WHEN 'Medium' THEN 3 ELSE 4 END, i.id DESC
-    LIMIT 12
-  `, ...cp) as any[];
-
-  const now = new Date();
-  const todayStr = now.toISOString().slice(0, 10);
-  const plus30 = new Date(now.getTime() + 30 * 86400000).toISOString().slice(0, 10);
-  const minus14 = new Date(now.getTime() - 14 * 86400000).toISOString().slice(0, 10);
-
-  // Upcoming milestones: not in any done status
-  const upcomingMilestones = await db.all(`
-    SELECT a.*, p.name as project_name, c.name as program_name
-    FROM activities a
-    JOIN projects p ON a.project_id = p.id
-    LEFT JOIN customers c ON p.customer_id = c.id
-    WHERE a.plan_end BETWEEN ? AND ?
-      AND a.status NOT IN (${donePlaceholders})
-      AND (a.no IS NULL OR a.no != 'EPIC') ${cc} ${mpWhereA} ${mpWhereAEpics}
-    ORDER BY a.plan_end ASC
-    LIMIT 15
-  `, todayStr, plus30, ...DONE_STATUSES, ...cp) as any[];
-
-  // Recently completed: any done status, using actual_end
-  const recentlyCompleted = await db.all(`
-    SELECT a.*, p.name as project_name, c.name as program_name
-    FROM activities a
-    JOIN projects p ON a.project_id = p.id
-    LEFT JOIN customers c ON p.customer_id = c.id
-    WHERE a.status IN (${donePlaceholders})
-      AND a.actual_end >= ?
-      AND (a.no IS NULL OR a.no != 'EPIC') ${cc} ${mpWhereA} ${mpWhereAEpics}
-    ORDER BY a.actual_end DESC
-    LIMIT 10
-  `, ...DONE_STATUSES, minus14, ...cp) as any[];
-
-  // Completed in selected date range: any done status + actual_end in range
-  const completedInRange = await db.all(`
-    SELECT a.*, p.name as project_name, p.current_phase, c.name as program_name
-    FROM activities a
-    JOIN projects p ON a.project_id = p.id
-    LEFT JOIN customers c ON p.customer_id = c.id
-    WHERE a.status IN (${donePlaceholders})
-      AND a.actual_end >= ?
-      AND a.actual_end <= ?
-      AND (a.no IS NULL OR a.no != 'EPIC') ${cc} ${mpWhereA} ${mpWhereAEpics}
-    ORDER BY a.project_id, a.actual_end
-  `, ...DONE_STATUSES, startParam, endParam, ...cp) as any[];
-
-  // Group by project_id
-  const completedByProject: Record<number, { project_name: string; program_name: string; current_phase: string; activities: any[] }> = {};
-  for (const act of completedInRange) {
-    if (!completedByProject[act.project_id]) {
-      completedByProject[act.project_id] = {
-        project_name: act.project_name,
-        program_name: act.program_name ?? '',
-        current_phase: act.current_phase,
-        activities: [],
-      };
-    }
-    completedByProject[act.project_id].activities.push(act);
-  }
-
-  // ─── Bug Report stats ─────────────────────────────────────────────────────
-  // In milestone mode: pick the latest snapshot within the milestone's end-date month
-  const bugRows = milestoneMonth
-    ? await db.all(`
-        SELECT b.project_id, p.name as project_name, b.status, b.priority, b.severity, COUNT(*) as cnt
-        FROM bugs b
-        JOIN projects p ON b.project_id = p.id
-        WHERE b.snapshot_date = (
-          SELECT MAX(b2.snapshot_date) FROM bugs b2
-          WHERE b2.project_id = b.project_id
-          AND b2.snapshot_date LIKE '${milestoneMonth}%'
-          AND b2.snapshot_date != ''
-        )
-        AND b.snapshot_date LIKE '${milestoneMonth}%'
-        AND b.snapshot_date != ''
-        ${cc} ${mpWhere}
-        GROUP BY b.project_id, p.name, b.status, b.priority, b.severity
-      `, ...cp) as { project_id: number; project_name: string; status: string; priority: string; severity: string; cnt: number }[]
-    : await db.all(`
-        SELECT b.project_id, p.name as project_name, b.status, b.priority, b.severity, COUNT(*) as cnt
-        FROM bugs b
-        JOIN projects p ON b.project_id = p.id
-        WHERE b.snapshot_date = (
-          SELECT MAX(b2.snapshot_date) FROM bugs b2
-          WHERE b2.project_id = b.project_id AND b2.snapshot_date != ''
-        )
-        AND (b.snapshot_date IS NOT NULL AND b.snapshot_date != '')
-        ${cc}
-        GROUP BY b.project_id, p.name, b.status, b.priority, b.severity
-      `, ...cp) as { project_id: number; project_name: string; status: string; priority: string; severity: string; cnt: number }[];
-
-  // Build bug stats
-  type BugProjectSummary = { projectId: number; projectName: string; total: number; byStatus: Record<string, number>; byPriority: Record<string, number>; bySeverity: Record<string, number> };
-  const bugProjectMap: Record<number, BugProjectSummary> = {};
-  const bugTotalByStatus: Record<string, number> = {};
-  const bugTotalByPriority: Record<string, number> = {};
-  const bugTotalBySeverity: Record<string, number> = {};
-  let bugGrandTotal = 0;
-
-  for (const row of bugRows) {
-    const cnt = Number(row.cnt);
-    if (!bugProjectMap[row.project_id]) {
-      bugProjectMap[row.project_id] = { projectId: row.project_id, projectName: row.project_name, total: 0, byStatus: {}, byPriority: {}, bySeverity: {} };
-    }
-    const bp = bugProjectMap[row.project_id];
-    bp.total += cnt;
-    bp.byStatus[row.status] = (bp.byStatus[row.status] ?? 0) + cnt;
-    bp.byPriority[row.priority] = (bp.byPriority[row.priority] ?? 0) + cnt;
-    if (row.severity) bp.bySeverity[row.severity] = (bp.bySeverity[row.severity] ?? 0) + cnt;
-    bugTotalByStatus[row.status] = (bugTotalByStatus[row.status] ?? 0) + cnt;
-    bugTotalByPriority[row.priority] = (bugTotalByPriority[row.priority] ?? 0) + cnt;
-    if (row.severity) bugTotalBySeverity[row.severity] = (bugTotalBySeverity[row.severity] ?? 0) + cnt;
-    bugGrandTotal += cnt;
-  }
-
-  const bugStats = {
-    total: bugGrandTotal,
-    byStatus: bugTotalByStatus,
-    byPriority: bugTotalByPriority,
-    bySeverity: bugTotalBySeverity,
-    byProject: Object.values(bugProjectMap).sort((a, b) => b.total - a.total),
-  };
-
-  // ─── Personnel stats ──────────────────────────────────────────────────────
-  const pmWhere = user.is_admin ? '' : ' AND company_id = ?';
-  const pmArgs: any[] = user.is_admin ? [] : [user.company_id];
-
-  const internalPortfolioMembers = await db.all(
-    `SELECT name, role FROM portfolio_members WHERE member_type = 'internal'${pmWhere}`,
-    ...pmArgs
-  ) as { name: string; role: string }[];
-
-  const allTeamMembersForPersonnel = await db.all(`
-    SELECT tm.name, p.name as project_name
-    FROM team_members tm
-    JOIN projects p ON tm.project_id = p.id
-    WHERE 1=1 ${cc}
-  `, ...cp) as { name: string; project_name: string }[];
-
-  const internalNameSet = new Set(internalPortfolioMembers.map((m: { name: string }) => m.name.toLowerCase().trim()));
-  const internalTeamSlots = allTeamMembersForPersonnel.filter((tm: { name: string }) =>
-    internalNameSet.has(tm.name.toLowerCase().trim())
-  );
-
-  const projAllocMap: Record<string, number> = {};
-  for (const tm of internalTeamSlots) {
-    projAllocMap[tm.project_name] = (projAllocMap[tm.project_name] ?? 0) + 1;
-  }
-  const projectAllocations = Object.entries(projAllocMap)
-    .map(([projectName, memberCount]) => ({ projectName, memberCount }))
-    .sort((a, b) => b.memberCount - a.memberCount);
-
-  const personProjectMap: Record<string, string[]> = {};
-  for (const tm of internalTeamSlots) {
-    const key = tm.name.toLowerCase().trim();
-    if (!personProjectMap[key]) personProjectMap[key] = [];
-    if (!personProjectMap[key].includes(tm.project_name)) personProjectMap[key].push(tm.project_name);
-  }
-  const overallocated = Object.entries(personProjectMap)
-    .filter(([, projs]) => projs.length > 2)
-    .map(([nameLower, projects]) => {
-      const member = internalPortfolioMembers.find((m: { name: string }) => m.name.toLowerCase().trim() === nameLower);
-      return { name: member?.name ?? nameLower, role: member?.role ?? '', projects };
-    })
-    .sort((a, b) => b.projects.length - a.projects.length)
-    .slice(0, 10);
-
-  const personnelStats = {
-    totalInternal: internalPortfolioMembers.length,
-    totalAllocated: internalTeamSlots.length,
-    projectAllocations,
-    overallocated,
-  };
-
-  // ─── FTE-based resource stats ─────────────────────────────────────────────
-  let fteStats = null;
-  if (user.company_id) {
-    const companyRow = await db.get<{ headcount_quota: number }>(
-      'SELECT headcount_quota FROM companies WHERE id = ?', user.company_id
+  try {
+    const { searchParams } = new URL(req.url);
+    const data = await getPortfolioReport(
+      { company_id: user.company_id, is_admin: user.is_admin },
+      {
+        start: searchParams.get('start'),
+        end: searchParams.get('end'),
+        milestone_ids: searchParams.get('milestone_ids'),
+      },
     );
-    const headcountQuota = Number(companyRow?.headcount_quota ?? 0);
-
-    const membersFte = await db.all(`
-      SELECT
-        pm.member_category,
-        pm.overhead_remaining,
-        COALESCE((
-          SELECT SUM(
-            CASE WHEN tm.capacity_json IS NOT NULL AND length(trim(tm.capacity_json)) > 2
-                 THEN CAST((tm.capacity_json::jsonb ->> TO_CHAR(CURRENT_DATE, 'YYYY-MM')) AS FLOAT)
-                 ELSE 0
-            END
-          )
-          FROM team_members tm
-          JOIN projects p ON p.id = tm.project_id
-          WHERE LOWER(TRIM(tm.name)) = LOWER(TRIM(pm.name))
-            AND p.company_id = pm.company_id
-        ), 0) AS current_month_fte
-      FROM portfolio_members pm
-      WHERE pm.member_type = 'internal' AND pm.company_id = ?
-    `, user.company_id) as { member_category: string; overhead_remaining: number; current_month_fte: number }[];
-
-    const deliveryFte = membersFte
-      .filter(m => m.member_category !== 'overhead')
-      .reduce((s, m) => s + (Number(m.current_month_fte) || 0), 0);
-    const overheadProjectFte = membersFte
-      .filter(m => m.member_category === 'overhead')
-      .reduce((s, m) => s + (Number(m.current_month_fte) || 0), 0);
-    // Overhead FTE model (matches /resources + /portfolio/resources `overheadRemainingOf`):
-    // an overhead person is 1.0 FTE of overhead by default. The out-of-project overhead =
-    // explicit `overhead_remaining` if set (>0), else `max(0, 1 − in-project FTE)`. Using the
-    // raw column directly under-counted overhead to ~0% because it is usually left unset.
-    const overheadRemainingFte = membersFte
-      .filter(m => m.member_category === 'overhead')
-      .reduce((s, m) => {
-        const inProject = Number(m.current_month_fte) || 0;
-        const explicit = Number(m.overhead_remaining) || 0;
-        return s + (explicit > 0 ? explicit : Math.max(0, 1 - inProject));
-      }, 0);
-    const totalUsedFte = deliveryFte + overheadProjectFte + overheadRemainingFte;
-    const benchFte = Math.max(0, headcountQuota - totalUsedFte);
-
-    const programAllocRows = await db.all(`
-      SELECT
-        c.name AS program_name,
-        COALESCE(ppa.allocated_headcount, 0) AS allocated,
-        COALESCE((
-          SELECT ROUND(CAST(SUM(
-            COALESCE(
-              CASE WHEN tm.capacity_json IS NOT NULL AND length(trim(tm.capacity_json)) > 2
-                   THEN CAST((tm.capacity_json::jsonb ->> TO_CHAR(CURRENT_DATE, 'YYYY-MM')) AS FLOAT)
-                   ELSE NULL
-              END, 0
-            )
-          ) AS NUMERIC), 1)
-          FROM team_members tm
-          JOIN projects p ON p.id = tm.project_id
-          WHERE p.customer_id = c.id AND p.company_id = ?
-        ), 0) AS actual
-      FROM customers c
-      LEFT JOIN portfolio_program_allocations ppa ON ppa.program_id = c.id AND ppa.company_id = ?
-      WHERE c.company_id = ?
-      ORDER BY c.name
-    `, user.company_id, user.company_id, user.company_id) as { program_name: string; allocated: number; actual: number }[];
-
-    const programFillRates = programAllocRows
-      .map(r => ({
-        programName: r.program_name,
-        allocated: Number(r.allocated) || 0,
-        actual: Number(r.actual) || 0,
-        fillRate: Number(r.allocated) > 0 ? Math.round((Number(r.actual) / Number(r.allocated)) * 100) : 0,
-      }))
-      .sort((a, b) => b.fillRate - a.fillRate);
-
-    const totalAllocSum = programFillRates.reduce((s, p) => s + p.allocated, 0);
-    const totalActualSum = programFillRates.reduce((s, p) => s + p.actual, 0);
-    const blockFillRate = totalAllocSum > 0 ? Math.round((totalActualSum / totalAllocSum) * 100) : 0;
-    const fteShortfall = programFillRates
-      .filter(p => p.allocated > p.actual)
-      .reduce((s, p) => s + (p.allocated - p.actual), 0);
-
-    fteStats = {
-      headcountQuota,
-      deliveryFte: parseFloat(deliveryFte.toFixed(1)),
-      overheadProjectFte: parseFloat(overheadProjectFte.toFixed(1)),
-      overheadRemainingFte: parseFloat(overheadRemainingFte.toFixed(1)),
-      benchFte: parseFloat(benchFte.toFixed(1)),
-      utilizationPct: headcountQuota > 0 ? Math.round((totalUsedFte / headcountQuota) * 100) : 0,
-      blockFillRate,
-      programFillRates,
-      peopleNeeded: Math.ceil(fteShortfall),
-      currentMonth: new Date().toLocaleDateString('vi-VN', { month: 'long', year: 'numeric' }),
-    };
+    return NextResponse.json(data);
+  } catch (e) {
+    // Phase 3 freeze: IntegrationError re-thrown untouched by services must keep
+    // the Anthropic 500/502 status split. Service errors map separately.
+    if (e instanceof IntegrationError) return integrationErrorResponse(e);
+    return serviceErrorResponse(e);
   }
-
-  // Portfolio milestones list for mode selector dropdown
-  const portfolioMilestones = await db.all(`
-    SELECT m.id, m.project_id, m.name, m.start_date, m.end_date,
-           p.name as project_name, COALESCE(c.name, '') as program_name
-    FROM milestones m
-    JOIN projects p ON m.project_id = p.id
-    LEFT JOIN customers c ON p.customer_id = c.id
-    WHERE 1=1 ${cc}
-    ORDER BY m.start_date DESC, m.name
-  `, ...cp) as { id: number; project_id: number; name: string; start_date: string; end_date: string; project_name: string; program_name: string }[];
-
-  return NextResponse.json({
-    projects: enrichedProjects,
-    programs: byProgram,
-    noProgramProjects: noProgram,
-    phaseDist,
-    programBar,
-    kpi: {
-      totalProjects: projectsForReport.length,
-      totalPrograms: programs.length,
-      totalOpenRisks,
-      totalOpenIssues,
-      avgCompletion,
-      activeProjects: projectsForReport.filter((p: any) => p.current_phase !== 'Closing').length,
-    },
-    topRisks,
-    topIssues,
-    upcomingMilestones,
-    recentlyCompleted,
-    completedByProject,
-    personnelStats,
-    fteStats,
-    bugStats,
-    portfolioMilestones,
-    milestoneInfo,
-    periodStart: startParam,
-    periodEnd: endParam,
-    reportDate: todayStr,
-  });
 }
 
 // ─── POST: AI report generation ───────────────────────────────────────────────
@@ -678,14 +61,26 @@ type PortfolioPayload = {
 };
 
 export async function POST(req: NextRequest) {
-  const body = await req.json() as { portfolioData: PortfolioPayload; language?: string };
+  // HYG-03 (06-06): POST had no session check — the sibling GET and the
+  // generate-email/send-email routes in this same tree all gate on
+  // getSessionFromRequest; this endpoint silently didn't. Anonymous callers
+  // could burn the shared Anthropic key generating full portfolio reports.
+  const user = await getSessionFromRequest(req);
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  // WR-05: reject a malformed/oversized body with a JSON 400 instead of letting
+  // req.json() reject the handler and surface a bare 500.
+  let body: { portfolioData: PortfolioPayload; language?: string };
+  try {
+    body = await req.json() as { portfolioData: PortfolioPayload; language?: string };
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+  }
   const { portfolioData } = body;
   const lang = (portfolioData.language ?? body.language ?? 'Vietnamese') === 'English' ? 'English' : 'Vietnamese';
 
-  const db = await getDb();
-  const dbKey = (await db.get("SELECT value FROM settings WHERE key='anthropic_api_key'") as any)?.value;
-  const apiKey = process.env.ANTHROPIC_API_KEY || dbKey;
-  if (!apiKey) return NextResponse.json({ error: 'NO_API_KEY' }, { status: 503 });
+  const creds = await resolveAnthropicCredentials();
+  if (!creds) return NextResponse.json({ error: 'NO_API_KEY' }, { status: 503 });
 
   const { kpi, programs, noProgramProjects, reportDate, topRisks, topIssues, upcomingMilestones, completedByProject, periodStart, periodEnd } = portfolioData;
   const allProjects = [...programs.flatMap(c => c.projects), ...noProgramProjects];
@@ -779,15 +174,14 @@ export async function POST(req: NextRequest) {
   ].filter(Boolean).join('\n');
 
   try {
-    const client = new Anthropic({ apiKey });
-    const message = await client.messages.create({
-      model: 'claude-opus-4-7',
+    const { text } = await createMessage(creds, {
+      model: MODEL_OPUS_4_7,
       max_tokens: 2000,
       messages: [{ role: 'user', content: prompt }],
     });
-    const text = message.content[0].type === 'text' ? message.content[0].text : '';
     return NextResponse.json({ report: text });
-  } catch (e: any) {
-    return serverError(req, e, { error: e.message ?? 'AI generation failed' });
+  } catch (e) {
+    // Behavior change: adds a 120s SDK timeout where none existed (HYG-02)
+    return integrationErrorResponse(e, { force500: true });
   }
 }

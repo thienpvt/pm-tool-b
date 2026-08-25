@@ -1,20 +1,19 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
+import { withProjectAccess } from '@/lib/http/with-project-access';
 import { generateKickoffPPT } from '@/lib/export/ppt';
-import { serverError } from '@/lib/log';
 
-export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  try {
-    const { id } = await params;
-    const body = await req.json().catch(() => ({}));
-    const buf = await generateKickoffPPT(Number(id), body);
+// generateKickoffPPT(id, actor, body) self-asserts project access (Phase 4
+// SVC-06); withProjectAccess adds a second, redundant-but-idempotent assert.
+// rawBody: true — the handler parses its own body (preserves the
+// req.json().catch(() => ({})) passthrough verbatim).
+export const POST = withProjectAccess(async (req, { params, actor }) => {
+  const body = await req.json().catch(() => ({}));
+  const buf = await generateKickoffPPT(Number(params.id), actor, body);
 
-    return new NextResponse(buf as unknown as BodyInit, {
-      headers: {
-        'Content-Type': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-        'Content-Disposition': `attachment; filename="kickoff-presentation.pptx"`,
-      },
-    });
-  } catch (e) {
-    return serverError(req, e, { error: String(e) });
-  }
-}
+  return new NextResponse(buf as unknown as BodyInit, {
+    headers: {
+      'Content-Type': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      'Content-Disposition': `attachment; filename="kickoff-presentation.pptx"`,
+    },
+  });
+}, { rawBody: true });

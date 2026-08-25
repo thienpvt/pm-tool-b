@@ -1,11 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { NextResponse } from 'next/server';
+import { withAuth } from '@/lib/http/with-auth';
+import { deleteBugMapping } from '@/lib/repositories/import-mapping.repo';
 
-type Params = { params: Promise<{ id: string }> };
-
-export async function DELETE(_req: NextRequest, { params }: Params) {
-  const { id } = await params;
-  const db = await getDb();
-  await db.run('DELETE FROM bug_import_mappings WHERE id = ?', id);
+export const DELETE = withAuth<{ id: string }>(async (_req, { params }) => {
+  await deleteBugMapping(params.id);
   return NextResponse.json({ ok: true });
-}
+});

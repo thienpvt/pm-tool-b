@@ -1,23 +1,22 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { NextResponse } from 'next/server';
+import { withAuth } from '@/lib/http/with-auth';
+import {
+  listRecentJiraSyncMappings,
+  saveJiraSyncMapping,
+} from '@/lib/repositories/jira-config.repo';
+import { syncMappingSchema } from './schema';
 
-export async function GET() {
-  const db = await getDb();
-  const rows = await db.all('SELECT * FROM jira_sync_mappings ORDER BY created_at DESC LIMIT 5');
+export const GET = withAuth(async () => {
+  const rows = await listRecentJiraSyncMappings();
   return NextResponse.json(rows);
-}
+});
 
-export async function POST(req: NextRequest) {
-  const { mappings_json } = await req.json();
-  if (!mappings_json) return NextResponse.json({ error: 'Missing mappings_json' }, { status: 400 });
-  const db = await getDb();
-  await db.run(
-    'INSERT INTO jira_sync_mappings (mappings_json) VALUES (?)',
+export const POST = withAuth(async (_req, { body }) => {
+  const parsed = syncMappingSchema.safeParse(body);
+  if (!parsed.success) return NextResponse.json({ error: 'Missing mappings_json' }, { status: 400 });
+  const { mappings_json } = parsed.data;
+  await saveJiraSyncMapping(
     typeof mappings_json === 'string' ? mappings_json : JSON.stringify(mappings_json),
   );
-  // Keep only the 5 most recent
-  await db.run(
-    'DELETE FROM jira_sync_mappings WHERE id NOT IN (SELECT id FROM jira_sync_mappings ORDER BY created_at DESC LIMIT 5)',
-  );
   return NextResponse.json({ ok: true });
-}
+});

@@ -1,0 +1,8 @@
+app/api/projects/[id]/project-report/route.ts(156,13): error TS2304: Cannot find name 'db'.
+app/api/projects/[id]/project-report/route.ts(160,13): error TS2304: Cannot find name 'db'.
+app/api/projects/[id]/project-report/route.ts(171,27): error TS2304: Cannot find name 'db'.
+app/api/projects/[id]/project-report/route.ts(193,24): error TS2304: Cannot find name 'db'.
+app/api/projects/[id]/project-report/route.ts(209,26): error TS2304: Cannot find name 'db'.
+app/api/projects/[id]/project-report/route.ts(270,31): error TS2304: Cannot find name 'db'.
+app/api/projects/[id]/project-report/route.ts(273,43): error TS7006: Parameter 'r' implicitly has an 'any' type.
+app/api/projects/[id]/project-report/route.ts(315,20): error TS2552: Cannot find name 'getDb'. Did you mean 'GET'?

@@ -25,8 +25,10 @@ class PostgresClient implements DbClient {
   private needsReturningId(sql: string): boolean {
     const match = /INSERT\s+(?:OR\s+\w+\s+)?INTO\s+(\w+)/i.exec(sql);
     const table = match?.[1]?.toLowerCase();
-    // Tables that use non-SERIAL primary keys (no 'id' column to RETURNING)
-    const noIdTables = ['settings', 'company_jira_config'];
+    // Tables that use non-SERIAL primary keys (no 'id' column to RETURNING).
+    // company_rag_config was missing here: its PK is company_id, so the admin
+    // rag-config upsert failed at runtime with `column "id" does not exist`.
+    const noIdTables = ['settings', 'company_jira_config', 'company_rag_config'];
     return !!table && !noIdTables.includes(table);
   }
 
@@ -570,14 +572,22 @@ async function seedAuthData(db: DbClient) {
 // Driven by the standard libpq `sslmode` query param on DATABASE_URL — the portable,
 // infra-agnostic way to control this (add `?sslmode=disable` for an on-prem Postgres
 // without TLS, `?sslmode=require` or omit it for managed/cloud Postgres).
-//   Fallback: if `sslmode` isn't set at all, default to disabled for `railway.internal`
-//   hosts specifically, to preserve today's already-deployed Railway config (whose
-//   DATABASE_URL predates this param) without requiring an env var edit on Railway.
+//   Fallback: if `sslmode` isn't set at all, disable TLS for railway.internal
+//   (already-deployed Railway URLs), localhost, and private LAN hosts.
 function resolveSsl(databaseUrl: string): false | { rejectUnauthorized: boolean } {
   const url = new URL(databaseUrl);
   const sslmode = url.searchParams.get('sslmode');
   if (sslmode) return sslmode === 'disable' ? false : { rejectUnauthorized: false };
-  return url.hostname.endsWith('railway.internal') ? false : { rejectUnauthorized: false };
+  const host = url.hostname;
+  if (
+    host.endsWith('railway.internal') ||
+    host === 'localhost' ||
+    host === '127.0.0.1' ||
+    /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(host)
+  ) {
+    return false;
+  }
+  return { rejectUnauthorized: false };
 }
 
 // ── Singleton ──────────────────────────────────────────────────────────────────

@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import ExcelJS from 'exceljs';
-import { getDb } from '@/lib/db';
-
-type Params = { params: Promise<{ id: string }> };
+import { withProjectAccess } from '@/lib/http/with-project-access';
+import { getProject } from '@/lib/repositories/projects.repo';
+import { listForExport } from '@/lib/repositories/team.repo';
 
 const NAVY     = 'FF1E293B';
 const WHITE    = 'FFFFFFFF';
@@ -47,14 +47,12 @@ function displayMonth(ym: string) {
   return `${labels[Number(m) - 1]}\n${y}`;
 }
 
-export async function GET(_req: NextRequest, { params }: Params) {
-  const { id } = await params;
-  const db = await getDb();
-
-  const project = await db.get<Record<string, string>>('SELECT * FROM projects WHERE id = ?', Number(id));
+export const GET = withProjectAccess(async (_req, { params }) => {
+  const id = params.id;
+  const project = await getProject(Number(id)) as Record<string, string> | undefined;
   if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  const members = await db.all<Record<string, string>>('SELECT * FROM team_members WHERE project_id = ? ORDER BY domain, id', Number(id));
+  const members = await listForExport(Number(id));
 
   const months = getMonths(project.start_date, project.end_date);
   const totalCols = 4 + months.length + 1; // Domain, Role, Name, Email, months..., Notes
@@ -226,4 +224,4 @@ export async function GET(_req: NextRequest, { params }: Params) {
       'Content-Disposition': `attachment; filename="ResourcePlan_${safeName}.xlsx"`,
     },
   });
-}
+});

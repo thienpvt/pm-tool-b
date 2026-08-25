@@ -1,20 +1,19 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { NextResponse } from 'next/server';
+import { withAuth } from '@/lib/http/with-auth';
+import { createTimelineMapping, listTimelineMappings } from '@/lib/repositories/import-mapping.repo';
+import { createTimelineMappingSchema } from './schema';
 
-export async function GET() {
-  const db = await getDb();
-  const rows = await db.all('SELECT * FROM timeline_import_mappings ORDER BY created_at DESC');
-  return NextResponse.json(rows);
-}
+export const GET = withAuth(async () => {
+  return NextResponse.json(await listTimelineMappings());
+});
 
-export async function POST(req: NextRequest) {
-  const { name, mappings_json } = await req.json();
-  if (!name || !mappings_json) return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
-  const db = await getDb();
-  const r = await db.run(
-    'INSERT INTO timeline_import_mappings (name, mappings_json) VALUES (?, ?)',
-    name, typeof mappings_json === 'string' ? mappings_json : JSON.stringify(mappings_json),
+export const POST = withAuth(async (_req, { body }) => {
+  const parsed = createTimelineMappingSchema.safeParse(body);
+  if (!parsed.success) return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
+  const { name, mappings_json } = parsed.data;
+  const row = await createTimelineMapping(
+    name,
+    typeof mappings_json === 'string' ? mappings_json : JSON.stringify(mappings_json),
   );
-  const row = await db.get('SELECT * FROM timeline_import_mappings WHERE id = ?', r.lastInsertRowid);
   return NextResponse.json(row, { status: 201 });
-}
+});

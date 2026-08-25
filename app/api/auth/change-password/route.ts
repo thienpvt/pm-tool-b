@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionFromRequest, hashPassword, verifyPassword } from '@/lib/auth';
-import { getDb } from '@/lib/db';
+import { setUserPasswordHash, userPasswordHash } from '@/lib/repositories/auth.repo';
 
 export async function POST(req: NextRequest) {
   const user = await getSessionFromRequest(req);
@@ -12,13 +12,12 @@ export async function POST(req: NextRequest) {
   if (new_password.length < 6)
     return NextResponse.json({ error: 'New password must be at least 6 characters' }, { status: 400 });
 
-  const db = await getDb();
-  const row = await db.get<{ password_hash: string }>('SELECT password_hash FROM users WHERE id = ?', user.id);
+  const row = await userPasswordHash(user.id);
   if (!row) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
   if (!verifyPassword(current_password, row.password_hash))
     return NextResponse.json({ error: 'Current password is incorrect' }, { status: 400 });
 
-  await db.run('UPDATE users SET password_hash = ? WHERE id = ?', hashPassword(new_password), user.id);
+  await setUserPasswordHash(user.id, hashPassword(new_password));
   return NextResponse.json({ ok: true });
 }

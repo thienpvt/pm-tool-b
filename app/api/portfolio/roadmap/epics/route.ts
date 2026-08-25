@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
 import { getSessionFromRequest } from '@/lib/auth';
+import { serviceErrorResponse } from '@/lib/api-errors';
+import { assertProjectAccess } from '@/lib/services/access';
 import { statusPct, weightedProgress } from '@/lib/status-weights';
+import { roadmapEpicRows } from '@/lib/repositories/portfolio.repo';
 
 // Trả về cây epic → children theo phase cho một project, kèm tiến độ weighted-by-status.
 // Dùng cho: expand phase trong Portfolio Roadmap + dialog chi tiết Epic.
@@ -13,20 +15,27 @@ export async function GET(req: NextRequest) {
   const projectId = searchParams.get('project_id');
   if (!projectId) return NextResponse.json({ error: 'project_id required' }, { status: 400 });
 
-  const db = await getDb();
+  // T-04-21 live read IDOR fix: assert ownership BEFORE the epic tree read.
+  try {
+    await assertProjectAccess(projectId, { company_id: user.company_id, is_admin: user.is_admin });
+  } catch (e) {
+    return serviceErrorResponse(e);
+  }
 
-  const rows = await db.all(
-    `SELECT id, phase, no, activity, status, plan_start, plan_end, jira_key, parent_id, order_idx
-     FROM activities WHERE project_id = ? ORDER BY order_idx, id`,
-    projectId
-  ) as any[];
+  type ActivityRow = {
+    id: number; phase: string | null; no: string | null; activity: string | null;
+    status: string | null; plan_start: string | null; plan_end: string | null;
+    jira_key: string | null; parent_id: number | null;
+  };
 
-  const childrenByParent: Record<number, any[]> = {};
+  const rows = await roadmapEpicRows(projectId) as ActivityRow[];
+
+  const childrenByParent: Record<number, ActivityRow[]> = {};
   for (const r of rows) {
     if (r.parent_id) (childrenByParent[r.parent_id] = childrenByParent[r.parent_id] ?? []).push(r);
   }
 
-  const shape = (a: any) => ({
+  const shape = (a: ActivityRow) => ({
     id: a.id, phase: a.phase, no: a.no, activity: a.activity, status: a.status,
     plan_start: a.plan_start || null, plan_end: a.plan_end || null, jira_key: a.jira_key || null,
   });
@@ -41,7 +50,7 @@ export async function GET(req: NextRequest) {
       return {
         ...shape(epic),
         child_count: kids.length,
-        weighted_pct: kids.length > 0 ? weightedProgress(kids.map((k: any) => k.status)) : statusPct(epic.status),
+        weighted_pct: kids.length > 0 ? weightedProgress(kids.map((k) => k.status)) : statusPct(epic.status),
         children: kids,
       };
     });

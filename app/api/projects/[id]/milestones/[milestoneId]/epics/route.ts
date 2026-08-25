@@ -1,42 +1,25 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { NextResponse } from 'next/server';
+import { withProjectAccess } from '@/lib/http/with-project-access';
+import { linkEpic, listEpics, unlinkEpic } from '@/lib/services/milestones.service';
+import { epicInputSchema } from './schema';
 
-type Params = { params: Promise<{ id: string; milestoneId: string }> };
+type Params = { id: string; milestoneId: string };
 
-export async function GET(_req: NextRequest, { params }: Params) {
-  const { milestoneId } = await params;
-  const db = await getDb();
-  const epics = await db.all(
-    `SELECT a.id, a.phase, a.no, a.activity, a.status, a.completion_pct, a.plan_start, a.plan_end, a.jira_key, a.parent_id
-     FROM milestone_epics me
-     JOIN activities a ON a.id = me.activity_id
-     WHERE me.milestone_id = ?
-     ORDER BY a.order_idx, a.id`,
-    milestoneId
-  );
-  return NextResponse.json(epics);
-}
+export const GET = withProjectAccess<Params>(async (_req, { params, actor }) =>
+  NextResponse.json(await listEpics(params.id, actor, params.milestoneId)),
+);
 
-export async function POST(req: NextRequest, { params }: Params) {
-  const { milestoneId } = await params;
-  const body = await req.json();
-  const db = await getDb();
-  try {
-    await db.run(
-      'INSERT OR IGNORE INTO milestone_epics (milestone_id, activity_id) VALUES (?,?)',
-      milestoneId, body.activity_id
-    );
-  } catch {
-    // already linked — ignore
-  }
-  return NextResponse.json({ ok: true }, { status: 201 });
-}
+export const POST = withProjectAccess<Params>(
+  async (_req, { params, actor, body }) => {
+    const { activity_id } = body as { activity_id: string | number };
+    await linkEpic(params.id, actor, params.milestoneId, activity_id);
+    return NextResponse.json({ ok: true }, { status: 201 });
+  },
+  { schema: epicInputSchema },
+);
 
-export async function DELETE(req: NextRequest, { params }: Params) {
-  const { milestoneId } = await params;
-  const { searchParams } = new URL(req.url);
-  const activityId = searchParams.get('activity_id');
-  const db = await getDb();
-  await db.run('DELETE FROM milestone_epics WHERE milestone_id = ? AND activity_id = ?', milestoneId, activityId);
+export const DELETE = withProjectAccess<Params>(async (req, { params, actor }) => {
+  const activityId = new URL(req.url).searchParams.get('activity_id');
+  await unlinkEpic(params.id, actor, params.milestoneId, activityId ?? '');
   return NextResponse.json({ ok: true });
-}
+});

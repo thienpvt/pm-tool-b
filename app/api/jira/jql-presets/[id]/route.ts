@@ -1,11 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { NextResponse } from 'next/server';
+import { withAuth } from '@/lib/http/with-auth';
+import { deleteJqlPreset } from '@/lib/repositories/jira-config.repo';
 
-type Params = { params: Promise<{ id: string }> };
-
-export async function DELETE(_req: NextRequest, { params }: Params) {
-  const { id } = await params;
-  const db = await getDb();
-  await db.run('DELETE FROM jira_jql_presets WHERE id = ?', id);
+export const DELETE = withAuth<{ id: string }>(async (_req, { params }) => {
+  await deleteJqlPreset(params.id);
   return NextResponse.json({ ok: true });
-}
+});

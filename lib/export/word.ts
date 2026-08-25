@@ -3,7 +3,10 @@ import {
   Table, TableRow, TableCell, WidthType, BorderStyle,
   AlignmentType, ShadingType,
 } from 'docx';
-import { getDb } from '@/lib/db';
+import { getDocumentForExport } from '@/lib/repositories/documents.repo';
+import { getProject } from '@/lib/repositories/projects.repo';
+import type { AccessActor } from '@/lib/services/access';
+import { assertProjectAccess } from '@/lib/services/access';
 
 function heading1(text: string) {
   return new Paragraph({
@@ -70,14 +73,18 @@ function logoBlock(projectName: string) {
   ];
 }
 
-export async function generateWordDoc(projectId: number, docType: string, docId?: number): Promise<Buffer> {
-  const db = await getDb();
-  const project = await db.get('SELECT * FROM projects WHERE id = ?', projectId) as Record<string, string>;
-  // For weekly reports: fetch by specific docId; otherwise fetch the single doc of that type
-  const docRow = (docId != null
-    ? await db.get('SELECT * FROM documents WHERE id = ? AND project_id = ?', docId, projectId)
-    : await db.get('SELECT * FROM documents WHERE project_id = ? AND type = ?', projectId, docType)
-  ) as { content_json: string; title?: string } | undefined;
+export async function generateWordDoc(
+  projectId: number,
+  actor: AccessActor,
+  docType: string,
+  docId?: number,
+): Promise<Buffer> {
+  await assertProjectAccess(projectId, actor);
+
+  const project = await getProject(projectId) as Record<string, string>;
+  const docRow = await getDocumentForExport(projectId, docType, docId) as {
+    content_json: string; title?: string;
+  } | undefined;
   const content = docRow ? JSON.parse(docRow.content_json) : {};
 
   const docTitle: Record<string, string> = {

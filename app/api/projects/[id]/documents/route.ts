@@ -1,56 +1,34 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { NextResponse } from 'next/server';
+import { withProjectAccess } from '@/lib/http/with-project-access';
+import {
+  deleteDocument,
+  listDocuments,
+  updateDocument,
+  upsertDocument,
+} from '@/lib/services/documents.service';
+import { documentInputSchema, documentUpdateSchema } from './schema';
 
-type Params = { params: Promise<{ id: string }> };
+export const GET = withProjectAccess(async (_req, { params, actor }) =>
+  NextResponse.json(await listDocuments(params.id, actor)),
+);
 
-export async function GET(_req: NextRequest, { params }: Params) {
-  const { id } = await params;
-  const db = await getDb();
-  return NextResponse.json(await db.all('SELECT * FROM documents WHERE project_id = ? ORDER BY created_at DESC', id));
-}
+export const POST = withProjectAccess(
+  async (_req, { params, actor, body }) => {
+    const result = await upsertDocument(params.id, actor, body as Record<string, unknown>);
+    return NextResponse.json(result.row, { status: result.created ? 201 : 200 });
+  },
+  { schema: documentInputSchema },
+);
 
-export async function POST(req: NextRequest, { params }: Params) {
-  const { id } = await params;
-  const body = await req.json();
-  const db = await getDb();
+export const PUT = withProjectAccess(
+  async (_req, { params, actor, body }) => {
+    const b = body as { id: string | number; title: string; content: string };
+    return NextResponse.json(await updateDocument(params.id, actor, b.id, b.title, b.content));
+  },
+  { schema: documentUpdateSchema },
+);
 
-  // Weekly reports always create a new row (diary style — no upsert)
-  if (body.type === 'status_report') {
-    const r = await db.run('INSERT INTO documents (project_id, type, title, content_json) VALUES (?,?,?,?)',
-      id, 'status_report', body.title ?? 'Weekly Report', JSON.stringify(body.content ?? {}));
-    return NextResponse.json(await db.get('SELECT * FROM documents WHERE id = ?', r.lastInsertRowid), { status: 201 });
-  }
-
-  // All other types: upsert (one per type per project)
-  const existing = await db.get('SELECT id FROM documents WHERE project_id = ? AND type = ?', id, body.type);
-  if (existing) {
-    await db.run("UPDATE documents SET content_json = ?, title = ?, updated_at = NOW() WHERE id = ?",
-      JSON.stringify(body.content), body.title ?? body.type, (existing as { id: number }).id);
-    return NextResponse.json(await db.get('SELECT * FROM documents WHERE id = ?', (existing as { id: number }).id));
-  }
-  const r = await db.run('INSERT INTO documents (project_id, type, title, content_json) VALUES (?,?,?,?)',
-    id, body.type, body.title ?? body.type, JSON.stringify(body.content ?? {}));
-  return NextResponse.json(await db.get('SELECT * FROM documents WHERE id = ?', r.lastInsertRowid), { status: 201 });
-}
-
-export async function PUT(req: NextRequest, { params }: Params) {
-  const { id } = await params;
-  const body = await req.json();
-  const db = await getDb();
-  const doc = await db.get('SELECT id FROM documents WHERE id = ? AND project_id = ?', body.id, id);
-  if (!doc) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  await db.run("UPDATE documents SET content_json = ?, title = ?, updated_at = NOW() WHERE id = ?",
-    JSON.stringify(body.content), body.title, body.id);
-  return NextResponse.json(await db.get('SELECT * FROM documents WHERE id = ?', body.id));
-}
-
-export async function DELETE(req: NextRequest, { params }: Params) {
-  const { id } = await params;
+export const DELETE = withProjectAccess(async (req, { params, actor }) => {
   const docId = new URL(req.url).searchParams.get('docId');
-  if (!docId) return NextResponse.json({ error: 'Missing docId' }, { status: 400 });
-  const db = await getDb();
-  const doc = await db.get('SELECT id FROM documents WHERE id = ? AND project_id = ?', docId, id);
-  if (!doc) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  await db.run('DELETE FROM documents WHERE id = ?', docId);
-  return NextResponse.json({ ok: true });
-}
+  return NextResponse.json(await deleteDocument(params.id, actor, docId));
+});

@@ -1,10 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
-import { getSessionFromRequest } from '@/lib/auth';
-import Anthropic from '@anthropic-ai/sdk';
-import { serverError } from '@/lib/log';
-
-type Params = { params: Promise<{ id: string }> };
+import { NextResponse } from 'next/server';
+import { withProjectAccess } from '@/lib/http/with-project-access';
+import { resolveAnthropicCredentials } from '@/lib/integrations/credentials';
+import { createMessage } from '@/lib/integrations/anthropic/client';
+import { MODEL_SONNET_4_6 } from '@/lib/integrations/anthropic/models';
+import { integrationErrorResponse } from '@/lib/api-errors';
 
 const SYSTEM_PROMPT = `Bạn là Project Manager cấp Senior đang soạn email báo cáo chính thức gửi Project Sponsor và Ban Lãnh đạo.
 
@@ -30,27 +29,19 @@ const SYSTEM_PROMPT = `Bạn là Project Manager cấp Senior đang soạn email
 - Tone: chuyên nghiệp, tự tin, khách quan
 - Khuyến nghị phải cụ thể, có thể hành động được`;
 
-export async function POST(req: NextRequest, { params }: Params) {
-  const { id } = await params;
-  void id;
+export const POST = withProjectAccess(async (req) => {
+  const creds = await resolveAnthropicCredentials();
+  if (!creds) return NextResponse.json({ error: 'NO_API_KEY' }, { status: 503 });
 
-  const user = await getSessionFromRequest(req);
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-  let apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    const db = await getDb();
-    const row = await db.get<{ value: string }>('SELECT value FROM settings WHERE key = ?', ['anthropic_api_key']);
-    if (row?.value) apiKey = row.value;
+  // WR-05: reject a malformed/oversized body with a JSON 400 instead of letting
+  // req.json() reject the handler and surface a bare 500.
+  let body: { reportData: Record<string, unknown>; promptInstruction: string; language: string };
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
-  if (!apiKey) return NextResponse.json({ error: 'NO_API_KEY' }, { status: 503 });
-
-  const body = await req.json();
-  const { reportData, promptInstruction, language } = body as {
-    reportData: Record<string, unknown>;
-    promptInstruction: string;
-    language: string;
-  };
+  const { reportData, promptInstruction, language } = body;
 
   if (!reportData || !promptInstruction) {
     return NextResponse.json({ error: 'MISSING_DATA' }, { status: 400 });
@@ -59,10 +50,9 @@ export async function POST(req: NextRequest, { params }: Params) {
   const context = buildProjectContext(reportData, language);
   const langLabel = language === 'Vietnamese' ? 'Tiếng Việt' : 'English';
 
-  const client = new Anthropic({ apiKey });
   try {
-    const msg = await client.messages.create({
-      model: 'claude-sonnet-4-6',
+    const { text: raw } = await createMessage(creds, {
+      model: MODEL_SONNET_4_6,
       max_tokens: 3000,
       system: SYSTEM_PROMPT,
       messages: [{
@@ -71,7 +61,6 @@ export async function POST(req: NextRequest, { params }: Params) {
       }],
     });
 
-    const raw = msg.content[0].type === 'text' ? msg.content[0].text : '';
     const lines = raw.split('\n');
     let subject = `[Dự án] Báo cáo tình trạng — ${new Date().toLocaleDateString('vi-VN', { month: 'long', year: 'numeric' })}`;
     let emailHtml = raw;
@@ -83,11 +72,11 @@ export async function POST(req: NextRequest, { params }: Params) {
     }
 
     return NextResponse.json({ subject, emailHtml });
-  } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : 'Claude API failed';
-    return serverError(req, e, { error: msg }, 502);
+  } catch (e) {
+    // Behavior change: adds a 120s SDK timeout where none existed (HYG-02)
+    return integrationErrorResponse(e);
   }
-}
+}, { rawBody: true });
 
 function buildProjectContext(data: Record<string, unknown>, language: string): string {
   const lines: string[] = [];
