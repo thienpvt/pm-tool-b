@@ -6,7 +6,7 @@ const { db } = vi.hoisted(() => ({
 
 vi.mock('@/lib/db', () => ({ getDb: vi.fn(async () => db) }));
 
-import { createJqlPreset, setCompanyJiraConfig } from './jira-config.repo';
+import { createJqlPreset, deleteJqlPreset, listJqlPresets, setCompanyJiraConfig } from './jira-config.repo';
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -35,17 +35,39 @@ describe('jira-config.repo', () => {
     db.all.mockResolvedValue([{ id: 3 }, { id: 2 }, { id: 1 }]);
     db.get.mockResolvedValue({ id: 4, name: 'Open bugs' });
 
-    await expect(createJqlPreset('Open bugs', 'status != Done', 'bugs', 3)).resolves.toEqual({
+    await expect(createJqlPreset(7, 'Open bugs', 'status != Done', 'bugs', 3)).resolves.toEqual({
       id: 4,
       name: 'Open bugs',
     });
 
-    expect(db.run).toHaveBeenCalledWith('DELETE FROM jira_jql_presets WHERE id = ?', 1);
+    expect(db.run).toHaveBeenCalledWith(
+      'DELETE FROM jira_jql_presets WHERE id = ? AND company_id = ?',
+      1,
+      7,
+    );
     expect(db.get).toHaveBeenCalledWith(
       expect.stringContaining('INSERT INTO jira_jql_presets'),
       'Open bugs',
       'status != Done',
       'bugs',
+      7,
+    );
+  });
+
+  it('listJqlPresets filters by company_id and context', async () => {
+    await listJqlPresets(5, 'timeline');
+    const sql = db.all.mock.calls[0][0].replace(/\s+/g, ' ').trim();
+    expect(sql).toContain('WHERE company_id = ?');
+    expect(sql).toContain('context = ?');
+    expect(db.all).toHaveBeenCalledWith(expect.any(String), 5, 'timeline');
+  });
+
+  it('deleteJqlPreset filters by company_id', async () => {
+    await deleteJqlPreset(5, 12);
+    expect(db.run).toHaveBeenCalledWith(
+      'DELETE FROM jira_jql_presets WHERE id = ? AND company_id = ?',
+      12,
+      5,
     );
   });
 });

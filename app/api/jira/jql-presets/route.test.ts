@@ -8,13 +8,14 @@ const { listJqlPresets, createJqlPreset, deleteJqlPreset } = vi.hoisted(() => ({
 }));
 
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
-vi.mock('@/lib/repositories/jira-config.repo', () => ({
+vi.mock('@/lib/services/jira-mapping.service', () => ({
   listJqlPresets,
   createJqlPreset,
   deleteJqlPreset,
 }));
 
 import { getSessionFromRequest } from '@/lib/auth';
+import { ForbiddenError } from '@/lib/services/errors';
 import { GET, POST } from './route';
 import { DELETE } from './[id]/route';
 
@@ -43,7 +44,7 @@ describe('GET/POST /api/jira/jql-presets', () => {
     });
   }
 
-  it('GET returns 401 with no session, repo not called', async () => {
+  it('GET returns 401 with no session, service not called', async () => {
     vi.mocked(getSessionFromRequest).mockResolvedValue(null);
     const res = await GET(req('GET'), params());
     expect(res.status).toBe(401);
@@ -51,7 +52,7 @@ describe('GET/POST /api/jira/jql-presets', () => {
     expect(listJqlPresets).not.toHaveBeenCalled();
   });
 
-  it('POST returns 401 with no session, repo not called', async () => {
+  it('POST returns 401 with no session, service not called', async () => {
     vi.mocked(getSessionFromRequest).mockResolvedValue(null);
     const res = await POST(req('POST', undefined, { name: 'x', jql: 'project = A' }), params());
     expect(res.status).toBe(401);
@@ -68,7 +69,10 @@ describe('GET/POST /api/jira/jql-presets', () => {
 
     expect(res.status).toBe(200);
     await expect(res.json()).resolves.toEqual(rows);
-    expect(listJqlPresets).toHaveBeenCalledWith('timeline');
+    expect(listJqlPresets).toHaveBeenCalledWith(
+      expect.objectContaining({ company_id: 5 }),
+      'timeline',
+    );
   });
 
   it('POST creates for an owner with 201', async () => {
@@ -80,7 +84,13 @@ describe('GET/POST /api/jira/jql-presets', () => {
 
     expect(res.status).toBe(201);
     await expect(res.json()).resolves.toEqual(created);
-    expect(createJqlPreset).toHaveBeenCalledWith('p2', 'project = B', '', 10);
+    expect(createJqlPreset).toHaveBeenCalledWith(
+      expect.objectContaining({ company_id: 5 }),
+      'p2',
+      'project = B',
+      '',
+      10,
+    );
   });
 });
 
@@ -92,6 +102,11 @@ describe('DELETE /api/jira/jql-presets/[id]', () => {
   const ownerSession = {
     id: 2, username: 'ava', display_name: 'Ava', company_id: 5,
     company_name: 'Acme', is_admin: 0, onboarding_completed: 1,
+  };
+
+  const foreignSession = {
+    id: 3, username: 'bob', display_name: 'Bob', company_id: 9,
+    company_name: 'Other', is_admin: 0, onboarding_completed: 1,
   };
 
   const params = (id = '1') => ({ params: Promise.resolve({ id }) });
@@ -108,6 +123,17 @@ describe('DELETE /api/jira/jql-presets/[id]', () => {
     expect(deleteJqlPreset).not.toHaveBeenCalled();
   });
 
+  it('returns 403 for a cross-company preset (TENANT-01)', async () => {
+    vi.mocked(getSessionFromRequest).mockResolvedValue(foreignSession as never);
+    deleteJqlPreset.mockRejectedValue(new ForbiddenError());
+
+    const res = await DELETE(req('DELETE'), params());
+
+    expect(res.status).toBe(403);
+    await expect(res.json()).resolves.toEqual({ error: 'Forbidden' });
+    expect(deleteJqlPreset).toHaveBeenCalledWith('1', expect.objectContaining({ company_id: 9 }));
+  });
+
   it('returns { ok: true } for an authenticated caller (shape preserved)', async () => {
     vi.mocked(getSessionFromRequest).mockResolvedValue(ownerSession as never);
     deleteJqlPreset.mockResolvedValue({ changes: 1 });
@@ -116,6 +142,6 @@ describe('DELETE /api/jira/jql-presets/[id]', () => {
 
     expect(res.status).toBe(200);
     await expect(res.json()).resolves.toEqual({ ok: true });
-    expect(deleteJqlPreset).toHaveBeenCalledWith('1');
+    expect(deleteJqlPreset).toHaveBeenCalledWith('1', expect.objectContaining({ company_id: 5 }));
   });
 });
