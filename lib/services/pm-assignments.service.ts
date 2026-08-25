@@ -2,10 +2,11 @@ import {
   endPrimaryWithCollaboratorCascade,
   getActivePrimaryAssignment,
   getPmAssignmentById,
+  hasActivePmAssignmentForUserRole,
   hasOverlappingPmAssignment,
   insertPmAssignment,
   listPmAssignments as listPmAssignmentsRepo,
-  softEndActivePrimary,
+  replaceActivePrimary,
   softEndPmAssignment,
   syncProjectPmDisplay,
   type PmAssignmentRole,
@@ -77,14 +78,34 @@ export async function createPmAssignment(
         'user_id',
       );
     }
+    if (await hasActivePmAssignmentForUserRole(projectId, userId, role)) {
+      throw new ValidationError(
+        'User already has an active assignment in this role on this project',
+        'user_id',
+      );
+    }
   } else {
-    const activePrimary = await getActivePrimaryAssignment(projectId);
-    if (activePrimary) {
-      await softEndActivePrimary(projectId);
+    if (await hasOverlappingPmAssignment(projectId, userId, role)) {
+      throw new ValidationError(
+        'User already holds the other PM role on this project',
+        'user_id',
+      );
+    }
+    if (await hasActivePmAssignmentForUserRole(projectId, userId, role)) {
+      throw new ValidationError(
+        'User already has an active primary assignment on this project',
+        'user_id',
+      );
     }
   }
 
-  const created = (await insertPmAssignment(projectId, userId, role)) as PmAssignmentRow;
+  const created =
+    role === 'primary'
+      ? ((await replaceActivePrimary(projectId, userId)) as PmAssignmentRow)
+      : ((await insertPmAssignment(projectId, userId, role)) as PmAssignmentRow);
+  if (!created) {
+    throw new ValidationError('Failed to create PM assignment', 'role');
+  }
   if (role === 'primary') {
     await syncProjectPmDisplay(projectId);
   }

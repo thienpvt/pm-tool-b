@@ -84,6 +84,24 @@ export async function hasOverlappingPmAssignment(
   return !!row;
 }
 
+export async function hasActivePmAssignmentForUserRole(
+  projectId: number | string,
+  userId: number,
+  role: PmAssignmentRole,
+): Promise<boolean> {
+  const db = await getDb();
+  const row = await db.get<{ ok: number }>(
+    `SELECT 1 AS ok FROM project_pm_assignments
+     WHERE project_id = ? AND user_id = ? AND role = ?
+       AND ${ACTIVE_WINDOW}
+     LIMIT 1`,
+    Number(projectId),
+    userId,
+    role,
+  );
+  return !!row;
+}
+
 export async function insertPmAssignment(
   projectId: number | string,
   userId: number,
@@ -195,6 +213,30 @@ async function withPgTransaction<T>(fn: (pool: Pool) => Promise<T>): Promise<T> 
     client.release();
     await pool.end();
   }
+}
+
+/** Soft-end active primary and insert replacement in one transaction (D-12, WR-03). */
+export async function replaceActivePrimary(
+  projectId: number | string,
+  userId: number,
+): Promise<PmAssignmentRow | undefined> {
+  return withPgTransaction(async (pool) => {
+    await pool.query(
+      `UPDATE project_pm_assignments SET effective_to = CURRENT_DATE
+       WHERE project_id = $1 AND role = 'primary'
+         AND effective_from <= CURRENT_DATE
+         AND (effective_to IS NULL OR effective_to > CURRENT_DATE)`,
+      [Number(projectId)],
+    );
+
+    const insertRes = await pool.query(
+      `INSERT INTO project_pm_assignments (project_id, user_id, role, effective_from, effective_to)
+       VALUES ($1, $2, 'primary', CURRENT_DATE, NULL)
+       RETURNING *`,
+      [Number(projectId), userId],
+    );
+    return insertRes.rows[0] as PmAssignmentRow | undefined;
+  });
 }
 
 /** End last primary and cascade collaborators atomically (D-12). */

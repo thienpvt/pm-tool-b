@@ -7,10 +7,11 @@ const {
   getActivePrimaryAssignment,
   getPmAssignmentById,
   hasOverlappingPmAssignment,
+  hasActivePmAssignmentForUserRole,
   insertPmAssignment,
   softEndPmAssignment,
   endPrimaryWithCollaboratorCascade,
-  softEndActivePrimary,
+  replaceActivePrimary,
   syncProjectPmDisplay,
   findUserById,
   auditLogFn,
@@ -21,10 +22,11 @@ const {
   getActivePrimaryAssignment: vi.fn(),
   getPmAssignmentById: vi.fn(),
   hasOverlappingPmAssignment: vi.fn(),
+  hasActivePmAssignmentForUserRole: vi.fn(),
   insertPmAssignment: vi.fn(),
   softEndPmAssignment: vi.fn(),
   endPrimaryWithCollaboratorCascade: vi.fn(),
-  softEndActivePrimary: vi.fn(),
+  replaceActivePrimary: vi.fn(),
   syncProjectPmDisplay: vi.fn(),
   findUserById: vi.fn(),
   auditLogFn: vi.fn(),
@@ -40,10 +42,11 @@ vi.mock('@/lib/repositories/pm-assignments.repo', () => ({
   getActivePrimaryAssignment,
   getPmAssignmentById,
   hasOverlappingPmAssignment,
+  hasActivePmAssignmentForUserRole,
   insertPmAssignment,
   softEndPmAssignment,
   endPrimaryWithCollaboratorCascade,
-  softEndActivePrimary,
+  replaceActivePrimary,
   syncProjectPmDisplay,
 }));
 vi.mock('@/lib/repositories/users.repo', () => ({ findUserById }));
@@ -98,7 +101,9 @@ beforeEach(() => {
   });
   getActivePrimaryAssignment.mockResolvedValue(undefined);
   hasOverlappingPmAssignment.mockResolvedValue(false);
+  hasActivePmAssignmentForUserRole.mockResolvedValue(false);
   insertPmAssignment.mockResolvedValue(assignmentRow);
+  replaceActivePrimary.mockResolvedValue(assignmentRow);
   syncProjectPmDisplay.mockResolvedValue(undefined);
   auditLogFn.mockResolvedValue(undefined);
 });
@@ -120,7 +125,8 @@ describe('createPmAssignment', () => {
     const created = await createPmAssignment(7, cpmoActor, { user_id: 3, role: 'primary' });
     expect(created).toEqual(assignmentRow);
     expect(assertCompanyWrite).toHaveBeenCalledWith(cpmoActor);
-    expect(insertPmAssignment).toHaveBeenCalledWith(7, 3, 'primary');
+    expect(replaceActivePrimary).toHaveBeenCalledWith(7, 3);
+    expect(insertPmAssignment).not.toHaveBeenCalled();
     expect(syncProjectPmDisplay).toHaveBeenCalledWith(7);
     expect(auditLogFn).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -159,15 +165,31 @@ describe('createPmAssignment', () => {
   });
 
   it('soft-ends prior primary when assigning a second primary (D-12, PMAS-01, PMAS-03)', async () => {
-    const prior = { ...assignmentRow, id: 8, user_id: 99 };
-    getActivePrimaryAssignment.mockResolvedValue(prior);
-    insertPmAssignment.mockResolvedValue({ ...assignmentRow, id: 11, user_id: 3 });
+    replaceActivePrimary.mockResolvedValue({ ...assignmentRow, id: 11, user_id: 3 });
 
     await createPmAssignment(7, cpmoActor, { user_id: 3, role: 'primary' });
 
-    expect(softEndActivePrimary).toHaveBeenCalledWith(7);
-    expect(insertPmAssignment).toHaveBeenCalledWith(7, 3, 'primary');
+    expect(replaceActivePrimary).toHaveBeenCalledWith(7, 3);
+    expect(insertPmAssignment).not.toHaveBeenCalled();
     expect(syncProjectPmDisplay).toHaveBeenCalledWith(7);
+  });
+
+  it('throws ValidationError when promoting user with active collaborator to primary (CR-01, D-12)', async () => {
+    hasOverlappingPmAssignment.mockResolvedValue(true);
+    await expect(
+      createPmAssignment(7, cpmoActor, { user_id: 3, role: 'primary' }),
+    ).rejects.toBeInstanceOf(ValidationError);
+    expect(replaceActivePrimary).not.toHaveBeenCalled();
+    expect(insertPmAssignment).not.toHaveBeenCalled();
+  });
+
+  it('throws ValidationError when duplicate active collaborator POST (WR-01, D-12)', async () => {
+    getActivePrimaryAssignment.mockResolvedValue(assignmentRow);
+    hasActivePmAssignmentForUserRole.mockResolvedValue(true);
+    await expect(
+      createPmAssignment(7, cpmoActor, { user_id: 4, role: 'collaborator' }),
+    ).rejects.toBeInstanceOf(ValidationError);
+    expect(insertPmAssignment).not.toHaveBeenCalled();
   });
 
   it('allows collaborator when a primary is active and user has no overlap (D-12)', async () => {
@@ -175,7 +197,7 @@ describe('createPmAssignment', () => {
     insertPmAssignment.mockResolvedValue({ ...assignmentRow, id: 12, role: 'collaborator', user_id: 4 });
     await createPmAssignment(7, cpmoActor, { user_id: 4, role: 'collaborator' });
     expect(insertPmAssignment).toHaveBeenCalledWith(7, 4, 'collaborator');
-    expect(softEndActivePrimary).not.toHaveBeenCalled();
+    expect(replaceActivePrimary).not.toHaveBeenCalled();
   });
 });
 
