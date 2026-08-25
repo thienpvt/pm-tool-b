@@ -197,7 +197,33 @@ Plans:
   4. Each decomposed page has a component test covering its primary render path and one interaction
   5. Each decomposition is verified against the pre-refactor page for identical behavior on load, filter, and export paths
 
-**Plans**: TBD
+**Plans**: 9 plans across 5 waves
+
+Plans:
+**Wave 0**
+
+- [ ] 07-00-PLAN.md — Extend vitest jsdom include for `*.component.test.tsx`
+
+**Wave 1**
+
+- [ ] 07-01-PLAN.md — Tracer: decompose `app/page.tsx` (smallest god page; proves hook + `_components/` + test pattern)
+
+**Wave 2** *(parallel after Wave 1 — disjoint file ownership)*
+
+- [ ] 07-02-PLAN.md — Decompose `app/portfolio/report/page.tsx` (2655 lines, UI-02)
+- [ ] 07-03-PLAN.md — Decompose `app/projects/[id]/timeline/page.tsx` (UI-03)
+- [ ] 07-04-PLAN.md — Decompose `app/projects/[id]/report/page.tsx` (UI-04)
+- [ ] 07-05-PLAN.md — Decompose `app/projects/[id]/milestones/page.tsx` (UI-05)
+
+**Wave 3** *(parallel)*
+
+- [ ] 07-06-PLAN.md — Decompose `app/portfolio/roadmap/page.tsx` (UI-06)
+- [ ] 07-07-PLAN.md — Decompose `components/timeline/ImportMappingDialog.tsx` in place (UI-07)
+
+**Wave 4**
+
+- [ ] 07-08-PLAN.md — Phase gate: UI-09 grep, line limits, hooks, full `npm test`
+
 **UI hint**: yes
 
 ## Progress
@@ -210,4 +236,4 @@ Plans:
 | 4. Service Layer | 7/7 | Complete    | 2026-08-11 |
 | 5. Route Thinning & Validation | 3/3 | Complete    | 2026-08-11 |
 | 6. Access Enforcement Rollout | 6/7 | In Progress|  |
-| 7. UI Decomposition | 0/TBD | Not started | - |
+| 7. UI Decomposition | 0/9 | Not started | - |
