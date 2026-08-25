@@ -30,19 +30,13 @@ describe('listProjects', () => {
     expect(db.all).toHaveBeenCalledWith(expect.any(String), 5, 5);
   });
 
-  it('ANDs D-14 assignment predicate when PM opts provided (D-14)', async () => {
-    await listProjects(5, { pmEmail: 'ava@example.com', pmName: 'Ava', username: 'ava' });
+  it('ANDs assignment window EXISTS when pmUserId provided (D-13, PMAS-04)', async () => {
+    await listProjects(5, { pmUserId: 2 });
 
-    expect(normalizedSql()).toContain('LOWER(p.pm_email) = LOWER(?)');
-    expect(normalizedSql()).toContain('LOWER(TRIM(COALESCE(p.pm_name');
-    expect(db.all).toHaveBeenCalledWith(
-      expect.any(String),
-      5,
-      5,
-      'ava@example.com',
-      'Ava',
-      'ava',
-    );
+    expect(normalizedSql()).toContain('project_pm_assignments');
+    expect(normalizedSql()).toContain('user_id = ?');
+    expect(normalizedSql()).not.toContain('LOWER(p.pm_email)');
+    expect(db.all).toHaveBeenCalledWith(expect.any(String), 5, 5, 2);
   });
 
   it('returns unassigned-only rows for null company (CR-01)', async () => {

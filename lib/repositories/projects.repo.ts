@@ -93,21 +93,20 @@ export async function findProjectByCompanyCode(companyId: number, code: string) 
  */
 export async function listProjects(
   companyId: number | null,
-  opts?: { pmEmail?: string; pmName?: string; username?: string },
+  opts?: { pmUserId?: number },
 ) {
   const db = await getDb();
   if (companyId !== null) {
     let sql = `${LIST_SELECT} WHERE (p.company_id = ? OR c.company_id = ?)`;
     const params: unknown[] = [companyId, companyId];
-    if (opts) {
-      sql += ` AND (
-        (TRIM(COALESCE(p.pm_email, '')) != '' AND LOWER(p.pm_email) = LOWER(?))
-        OR (TRIM(COALESCE(p.pm_email, '')) = '' AND (
-          LOWER(TRIM(COALESCE(p.pm_name, ''))) = LOWER(TRIM(?))
-          OR LOWER(TRIM(COALESCE(p.pm_name, ''))) = LOWER(TRIM(?))
-        ))
+    if (opts?.pmUserId !== undefined) {
+      sql += ` AND EXISTS (
+        SELECT 1 FROM project_pm_assignments a
+        WHERE a.project_id = p.id AND a.user_id = ?
+          AND a.effective_from <= CURRENT_DATE
+          AND (a.effective_to IS NULL OR a.effective_to > CURRENT_DATE)
       )`;
-      params.push(opts.pmEmail ?? '', opts.pmName ?? '', opts.username ?? '');
+      params.push(opts.pmUserId);
     }
     sql += ' ORDER BY p.created_at DESC';
     return db.all(sql, ...params);

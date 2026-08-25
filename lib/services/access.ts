@@ -1,4 +1,5 @@
-import { getProjectPmIdentity, projectAccessRow, type ProjectAccessRow } from '@/lib/repositories/projects.repo';
+import { projectAccessRow, type ProjectAccessRow } from '@/lib/repositories/projects.repo';
+import { hasActivePmAssignment } from '@/lib/repositories/pm-assignments.repo';
 import { ForbiddenError, NotFoundError } from './errors';
 
 export type AppRole = 'cpmo' | 'pm' | 'viewer';
@@ -40,22 +41,6 @@ function isPmOnly(actor: AccessActor): boolean {
   return hasRole(actor, 'pm') && !hasRole(actor, 'cpmo') && !hasRole(actor, 'viewer');
 }
 
-function matchesPmAssignment(
-  project: { pm_name: string | null; pm_email: string | null },
-  actor: AccessActor,
-): boolean {
-  const email = (project.pm_email ?? '').trim();
-  if (email) {
-    return actor.email.toLowerCase() === email.toLowerCase();
-  }
-  const pmName = (project.pm_name ?? '').trim().toLowerCase();
-  if (!pmName) return false;
-  return (
-    pmName === actor.display_name.trim().toLowerCase() ||
-    pmName === actor.username.trim().toLowerCase()
-  );
-}
-
 export function toAccessActor(user: AccessActorSource): AccessActor {
   return {
     company_id: user.company_id,
@@ -88,7 +73,7 @@ export function assertCanMutate(actor: AccessActor): void {
  * Order is fixed (T-04-03 existence oracle contract):
  * 1. missing project → NotFoundError
  * 2. CPMO company match (D-13) or tenant owner via company_id / customer_company_id
- * 3. PM-only D-14 assignment on read after tenant match (D-14, D-24)
+ * 3. PM-only assignment window on read after tenant match (D-13, D-24)
  * 4. null-company actor allowed ONLY when BOTH tenancy columns are null (CR-01)
  */
 export async function assertProjectAccess(
@@ -118,8 +103,7 @@ export async function assertProjectAccess(
   }
 
   if (isPmOnly(actor)) {
-    const identity = await getProjectPmIdentity(projectId);
-    if (!identity || !matchesPmAssignment(identity, actor)) {
+    if (!(await hasActivePmAssignment(Number(projectId), actor.user_id))) {
       throw new ForbiddenError();
     }
   }
@@ -127,14 +111,13 @@ export async function assertProjectAccess(
   return row;
 }
 
-/** Interim D-14 PM write gate — Phase 11 replaces the lookup, not this function name. */
+/** PM write gate — assignment windows are the lookup source (D-13). Function name unchanged from Phase 10. */
 export async function assertPmWriteAccess(
   projectId: number | string,
   actor: AccessActor,
 ): Promise<void> {
   if (isCpmo(actor)) return;
-  const identity = await getProjectPmIdentity(projectId);
-  if (!identity || !matchesPmAssignment(identity, actor)) {
+  if (!(await hasActivePmAssignment(Number(projectId), actor.user_id))) {
     throw new ForbiddenError();
   }
 }

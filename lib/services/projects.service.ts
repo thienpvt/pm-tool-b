@@ -33,11 +33,7 @@ export async function listProjects(actor: AccessActor) {
   const pmOnly =
     hasRole(actor, 'pm') && !hasRole(actor, 'cpmo') && !hasRole(actor, 'viewer');
   if (pmOnly) {
-    return listProjectsRepo(actor.company_id, {
-      pmEmail: actor.email,
-      pmName: actor.display_name,
-      username: actor.username,
-    });
+    return listProjectsRepo(actor.company_id, { pmUserId: actor.user_id });
   }
   return listProjectsRepo(actor.company_id);
 }

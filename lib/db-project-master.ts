@@ -1,6 +1,7 @@
 import type { Pool } from 'pg';
 
 export const PROJECT_MASTER_DDL_FLAG = 'project_master_ddl_v1';
+export const PM_ASSIGNMENT_BACKFILL_FLAG = 'pm_assignment_backfill_v1';
 
 /** Hermetic unit-test assertions against the DDL strings (D-01, D-11, D-16, D-09). */
 export const PROJECT_MASTER_DDL = [
@@ -74,13 +75,50 @@ async function migrateProjectMasterDdl(pool: Pool): Promise<void> {
   await writeSettingsFlag(pool, PROJECT_MASTER_DDL_FLAG);
 }
 
+/** Phase 10 D-14 email-first then name match; at most one open primary per project (D-14). */
+export async function backfillPmAssignments(pool: Pool): Promise<void> {
+  if (await settingsFlagExists(pool, PM_ASSIGNMENT_BACKFILL_FLAG)) return;
+
+  await pool.query(`
+    INSERT INTO project_pm_assignments (project_id, user_id, role, effective_from, effective_to)
+    SELECT DISTINCT ON (p.id) p.id, u.id, 'primary', CURRENT_DATE, NULL
+    FROM projects p
+    JOIN users u ON u.company_id = p.company_id
+    WHERE (
+      TRIM(COALESCE(p.pm_email, '')) <> ''
+      OR TRIM(COALESCE(p.pm_name, '')) <> ''
+    )
+    AND NOT EXISTS (
+      SELECT 1 FROM project_pm_assignments a WHERE a.project_id = p.id
+    )
+    AND (
+      (
+        TRIM(COALESCE(p.pm_email, '')) <> ''
+        AND LOWER(u.email) = LOWER(TRIM(p.pm_email))
+      )
+      OR (
+        TRIM(COALESCE(p.pm_email, '')) = ''
+        AND TRIM(COALESCE(p.pm_name, '')) <> ''
+        AND (
+          LOWER(TRIM(u.display_name)) = LOWER(TRIM(p.pm_name))
+          OR LOWER(TRIM(u.username)) = LOWER(TRIM(p.pm_name))
+        )
+      )
+    )
+    ORDER BY p.id, u.id
+  `);
+
+  await writeSettingsFlag(pool, PM_ASSIGNMENT_BACKFILL_FLAG);
+}
+
 /**
  * Idempotent project master DDL in the getDb migrate loop (D-01, D-11, D-16, D-19).
- * Assignment backfill (D-14) is owned by plan 11-03.
+ * Assignment backfill (D-14) runs after DDL via pm_assignment_backfill_v1.
  */
 export async function migrateProjectMaster(pool: Pool): Promise<void> {
   try {
     await migrateProjectMasterDdl(pool);
+    await backfillPmAssignments(pool);
   } catch {
     /* settings table may not exist yet on first run — will retry next boot */
   }

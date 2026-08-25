@@ -225,13 +225,11 @@ describe('projects.service', () => {
       expect(listProjectsRepo).toHaveBeenCalledWith(cpmoActor.company_id);
     });
 
-    it('passes D-14 opts for PM-only actors (D-14)', async () => {
+    it('passes pmUserId for PM-only actors (D-13, PMAS-04)', async () => {
       listProjectsRepo.mockResolvedValue([{ id: 1 }]);
       await expect(listProjects(pmActor)).resolves.toEqual([{ id: 1 }]);
       expect(listProjectsRepo).toHaveBeenCalledWith(pmActor.company_id, {
-        pmEmail: pmActor.email,
-        pmName: pmActor.display_name,
-        username: pmActor.username,
+        pmUserId: pmActor.user_id,
       });
     });
 

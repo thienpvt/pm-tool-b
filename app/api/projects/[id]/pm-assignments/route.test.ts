@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const {
   projectAccessRow,
-  getProjectPmIdentity,
+  hasActivePmAssignment,
   insertPmAssignment,
   getActivePrimaryAssignment,
   hasOverlappingPmAssignment,
@@ -12,7 +12,7 @@ const {
   auditLogFn,
 } = vi.hoisted(() => ({
   projectAccessRow: vi.fn(),
-  getProjectPmIdentity: vi.fn(),
+  hasActivePmAssignment: vi.fn(),
   insertPmAssignment: vi.fn(),
   getActivePrimaryAssignment: vi.fn(),
   hasOverlappingPmAssignment: vi.fn(),
@@ -22,8 +22,9 @@ const {
 }));
 
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
-vi.mock('@/lib/repositories/projects.repo', () => ({ projectAccessRow, getProjectPmIdentity }));
+vi.mock('@/lib/repositories/projects.repo', () => ({ projectAccessRow }));
 vi.mock('@/lib/repositories/pm-assignments.repo', () => ({
+  hasActivePmAssignment,
   listPmAssignments: vi.fn().mockResolvedValue([]),
   insertPmAssignment,
   getActivePrimaryAssignment,
@@ -73,7 +74,7 @@ describe('/api/projects/[id]/pm-assignments', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     projectAccessRow.mockResolvedValue({ company_id: 5, customer_company_id: null });
-    getProjectPmIdentity.mockResolvedValue({ pm_name: 'Ava', pm_email: 'ava@acme.com' });
+    hasActivePmAssignment.mockResolvedValue(true);
     getActivePrimaryAssignment.mockResolvedValue(undefined);
     hasOverlappingPmAssignment.mockResolvedValue(false);
     findUserById.mockResolvedValue({
