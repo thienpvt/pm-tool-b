@@ -18,7 +18,7 @@ beforeEach(() => {
       return Promise.resolve({ ok: true, json: () => Promise.resolve({ inserted: 2, updated: 0, errors: [] }) });
     }
     return Promise.reject(new Error(`unexpected fetch: ${url}`));
-  }) as typeof fetch);
+  }) as unknown as typeof fetch);
 });
 
 describe('ImportMappingDialog', () => {

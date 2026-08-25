@@ -50,7 +50,7 @@ beforeEach(() => {
       });
     }
     return Promise.reject(new Error(`unexpected fetch: ${url}`));
-  }) as typeof fetch);
+  }) as unknown as typeof fetch);
 });
 
 describe('ProjectReportPage', () => {

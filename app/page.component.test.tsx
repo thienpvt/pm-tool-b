@@ -55,7 +55,7 @@ beforeEach(() => {
       });
     }
     return Promise.reject(new Error(`unexpected fetch: ${url}`));
-  }) as typeof fetch);
+  }) as unknown as typeof fetch);
 });
 
 describe('PortfolioDashboard', () => {
@@ -75,13 +75,16 @@ describe('PortfolioDashboard', () => {
     expect(screen.getByText('Alerts')).toBeInTheDocument();
   });
 
-  it('rejects unexpected fetch URLs', async () => {
+  it('renders when auth/me is not ok', async () => {
     vi.stubGlobal('fetch', vi.fn((url: string) => {
       if (url === '/api/portfolio') {
         return Promise.resolve({ ok: true, json: () => Promise.resolve(portfolioFixture) });
       }
+      if (url === '/api/auth/me') {
+        return Promise.resolve({ ok: false, json: () => Promise.resolve(null) });
+      }
       return Promise.reject(new Error(`unexpected fetch: ${url}`));
-    }) as typeof fetch);
+    }) as unknown as typeof fetch);
 
     render(<PortfolioDashboard />);
     await waitFor(() => expect(screen.queryByText(/Loading portfolio/i)).not.toBeInTheDocument());
