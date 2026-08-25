@@ -554,16 +554,15 @@ stakeholder_role: 'sponsor' | 'psc_chair' | 'psc_member' | 'project_director' | 
 | A4 | `effective_from`/`effective_to` use DATE (not TIMESTAMPTZ) consistent with `start_date` TEXT/DATE style on projects | Pattern 2 | Window boundary bugs |
 | A5 | `YYYY-Wnn` regex validation sufficient until Phase 13 period rows | D-06 | Invalid start periods stored |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Exact PROJ-03 classification/governance column names**
+1. **Exact PROJ-03 classification/governance column names** — RESOLVED
    - What we know: PROJ-03 requires fields; not present on `projects` today [VERIFIED: lib/repositories/projects.repo.ts:12-28].
-   - What's unclear: Word spec field names for classification vs governance.
-   - Recommendation: Planner adds TEXT columns aligned to spec in PLAN; if spec unavailable, use `classification` and `governance` placeholders and extend allowlist.
+   - Locked in 11-01: TEXT columns named `classification` and `governance` on `projects`; both added to `PROJECT_COLUMNS`.
 
-2. **Project timeline: reuse `start_date`/`end_date` vs new plan/adjusted/actual**
+2. **Project timeline: reuse `start_date`/`end_date` vs new plan/adjusted/actual** — RESOLVED
    - What we know: `start_date`, `end_date` exist [VERIFIED: lib/db.ts:125-126]; PROJ-03 mentions plan/adjusted/actual end.
-   - Recommendation: Keep `start_date` as start; add `plan_end`, `adjusted_end`, `actual_end` per discretion; map `end_date` legacy reads if needed.
+   - Locked in 11-01: keep `start_date` as start; add `plan_end`, `adjusted_end`, `actual_end` TEXT columns; map `end_date` legacy reads if needed.
 
 ## Environment Availability
 
