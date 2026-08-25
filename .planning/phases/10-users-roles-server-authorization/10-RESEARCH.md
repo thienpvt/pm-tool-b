@@ -518,19 +518,11 @@ it('Viewer PATCH → 403', async () => {
 
 ## Open Questions
 
-1. **Exact PM text matching rules**
-   - What we know: `pm_name` and `pm_email` exist on projects [VERIFIED: lib/repositories/projects.repo.ts:15-16].
-   - What's unclear: Whether matching is email-only or also display_name/username.
-   - Recommendation: Prefer email match when `pm_email` set; fall back to normalized name; document in PLAN as interim.
+1. **Exact PM text matching rules** — **RESOLVED (D-14).** Email-first when `projects.pm_email` is non-empty (case-insensitive vs `users.email`); otherwise trim+lower `pm_name` vs `display_name` then `username`. Seam `assertPmWriteAccess` (Phase 11 replaces the lookup only).
 
-2. **Admin UI scope for CPMO vs platform admin**
-   - What we know: `/admin` gated by `me.is_admin` [VERIFIED: components/layout/Sidebar.tsx:213-224]; tabs include users/companies/requests.
-   - What's unclear: Whether CPMO sees companies tab or users-only.
-   - Recommendation: CPMO gets Users tab company-scoped; platform `is_admin` retains companies/demo tabs.
+2. **Admin UI scope for CPMO vs platform admin** — **RESOLVED (D-21).** CPMO company-scoped Users tab via `roles` includes `cpmo` + session company. Platform `/api/admin/companies` (and demo/Jira/RAG config) stay on the break-glass flag. AUTH-05 leftover ops/admin/config carve-out is D-23.
 
-3. **Business-data guard for deactivate**
-   - What we know: Most references are denormalized text names, not FKs to users.
-   - Recommendation: Block physical delete always; deactivate allowed with display_name retained; optional guard if `user_id` FKs added later.
+3. **Business-data guard for deactivate** — **RESOLVED (D-07).** Never physically DELETE a user this phase; deactivate with `status = inactive` plus `deleted_at`; history still shows display name.
 
 ## Environment Availability
 
