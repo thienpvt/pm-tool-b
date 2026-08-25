@@ -18,6 +18,10 @@ const {
   replaceUserRoles: vi.fn(),
 }));
 
+const { auditLogFn } = vi.hoisted(() => ({
+  auditLogFn: vi.fn(),
+}));
+
 vi.mock('@/lib/repositories/users.repo', () => ({
   listUsers: listUsersRepo,
   findUserById,
@@ -27,6 +31,7 @@ vi.mock('@/lib/repositories/users.repo', () => ({
   updateUserRow,
   replaceUserRoles,
 }));
+vi.mock('@/lib/services/audit.service', () => ({ auditLog: auditLogFn }));
 vi.mock('@/lib/auth', () => ({ hashPassword: vi.fn((p: string) => `hashed:${p}`) }));
 
 import { createUser, listUsers, updateUser } from './users.service';
@@ -126,6 +131,42 @@ describe('users.service createUser', () => {
       expect.objectContaining({ company_id: 5, username: 'newuser', password_hash: 'hashed:password1' }),
     );
     expect(replaceUserRoles).toHaveBeenCalledWith(10, 5, ['pm']);
+    expect(auditLogFn).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'create', entity_type: 'user', actor_id: 1, company_id: 5 }),
+    );
+  });
+});
+
+describe('users.service updateUser audit', () => {
+  it('calls auditLog with before/after on update (D-08)', async () => {
+    findUserById
+      .mockResolvedValueOnce({
+        id: 10,
+        username: 'new',
+        company_id: 5,
+        status: 'active',
+        email: 'new@example.com',
+        display_name: 'New',
+        roles: ['pm'],
+      })
+      .mockResolvedValueOnce({
+        id: 10,
+        username: 'new',
+        company_id: 5,
+        status: 'active',
+        email: 'new@example.com',
+        display_name: 'Updated',
+        roles: ['pm'],
+      });
+    await updateUser(cpmoActor, 10, { display_name: 'Updated' });
+    expect(auditLogFn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'update',
+        entity_type: 'user',
+        before: expect.objectContaining({ display_name: 'New' }),
+        after: expect.objectContaining({ display_name: 'Updated' }),
+      }),
+    );
   });
 });
 
