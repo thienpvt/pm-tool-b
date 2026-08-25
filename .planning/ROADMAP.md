@@ -18,7 +18,7 @@ This milestone takes the app from zero test coverage and a flat `lib/` where rou
 - [x] **Phase 5: Route Thinning & Validation** - Build the shared auth/access wrapper and Zod validation so routes shrink to parse/authorize/call/respond (completed 2026-08-11)
 - [x] **Phase 6: Access Enforcement Rollout** - Roll the wrapper out to every project-scoped route, shadow-mode first, with 401/403 tests proving it (completed 2026-08-25)
 - [x] **Phase 7: UI Decomposition** - Split the 7 named god pages/components into hooks + feature modules against the now-stable API surface (completed 2026-08-25)
-- [ ] **Phase 8: INTG-08 Credential Cutover** - Gather per-tenant cutover evidence, then delete the dead inline Jira credential blocks (HYG-01)
+- [x] **Phase 8: INTG-08 Credential Cutover** - Gather per-tenant cutover evidence, then delete the dead inline Jira credential blocks (HYG-01) (completed 2026-08-25)
 
 ## Cross-Cutting Conventions
 
@@ -88,7 +88,7 @@ Three requirements apply to every phase's execution rather than to a specific la
 - [x] 03-03-PLAN.md — Anthropic client + 5 route rewires (500/502 split preserved)
 - [x] 03-04-PLAN.md — Jira client + 3 route rewires + credential cutover + boundary greps
 
-**Open gap:** INTG-08 cutover evidence and dead-block deletion moved to Phase 8 (no reachable `DATABASE_URL` during Phase 3).
+**Open gap:** None — INTG-08 closed in Phase 8 (08-01-SUMMARY.md).
 
 ### Phase 4: Service Layer
 
@@ -258,4 +258,4 @@ Plans:
 | 5. Route Thinning & Validation | 3/3 | Complete    | 2026-08-11 |
 | 6. Access Enforcement Rollout | 7/7 | Complete    | 2026-08-25 |
 | 7. UI Decomposition | 9/9 | Complete    | 2026-08-25 |
-| 8. INTG-08 Credential Cutover | 1/1 | In Progress|  |
+| 8. INTG-08 Credential Cutover | 1/1 | Complete    | 2026-08-25 |
