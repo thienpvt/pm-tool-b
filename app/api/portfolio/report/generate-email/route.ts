@@ -4,6 +4,7 @@ import { resolveAnthropicCredentials } from '@/lib/integrations/credentials';
 import { createMessage } from '@/lib/integrations/anthropic/client';
 import { MODEL_OPUS_4_7 } from '@/lib/integrations/anthropic/models';
 import { integrationErrorResponse } from '@/lib/api-errors';
+import { isCpmo, toAccessActor } from '@/lib/services/access';
 
 const SYSTEM_PROMPT = `Bạn là Giám đốc PMO (Project Management Office) cấp Senior với 15+ năm kinh nghiệm quản lý danh mục dự án quy mô doanh nghiệp. Bạn đang soạn email báo cáo chính thức gửi Ban Lãnh đạo cấp cao (C-level).
 
@@ -34,6 +35,11 @@ const SYSTEM_PROMPT = `Bạn là Giám đốc PMO (Project Management Office) c�
 export async function POST(req: NextRequest) {
   const user = await getSessionFromRequest(req);
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const actor = toAccessActor(user);
+  if (!isCpmo(actor)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
 
   const creds = await resolveAnthropicCredentials();
   if (!creds) return NextResponse.json({ error: 'NO_API_KEY' }, { status: 503 });

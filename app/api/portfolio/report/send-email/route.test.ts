@@ -18,6 +18,9 @@ const session = {
   company_id: 3,
   company_name: 'Acme',
   is_admin: 0,
+  roles: ['cpmo'],
+  status: 'active',
+  email: 'cpmo@example.com',
 };
 
 function post(body: unknown) {
