@@ -4,7 +4,7 @@ import {
   listMeetings as listMeetingsRepo,
   updateMeeting as updateMeetingRepo,
 } from '@/lib/repositories/meetings.repo';
-import { assertProjectAccess, type AccessActor } from './access';
+import { assertProjectAccess, assertProjectWriteAccess, type AccessActor } from './access';
 import { NotFoundError } from './errors';
 
 export async function listMeetings(projectId: number | string, actor: AccessActor) {
@@ -17,7 +17,7 @@ export async function createMeeting(
   actor: AccessActor,
   body: Record<string, unknown>,
 ) {
-  await assertProjectAccess(projectId, actor);
+  await assertProjectWriteAccess(projectId, actor);
   return createMeetingRepo(projectId, body);
 }
 
@@ -27,7 +27,7 @@ export async function updateMeeting(
   rowId: number | string,
   fields: Record<string, unknown>,
 ) {
-  await assertProjectAccess(projectId, actor);
+  await assertProjectWriteAccess(projectId, actor);
   const updated = await updateMeetingRepo(projectId, rowId, fields);
   if (!updated) throw new NotFoundError('Not found', 'meeting');
   return updated;
@@ -38,7 +38,7 @@ export async function deleteMeeting(
   actor: AccessActor,
   rowId: number | string,
 ) {
-  await assertProjectAccess(projectId, actor);
+  await assertProjectWriteAccess(projectId, actor);
   const result = await deleteMeetingRepo(projectId, rowId);
   if (!result || Number(result.changes ?? 0) === 0) {
     throw new NotFoundError('Not found', 'meeting');
