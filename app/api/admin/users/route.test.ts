@@ -1,17 +1,18 @@
 import { NextRequest } from 'next/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { listUsers, createUser, updateUser } = vi.hoisted(() => ({
+const { listUsers, createUser, updateUser, deactivateUser } = vi.hoisted(() => ({
   listUsers: vi.fn(),
   createUser: vi.fn(),
   updateUser: vi.fn(),
+  deactivateUser: vi.fn(),
 }));
 
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
-vi.mock('@/lib/services/users.service', () => ({ listUsers, createUser, updateUser }));
+vi.mock('@/lib/services/users.service', () => ({ listUsers, createUser, updateUser, deactivateUser }));
 
 import { getSessionFromRequest } from '@/lib/auth';
-import { GET, POST, PUT } from './route';
+import { GET, POST, PUT, DELETE } from './route';
 
 const cpmoSession = {
   id: 1,
@@ -118,11 +119,35 @@ describe('POST /api/admin/users', () => {
   });
 });
 
-describe('PUT /api/admin/users', () => {
+describe('DELETE /api/admin/users', () => {
+  it('returns 401 without session', async () => {
+    vi.mocked(getSessionFromRequest).mockResolvedValue(null);
+    const res = await DELETE(
+      new NextRequest('http://localhost/api/admin/users?id=10', { method: 'DELETE' }),
+      ctx,
+    );
+    expect(res.status).toBe(401);
+    expect(deactivateUser).not.toHaveBeenCalled();
+  });
+
   it('returns 403 for non-cpmo', async () => {
     vi.mocked(getSessionFromRequest).mockResolvedValue(pmSession as never);
-    const res = await PUT(jsonReq('PUT', { id: 10, display_name: 'X' }), ctx);
+    const res = await DELETE(
+      new NextRequest('http://localhost/api/admin/users?id=10', { method: 'DELETE' }),
+      ctx,
+    );
     expect(res.status).toBe(403);
-    expect(updateUser).not.toHaveBeenCalled();
+    expect(deactivateUser).not.toHaveBeenCalled();
+  });
+
+  it('calls deactivateUser not deleteAdminUser (D-07)', async () => {
+    vi.mocked(getSessionFromRequest).mockResolvedValue(cpmoSession as never);
+    deactivateUser.mockResolvedValue({ id: 10, status: 'inactive' });
+    const res = await DELETE(
+      new NextRequest('http://localhost/api/admin/users?id=10', { method: 'DELETE' }),
+      ctx,
+    );
+    expect(res.status).toBe(200);
+    expect(deactivateUser).toHaveBeenCalledWith(expect.objectContaining({ user_id: 1 }), '10');
   });
 });

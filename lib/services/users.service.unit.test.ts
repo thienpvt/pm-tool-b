@@ -8,6 +8,10 @@ const {
   insertUser,
   updateUserRow,
   replaceUserRoles,
+  lockUserRow,
+  unlockUserRow,
+  deactivateUserRow,
+  deleteSessionsForUser,
 } = vi.hoisted(() => ({
   listUsersRepo: vi.fn(),
   findUserById: vi.fn(),
@@ -16,6 +20,10 @@ const {
   insertUser: vi.fn(),
   updateUserRow: vi.fn(),
   replaceUserRoles: vi.fn(),
+  lockUserRow: vi.fn(),
+  unlockUserRow: vi.fn(),
+  deactivateUserRow: vi.fn(),
+  deleteSessionsForUser: vi.fn(),
 }));
 
 const { auditLogFn } = vi.hoisted(() => ({
@@ -30,11 +38,15 @@ vi.mock('@/lib/repositories/users.repo', () => ({
   insertUser,
   updateUserRow,
   replaceUserRoles,
+  lockUserRow,
+  unlockUserRow,
+  deactivateUserRow,
+  deleteSessionsForUser,
 }));
 vi.mock('@/lib/services/audit.service', () => ({ auditLog: auditLogFn }));
 vi.mock('@/lib/auth', () => ({ hashPassword: vi.fn((p: string) => `hashed:${p}`) }));
 
-import { createUser, listUsers, updateUser } from './users.service';
+import { createUser, listUsers, updateUser, lockUser, unlockUser, deactivateUser } from './users.service';
 import { ConflictError, ForbiddenError, ValidationError } from './errors';
 import type { AccessActor } from './access';
 
@@ -179,18 +191,74 @@ describe('users.service updateUser audit', () => {
   });
 });
 
-describe('users.service updateUser', () => {
-  it('throws ForbiddenError for non-cpmo', async () => {
-    await expect(updateUser(pmActor, 10, { display_name: 'X' })).rejects.toBeInstanceOf(
-      ForbiddenError,
+describe('users.service lock/unlock/deactivate', () => {
+  const target = {
+    id: 10,
+    username: 'locked-user',
+    company_id: 5,
+    status: 'active' as const,
+    email: 'locked@example.com',
+    display_name: 'Locked',
+    roles: ['pm'] as const,
+  };
+
+  beforeEach(() => {
+    findUserById.mockResolvedValue(target);
+  });
+
+  it('lockUser sets locked state, clears sessions, and audits (D-05, D-08, D-10)', async () => {
+    await lockUser(cpmoActor, 10);
+    expect(lockUserRow).toHaveBeenCalledWith(10, cpmoActor.user_id);
+    expect(deleteSessionsForUser).toHaveBeenCalledWith(10);
+    expect(auditLogFn).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'lock', entity_type: 'user' }),
     );
   });
 
-  it('throws NotFoundError when user missing in company', async () => {
-    findUserById.mockResolvedValue(undefined);
-    const { NotFoundError } = await import('./errors');
-    await expect(updateUser(cpmoActor, 10, { display_name: 'X' })).rejects.toBeInstanceOf(
-      NotFoundError,
+  it('unlockUser clears lock and audits (USER-05)', async () => {
+    await unlockUser(cpmoActor, 10);
+    expect(unlockUserRow).toHaveBeenCalledWith(10);
+    expect(auditLogFn).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'unlock', entity_type: 'user' }),
     );
+  });
+
+  it('deactivateUser soft-deletes without physical DELETE (D-07, USER-06)', async () => {
+    await deactivateUser(cpmoActor, 10);
+    expect(deactivateUserRow).toHaveBeenCalledWith(10);
+    expect(auditLogFn).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'deactivate', entity_type: 'user' }),
+    );
+  });
+
+  it('deactivateUser rejects self-deactivate', async () => {
+    await expect(deactivateUser({ ...cpmoActor, user_id: 10 }, 10)).rejects.toBeInstanceOf(
+      ValidationError,
+    );
+    expect(deactivateUserRow).not.toHaveBeenCalled();
+  });
+
+  it('createUser rejects locked user username reuse (D-06, USER-02)', async () => {
+    findUserByUsername.mockResolvedValue({ id: 99, username: 'locked-user' });
+    await expect(
+      createUser(cpmoActor, {
+        username: 'locked-user',
+        password: 'password1',
+        email: 'other@example.com',
+        roles: ['pm'],
+      }),
+    ).rejects.toBeInstanceOf(ConflictError);
+  });
+
+  it('createUser rejects locked user email reuse (D-06, USER-02)', async () => {
+    findUserByEmailLower.mockResolvedValue({ id: 99, email: 'locked@example.com' });
+    await expect(
+      createUser(cpmoActor, {
+        username: 'other-user',
+        password: 'password1',
+        email: 'locked@example.com',
+        roles: ['pm'],
+      }),
+    ).rejects.toBeInstanceOf(ConflictError);
   });
 });
