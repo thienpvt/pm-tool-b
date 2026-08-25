@@ -139,6 +139,12 @@ export async function assertPmWriteAccess(
   }
 }
 
+/** CPMO-only company-scoped write gate (D-13, D-15, D-17). Call after tenant assert. */
+export function assertCompanyWrite(actor: AccessActor): void {
+  if (!isCpmo(actor)) throw new ForbiddenError();
+  if (actor.company_id === null) throw new ForbiddenError();
+}
+
 export async function assertProjectWriteAccess(
   projectId: number | string,
   actor: AccessActor,

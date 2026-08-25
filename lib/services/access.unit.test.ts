@@ -9,6 +9,7 @@ vi.mock('@/lib/repositories/projects.repo', () => ({ projectAccessRow, getProjec
 
 import {
   assertCanMutate,
+  assertCompanyWrite,
   assertPmWriteAccess,
   assertProjectAccess,
   assertProjectWriteAccess,
@@ -171,6 +172,31 @@ describe('assertProjectWriteAccess', () => {
     projectAccessRow.mockResolvedValue(row);
     const viewer = { ...owner, roles: ['viewer'] as const };
     await expect(assertProjectWriteAccess(1, viewer)).rejects.toBeInstanceOf(ForbiddenError);
+  });
+});
+
+describe('assertCompanyWrite', () => {
+  it('throws ForbiddenError for viewer-only (D-15)', () => {
+    const viewer = { ...owner, roles: ['viewer'] as const };
+    expect(() => assertCompanyWrite(viewer)).toThrow(ForbiddenError);
+  });
+
+  it('throws ForbiddenError for pm without cpmo (D-13)', () => {
+    expect(() => assertCompanyWrite(owner)).toThrow(ForbiddenError);
+  });
+
+  it('returns for cpmo with non-null company_id (D-13)', () => {
+    expect(() => assertCompanyWrite(admin)).not.toThrow();
+  });
+
+  it('throws ForbiddenError for cpmo with null company_id (D-13)', () => {
+    const cpmoNullCompany = {
+      ...baseActor,
+      company_id: null as number | null,
+      is_admin: 1 as number | boolean,
+      roles: ['cpmo'] as const,
+    };
+    expect(() => assertCompanyWrite(cpmoNullCompany)).toThrow(ForbiddenError);
   });
 });
 
