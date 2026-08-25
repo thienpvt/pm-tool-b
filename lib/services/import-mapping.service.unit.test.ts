@@ -7,6 +7,12 @@ const {
   createTimelineMappingRepo,
   updateTimelineMappingRepo,
   deleteTimelineMappingRepo,
+  listBugMappingsRepo,
+  getBugMappingById,
+  findBugMappingByName,
+  bugMappingIdsRepo,
+  createBugMappingRepo,
+  deleteBugMappingRepo,
 } = vi.hoisted(() => ({
   listTimelineMappingsRepo: vi.fn(),
   getTimelineMappingById: vi.fn(),
@@ -14,6 +20,12 @@ const {
   createTimelineMappingRepo: vi.fn(),
   updateTimelineMappingRepo: vi.fn(),
   deleteTimelineMappingRepo: vi.fn(),
+  listBugMappingsRepo: vi.fn(),
+  getBugMappingById: vi.fn(),
+  findBugMappingByName: vi.fn(),
+  bugMappingIdsRepo: vi.fn(),
+  createBugMappingRepo: vi.fn(),
+  deleteBugMappingRepo: vi.fn(),
 }));
 
 vi.mock('@/lib/repositories/import-mapping.repo', () => ({
@@ -23,11 +35,20 @@ vi.mock('@/lib/repositories/import-mapping.repo', () => ({
   createTimelineMapping: createTimelineMappingRepo,
   updateTimelineMapping: updateTimelineMappingRepo,
   deleteTimelineMapping: deleteTimelineMappingRepo,
+  listBugMappings: listBugMappingsRepo,
+  getBugMappingById,
+  findBugMappingByName,
+  bugMappingIds: bugMappingIdsRepo,
+  createBugMapping: createBugMappingRepo,
+  deleteBugMapping: deleteBugMappingRepo,
 }));
 
 import {
+  createBugMapping,
   createTimelineMapping,
+  deleteBugMapping,
   deleteTimelineMapping,
+  listBugMappings,
   listTimelineMappings,
   updateTimelineMapping,
 } from './import-mapping.service';
@@ -125,5 +146,58 @@ describe('import-mapping.service list and create', () => {
     findTimelineMappingByName.mockResolvedValue(row);
     await expect(createTimelineMapping(owner, 'tpl', '{}')).rejects.toBeInstanceOf(ConflictError);
     expect(createTimelineMappingRepo).not.toHaveBeenCalled();
+  });
+});
+
+describe('import-mapping.service bug mappings', () => {
+  const bugRow = { id: 2, company_id: 5, name: 'bug-tpl', mappings_json: '{}' };
+
+  it('deleteBugMapping throws ForbiddenError (not NotFoundError) for cross-company actor', async () => {
+    getBugMappingById.mockResolvedValue(bugRow);
+    await expect(deleteBugMapping(2, foreign)).rejects.toBeInstanceOf(ForbiddenError);
+    await expect(deleteBugMapping(2, foreign)).rejects.not.toBeInstanceOf(NotFoundError);
+    expect(deleteBugMappingRepo).not.toHaveBeenCalled();
+  });
+
+  it('deleteBugMapping throws NotFoundError when row is missing', async () => {
+    getBugMappingById.mockResolvedValue(undefined);
+    await expect(deleteBugMapping(99, owner)).rejects.toBeInstanceOf(NotFoundError);
+    expect(deleteBugMappingRepo).not.toHaveBeenCalled();
+  });
+
+  it('listBugMappings calls repo with session company', async () => {
+    listBugMappingsRepo.mockResolvedValue([bugRow]);
+    await expect(listBugMappings(owner)).resolves.toEqual([bugRow]);
+    expect(listBugMappingsRepo).toHaveBeenCalledWith(5);
+  });
+
+  it('listBugMappings throws ForbiddenError when company_id is null', async () => {
+    await expect(listBugMappings(noCompany)).rejects.toBeInstanceOf(ForbiddenError);
+    expect(listBugMappingsRepo).not.toHaveBeenCalled();
+  });
+
+  it('createBugMapping stamps actor company_id', async () => {
+    findBugMappingByName.mockResolvedValue(undefined);
+    bugMappingIdsRepo.mockResolvedValue([]);
+    createBugMappingRepo.mockResolvedValue(bugRow);
+    await createBugMapping(owner, 'bug-tpl', '{}');
+    expect(createBugMappingRepo).toHaveBeenCalledWith(5, 'bug-tpl', '{}');
+  });
+
+  it('createBugMapping evicts oldest id of the same company when cap reached', async () => {
+    findBugMappingByName.mockResolvedValue(undefined);
+    bugMappingIdsRepo.mockResolvedValue([
+      { id: 10 }, { id: 11 }, { id: 12 }, { id: 13 }, { id: 14 },
+    ]);
+    createBugMappingRepo.mockResolvedValue(bugRow);
+    await createBugMapping(owner, 'new-tpl', '{}');
+    expect(deleteBugMappingRepo).toHaveBeenCalledWith(5, 14);
+    expect(createBugMappingRepo).toHaveBeenCalledWith(5, 'new-tpl', '{}');
+  });
+
+  it('createBugMapping throws ConflictError on duplicate name within company', async () => {
+    findBugMappingByName.mockResolvedValue(bugRow);
+    await expect(createBugMapping(owner, 'bug-tpl', '{}')).rejects.toBeInstanceOf(ConflictError);
+    expect(createBugMappingRepo).not.toHaveBeenCalled();
   });
 });

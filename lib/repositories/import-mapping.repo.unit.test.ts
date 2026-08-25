@@ -7,8 +7,10 @@ const { db } = vi.hoisted(() => ({
 vi.mock('@/lib/db', () => ({ getDb: vi.fn(async () => db) }));
 
 import {
+  bugMappingIds,
   createBugMapping,
   createTimelineMapping,
+  listBugMappings,
   listTimelineMappings,
   updateTimelineMapping,
 } from './import-mapping.repo';
@@ -49,7 +51,7 @@ describe('import-mapping.repo', () => {
   });
 
   it('creates a bug mapping and reads it by the generated id', async () => {
-    await expect(createBugMapping('Standard', '{"name":"Summary"}')).resolves.toEqual({
+    await expect(createBugMapping(5, 'Standard', '{"name":"Summary"}')).resolves.toEqual({
       id: 21,
       name: 'Standard',
     });
@@ -58,11 +60,24 @@ describe('import-mapping.repo', () => {
       expect.stringContaining('INSERT INTO bug_import_mappings'),
       'Standard',
       '{"name":"Summary"}',
+      5,
     );
     expect(db.get).toHaveBeenCalledWith(
       'SELECT * FROM bug_import_mappings WHERE id = ?',
       21,
     );
+  });
+
+  it('listBugMappings filters by company_id', async () => {
+    await listBugMappings(5);
+    expect(normalizedSql()).toContain('WHERE company_id = ?');
+    expect(db.all).toHaveBeenCalledWith(expect.any(String), 5);
+  });
+
+  it('bugMappingIds filters by company_id', async () => {
+    await bugMappingIds(5);
+    expect(normalizedSql()).toContain('WHERE company_id = ?');
+    expect(db.all).toHaveBeenCalledWith(expect.any(String), 5);
   });
 
   it('updates and reloads a timeline mapping with company scope', async () => {
