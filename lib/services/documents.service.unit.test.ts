@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const {
   assertProjectAccess,
+  assertProjectWriteAccess,
   listDocumentsRepo,
   createDocumentRepo,
   findDocumentByType,
@@ -11,6 +12,7 @@ const {
   deleteDocumentRepo,
 } = vi.hoisted(() => ({
   assertProjectAccess: vi.fn(),
+  assertProjectWriteAccess: vi.fn(),
   listDocumentsRepo: vi.fn(),
   createDocumentRepo: vi.fn(),
   findDocumentByType: vi.fn(),
@@ -20,7 +22,7 @@ const {
   deleteDocumentRepo: vi.fn(),
 }));
 
-vi.mock('@/lib/services/access', () => ({ assertProjectAccess }));
+vi.mock('@/lib/services/access', () => ({ assertProjectAccess, assertProjectWriteAccess }));
 vi.mock('@/lib/repositories/documents.repo', () => ({
   listDocuments: listDocumentsRepo,
   createDocument: createDocumentRepo,
@@ -37,6 +39,7 @@ import { ForbiddenError, NotFoundError, ValidationError } from './errors';
 beforeEach(() => {
   vi.clearAllMocks();
   assertProjectAccess.mockResolvedValue(undefined);
+  assertProjectWriteAccess.mockResolvedValue(undefined);
 });
 
 const owner = { company_id: 5 as number | null, is_admin: 0 as number | boolean };
@@ -53,6 +56,16 @@ describe('documents.service', () => {
     assertProjectAccess.mockRejectedValue(new ForbiddenError());
     await expect(listDocuments(7, foreign)).rejects.toBeInstanceOf(ForbiddenError);
     expect(listDocumentsRepo).not.toHaveBeenCalled();
+  });
+
+  it('upsertDocument asserts write access before inserting status_report', async () => {
+    createDocumentRepo.mockResolvedValue({ id: 3, type: 'status_report' });
+    await upsertDocument(7, owner, {
+      type: 'status_report',
+      title: 'W1',
+      content: { a: 1 },
+    });
+    expect(assertProjectWriteAccess).toHaveBeenCalledWith(7, owner);
   });
 
   it('upsertDocument always inserts status_report', async () => {
@@ -72,12 +85,20 @@ describe('documents.service', () => {
     expect(findDocumentByType).not.toHaveBeenCalled();
   });
 
-  it('upsertDocument does not call the repository when access is denied', async () => {
-    assertProjectAccess.mockRejectedValue(new ForbiddenError());
+  it('upsertDocument does not call the repository when write access is denied', async () => {
+    assertProjectWriteAccess.mockRejectedValue(new ForbiddenError());
     await expect(upsertDocument(7, foreign, { type: 'plan' })).rejects.toBeInstanceOf(
       ForbiddenError,
     );
     expect(createDocumentRepo).not.toHaveBeenCalled();
+  });
+
+  it('updateDocument asserts write access before updating', async () => {
+    findDocumentInProject.mockResolvedValue({ id: 9 });
+    getDocument.mockResolvedValue({ id: 9, title: 't' });
+    await updateDocument(7, owner, 9, 't', {});
+    expect(assertProjectWriteAccess).toHaveBeenCalledWith(7, owner);
+    expect(updateDocumentContent).toHaveBeenCalled();
   });
 
   it('updateDocument throws NotFoundError when doc not in project', async () => {
@@ -90,9 +111,17 @@ describe('documents.service', () => {
     await expect(deleteDocument(7, owner, null)).rejects.toBeInstanceOf(ValidationError);
   });
 
-  it('deleteDocument does not call the repository when access is denied', async () => {
-    assertProjectAccess.mockRejectedValue(new ForbiddenError());
+  it('deleteDocument does not call the repository when write access is denied', async () => {
+    assertProjectWriteAccess.mockRejectedValue(new ForbiddenError());
     await expect(deleteDocument(7, foreign, '1')).rejects.toBeInstanceOf(ForbiddenError);
     expect(findDocumentInProject).not.toHaveBeenCalled();
+  });
+
+  it('deleteDocument asserts write access before deleting', async () => {
+    findDocumentInProject.mockResolvedValue({ id: 1 });
+    deleteDocumentRepo.mockResolvedValue(undefined);
+    await deleteDocument(7, owner, '1');
+    expect(assertProjectWriteAccess).toHaveBeenCalledWith(7, owner);
+    expect(deleteDocumentRepo).toHaveBeenCalled();
   });
 });
