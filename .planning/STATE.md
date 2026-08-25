@@ -5,16 +5,16 @@ milestone_name: Portfolio One View
 current_phase: 9
 current_phase_name: Mapping Table Tenant Isolation
 status: executing
-stopped_at: v2.0 ROADMAP.md written — Phase 9 ready to plan
-last_updated: "2026-08-25T16:43:24.342Z"
+stopped_at: Completed 09-01-PLAN.md
+last_updated: "2026-08-25T16:58:23.107Z"
 last_activity: 2026-08-25
 last_activity_desc: Created v2.0 roadmap (Phases 9–18)
-state_head: d9f7cd6707c8e13d384c933e6c1daf56fbaeedcc
+state_head: 7c09137d290ae8a4af81c13489c76a5bcf8c05a7
 progress:
   total_phases: 10
   completed_phases: 0
   total_plans: 3
-  completed_plans: 0
+  completed_plans: 1
 ---
 
 # Project State
@@ -51,6 +51,11 @@ Progress: [░░░░░░░░░░] 0%
 - Trend: Stable
 
 *Updated after each plan completion*
+**Per-Plan Metrics:**
+
+| Plan | Duration | Tasks | Files |
+|------|----------|-------|-------|
+| Phase 09-mapping-table-tenant-isolation P01 | 45min | 3 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -65,6 +70,7 @@ Recent decisions affecting current work:
 - TENANT-01 is the only v1.0 leftover in this milestone (four mapping tables)
 - Audit wires incrementally from Phase 10; Phase 18 completes append-only coverage
 - Word spec stays local — do not commit the `.docx`
+- [Phase 9]: Timeline mapping ConflictError via findTimelineMappingByName pre-check
 
 ### Pending Todos
 
@@ -85,6 +91,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-08-25
-Stopped at: v2.0 ROADMAP.md written — Phase 9 ready to plan
+Last session: 2026-08-25T16:58:23.098Z
+Stopped at: Completed 09-01-PLAN.md
 Resume file: None

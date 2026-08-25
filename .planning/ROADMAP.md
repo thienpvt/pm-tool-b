@@ -55,12 +55,12 @@ Audit: [.planning/milestones/v1.0-MILESTONE-AUDIT.md](milestones/v1.0-MILESTONE-
   2. Every mapping/preset/sync row belongs to a company; listings and unique names are scoped to that company
   3. Existing mapping data remains usable after backfill — no orphaned rows and no collapse of all tenants into one company
 
-**Plans:** 3 plans
+**Plans:** 1/3 plans executed
 
 Plans:
 **Wave 1**
 
-- [ ] 09-01-PLAN.md — Tracer: timeline mapping tenant isolation (schema, service assert, 403)
+- [x] 09-01-PLAN.md — Tracer: timeline mapping tenant isolation (schema, service assert, 403)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -221,7 +221,7 @@ Phases execute in numeric order: 9 → 10 → 11 → 12 → 13 → 14 → 15 →
 | 6. Access Enforcement Rollout | v1.0 | 7/7 | Complete | 2026-08-25 |
 | 7. UI Decomposition | v1.0 | 9/9 | Complete | 2026-08-25 |
 | 8. INTG-08 Credential Cutover | v1.0 | 1/1 | Complete | 2026-08-25 |
-| 9. Mapping Table Tenant Isolation | v2.0 | 0/3 | Not started | - |
+| 9. Mapping Table Tenant Isolation | v2.0 | 1/3 | In Progress|  |
 | 10. Users, Roles & Server Authorization | v2.0 | 0/? | Not started | - |
 | 11. Project Master, PM Assignment & Stakeholders | v2.0 | 0/? | Not started | - |
 | 12. Milestone & RAID Master Registers | v2.0 | 0/? | Not started | - |
