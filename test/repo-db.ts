@@ -157,12 +157,17 @@ CREATE TABLE IF NOT EXISTS risks (
   status TEXT, priority TEXT, impact TEXT, affected_activity_id INTEGER,
   code TEXT, deactivated_at TIMESTAMPTZ
 );
+ALTER TABLE risks ADD COLUMN IF NOT EXISTS code TEXT;
+ALTER TABLE risks ADD COLUMN IF NOT EXISTS deactivated_at TIMESTAMPTZ;
 CREATE TABLE IF NOT EXISTS issues (
   id SERIAL PRIMARY KEY, project_id INTEGER, issue_id TEXT, description TEXT,
   root_cause TEXT, category TEXT, owner TEXT, trigger TEXT, mitigation TEXT,
   due_date TEXT, status TEXT, priority TEXT, impact TEXT, affected_activity_id INTEGER,
   code TEXT, technology_council BOOLEAN DEFAULT FALSE, deactivated_at TIMESTAMPTZ
 );
+ALTER TABLE issues ADD COLUMN IF NOT EXISTS code TEXT;
+ALTER TABLE issues ADD COLUMN IF NOT EXISTS technology_council BOOLEAN DEFAULT FALSE;
+ALTER TABLE issues ADD COLUMN IF NOT EXISTS deactivated_at TIMESTAMPTZ;
 CREATE TABLE IF NOT EXISTS meetings (
   id SERIAL PRIMARY KEY, project_id INTEGER, name TEXT, frequency TEXT,
   content TEXT, participants TEXT, method TEXT, type TEXT
@@ -180,6 +185,11 @@ CREATE TABLE IF NOT EXISTS milestones (
   status TEXT NOT NULL DEFAULT 'planned', plan_end TEXT, adjusted_end TEXT,
   cancelled_at TIMESTAMPTZ, cancelled_by INTEGER REFERENCES users(id)
 );
+ALTER TABLE milestones ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'planned';
+ALTER TABLE milestones ADD COLUMN IF NOT EXISTS plan_end TEXT;
+ALTER TABLE milestones ADD COLUMN IF NOT EXISTS adjusted_end TEXT;
+ALTER TABLE milestones ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMPTZ;
+ALTER TABLE milestones ADD COLUMN IF NOT EXISTS cancelled_by INTEGER REFERENCES users(id);
 CREATE TABLE IF NOT EXISTS raid_due_date_history (
   id BIGSERIAL PRIMARY KEY,
   entity_type TEXT NOT NULL CHECK (entity_type IN ('risk','issue')),

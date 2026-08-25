@@ -73,9 +73,10 @@ describe.skipIf(!hasTestDb)('milestones.repo', () => {
   it('cancelMilestone does not affect a milestone belonging to another project', async () => {
     const other = await seedProject('Cancel Scope Milestones');
     const foreign = await createMilestone(other, { name: 'Theirs' }) as { id: number };
+    const uniqueUser = `cancel-scope-user-${Date.now()}`;
     const { lastInsertRowid: userId } = await testDb().run(
       'INSERT INTO users (username, password_hash, display_name) VALUES (?,?,?)',
-      'cancel-scope-user', 'hash', 'Cancel Scope User',
+      uniqueUser, 'hash', 'Cancel Scope User',
     );
 
     const result = await cancelMilestone(projectId, foreign.id, Number(userId));
