@@ -5,16 +5,16 @@ milestone_name: Portfolio One View
 current_phase: 12
 current_phase_name: Milestone & RAID Master Registers
 status: executing
-stopped_at: Completed 12-02-PLAN.md
-last_updated: "2026-08-25T20:36:46.722Z"
+stopped_at: Completed 12-03-PLAN.md
+last_updated: "2026-08-25T20:41:26.566Z"
 last_activity: 2026-08-26
 last_activity_desc: Phase 11 complete, transitioned to Phase 12
-state_head: 9b81485e856acc807e8dc778fce8c827090072aa
+state_head: c02b933e67b4d806934ee370e53d3fed400d839f
 progress:
   total_phases: 10
   completed_phases: 3
   total_plans: 22
-  completed_plans: 21
+  completed_plans: 22
 ---
 
 # Project State
@@ -76,6 +76,7 @@ Progress: [█░░░░░░░░░] 10%
 | Phase 11-project-master-pm-assignment-stakeholders P05 | 8 | 2 tasks | 2 files |
 | Phase 12-milestone-raid-master-registers P01 | 8 | 2 tasks | 14 files |
 | Phase 12-milestone-raid-master-registers P02 | 8min | 3 tasks | 18 files |
+| Phase 12-milestone-raid-master-registers P03 | 4min | 3 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -122,6 +123,8 @@ Recent decisions affecting current work:
 - [Phase 12]: raid-masters.service owns company-scoped upcoming/overdue date window computation
 - [Phase 12]: Auto-code R-/I- prefix zero-padded 3 digits; risk_id/issue_id populated from code
 - [Phase 12]: RAID retire via deactivate status string, not physical DELETE
+- [Phase 12]: Due-date history loads prior row only when due_date is in the update payload
+- [Phase 12]: listHighOpenRaid count equals UNION ALL record length, never distinct project_id
 
 ### Pending Todos
 
@@ -142,6 +145,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-08-25T20:36:46.456Z
-Stopped at: Completed 12-02-PLAN.md
+Last session: 2026-08-25T20:41:26.292Z
+Stopped at: Completed 12-03-PLAN.md
 Resume file: None

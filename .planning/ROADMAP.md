@@ -156,7 +156,7 @@ Plans:
   3. Assigned PM and CPMO can create, update, and deactivate risks and issues with a unique code per project; Viewer cannot mutate; the register defaults to Open / In progress, ordered High then Medium then Low, with overdue first within a severity
   4. Overdue open RAID items are flagged and shown on dashboards; changing a due date keeps prior due-date history; portfolio High RAID counts are open/in-progress records (not projects); technology-council issues are listable when that flag is set
 
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans executed
 
 Plans:
 **Wave 1**
@@ -169,7 +169,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 1 and Wave 2)*
 
-- [ ] 12-03-PLAN.md — Due-date history, RAID-05 order, High/tech-council lists
+- [x] 12-03-PLAN.md — Due-date history, RAID-05 order, High/tech-council lists
 
 **UI hint**: yes
 
@@ -282,7 +282,7 @@ Phases execute in numeric order: 9 → 10 → 11 → 12 → 13 → 14 → 15 →
 | 9. Mapping Table Tenant Isolation | v2.0 | 3/3 | Complete    | 2026-08-26 |
 | 10. Users, Roles & Server Authorization | v2.0 | 11/11 | Complete    | 2026-08-26 |
 | 11. Project Master, PM Assignment & Stakeholders | v2.0 | 5/5 | Complete    | 2026-08-26 |
-| 12. Milestone & RAID Master Registers | v2.0 | 2/3 | In Progress|  |
+| 12. Milestone & RAID Master Registers | v2.0 | 3/3 | In Progress|  |
 | 13. Weekly Periods & PM Submit | v2.0 | 0/? | Not started | - |
 | 14. CPMO Tracking & Consolidated Export | v2.0 | 0/? | Not started | - |
 | 15. Budget, Value, ROI & Dependencies | v2.0 | 0/? | Not started | - |
