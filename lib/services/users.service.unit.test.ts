@@ -280,9 +280,10 @@ describe('users.service lock/unlock/deactivate', () => {
     );
   });
 
-  it('deactivateUser soft-deletes without physical DELETE (D-07, USER-06)', async () => {
+  it('deactivateUser soft-deletes without physical DELETE and clears sessions (D-07, D-10, USER-06)', async () => {
     await deactivateUser(cpmoActor, 10);
     expect(deactivateUserRow).toHaveBeenCalledWith(10);
+    expect(deleteSessionsForUser).toHaveBeenCalledWith(10);
     expect(auditLogFn).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'deactivate', entity_type: 'user' }),
     );

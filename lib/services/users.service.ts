@@ -211,6 +211,7 @@ export async function deactivateUser(actor: AccessActor, userId: number | string
   }
   const before = await loadUserInCompany(actor, userId);
   await deactivateUserRow(userId);
+  await deleteSessionsForUser(userId);
   const after = await findUserById(userId);
   await auditLog({
     actor_id: actor.user_id,
