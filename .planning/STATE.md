@@ -1,38 +1,36 @@
 ---
 gsd_state_version: 1.0
 milestone: v1.0
-current_phase: 8
-status: completed
+status: Awaiting next milestone
 stopped_at: Phase 8 complete — all phases complete
-last_updated: "2026-08-25T15:11:47.127Z"
+last_updated: "2026-08-25T15:15:05.247Z"
 last_activity: 2026-08-25
-last_activity_desc: Phase 8 complete
-state_head: 795058964a317bb357279b7235c38a09027a5abb
+last_activity_desc: Milestone v1.0 completed and archived
+state_head: 8c2af3784ea75e53644a9e88efa24ae079415cda
 progress:
   total_phases: 8
   completed_phases: 8
   total_plans: 35
   completed_plans: 35
 milestone_name: milestone
+current_phase: 8
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-08-07)
+See: .planning/PROJECT.md (updated 2026-08-25)
 
 **Core value:** Every project-scoped request is tenant-isolated and every layer has one job — so a new route or page cannot silently reintroduce IDOR or a 2000-line god component.
-**Current focus:** v1.0 milestone — all phases complete; ready for milestone audit/ship
+**Current focus:** Planning next milestone (`$gsd-new-milestone`)
 
 ## Current Position
 
-Phase: 8
-Plan: Not started
-Status: All phases complete
-Last activity: 2026-08-25 — Phase 8 complete
-
-Progress: [██████████] 100% (35/35 plans complete)
+Phase: Milestone v1.0 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-08-25 — Milestone v1.0 completed and archived
 
 ## Performance Metrics
 
@@ -179,3 +177,7 @@ None. Phase 6 human UAT closed 2026-08-25 (`06-UAT.md`: shadow review, residual-
 Last session: 2026-08-25T15:06:06.458Z
 Stopped at: Phase 8 complete — all phases complete
 Resume file: None
+
+## Operator Next Steps
+
+- Start the next milestone with /gsd-new-milestone
