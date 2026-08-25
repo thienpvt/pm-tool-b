@@ -19,23 +19,27 @@ Out of scope: changing credential precedence (locked in Phase 3), rewriting the 
 ## Implementation Decisions
 
 ### Cutover Evidence Gate
+- **D-01 — Cutover Evidence Gate** Never delete the dead blocks without script evidence. If DATABASE_URL is missing or the DB is unreachable, halt. Invoke so .env.local loads at process start. Zero-row company_jira_config with exit 0 plus the anthropic match line is valid. Record stdout; halt on non-zero exit or any match: no.
 - Never delete the dead blocks without script evidence. If `DATABASE_URL` is missing or the DB is unreachable, halt — do not delete. INTG-08's defining clause is "verified per configured company **before** the old paths are deleted."
 - `DATABASE_URL` is not in the process environment; `.env.local` has the key (uncommitted). Invoke the script so that file is loaded at process start (`npx tsx --env-file=.env.local scripts/verify-credential-cutover.ts` or Node `--env-file=.env.local`). Do not bake dotenv into the script and do not copy the URL into planning docs.
 - A zero-row `company_jira_config` table with script exit 0 still counts as evidence (vacuous per-company match) plus the script's anthropic match line. Record the stdout either way.
 - Paste the script's stdout verbatim into the plan SUMMARY / VERIFICATION evidence. Exit non-zero or any `match: no` row is a hard stop.
 
 ### Deletion Scope
+- **D-02 — Deletion Scope** Delete only getJiraCredentials in search/route.ts and oldInlineCredentialBlock in fields/route.ts, plus unused search-route imports. Keep the fields-route live companyJiraConfig 503 split. Do not change credentials.ts or resolver precedence.
 - Delete only the two marked-dead functions: `getJiraCredentials` in `app/api/jira/search/route.ts` and `oldInlineCredentialBlock` in `app/api/jira/fields/route.ts`, including their INTG-08 comments.
 - In the same HYG-01 commit, drop imports that become unused (search route currently imports `companyJiraConfig` only for the dead helper). Leave the fields route's live `companyJiraConfig` call — it still distinguishes `Jira chưa cấu hình` vs `Thiếu env vars`.
 - Do not touch `app/api/jira/test/route.ts` unless a grep shows leftover inline env-var resolution (live path already uses `resolveJiraCredentials`).
 - Do not change `lib/integrations/credentials.ts`. Anthropic `env || db` empty-string normalization stays (Phase 3 locked). Grep Anthropic routes for leftover inline fallbacks; delete them in this same commit only if they still exist.
 
 ### Commits & Leftovers
+- **D-03 — Commits & Leftovers** Evidence is the gate. Deletion is a dedicated HYG-01 commit with the exact refactor(08) INTG-08 HYG-01 message. Keep the cutover script. Close WINDOWS.md stubs 1-3 after the commit lands.
 - Evidence run is the gate. Deletion is a dedicated HYG-01 commit so a tenant-config regression bisects to that commit. Message: `refactor(08): delete old inline credential paths after resolver cutover verified (INTG-08, HYG-01)`.
 - Keep `scripts/verify-credential-cutover.ts` — it is the evidence tool, not dead code.
 - Close the three Phase 3 WINDOWS.md stubs that track these dead blocks / unrun script once the commit lands.
 
 ### Verification
+- **D-04 — Verification** After deletion: leftover greps, tsc, and npm test. Mismatch or unreachable DB stops deletion. Check off INTG-08 only after evidence plus deletion. Resolver precedence stays frozen.
 - After deletion: boundary greps (no leftover `getJiraCredentials` / `oldInlineCredentialBlock`; live Jira routes call the resolver) plus `npx tsc --noEmit` and `npm test` (HYG-03).
 - Mismatch or unreachable DB → stop autonomous execution of the deletion task. Do not force-delete.
 - Check off INTG-08 in REQUIREMENTS.md only after evidence + deletion both exist.

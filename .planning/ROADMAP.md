@@ -2,7 +2,7 @@
 
 ## Overview
 
-This milestone takes the app from zero test coverage and a flat `lib/` where routes inline SQL, reinvent auth, and call external APIs directly, to a real layered architecture with tests at every layer. The sweep runs bottom-up by dependency: stand up a test harness first (nothing else is verifiable without it), then repositories (SQL moves out of routes), integration clients (Jira/Anthropic/Resend get one client each plus a unified credential resolver), services (business logic and tenant-ownership checks land in one place), route thinning (a shared auth/access wrapper replaces ad hoc per-route checks), access enforcement rollout (the wrapper goes live everywhere, shadow-mode first to avoid a 403 storm), and finally UI decomposition (god pages split into hooks + feature modules once the API surface they call is stable). Each phase is independently shippable and independently testable before the next starts.
+This milestone takes the app from zero test coverage and a flat `lib/` where routes inline SQL, reinvent auth, and call external APIs directly, to a real layered architecture with tests at every layer. The sweep runs bottom-up by dependency: stand up a test harness first (nothing else is verifiable without it), then repositories (SQL moves out of routes), integration clients (Jira/Anthropic/Resend get one client each plus a unified credential resolver), services (business logic and tenant-ownership checks land in one place), route thinning (a shared auth/access wrapper replaces ad hoc per-route checks), access enforcement rollout (the wrapper goes live everywhere, shadow-mode first to avoid a 403 storm), then UI decomposition (god pages split into hooks + feature modules once the API surface they call is stable), and a final INTG-08 cutover so dead Jira credential paths are deleted only after per-tenant evidence. Each phase is independently shippable and independently testable before the next starts.
 
 ## Phases
 
@@ -16,12 +16,13 @@ This milestone takes the app from zero test coverage and a flat `lib/` where rou
 - [x] **Phase 3: Integration Clients** - Route all Jira/Anthropic/Resend calls through dedicated, validated clients with one credential resolver (completed 2026-08-10)
 - [x] **Phase 4: Service Layer** - Concentrate business logic and tenant-ownership checks in service modules with typed errors (completed 2026-08-11)
 - [x] **Phase 5: Route Thinning & Validation** - Build the shared auth/access wrapper and Zod validation so routes shrink to parse/authorize/call/respond (completed 2026-08-11)
-- [ ] **Phase 6: Access Enforcement Rollout** - Roll the wrapper out to every project-scoped route, shadow-mode first, with 401/403 tests proving it
-- [ ] **Phase 7: UI Decomposition** - Split the 7 named god pages/components into hooks + feature modules against the now-stable API surface
+- [x] **Phase 6: Access Enforcement Rollout** - Roll the wrapper out to every project-scoped route, shadow-mode first, with 401/403 tests proving it (completed 2026-08-25)
+- [x] **Phase 7: UI Decomposition** - Split the 7 named god pages/components into hooks + feature modules against the now-stable API surface (completed 2026-08-25)
+- [ ] **Phase 8: INTG-08 Credential Cutover** - Gather per-tenant cutover evidence, then delete the dead inline Jira credential blocks (HYG-01)
 
 ## Cross-Cutting Conventions
 
-Three requirements apply to every phase's execution rather than to a specific layer. They are not "Phase 8" — they are how each phase above gets done:
+Three requirements apply to every phase's execution rather than to a specific layer. They are not a standalone phase — they are how each phase above gets done:
 
 - **HYG-01**: Pure code moves are committed separately from behavior changes, so a regression can be bisected to one or the other
 - **HYG-02**: Every opportunistic bug fix made during the sweep is called out in its commit message as a behavior change
@@ -86,6 +87,8 @@ Three requirements apply to every phase's execution rather than to a specific la
 - [x] 03-02-PLAN.md — Resend client + integrationErrorResponse + send-email route
 - [x] 03-03-PLAN.md — Anthropic client + 5 route rewires (500/502 split preserved)
 - [x] 03-04-PLAN.md — Jira client + 3 route rewires + credential cutover + boundary greps
+
+**Open gap:** INTG-08 cutover evidence and dead-block deletion moved to Phase 8 (no reachable `DATABASE_URL` during Phase 3).
 
 ### Phase 4: Service Layer
 
@@ -226,6 +229,24 @@ Plans:
 
 **UI hint**: yes
 
+### Phase 8: INTG-08 Credential Cutover
+
+**Goal**: Close the INTG-08 gap left by Phase 3: run `scripts/verify-credential-cutover.ts` against a live `DATABASE_URL` so every configured tenant reports `match: yes`, then delete the dead inline Jira credential blocks in a dedicated HYG-01 commit.
+**Depends on**: Phase 3 (resolver + cutover script), Phase 7 (rest of v1 already landed)
+**Requirements**: INTG-08
+**Success Criteria** (what must be TRUE):
+
+  1. `npx tsx scripts/verify-credential-cutover.ts` runs against a reachable `DATABASE_URL` and reports `match: yes` for every `company_jira_config` row
+  2. The marked-dead inline Jira credential blocks in `app/api/jira/search/route.ts` and `app/api/jira/fields/route.ts` are deleted in their own HYG-01 commit
+  3. Live Jira search, fields, and test paths still resolve credentials only through `resolveJiraCredentials` — no old env-var-names-in-DB path remains
+  4. INTG-08 is checked off in `.planning/REQUIREMENTS.md` with the cutover evidence recorded
+
+**Plans**: 1 plan
+
+Plans:
+
+- [ ] 08-01-PLAN.md — Cutover evidence script, then HYG-01-delete dead Jira credential helpers
+
 ## Progress
 
 | Phase | Plans Complete | Status | Completed |
@@ -235,5 +256,6 @@ Plans:
 | 3. Integration Clients | 4/4 | Complete    | 2026-08-10 |
 | 4. Service Layer | 7/7 | Complete    | 2026-08-11 |
 | 5. Route Thinning & Validation | 3/3 | Complete    | 2026-08-11 |
-| 6. Access Enforcement Rollout | 6/7 | In Progress|  |
-| 7. UI Decomposition | 9/9 | In Progress|  |
+| 6. Access Enforcement Rollout | 7/7 | Complete    | 2026-08-25 |
+| 7. UI Decomposition | 9/9 | Complete    | 2026-08-25 |
+| 8. INTG-08 Credential Cutover | 0/1 | Planned | — |
