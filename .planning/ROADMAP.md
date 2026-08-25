@@ -82,7 +82,7 @@ Plans:
   3. CPMO can view the full company portfolio; PM can view and update only assigned projects; Viewer can read but cannot mutate; every API and screen enforces this on the server — hiding a UI control is not treated as access control
   4. A user who has generated business data cannot be physically deleted; history still shows their display name; lock, unlock, and other user-record changes record who changed the record and when
 
-**Plans:** 5/11 plans executed
+**Plans:** 6/11 plans executed
 
 Plans:
 **Wave 1**
@@ -98,7 +98,7 @@ Plans:
 **Wave 3** *(blocked on Wave 2 plan 10-03 or 10-05 as listed)*
 
 - [x] 10-04-PLAN.md — Nested mutators A: risks, issues, milestones (linkEpic/unlinkEpic), activities (importActivities)
-- [ ] 10-06-PLAN.md — Nested mutators B: meetings, team, bugs (replaceSnapshot), escalations
+- [x] 10-06-PLAN.md — Nested mutators B: meetings, team, bugs (replaceSnapshot), escalations
 - [ ] 10-07-PLAN.md — Holidays, documents (upsertDocument), budget, budget-items, createExpense/deleteExpense
 - [ ] 10-08-PLAN.md — AI POSTs: project/portfolio report, generate-email, send-email
 - [ ] 10-09-PLAN.md — Company-scoped programs/portfolio/roadmap lists + writes; allocations POST; resource-audit; listResourceMembers
@@ -247,7 +247,7 @@ Phases execute in numeric order: 9 → 10 → 11 → 12 → 13 → 14 → 15 →
 | 7. UI Decomposition | v1.0 | 9/9 | Complete | 2026-08-25 |
 | 8. INTG-08 Credential Cutover | v1.0 | 1/1 | Complete | 2026-08-25 |
 | 9. Mapping Table Tenant Isolation | v2.0 | 3/3 | Complete    | 2026-08-26 |
-| 10. Users, Roles & Server Authorization | v2.0 | 5/11 | In Progress|  |
+| 10. Users, Roles & Server Authorization | v2.0 | 6/11 | In Progress|  |
 | 11. Project Master, PM Assignment & Stakeholders | v2.0 | 0/? | Not started | - |
 | 12. Milestone & RAID Master Registers | v2.0 | 0/? | Not started | - |
 | 13. Weekly Periods & PM Submit | v2.0 | 0/? | Not started | - |
