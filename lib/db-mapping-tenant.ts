@@ -1,6 +1,7 @@
 import type { Pool } from 'pg';
 
 const TIMELINE_FLAG = 'mapping_tenant_timeline_import_mappings_v1';
+const BUG_FLAG = 'mapping_tenant_bug_import_mappings_v1';
 
 type MappingTableSpec = {
   table: string;
@@ -8,9 +9,14 @@ type MappingTableSpec = {
   payloadColumns: string[];
 };
 
-/** Timeline-only in 09-01; bug/jira tables register in 09-02/09-03. */
 const TIMELINE_SPEC: MappingTableSpec = {
   table: 'timeline_import_mappings',
+  nameColumn: 'name',
+  payloadColumns: ['mappings_json'],
+};
+
+const BUG_SPEC: MappingTableSpec = {
+  table: 'bug_import_mappings',
   nameColumn: 'name',
   payloadColumns: ['mappings_json'],
 };
@@ -21,6 +27,7 @@ const TIMELINE_SPEC: MappingTableSpec = {
  */
 export async function migrateMappingTableTenancy(pool: Pool): Promise<void> {
   await migrateOneTable(pool, TIMELINE_SPEC, TIMELINE_FLAG);
+  await migrateOneTable(pool, BUG_SPEC, BUG_FLAG);
 }
 
 async function migrateOneTable(pool: Pool, spec: MappingTableSpec, flagKey: string): Promise<void> {

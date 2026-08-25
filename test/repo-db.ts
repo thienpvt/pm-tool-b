@@ -214,6 +214,12 @@ CREATE TABLE IF NOT EXISTS timeline_import_mappings (
   created_at TIMESTAMP DEFAULT now(),
   UNIQUE (company_id, name)
 );
+CREATE TABLE IF NOT EXISTS bug_import_mappings (
+  id SERIAL PRIMARY KEY, name TEXT NOT NULL, mappings_json TEXT NOT NULL,
+  company_id INTEGER REFERENCES companies(id),
+  created_at TIMESTAMP DEFAULT now(),
+  UNIQUE (company_id, name)
+);
 `;
 
 /** Advisory lock key serialising DDL across parallel vitest worker processes. */
