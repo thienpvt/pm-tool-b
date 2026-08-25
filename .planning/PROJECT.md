@@ -44,17 +44,17 @@ One source of truth for projects, milestones, RAID, and weekly reports — role-
 - ✓ Zod validation at Jira and Anthropic client boundaries
 - ✓ Seven god pages split into hooks + feature modules (UI-01..11)
 - ✓ `withProjectAccess` on project-scoped, import, and export routes; 401/403 tests (ROUTE-03, 04, 08–11)
-- ✓ Vitest 4 harness + layer tests including cross-company 403 and mocked integration clients (727 passing)
+- ✓ Vitest 4 harness + layer tests including cross-company 403 and mocked integration clients (1019 passing after Phase 10)
 - ✓ TENANT-01 — `company_id` on `timeline_import_mappings`, `bug_import_mappings`, `jira_jql_presets`, `jira_sync_mappings`; multi-company CROSS JOIN backfill; cross-company 403 — Phase 9
+- ✓ PR-01 / USER-01..06 — CPMO user admin: unique username+email, multi-role union, Active/Inactive/Locked, lock/unlock with actor+time, soft-delete only — Phase 10
+- ✓ PR-02 / AUTH-01..06 — SessionUser.roles is authorization truth; company-scoped CPMO; interim PM match via `pm_email` then `pm_name`; Viewer mutators 403; Inactive/Locked cannot obtain or keep a session — Phase 10
 
-Remainder (ops/admin/config routes still repo-direct, proxy HTML-307 for API callers) is accepted v1.0 tech debt — see `.planning/milestones/v1.0-MILESTONE-AUDIT.md`.
+Remainder (ops/admin/config routes still repo-direct, proxy HTML-307 for API callers) is accepted v1.0 tech debt — see `.planning/milestones/v1.0-MILESTONE-AUDIT.md`. D-23 leftover: `app/api/operations/**` and platform `/api/admin/companies` stay session+tenant this milestone until later phases.
 
 ### Active
 
 **v2.0 Portfolio One View** — spec is source of truth. Existing screens/APIs that already match stay; mismatches change. Jira import, AI reports, and Excel/PPT/Word export stay.
 
-- [ ] PR-01 Users and roles (unique username/email, multi-role union, Active/Inactive/Locked, no physical delete)
-- [ ] PR-02 Login, session, and server-side authorization (CPMO / PM / Viewer)
 - [ ] PR-03 Project master data (identity, governance, L0–L5, status, RAG, progress, timeline, weekly-report flag)
 - [ ] PR-04 PM assignment (one primary, optional collaborating PMs, history)
 - [ ] PR-05 Stakeholders (sponsor, PSC, project director, external parties, effective dates)
@@ -85,11 +85,11 @@ Remainder (ops/admin/config routes still repo-direct, proxy HTML-307 for API cal
 
 **Shipped:** v1.0 Layer Reorg & Hardening (2026-08-25) — 8 phases, 35 plans. Archive: `.planning/milestones/`.
 
-**Now:** v2.0 Portfolio One View — Phase 9 (TENANT-01) shipped. Next is Phase 10: CPMO / PM / Viewer users, roles, and server authorization.
+**Now:** v2.0 Portfolio One View — Phases 9–10 shipped (TENANT-01, PR-01/PR-02). Next is Phase 11: project master, PM assignment, and stakeholders.
 
-The brownfield mess listed at kickoff is largely gone on the project-scoped path: tests exist (Vitest, 727 passing), SQL lives in repositories, Jira/Anthropic/Resend go through clients + one credential resolver, services own tenant checks, wrappers enforce access, and the seven named god pages are decomposed.
+The brownfield mess listed at kickoff is largely gone on the project-scoped path: tests exist (Vitest, 1019 passing), SQL lives in repositories, Jira/Anthropic/Resend go through clients + one credential resolver, services own tenant checks, wrappers enforce access, and the seven named god pages are decomposed.
 
-Existing project/RAID/budget/report/dashboard screens overlap the spec but do not match CPMO/PM/Viewer roles, L0–L5 rules, snapshot weekly reports, or the Confluence document checklist.
+Existing project/RAID/budget/report/dashboard screens now enforce CPMO/PM/Viewer on the server; they still do not match L0–L5 rules, snapshot weekly reports, or the Confluence document checklist.
 
 ## Next Milestone Goals
 
@@ -133,6 +133,9 @@ Still true and still not this milestone:
 | Keep Jira / AI / Excel-PPT-Word export | Spec does not replace those integrations; they remain differentiators beside One View | — Pending |
 | v2.0 deferred pack is TENANT-01 only | User pointed at the four mapping-table `company_id` follow-up, not DATA/ENF/PERF or leftover route debt | Shipped Phase 9 |
 | Mapping tenancy via `migrateMappingTableTenancy` | Nullable column → duplicate-per-company backfill → NOT NULL+FK → `UNIQUE(company_id, name)` (JQL adds `context`); never collapse to company 1 | Shipped Phase 9 |
+| Authorization truth is `roles[]`, not `is_admin` | Backfilled admins stay `is_admin=1` for leftover platform routes; product checks must not use that flag as a cross-tenant bypass (D-03, D-13) | Shipped Phase 10 |
+| Interim PM match via `pm_email` then `pm_name` | Phase 11 replaces the lookup only; `assertPmWriteAccess` is the seam (D-14) | Shipped Phase 10 |
+| AUTH-05 leftover carve-out (D-23) | `operations/**` and platform `/api/admin/companies` stay session+tenant; product mutators including AI POSTs and mapping tables are role-gated | Shipped Phase 10 |
 | Word spec stays local, not committed | Reference document only; do not add the `.docx` to git | — Pending |
 
 ## Evolution
@@ -153,4 +156,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-08-25 after Phase 9*
+*Last updated: 2026-08-26 after Phase 10*
