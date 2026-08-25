@@ -1,7 +1,7 @@
 ---
 phase: 07-ui-decomposition
-verified: 2026-08-25T13:12:00Z
-status: human_needed
+verified: 2026-08-25T13:58:00Z
+status: passed
 score: 5/5 must-haves verified
 behavior_unverified: 0
 overrides_applied: 0
@@ -19,8 +19,9 @@ human_verification:
 **Phase Goal:** The 7 named god pages/components split into a container plus feature modules with data-fetching extracted into named hooks, against the now-stable API surface from Phases 1-6 — with no client code reaching past that surface into server-only layers.
 
 **Verified:** 2026-08-25T13:12:00Z  
-**Status:** human_needed  
-**Re-verification:** No — initial verification
+**Status:** passed  
+**Re-verification:** No — initial verification  
+**Human UAT:** completed 2026-08-25 via Playwright MCP + local Docker Postgres (`07-UAT.md`)
 
 ## Goal Achievement
 
@@ -121,7 +122,7 @@ Step 7c: SKIPPED — no phase-declared probe scripts; validation uses vitest + g
 | UI-08 | 01, 08 | Home dashboard decomposed | ✓ SATISFIED | 145-line container + `app/_components/` |
 | UI-09 | all | No forbidden client imports | ✓ SATISFIED | Grep clean in client tsx |
 | UI-10 | 00–08 | Component test per target | ✓ SATISFIED | 7 tests, 15 cases, all pass |
-| UI-11 | all | Identical load/filter/export behavior | ? NEEDS HUMAN | Automated load+interaction verified in tests; visual identity + export downloads require browser UAT |
+| UI-11 | all | Identical load/filter/export behavior | ✓ SATISFIED | Automated load+interaction in tests; visual identity + export downloads passed in `07-UAT.md` (Playwright MCP, 2026-08-25). `document.write` PDF print-dialog hang preserved as HYG-02 |
 
 ### Decision Coverage
 
@@ -137,23 +138,19 @@ No trackable decisions in CONTEXT.md (`check.decision-coverage-verify`: skipped,
 
 ### Human Verification Required
 
+Completed 2026-08-25 — see `07-UAT.md` (Playwright MCP against `http://localhost:3000` + Docker `postgres:17`).
+
 #### 1. Visual identity UAT (UI-11)
 
-**Test:** Open each of the 7 decomposed surfaces in a browser and compare to pre-refactor memory/screenshots.  
-**Expected:** Layout, Vietnamese copy, loading gates, filter toolbars, and export buttons remain recognizable and unchanged.  
-**Why human:** Component tests mock fetch and assert DOM text only; pixel/layout identity is explicitly manual-only per `07-VALIDATION.md`.
+**Result:** pass. All 7 surfaces rendered with expected chrome, Vietnamese copy, filters, and export entry points.
 
 #### 2. Export path smoke test (UI-11 export subset)
 
-**Test:** On portfolio report, project report, milestones, and roadmap, trigger at least one export/download action.  
-**Expected:** Same download/toast/error behavior as pre-refactor (including any pre-existing quirks frozen under HYG-02).  
-**Why human:** Component tests exercise filter/generate interactions but not binary export/download flows.
+**Result:** pass. HTML/PDF/PNG downloads on portfolio report; HTML on project report; PNG on roadmap. `document.write` PDF print dialog still blocks the tab (HYG-02 freeze).
 
 ### Gaps Summary
 
-No programmatic blockers. All structural decomposition requirements (UI-01 through UI-10, UI-09 gate, line limits, hook wiring, test suite) are verified in the codebase.
-
-Phase exit awaits human UAT for UI-11 visual identity and export-path confirmation in the browser — expected and documented in phase validation strategy.
+No programmatic blockers. UI-11 human items closed in `07-UAT.md`.
 
 ---
 
