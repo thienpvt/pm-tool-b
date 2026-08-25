@@ -7,6 +7,7 @@ const {
   hasActiveStakeholderForRole,
   insertStakeholderRepo,
   endStakeholderRepo,
+  getStakeholderRepo,
   findUserById,
   auditLogFn,
 } = vi.hoisted(() => ({
@@ -16,6 +17,7 @@ const {
   hasActiveStakeholderForRole: vi.fn(),
   insertStakeholderRepo: vi.fn(),
   endStakeholderRepo: vi.fn(),
+  getStakeholderRepo: vi.fn(),
   findUserById: vi.fn(),
   auditLogFn: vi.fn(),
 }));
@@ -26,6 +28,7 @@ vi.mock('@/lib/repositories/stakeholders.repo', () => ({
   hasActiveStakeholderForRole,
   insertStakeholder: insertStakeholderRepo,
   endStakeholder: endStakeholderRepo,
+  getStakeholder: getStakeholderRepo,
 }));
 vi.mock('@/lib/repositories/users.repo', () => ({ findUserById }));
 vi.mock('@/lib/services/audit.service', () => ({ auditLog: auditLogFn }));
@@ -137,6 +140,7 @@ describe('stakeholders.service', () => {
       stakeholder_role: 'key_stakeholder',
       effective_to: null,
     };
+    getStakeholderRepo.mockResolvedValue(before);
     endStakeholderRepo.mockResolvedValue({ ...before, effective_to: '2026-08-26' });
     await expect(endProjectStakeholder(7, owner, 4)).resolves.toMatchObject({
       effective_to: '2026-08-26',
