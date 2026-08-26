@@ -34,7 +34,7 @@ vi.mock('@/lib/repositories/project-dependencies.repo', () => ({
 vi.mock('@/lib/services/audit.service', () => ({ auditLog: auditLogFn }));
 
 import { getSessionFromRequest } from '@/lib/auth';
-import { GET, POST } from './route';
+import { GET, PATCH, POST } from './route';
 import * as routeModule from './route';
 
 const ownerSession = {
@@ -214,6 +214,47 @@ describe('/api/projects/[id]/dependencies', () => {
       fromParams,
     );
     expect(res.status).toBe(403);
+  });
+
+  it('PATCH ends dependency with 200', async () => {
+    vi.mocked(getSessionFromRequest).mockResolvedValue(cpmoSession as never);
+    getDependencyInFromProjectRepo.mockResolvedValue({
+      id: 4,
+      from_project_id: 7,
+      to_project_id: 9,
+      dependency_type: 'FINISH_TO_START',
+      need_by: '2026-12-31',
+      effective_from: '2026-01-01',
+      effective_to: null,
+    });
+    softEndDependencyRepo.mockResolvedValue({
+      id: 4,
+      from_project_id: 7,
+      to_project_id: 9,
+      dependency_type: 'FINISH_TO_START',
+      need_by: '2026-12-31',
+      effective_from: '2026-01-01',
+      effective_to: '2026-08-26',
+    });
+    const res = await PATCH(req('7', 'PATCH', { id: 4 }), fromParams);
+    expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toMatchObject({ effective_to: '2026-08-26' });
+  });
+
+  it('PATCH as viewer returns 403', async () => {
+    vi.mocked(getSessionFromRequest).mockResolvedValue({
+      ...ownerSession,
+      roles: ['viewer'],
+    } as never);
+    const res = await PATCH(req('7', 'PATCH', { id: 4 }), fromParams);
+    expect(res.status).toBe(403);
+    expect(softEndDependencyRepo).not.toHaveBeenCalled();
+  });
+
+  it('PATCH without id returns 400', async () => {
+    vi.mocked(getSessionFromRequest).mockResolvedValue(cpmoSession as never);
+    const res = await PATCH(req('7', 'PATCH', {}), fromParams);
+    expect(res.status).toBe(400);
   });
 
   it('does not export DELETE', () => {

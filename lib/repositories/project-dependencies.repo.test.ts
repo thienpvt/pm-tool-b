@@ -13,7 +13,9 @@ vi.mock('@/lib/db', () => ({
 import {
   hasOverlappingEquivalentDependency,
   insertProjectDependency,
+  listOpenProjectDependencies,
   listProjectDependencies,
+  softEndDependency,
 } from './project-dependencies.repo';
 
 describe.skipIf(!hasTestDb)('project-dependencies.repo', () => {
@@ -101,5 +103,49 @@ describe.skipIf(!hasTestDb)('project-dependencies.repo', () => {
       '2028-06-30',
     );
     expect(noOverlap).toBe(false);
+  });
+
+  it('softEndDependency sets effective_to on open row only', async () => {
+    const created = await insertProjectDependency({
+      fromProjectId,
+      toProjectId,
+      dependencyType: 'FINISH_TO_FINISH',
+      needBy: '2026-09-30',
+      effectiveFrom: '2026-01-01',
+      createdBy: 1,
+    });
+
+    const ended = await softEndDependency(fromProjectId, created!.id, '2026-08-26');
+    expect(ended?.effective_to).toBeTruthy();
+
+    const secondEnd = await softEndDependency(fromProjectId, created!.id);
+    expect(secondEnd).toBeUndefined();
+  });
+
+  it('listOpenProjectDependencies omits ended rows', async () => {
+    const open = await insertProjectDependency({
+      fromProjectId,
+      toProjectId,
+      dependencyType: 'START_TO_FINISH',
+      needBy: '2026-12-31',
+      effectiveFrom: '2020-01-01',
+      createdBy: 1,
+    });
+    const closed = await insertProjectDependency({
+      fromProjectId,
+      toProjectId,
+      dependencyType: 'START_TO_FINISH',
+      needBy: '2025-12-31',
+      effectiveFrom: '2020-01-01',
+      createdBy: 1,
+    });
+    await softEndDependency(fromProjectId, closed!.id, '2025-06-01');
+
+    const openRows = await listOpenProjectDependencies(fromProjectId);
+    const openIds = openRows.map((r) => r.id);
+    expect(openIds).toContain(open!.id);
+    expect(openIds).not.toContain(closed!.id);
+  it('exports listOpenProjectDependencies as a named export for Phase 16', () => {
+    expect(typeof listOpenProjectDependencies).toBe('function');
   });
 });

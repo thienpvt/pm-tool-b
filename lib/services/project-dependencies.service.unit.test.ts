@@ -32,9 +32,10 @@ vi.mock('@/lib/services/audit.service', () => ({ auditLog: auditLogFn }));
 
 import {
   createProjectDependency,
+  endProjectDependency,
   listProjectDependenciesForProject,
 } from './project-dependencies.service';
-import { ConflictError, ForbiddenError, ValidationError } from './errors';
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors';
 import type { AccessActor } from './access';
 
 const pmActor: AccessActor = {
@@ -164,6 +165,37 @@ describe('createProjectDependency validation', () => {
       }),
     ).rejects.toBeInstanceOf(ForbiddenError);
     expect(insertProjectDependencyRepo).not.toHaveBeenCalled();
+  });
+});
+
+describe('endProjectDependency', () => {
+  it('soft-ends open row and auditLogs action end', async () => {
+    getDependencyInFromProjectRepo.mockResolvedValue(dependencyRow);
+    softEndDependencyRepo.mockResolvedValue({
+      ...dependencyRow,
+      effective_to: '2026-08-26',
+    });
+
+    await expect(endProjectDependency(7, pmActor, 11)).resolves.toMatchObject({
+      effective_to: '2026-08-26',
+    });
+
+    expect(assertProjectWriteAccess).toHaveBeenCalledWith(7, pmActor);
+    expect(auditLogFn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        entity_type: 'project_dependency',
+        action: 'end',
+        entity_id: '11',
+      }),
+    );
+  });
+
+  it('throws NotFoundError when row is already ended', async () => {
+    getDependencyInFromProjectRepo.mockResolvedValue({
+      ...dependencyRow,
+      effective_to: '2026-01-01',
+    });
+    await expect(endProjectDependency(7, pmActor, 11)).rejects.toBeInstanceOf(NotFoundError);
   });
 });
 
