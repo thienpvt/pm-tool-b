@@ -5,16 +5,16 @@ milestone_name: Portfolio One View
 current_phase: 14
 current_phase_name: CPMO Tracking & Consolidated Export
 status: executing
-stopped_at: Completed 14-02-PLAN.md
-last_updated: "2026-08-26T00:22:18.896Z"
+stopped_at: Completed 14-03-PLAN.md
+last_updated: "2026-08-26T00:26:00.097Z"
 last_activity: 2026-08-26
 last_activity_desc: Phase 13 complete, transitioned to Phase 14
-state_head: 97f6a795e0ca891331a37e8948f0471f39b19ba1
+state_head: 96de6942f128112a3de9bb87e0c7ca5f95557cec
 progress:
   total_phases: 10
   completed_phases: 5
   total_plans: 28
-  completed_plans: 27
+  completed_plans: 28
 ---
 
 # Project State
@@ -82,6 +82,7 @@ Progress: [█░░░░░░░░░] 10%
 | Phase 13-weekly-periods-pm-submit P03 | 25 | 2 tasks | 9 files |
 | Phase 14-cpmo-tracking-consolidated-export P01 | 12min | 2 tasks | 10 files |
 | Phase 14 P02 | 8min | 2 tasks | 5 files |
+| Phase 14-cpmo-tracking-consolidated-export P03 | 3min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -138,6 +139,8 @@ Recent decisions affecting current work:
 - [Phase 14]: Tracking orchestration in weekly-tracking.service.ts; counts before filters; company-scoped listPeriodShellsRepo
 - [Phase 14]: Export preview eligibility uses SubmitValidationError with stringified project_ids in fields
 - [Phase 14]: assembleSnapshotSections exported for 14-03 with full raid arrays and snapshot-only tech issues
+- [Phase 14]: Generators accept ConsolidatedWeeklyPayload only — no live RAID reads (D-01, D-07)
+- [Phase 14]: Generate Buffer before insertWeeklyExportLog so pack failures leave no log row (D-09)
 
 ### Pending Todos
 
@@ -158,6 +161,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-08-26T00:22:18.412Z
-Stopped at: Completed 14-02-PLAN.md
+Last session: 2026-08-26T00:25:59.616Z
+Stopped at: Completed 14-03-PLAN.md
 Resume file: None

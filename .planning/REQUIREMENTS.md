@@ -103,7 +103,7 @@ Requirements for this milestone. Each maps to roadmap phases. Jira import, AI re
 - [x] **CPMO-01**: CPMO can see obligated-project counts and Not submitted / Draft / Submitted / Overdue / Late for a period
 - [x] **CPMO-02**: CPMO can filter the tracking grid by period, status, lateness, PM, stage, RAG, and technology-council issues, then open a report
 - [x] **CPMO-03**: CPMO can tick-select projects, preview consolidation, reorder projects, and export an editable consolidated pack (Excel/Word/PPT as already supported)
-- [ ] **CPMO-04**: Export records period, data version, and who exported; project sections include identity, PM, stage, prior/current RAG, progress, highlights, next-week goals, nearest milestone, RAID, and technology issues
+- [x] **CPMO-04**: Export records period, data version, and who exported; project sections include identity, PM, stage, prior/current RAG, progress, highlights, next-week goals, nearest milestone, RAID, and technology issues
 
 ### Portfolio Dashboard
 
@@ -245,7 +245,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CPMO-01 | Phase 14 | Complete |
 | CPMO-02 | Phase 14 | Complete |
 | CPMO-03 | Phase 14 | Complete |
-| CPMO-04 | Phase 14 | Pending |
+| CPMO-04 | Phase 14 | Complete |
 | PDSH-01 | Phase 16 | Pending |
 | PDSH-02 | Phase 16 | Pending |
 | PDSH-03 | Phase 16 | Pending |

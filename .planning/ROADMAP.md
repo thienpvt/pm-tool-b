@@ -215,7 +215,7 @@ Plans:
   3. CPMO can tick-select projects, preview consolidation, reorder projects, and export an editable consolidated pack (Excel/Word/PPT as already supported)
   4. Export records period, data version, and who exported; project sections include identity, PM, stage, prior/current RAG, progress, highlights, next-week goals, nearest milestone, RAID, and technology issues
 
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans executed
 
 Plans:
 **Wave 1**
@@ -228,7 +228,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 14-03-PLAN.md — xlsx/docx/pptx pack, weekly_export_logs insert, POST export
+- [x] 14-03-PLAN.md — xlsx/docx/pptx pack, weekly_export_logs insert, POST export
 
 **UI hint**: yes
 
@@ -312,7 +312,7 @@ Phases execute in numeric order: 9 → 10 → 11 → 12 → 13 → 14 → 15 →
 | 11. Project Master, PM Assignment & Stakeholders | v2.0 | 5/5 | Complete    | 2026-08-26 |
 | 12. Milestone & RAID Master Registers | v2.0 | 3/3 | Complete    | 2026-08-26 |
 | 13. Weekly Periods & PM Submit | v2.0 | 3/3 | Complete    | 2026-08-26 |
-| 14. CPMO Tracking & Consolidated Export | v2.0 | 2/3 | In Progress|  |
+| 14. CPMO Tracking & Consolidated Export | v2.0 | 3/3 | In Progress|  |
 | 15. Budget, Value, ROI & Dependencies | v2.0 | 0/? | Not started | - |
 | 16. Portfolio & PM Dashboards | v2.0 | 0/? | Not started | - |
 | 17. Document Templates & Confluence Checklist | v2.0 | 0/? | Not started | - |
