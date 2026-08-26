@@ -206,7 +206,7 @@ flowchart LR
 ```
 lib/
 ├── repositories/audit.repo.ts      # add listAuditLogs SELECT; keep INSERT only
-├── services/audit.service.ts       # auditLog (existing) + listCompanyAuditLogs (new)
+├── services/audit.service.ts       # auditLog (existing) + listAuditLogs (new)
 app/
 └── api/audit/route.ts              # GET only; no PATCH/DELETE
 lib/services/*.service.ts           # gap-fill auditLog calls only where inventory shows gaps
@@ -245,7 +245,7 @@ await auditLog({
 export const GET = withCpmo(async (req, { actor }) => {
   assertCompanyWrite(actor);
   const { searchParams } = new URL(req.url);
-  const rows = await listCompanyAuditLogs(actor, {
+  const rows = await listAuditLogs(actor, {
     entity_type: searchParams.get('entity_type') ?? undefined,
     entity_id: searchParams.get('entity_id') ?? undefined,
     from: searchParams.get('from') ?? undefined,
@@ -357,16 +357,11 @@ describe('audit.repo immutability contract', () => {
 | A3 | General `updateProject` should audit as single `update` action | project gaps | Over-audit vs under-audit tradeoff |
 | A4 | Optional index on `(company_id, created_at)` sufficient for GET perf | Schema | Slow lists at scale without index |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Project master audit granularity**
-   - What we know: Only code_change and stage_change_ack audited today.
-   - What's unclear: Whether all governed field updates should one `update` audit or field-specific actions.
-   - Recommendation: Single `update` with full before/after snapshots (matches `users.service` pattern).
+1. **Project master audit granularity** — RESOLVED: Single `update` action with full before/after snapshots (matches `users.service`). Keep specialized `code_change` and `stage_change_ack`. Locked in 18-03-PLAN.md.
 
-2. **Document checklist partial patches**
-   - What we know: Audit fires only on status or confluence_url change.
-   - Recommendation: Audit any PATCH that changes compliance-relevant fields (`status`, `approved_at`, `approved_by`, `na_reason`).
+2. **Document checklist partial patches** — RESOLVED: Audit any PATCH that changes `status`, `confluence_url`, `approved_at`, `approved_by`, `na_reason`, or `notes`. Action stays `status_change` when status or confluence_url differs; otherwise `update`. Locked in 18-03-PLAN.md.
 
 ## Environment Availability
 
@@ -418,7 +413,7 @@ Step 2.6: SKIPPED for external tools — phase uses existing Node/pg/Vitest stac
 
 - [ ] `lib/repositories/audit.repo.ts` — add `listAuditLogs`; keep INSERT-only exports
 - [ ] `lib/repositories/audit.repo.test.ts` — immutability source scan + SELECT filter tests
-- [ ] `lib/services/audit.service.ts` — add `listCompanyAuditLogs` wrapper
+- [ ] `lib/services/audit.service.ts` — add `listAuditLogs` wrapper
 - [ ] `app/api/audit/route.ts` + `route.test.ts` — GET only, auth matrix, pagination
 - [ ] Gap-fill tests in `projects`, `risks`, `issues`, `milestones`, `project-document-checklist` service unit tests
 

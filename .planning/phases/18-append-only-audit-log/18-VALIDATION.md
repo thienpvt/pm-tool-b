@@ -92,7 +92,7 @@ Already covered (regression only): `user`, `pm_assignment`, `budget_adjustment`,
 
 - [ ] `lib/repositories/audit.repo.ts` — add `listAuditLogs` SELECT (INSERT-only mutability preserved)
 - [ ] `lib/repositories/audit.repo.test.ts` — immutability source scan, company filter, pagination, D-07 two-row persistence
-- [ ] `lib/services/audit.service.ts` — `listCompanyAuditLogs` + unit test
+- [ ] `lib/services/audit.service.ts` — `listAuditLogs` + unit test
 - [ ] `app/api/audit/route.ts` — GET only, `withCpmo`, `assertCompanyWrite`
 - [ ] `app/api/audit/route.test.ts` — CPMO 200, pm/viewer 403, null-company 403, cross-company isolation, filters, limit cap
 - [ ] Extend `lib/services/projects.service.unit.test.ts` — project gap audits

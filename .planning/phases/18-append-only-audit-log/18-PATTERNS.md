@@ -1,8 +1,8 @@
 # Phase 18: Append-Only Audit Log - Pattern Map
 
 **Mapped:** 2026-08-26
-**Files analyzed:** 14 new/modified files
-**Analogs found:** 13 / 14
+**Files analyzed:** 16 new/modified files
+**Analogs found:** 15 / 16
 
 ## File Classification
 
@@ -21,6 +21,8 @@
 | `lib/services/risks.service.ts` | service | batch (gap fill) | `lib/services/pm-assignments.service.ts` (`auditSnapshot` + create/end) | exact |
 | `lib/services/issues.service.ts` | service | batch (gap fill) | `lib/services/risks.service.ts` (deactivate/due_date_change already audited) | exact |
 | `lib/services/milestones.service.ts` | service | batch (gap fill) | `cancelMilestone` audit block in same file | exact |
+| `lib/services/projects.service.ts` | service | batch (gap fill) | `lib/services/users.service.ts` create/update auditLog | exact |
+| `lib/services/project-document-checklist.service.ts` | service | batch (gap fill) | existing `status_change` block in same file | exact |
 | `scripts/audit-coverage-inventory.mjs` (optional planner tool) | utility | transform | grep-only; no analog — use ripgrep in plan | no analog |
 
 ### D-02 coverage inventory (existing vs gaps)
@@ -29,12 +31,12 @@
 |---------------------|---------------------|--------------|
 | `user` | `users.service.ts` create/update/lock/unlock/deactivate | none |
 | `pm_assignment` | `pm-assignments.service.ts` create/end | none |
-| `project` | `projects.service.ts` code_change, stage_change_ack | none |
+| `project` | `projects.service.ts` code_change, stage_change_ack | **`createProject`**, general **`updateProject`**, **`deleteProject`** |
 | `raid` (`risk`/`issue`) | due_date_change, deactivate only | **`createRisk`/`updateRisk`**, **`createIssue`/`updateIssue`** (general field updates) |
 | `milestone` | cancel only | **`createMilestone`**, **`updateMilestone`** |
 | `budget_adjustment` | `fiscal-budget.service.ts` create | none |
 | `weekly_report` | `weekly-reports.service.ts` submit/correct | none |
-| `document_checklist` | `project-document-checklist.service.ts` status_change | none |
+| `document_checklist` | `project-document-checklist.service.ts` status_change (status/url) | **PATCH `approved_at`/`approved_by`/`na_reason`/`notes`** |
 
 ## Pattern Assignments
 
@@ -364,8 +366,12 @@ await auditLog({
 | `issues.service.ts` | `updateIssue` | `update` | same as risk |
 | `milestones.service.ts` | `createMilestone` | `create` | `null` / snapshot |
 | `milestones.service.ts` | `updateMilestone` | `update` | load prior via `getMilestoneRepo` before update |
+| `projects.service.ts` | `createProject` | `create` | `null` / snapshot |
+| `projects.service.ts` | `updateProject` | `update` | full snapshots when they differ; keep `code_change` / `stage_change_ack` |
+| `projects.service.ts` | `deleteProject` | `delete` | prior snapshot / `null` |
+| `project-document-checklist.service.ts` | `patchChecklistItem` | `status_change` or `update` | six-field before/after (`status`, `confluence_url`, `approved_at`, `approved_by`, `na_reason`, `notes`) |
 
-Use `entity_type: 'risk'` / `'issue'` (existing convention) unless planner locks D-02 discretion to unified `'raid'`.
+Use `entity_type: 'risk'` / `'issue'` (existing convention) unless planner locks D-02 discretion to unified `'raid'`. Analog for project master: `lib/services/users.service.ts` create/update auditLog. Analog for checklist: existing `status_change` block in the same file.
 
 **Existing partial audit** (risks.service.ts lines 82-90) — keep due_date_change path; add general update audit when other fields change without duplicating the due_date row.
 
