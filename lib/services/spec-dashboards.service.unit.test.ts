@@ -12,6 +12,9 @@ const {
   listHighOpenRaid,
   listTechnologyCouncilIssues,
   auditLogFn,
+  listWeeklyPeriods,
+  listPeriodShellsRepo,
+  isWeeklyReportOverdue,
 } = vi.hoisted(() => ({
   assertCompanyWrite: vi.fn(),
   listProjects: vi.fn(),
@@ -22,6 +25,9 @@ const {
   listHighOpenRaid: vi.fn(),
   listTechnologyCouncilIssues: vi.fn(),
   auditLogFn: vi.fn(),
+  listWeeklyPeriods: vi.fn(),
+  listPeriodShellsRepo: vi.fn(),
+  isWeeklyReportOverdue: vi.fn(),
 }));
 
 vi.mock('@/lib/services/access', () => ({ assertCompanyWrite }));
@@ -37,6 +43,9 @@ vi.mock('@/lib/services/raid-masters.service', () => ({
   listTechnologyCouncilIssues,
 }));
 vi.mock('@/lib/services/audit.service', () => ({ auditLog: auditLogFn }));
+vi.mock('@/lib/repositories/weekly-periods.repo', () => ({ listWeeklyPeriods }));
+vi.mock('@/lib/repositories/weekly-reports.repo', () => ({ listPeriodShellsRepo }));
+vi.mock('./weekly-reports.service', () => ({ isWeeklyReportOverdue }));
 vi.mock('@/lib/export/dashboard-portfolio', () => ({
   generatePortfolioDashboardXlsx: vi.fn(async () => Buffer.from('xlsx')),
   generatePortfolioDashboardPdf: vi.fn(async () => Buffer.from('%PDF')),
@@ -54,6 +63,7 @@ import { ForbiddenError, ValidationError } from './errors';
 import {
   clearPortfolioDashboardFilters,
   exportPortfolioDashboard,
+  getPmDashboard,
   getPortfolioDashboard,
   savePortfolioDashboardFilters,
 } from './spec-dashboards.service';
@@ -66,6 +76,17 @@ const cpmoActor = {
   username: 'cpmo',
   display_name: 'CPMO',
   email: 'cpmo@acme.com',
+  status: 'active' as const,
+};
+
+const pmActor = {
+  company_id: 5 as number | null,
+  is_admin: 0 as number | boolean,
+  roles: ['pm'] as const,
+  user_id: 7,
+  username: 'pm',
+  display_name: 'Pat PM',
+  email: 'pm@acme.com',
   status: 'active' as const,
 };
 
@@ -125,12 +146,20 @@ beforeEach(() => {
   listHighOpenRaid.mockResolvedValue({ records: [], count: 0 });
   listTechnologyCouncilIssues.mockResolvedValue([]);
   auditLogFn.mockResolvedValue(undefined);
+  listWeeklyPeriods.mockResolvedValue([]);
+  listPeriodShellsRepo.mockResolvedValue([]);
+  isWeeklyReportOverdue.mockReturnValue(false);
 });
 
 describe('spec-dashboards.service source (D-01)', () => {
   it('does not import portfolio.service', () => {
     const src = readFileSync(resolve(__dirname, 'spec-dashboards.service.ts'), 'utf8');
     expect(src).not.toMatch(/portfolio\.service/);
+  });
+
+  it('does not import weekly-tracking.service (D-10)', () => {
+    const src = readFileSync(resolve(__dirname, 'spec-dashboards.service.ts'), 'utf8');
+    expect(src).not.toMatch(/weekly-tracking\.service/);
   });
 });
 
@@ -300,6 +329,130 @@ describe('clearPortfolioDashboardFilters', () => {
 
     expect(result.filters).toEqual({});
     expect(result.list).toHaveLength(3);
+  });
+});
+
+describe('getPmDashboard', () => {
+  it('calls listProjects with pmUserId actor.user_id (D-09, MDSH-01)', async () => {
+    listProjects.mockResolvedValue([mockProjects[0]]);
+
+    await getPmDashboard(pmActor);
+
+    expect(listProjects).toHaveBeenCalledWith(5, { pmUserId: 7 });
+  });
+
+  it('returns portfolio-shaped project list rows (D-09, MDSH-01)', async () => {
+    listProjects.mockResolvedValue([mockProjects[0]]);
+    getActivePrimaryAssignment.mockResolvedValue({ user_id: 7, display_name: 'Pat PM' });
+
+    const result = await getPmDashboard(pmActor);
+
+    expect(result.projects[0]).toMatchObject({
+      id: 10,
+      name: 'Alpha',
+      project_code: 'A-01',
+      pm_user_id: 7,
+      pm_name: 'Pat PM',
+    });
+    expect(result.filters).toEqual({});
+    expect(result.actions).toEqual({ weekly: [], milestones: [], raid: [] });
+    expect(getDashboardFilters).toHaveBeenCalledWith(7, 'pm');
+  });
+
+  it('maps not_submitted and draft shells to weekly actions with href (D-10, MDSH-02)', async () => {
+    listProjects.mockResolvedValue([{ ...mockProjects[0], id: 10 }]);
+    listWeeklyPeriods.mockResolvedValue([
+      {
+        id: 50,
+        company_id: 5,
+        iso_week: '2026-W34',
+        start_date: '2026-08-18',
+        end_date: '2026-08-24',
+        due_at: '2026-08-22T18:00:00.000Z',
+        display_name: '2026-W34',
+        config_snapshot: { due_weekday: 5, due_time_utc: '18:00:00', obligation_rule_version: 1 },
+        created_by: 1,
+        created_at: '2026-08-18T00:00:00Z',
+      },
+    ]);
+    listPeriodShellsRepo.mockResolvedValue([
+      {
+        project_id: 10,
+        status: 'not_submitted',
+        due_at: '2026-08-22T18:00:00.000Z',
+        report_id: 100,
+        first_submitted_at: null,
+        first_lateness: null,
+        latest_version: 0,
+        rag: null,
+        name: 'Alpha',
+        project_code: 'A-01',
+        stage: 'L2',
+        pm_user_id: 7,
+        pm_display_name: 'Pat PM',
+      },
+      {
+        project_id: 10,
+        status: 'draft',
+        due_at: '2026-08-22T18:00:00.000Z',
+        report_id: 101,
+        first_submitted_at: null,
+        first_lateness: null,
+        latest_version: 1,
+        rag: 'Green',
+        name: 'Alpha',
+        project_code: 'A-01',
+        stage: 'L2',
+        pm_user_id: 7,
+        pm_display_name: 'Pat PM',
+      },
+      {
+        project_id: 10,
+        status: 'submitted',
+        due_at: '2026-08-22T18:00:00.000Z',
+        report_id: 102,
+        first_submitted_at: '2026-08-21T10:00:00Z',
+        first_lateness: null,
+        latest_version: 1,
+        rag: 'Green',
+        name: 'Alpha',
+        project_code: 'A-01',
+        stage: 'L2',
+        pm_user_id: 7,
+        pm_display_name: 'Pat PM',
+      },
+    ]);
+    isWeeklyReportOverdue.mockImplementation((status, _dueAt, _now) => status === 'not_submitted');
+
+    const result = await getPmDashboard(pmActor);
+
+    expect(result.actions.weekly).toHaveLength(2);
+    expect(result.actions.weekly[0]).toMatchObject({
+      project_id: 10,
+      report_id: 100,
+      period_id: 50,
+      period_display_name: '2026-W34',
+      status: 'not_submitted',
+      href: '/projects/10/weekly-reports/100',
+      overdue: true,
+    });
+    expect(result.actions.weekly[1]).toMatchObject({
+      report_id: 101,
+      href: '/projects/10/weekly-reports/101',
+      overdue: false,
+    });
+  });
+
+  it('throws ForbiddenError for viewer (D-09, D-12)', async () => {
+    const viewer = { ...pmActor, roles: ['viewer'] as const };
+    await expect(getPmDashboard(viewer)).rejects.toBeInstanceOf(ForbiddenError);
+    expect(listProjects).not.toHaveBeenCalled();
+  });
+
+  it('throws ForbiddenError when company_id is null (D-09, D-12)', async () => {
+    const nullCompany = { ...cpmoActor, company_id: null };
+    await expect(getPmDashboard(nullCompany)).rejects.toBeInstanceOf(ForbiddenError);
+    expect(listProjects).not.toHaveBeenCalled();
   });
 });
 
