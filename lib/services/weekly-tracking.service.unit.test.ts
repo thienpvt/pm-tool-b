@@ -5,11 +5,13 @@ const {
   getWeeklyPeriodByCompanyRepo,
   listPeriodShellsRepo,
   listTechnologyCouncilIssuesRepo,
+  getLatestVersionSnapshotRepo,
 } = vi.hoisted(() => ({
   assertCompanyWrite: vi.fn(),
   getWeeklyPeriodByCompanyRepo: vi.fn(),
   listPeriodShellsRepo: vi.fn(),
   listTechnologyCouncilIssuesRepo: vi.fn(),
+  getLatestVersionSnapshotRepo: vi.fn(),
 }));
 
 vi.mock('./access', () => ({
@@ -18,13 +20,18 @@ vi.mock('./access', () => ({
 vi.mock('@/lib/repositories/weekly-reports.repo', () => ({
   getWeeklyPeriodByCompany: getWeeklyPeriodByCompanyRepo,
   listPeriodShellsRepo,
+  getLatestVersionSnapshot: getLatestVersionSnapshotRepo,
 }));
 vi.mock('@/lib/repositories/issues.repo', () => ({
   listTechnologyCouncilIssues: listTechnologyCouncilIssuesRepo,
 }));
 
-import { getPeriodTracking } from './weekly-tracking.service';
-import { ForbiddenError, NotFoundError } from './errors';
+import {
+  assertExportEligible,
+  getPeriodTracking,
+  previewConsolidatedExport,
+} from './weekly-tracking.service';
+import { ForbiddenError, NotFoundError, SubmitValidationError } from './errors';
 import type { AccessActor } from './access';
 
 const cpmoActor: AccessActor = {
@@ -271,5 +278,130 @@ describe('getPeriodTracking filters (D-04, D-05, CPMO-02)', () => {
     expect(result.rows[0].project_id).toBe(102);
     expect(result.rows[0].has_technology_council_issues).toBe(true);
     expect(result.counts.obligated).toBe(3);
+  });
+});
+
+const submittedShell = {
+  project_id: 100,
+  status: 'submitted',
+  first_submitted_at: '2026-01-02T10:00:00.000Z',
+  first_lateness: 'on_time',
+  latest_version: 1,
+  report_id: 10,
+  due_at: '2020-01-01T00:00:00.000Z',
+  rag: 'Green',
+  name: 'Alpha',
+  project_code: 'A-001',
+  stage: 'L3',
+  pm_user_id: 7,
+  pm_display_name: 'Primary PM',
+};
+
+function shellMap(rows: typeof submittedShell[]) {
+  return new Map(rows.map((row) => [row.project_id, row]));
+}
+
+describe('assertExportEligible (D-06, D-14)', () => {
+  it('throws SubmitValidationError naming draft ids in request order', () => {
+    const map = shellMap([
+      submittedShell,
+      {
+        ...submittedShell,
+        project_id: 101,
+        report_id: 11,
+        status: 'draft',
+        latest_version: 0,
+      },
+    ]);
+
+    expect(() => assertExportEligible(map, [100, 101])).toThrow(SubmitValidationError);
+    try {
+      assertExportEligible(map, [100, 101]);
+    } catch (e) {
+      expect(e).toBeInstanceOf(SubmitValidationError);
+      expect((e as SubmitValidationError).fields).toEqual(['101']);
+      expect((e as SubmitValidationError).message).toBe('Projects not eligible for export');
+    }
+  });
+
+  it('throws SubmitValidationError for not_submitted and latest_version 0', () => {
+    const map = shellMap([
+      {
+        ...submittedShell,
+        project_id: 102,
+        status: 'not_submitted',
+        latest_version: 0,
+      },
+      {
+        ...submittedShell,
+        project_id: 103,
+        report_id: 13,
+        latest_version: 0,
+      },
+    ]);
+
+    try {
+      assertExportEligible(map, [102, 103]);
+    } catch (e) {
+      expect((e as SubmitValidationError).fields).toEqual(['102', '103']);
+    }
+  });
+
+  it('throws SubmitValidationError for ids absent from period shells', () => {
+    const map = shellMap([submittedShell]);
+
+    try {
+      assertExportEligible(map, [100, 999]);
+    } catch (e) {
+      expect((e as SubmitValidationError).fields).toEqual(['999']);
+    }
+  });
+});
+
+describe('previewConsolidatedExport eligibility (D-06, D-11, D-14)', () => {
+  beforeEach(() => {
+    getWeeklyPeriodByCompanyRepo.mockResolvedValue(basePeriod);
+    listPeriodShellsRepo.mockResolvedValue([submittedShell]);
+    getLatestVersionSnapshotRepo.mockResolvedValue({});
+  });
+
+  it('does not read shells when assertCompanyWrite rejects (D-11)', async () => {
+    assertCompanyWrite.mockImplementation(() => {
+      throw new ForbiddenError();
+    });
+
+    await expect(previewConsolidatedExport(5, 1, pmActor, [100])).rejects.toBeInstanceOf(
+      ForbiddenError,
+    );
+    expect(listPeriodShellsRepo).not.toHaveBeenCalled();
+    expect(getLatestVersionSnapshotRepo).not.toHaveBeenCalled();
+  });
+
+  it('throws NotFoundError for unknown period (D-14)', async () => {
+    getWeeklyPeriodByCompanyRepo.mockResolvedValue(undefined);
+
+    await expect(previewConsolidatedExport(5, 99, cpmoActor, [100])).rejects.toBeInstanceOf(
+      NotFoundError,
+    );
+    expect(listPeriodShellsRepo).not.toHaveBeenCalled();
+    expect(getLatestVersionSnapshotRepo).not.toHaveBeenCalled();
+  });
+
+  it('throws SubmitValidationError for ineligible project ids (D-06)', async () => {
+    listPeriodShellsRepo.mockResolvedValue([
+      submittedShell,
+      {
+        ...submittedShell,
+        project_id: 101,
+        report_id: 11,
+        status: 'draft',
+        latest_version: 0,
+      },
+    ]);
+
+    await expect(previewConsolidatedExport(5, 1, cpmoActor, [100, 101])).rejects.toBeInstanceOf(
+      SubmitValidationError,
+    );
+    expect(getLatestVersionSnapshotRepo).not.toHaveBeenCalled();
   });
 });
