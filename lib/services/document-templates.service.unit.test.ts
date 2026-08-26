@@ -8,6 +8,7 @@ const {
   getDocumentTemplate,
   listEffectiveTemplatesRepo,
   retireTemplateById,
+  getMaxVersion,
   auditLog,
 } = vi.hoisted(() => ({
   assertCompanyWrite: vi.fn(),
@@ -17,6 +18,7 @@ const {
   getDocumentTemplate: vi.fn(),
   listEffectiveTemplatesRepo: vi.fn(),
   retireTemplateById: vi.fn(),
+  getMaxVersion: vi.fn(),
   auditLog: vi.fn(),
 }));
 
@@ -35,6 +37,7 @@ vi.mock('@/lib/repositories/document-templates.repo', () => ({
   getDocumentTemplate,
   listEffectiveTemplates: listEffectiveTemplatesRepo,
   retireTemplateById,
+  getMaxVersion,
 }));
 
 vi.mock('./audit.service', () => ({ auditLog }));
@@ -68,6 +71,7 @@ describe('createTemplateVersion (D-05, D-14)', () => {
     assertCompanyWrite.mockImplementation(() => undefined);
     getDocumentCatalog.mockResolvedValue({ id: 1, company_id: 5, name: 'Charter' });
     retireCurrentTemplate.mockResolvedValue(undefined);
+    getMaxVersion.mockResolvedValue(1);
     auditLog.mockResolvedValue(undefined);
   });
 
