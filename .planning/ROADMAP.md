@@ -36,7 +36,7 @@ Audit: [.planning/milestones/v1.0-MILESTONE-AUDIT.md](milestones/v1.0-MILESTONE-
 - [x] **Phase 11: Project Master, PM Assignment & Stakeholders** - L0–L5 master data, assignment windows, stakeholder records (completed 2026-08-26)
 - [x] **Phase 12: Milestone & RAID Master Registers** - Upcoming/overdue masters with soft-delete and Viewer read-only (completed 2026-08-26)
 - [x] **Phase 13: Weekly Periods & PM Submit** - CPMO periods, versioned submit, RAID/milestone snapshots (completed 2026-08-26)
-- [ ] **Phase 14: CPMO Tracking & Consolidated Export** - Submission grid, lateness, snapshot-based pack export
+- [x] **Phase 14: CPMO Tracking & Consolidated Export** - Submission grid, lateness, snapshot-based pack export (completed 2026-08-26)
 - [ ] **Phase 15: Budget, Value, ROI & Dependencies** - Fiscal budget ledger, honest ROI, cross-project links
 - [ ] **Phase 16: Portfolio & PM Dashboards** - Spec KPIs, drill-down filters, PM action queues
 - [ ] **Phase 17: Document Templates & Confluence Checklist** - Catalog, templates, Confluence links — no binary upload
@@ -215,7 +215,7 @@ Plans:
   3. CPMO can tick-select projects, preview consolidation, reorder projects, and export an editable consolidated pack (Excel/Word/PPT as already supported)
   4. Export records period, data version, and who exported; project sections include identity, PM, stage, prior/current RAG, progress, highlights, next-week goals, nearest milestone, RAID, and technology issues
 
-**Plans:** 3/3 plans executed
+**Plans:** 3/3 plans complete
 
 Plans:
 **Wave 1**
@@ -312,7 +312,7 @@ Phases execute in numeric order: 9 → 10 → 11 → 12 → 13 → 14 → 15 →
 | 11. Project Master, PM Assignment & Stakeholders | v2.0 | 5/5 | Complete    | 2026-08-26 |
 | 12. Milestone & RAID Master Registers | v2.0 | 3/3 | Complete    | 2026-08-26 |
 | 13. Weekly Periods & PM Submit | v2.0 | 3/3 | Complete    | 2026-08-26 |
-| 14. CPMO Tracking & Consolidated Export | v2.0 | 3/3 | In Progress|  |
+| 14. CPMO Tracking & Consolidated Export | v2.0 | 3/3 | Complete    | 2026-08-26 |
 | 15. Budget, Value, ROI & Dependencies | v2.0 | 0/? | Not started | - |
 | 16. Portfolio & PM Dashboards | v2.0 | 0/? | Not started | - |
 | 17. Document Templates & Confluence Checklist | v2.0 | 0/? | Not started | - |

@@ -2,17 +2,17 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Portfolio One View
-current_phase: 14
-current_phase_name: CPMO Tracking & Consolidated Export
-status: executing
-stopped_at: Completed 14-03-PLAN.md
-last_updated: "2026-08-26T00:26:00.097Z"
+current_phase: 15
+current_phase_name: Budget, Value, ROI & Dependencies
+status: planning
+stopped_at: Phase 14 complete, ready to plan Phase 15
+last_updated: "2026-08-26T00:31:09.410Z"
 last_activity: 2026-08-26
-last_activity_desc: Phase 13 complete, transitioned to Phase 14
-state_head: 96de6942f128112a3de9bb87e0c7ca5f95557cec
+last_activity_desc: Phase 14 complete, transitioned to Phase 15
+state_head: 2f5c62e61e527e50c723a3075bbe6367136d7130
 progress:
   total_phases: 10
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 28
   completed_plans: 28
 ---
@@ -28,10 +28,10 @@ See: .planning/PROJECT.md (updated 2026-08-25)
 
 ## Current Position
 
-Phase: 14 (CPMO Tracking & Consolidated Export) — READY TO EXECUTE
+Phase: 15 — Budget, Value, ROI & Dependencies
 Plan: Not started
-Status: Ready to execute
-Last activity: 2026-08-26 — Phase 13 complete, transitioned to Phase 14
+Status: Ready to plan
+Last activity: 2026-08-26 — Phase 14 complete, transitioned to Phase 15
 
 Progress: [█░░░░░░░░░] 10%
 
@@ -162,5 +162,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-08-26T00:25:59.616Z
-Stopped at: Completed 14-03-PLAN.md
+Stopped at: Phase 14 complete, ready to plan Phase 15
 Resume file: None

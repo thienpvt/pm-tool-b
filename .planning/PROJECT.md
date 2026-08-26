@@ -54,6 +54,7 @@ One source of truth for projects, milestones, RAID, and weekly reports — role-
 - ✓ RAID-01, RAID-04..06 — RAID master: unique codes, deactivate-in-place, due-date history, High-open record counts, tech-council list — Phase 12
 - ✓ PR-10 / PERD-01..03 — CPMO weekly periods, frozen due/config snapshot, overdue computed, obligated shells only — Phase 13
 - ✓ PR-11 / WKRP-01..06, MS-04, RAID-02..03 — PM draft/submit/correct with versioned snapshots; RAID writes on submit only; progress_pct copy-never-write-back — Phase 13
+- ✓ PR-12 / CPMO-01..04 — Period tracking counts/filters and snapshot-only consolidated xlsx/docx/pptx export — Phase 14
 
 Remainder (ops/admin/config routes still repo-direct, proxy HTML-307 for API callers) is accepted v1.0 tech debt — see `.planning/milestones/v1.0-MILESTONE-AUDIT.md`. D-23 leftover: `app/api/operations/**` and platform `/api/admin/companies` stay session+tenant this milestone until later phases.
 
@@ -67,7 +68,7 @@ Remainder (ops/admin/config routes still repo-direct, proxy HTML-307 for API cal
 - [ ] PR-09 Risk & Issue register weekly snapshots shipped Phase 13; dashboard refresh in Phase 16
 - [x] PR-10 CPMO weekly-report period configuration
 - [x] PR-11 PM draft/submit weekly report with versioned snapshots
-- [ ] PR-12 CPMO submission tracking, consolidate, and export
+- [x] PR-12 CPMO submission tracking, consolidate, and export
 - [ ] PR-13 Portfolio dashboard (active count, RAG, stage, high RAID, overdue milestones, drill-down)
 - [ ] PR-14 PM personal dashboard (assigned projects + weekly/milestone/RAID actions)
 - [ ] PR-15 Project documents: CPMO templates + Confluence checklist (PM does not upload files)
@@ -88,11 +89,11 @@ Remainder (ops/admin/config routes still repo-direct, proxy HTML-307 for API cal
 
 **Shipped:** v1.0 Layer Reorg & Hardening (2026-08-25) — 8 phases, 35 plans. Archive: `.planning/milestones/`.
 
-**Now:** v2.0 Portfolio One View — Phases 9–13 shipped. Next is Phase 14: CPMO tracking and consolidated export.
+**Now:** v2.0 Portfolio One View — Phases 9–14 shipped. Next is Phase 15: budget, value, ROI, and dependencies.
 
 The brownfield mess listed at kickoff is largely gone on the project-scoped path: tests exist (Vitest, 1019 passing), SQL lives in repositories, Jira/Anthropic/Resend go through clients + one credential resolver, services own tenant checks, wrappers enforce access, and the seven named god pages are decomposed.
 
-Existing project/RAID/budget/report/dashboard screens now enforce CPMO/PM/Viewer on the server. Weekly periods and versioned PM submit shipped in Phase 13. Remaining gaps: CPMO tracking/export, budget/ROI/dependencies, dashboards, and the Confluence document checklist.
+Existing project/RAID/budget/report/dashboard screens now enforce CPMO/PM/Viewer on the server. Weekly periods, PM submit, and CPMO tracking/export shipped in Phases 13–14. Remaining gaps: budget/ROI/dependencies, dashboards, and the Confluence document checklist.
 
 ## Next Milestone Goals
 
