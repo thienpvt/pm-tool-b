@@ -527,17 +527,11 @@ export async function saveDashboardFilters(
 | A4 | Server-side `jspdf` PDF layout is sufficient for PDSH-06 (no html-to-image server pipeline) | Export | PDF may be simpler than client portfolio report PDF |
 | A5 | `listWeeklyPeriods` + date containment resolves "current period" per D-10 | PM weekly | Edge case if no periods exist → empty weekly actions |
 
-## Open Questions (for planner)
+## Open Questions (RESOLVED)
 
-1. **PM weekly href exact string** — `/projects/{id}/documents` vs `/projects/{id}/weekly-reports/{reportId}`?
-   - What we know: Phase 13 API is `/api/projects/[id]/weekly-reports/[reportId]`; no dedicated UI page in `app/projects/**`.
-   - Recommendation: JSON `href: /projects/{projectId}/weekly-reports/{reportId}` for API-aligned future UI; document in PLAN.
-
-2. **Overdue-milestone drill-down shape** — per milestone vs per project?
-   - Recommendation: Per overdue milestone rows + separate `overdue_milestone_project_count` KPI [Claude's discretion].
-
-3. **Export PDF content density** — full drill-down tables vs summary-only?
-   - Recommendation: KPI summary + filtered project list + sheet/section per drill-down type (mirror xlsx structure).
+1. **PM weekly href exact string** — RESOLVED: `/projects/{projectId}/weekly-reports/{reportId}` (16-03 planner lock; JSON string only, no new page — D-13).
+2. **Overdue-milestone drill-down shape** — RESOLVED: one row per overdue milestone in `drilldowns.overdue_milestones` plus `kpis.overdue_milestone_project_count` as distinct `project_id` (16-01).
+3. **Export PDF content density** — RESOLVED: jspdf KPI block + project table + drill-down id lists; xlsx sheets KPIs, Projects, Overdue Milestones, High RAID, Technology Council (16-02).
 
 ## Environment Availability
 
