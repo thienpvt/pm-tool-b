@@ -6,6 +6,7 @@ import {
   listProjects as listProjectsRepo,
   updateProject as updateProjectRepo,
 } from '@/lib/repositories/projects.repo';
+import { listChecklistByProject } from '@/lib/repositories/project-document-checklist.repo';
 import { getProgram } from '@/lib/repositories/programs.repo';
 import {
   assertProjectAccess,
@@ -15,7 +16,14 @@ import {
   type AccessActor,
 } from './access';
 import { auditLog } from './audit.service';
-import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors';
+import { generateProjectChecklist } from './document-checklist-generate';
+import {
+  ConflictError,
+  ForbiddenError,
+  MandatoryIncompleteError,
+  NotFoundError,
+  ValidationError,
+} from './errors';
 import { applyProjectGovernance } from './project-governance';
 
 /**
@@ -84,6 +92,10 @@ export async function createProject(actor: AccessActor, body: Record<string, unk
   });
 
   const row = await createProjectRepo(actor.company_id, fields);
+  await generateProjectChecklist(Number(row.id), {
+    companyId: actor.company_id,
+    stage: (row.stage as string | null) ?? null,
+  });
   return { ...row, warnings };
 }
 
@@ -104,7 +116,9 @@ export async function updateProject(
   const current = await getProjectRepo(projectId);
   if (!current) throw new NotFoundError('Not found', 'project');
 
+  const ack = fields.acknowledge_incomplete_mandatory === true;
   const clone = { ...fields };
+  delete clone.acknowledge_incomplete_mandatory;
 
   if (!isCpmo(actor)) {
     delete clone.project_code;
@@ -142,6 +156,33 @@ export async function updateProject(
     status_reason: current.status_reason as string | null | undefined,
   });
 
+  let stageChanged = false;
+  if (
+    typeof governed.stage === 'string' &&
+    String(governed.stage) !== String(current.stage ?? '')
+  ) {
+    const rows = await listChecklistByProject(Number(projectId));
+    const currentStage = String(current.stage ?? '');
+    const incomplete = rows.filter(
+      (row) =>
+        row.catalog_mandatory &&
+        row.catalog_stage === currentStage &&
+        row.status !== 'approved' &&
+        row.status !== 'not_applicable',
+    );
+    if (incomplete.length > 0 && !ack) {
+      throw new MandatoryIncompleteError(
+        incomplete.map((row) => ({
+          checklist_id: row.id,
+          catalog_id: row.catalog_id,
+          name: row.catalog_name,
+          status: row.status,
+        })),
+      );
+    }
+    stageChanged = true;
+  }
+
   if (
     isCpmo(actor) &&
     governed.project_code !== undefined &&
@@ -159,6 +200,26 @@ export async function updateProject(
   }
 
   const row = await updateProjectRepo(projectId, governed);
+
+  if (stageChanged) {
+    await generateProjectChecklist(Number(projectId), {
+      companyId: actor.company_id ?? Number(current.company_id),
+      stage: String(governed.stage),
+    });
+  }
+
+  if (stageChanged && ack) {
+    await auditLog({
+      actor_id: actor.user_id,
+      company_id: actor.company_id,
+      entity_type: 'project',
+      entity_id: String(projectId),
+      action: 'stage_change_ack',
+      before: { stage: current.stage },
+      after: { stage: governed.stage },
+    });
+  }
+
   return { ...row, warnings };
 }
 
