@@ -106,6 +106,40 @@ describe('risks.service', () => {
         ConflictError,
       );
       expect(createRiskRepo).not.toHaveBeenCalled();
+      expect(auditLog).not.toHaveBeenCalled();
+    });
+
+    it('calls auditLog action create after successful insert (D-02, D-03)', async () => {
+      const created = {
+        id: 2,
+        code: 'R-001',
+        description: 'x',
+        status: 'Open',
+        priority: 'Medium',
+        due_date: '2026-03-01',
+        owner: 'Ava',
+      };
+      createRiskRepo.mockResolvedValue(created);
+
+      await createRisk(7, owner, { description: 'x' });
+
+      expect(auditLog).toHaveBeenCalledWith({
+        actor_id: owner.user_id,
+        company_id: owner.company_id,
+        entity_type: 'risk',
+        entity_id: '2',
+        action: 'create',
+        before: null,
+        after: {
+          id: 2,
+          code: 'R-001',
+          description: 'x',
+          status: 'Open',
+          priority: 'Medium',
+          due_date: '2026-03-01',
+          owner: 'Ava',
+        },
+      });
     });
 
     it('maps SQLSTATE 23505 from the repository to ConflictError', async () => {
@@ -117,6 +151,7 @@ describe('risks.service', () => {
       assertProjectWriteAccess.mockRejectedValue(new ForbiddenError());
       await expect(createRisk(7, foreign, {})).rejects.toBeInstanceOf(ForbiddenError);
       expect(createRiskRepo).not.toHaveBeenCalled();
+      expect(auditLog).not.toHaveBeenCalled();
     });
   });
 
@@ -149,8 +184,24 @@ describe('risks.service', () => {
     });
 
     it('appends due-date history and auditLog when due_date changes', async () => {
-      getRiskRepo.mockResolvedValue({ id: 3, due_date: '2026-01-01' });
-      updateRiskRepo.mockResolvedValue({ id: 3, due_date: '2026-02-01' });
+      getRiskRepo.mockResolvedValue({
+        id: 3,
+        code: 'R-003',
+        description: 'd',
+        status: 'Open',
+        priority: 'Medium',
+        due_date: '2026-01-01',
+        owner: 'Ava',
+      });
+      updateRiskRepo.mockResolvedValue({
+        id: 3,
+        code: 'R-003',
+        description: 'd',
+        status: 'Open',
+        priority: 'Medium',
+        due_date: '2026-02-01',
+        owner: 'Ava',
+      });
 
       await updateRisk(7, owner, 3, { due_date: '2026-02-01' });
 
@@ -170,6 +221,51 @@ describe('risks.service', () => {
         before: { due_date: '2026-01-01' },
         after: { due_date: '2026-02-01' },
       });
+      expect(auditLog).not.toHaveBeenCalledWith(expect.objectContaining({ action: 'update' }));
+    });
+
+    it('calls auditLog action update for status-only field changes (D-02)', async () => {
+      const prior = {
+        id: 3,
+        code: 'R-003',
+        description: 'd',
+        status: 'Open',
+        priority: 'Medium',
+        due_date: '2026-01-01',
+        owner: 'Ava',
+      };
+      const updated = { ...prior, status: 'Closed' };
+      getRiskRepo.mockResolvedValue(prior);
+      updateRiskRepo.mockResolvedValue(updated);
+
+      await updateRisk(7, owner, 3, { status: 'Closed' });
+
+      expect(getRiskRepo).toHaveBeenCalledWith(7, 3);
+      expect(auditLog).toHaveBeenCalledWith({
+        actor_id: owner.user_id,
+        company_id: owner.company_id,
+        entity_type: 'risk',
+        entity_id: '3',
+        action: 'update',
+        before: {
+          id: 3,
+          code: 'R-003',
+          description: 'd',
+          status: 'Open',
+          priority: 'Medium',
+          due_date: '2026-01-01',
+          owner: 'Ava',
+        },
+        after: {
+          id: 3,
+          code: 'R-003',
+          description: 'd',
+          status: 'Closed',
+          priority: 'Medium',
+          due_date: '2026-01-01',
+          owner: 'Ava',
+        },
+      });
     });
 
     it('does not append due-date history when due_date is unchanged', async () => {
@@ -183,18 +279,31 @@ describe('risks.service', () => {
     });
 
     it('does not append due-date history when due_date is omitted', async () => {
-      updateRiskRepo.mockResolvedValue({ id: 3, status: 'Closed' });
+      const prior = {
+        id: 3,
+        code: 'R-003',
+        description: 'd',
+        status: 'Open',
+        priority: 'Medium',
+        due_date: '2026-01-01',
+        owner: 'Ava',
+      };
+      getRiskRepo.mockResolvedValue(prior);
+      updateRiskRepo.mockResolvedValue({ ...prior, status: 'Closed' });
 
       await updateRisk(7, owner, 3, { status: 'Closed' });
 
-      expect(getRiskRepo).not.toHaveBeenCalled();
+      expect(getRiskRepo).toHaveBeenCalledWith(7, 3);
       expect(appendDueDateHistory).not.toHaveBeenCalled();
+      expect(auditLog).not.toHaveBeenCalledWith(expect.objectContaining({ action: 'due_date_change' }));
+      expect(auditLog).toHaveBeenCalledWith(expect.objectContaining({ action: 'update' }));
     });
 
     it('does not append history when write access is denied', async () => {
       assertProjectWriteAccess.mockRejectedValue(new ForbiddenError());
       await expect(updateRisk(7, foreign, 3, { due_date: '2026-02-01' })).rejects.toBeInstanceOf(ForbiddenError);
       expect(appendDueDateHistory).not.toHaveBeenCalled();
+      expect(auditLog).not.toHaveBeenCalled();
     });
   });
 
