@@ -1,5 +1,11 @@
-import { applyDashboardFilters, parseDashboardFilters } from '@/lib/dashboards/filters';
+import { applyDashboardFilters, parseDashboardFilters, type DashboardFilters } from '@/lib/dashboards/filters';
 import { computePortfolioCharts, computePortfolioKpis } from '@/lib/dashboards/kpi';
+import {
+  generatePortfolioDashboardPdf,
+  generatePortfolioDashboardXlsx,
+  PORTFOLIO_EXPORT_CONTENT_TYPE,
+  PORTFOLIO_EXPORT_FILENAME,
+} from '@/lib/export/dashboard-portfolio';
 import { getActivePrimaryAssignment } from '@/lib/repositories/pm-assignments.repo';
 import {
   getDashboardFilters,
@@ -12,6 +18,7 @@ import {
   listTechnologyCouncilIssues,
 } from '@/lib/services/raid-masters.service';
 import { assertCompanyWrite, type AccessActor } from './access';
+import { auditLog } from './audit.service';
 
 export type PortfolioDashboardListRow = {
   id: number;
@@ -30,12 +37,7 @@ export type PortfolioDashboardListRow = {
   pm_name: string | null;
 };
 
-export async function getPortfolioDashboard(actor: AccessActor) {
-  assertCompanyWrite(actor);
-
-  const stored = await getDashboardFilters(actor.user_id, 'portfolio');
-  const filters = parseDashboardFilters(stored.filters);
-
+async function buildPortfolioDashboard(actor: AccessActor, filters: DashboardFilters) {
   const rawProjects = await listProjects(actor.company_id!);
   const enriched: PortfolioDashboardListRow[] = [];
   for (const p of rawProjects as Record<string, unknown>[]) {
@@ -93,6 +95,15 @@ export async function getPortfolioDashboard(actor: AccessActor) {
   };
 }
 
+export async function getPortfolioDashboard(actor: AccessActor) {
+  assertCompanyWrite(actor);
+
+  const stored = await getDashboardFilters(actor.user_id, 'portfolio');
+  const filters = parseDashboardFilters(stored.filters);
+
+  return buildPortfolioDashboard(actor, filters);
+}
+
 export async function getPortfolioDashboardFilters(actor: AccessActor) {
   assertCompanyWrite(actor);
   return getDashboardFilters(actor.user_id, 'portfolio');
@@ -110,4 +121,44 @@ export async function savePortfolioDashboardFilters(
 export async function clearPortfolioDashboardFilters(actor: AccessActor) {
   assertCompanyWrite(actor);
   await upsertDashboardFilters(actor.user_id, 'portfolio', {});
+}
+
+export type PortfolioExportBody = {
+  format: 'xlsx' | 'pdf';
+  filters?: Record<string, unknown>;
+};
+
+export async function exportPortfolioDashboard(actor: AccessActor, body: PortfolioExportBody) {
+  assertCompanyWrite(actor);
+
+  let applied: DashboardFilters;
+  if (body.filters !== undefined) {
+    applied = parseDashboardFilters(body.filters);
+  } else {
+    const stored = await getDashboardFilters(actor.user_id, 'portfolio');
+    applied = parseDashboardFilters(stored.filters);
+  }
+
+  const payload = await buildPortfolioDashboard(actor, applied);
+
+  const buffer =
+    body.format === 'xlsx'
+      ? await generatePortfolioDashboardXlsx(payload)
+      : await generatePortfolioDashboardPdf(payload);
+
+  await auditLog({
+    actor_id: actor.user_id,
+    company_id: actor.company_id,
+    entity_type: 'dashboard',
+    entity_id: 'portfolio',
+    action: 'dashboard_export',
+    before: null,
+    after: { format: body.format, filters: applied },
+  });
+
+  return {
+    buffer,
+    contentType: PORTFOLIO_EXPORT_CONTENT_TYPE[body.format],
+    filename: PORTFOLIO_EXPORT_FILENAME[body.format],
+  };
 }

@@ -40,6 +40,14 @@ vi.mock('@/lib/services/audit.service', () => ({ auditLog: auditLogFn }));
 vi.mock('@/lib/export/dashboard-portfolio', () => ({
   generatePortfolioDashboardXlsx: vi.fn(async () => Buffer.from('xlsx')),
   generatePortfolioDashboardPdf: vi.fn(async () => Buffer.from('%PDF')),
+  PORTFOLIO_EXPORT_CONTENT_TYPE: {
+    xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    pdf: 'application/pdf',
+  },
+  PORTFOLIO_EXPORT_FILENAME: {
+    xlsx: 'portfolio-dashboard.xlsx',
+    pdf: 'portfolio-dashboard.pdf',
+  },
 }));
 
 import { ForbiddenError, ValidationError } from './errors';
