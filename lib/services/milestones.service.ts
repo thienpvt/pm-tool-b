@@ -12,6 +12,18 @@ import { assertProjectAccess, assertProjectWriteAccess, type AccessActor } from 
 import { auditLog } from './audit.service';
 import { NotFoundError } from './errors';
 
+function auditSnapshot(row: Record<string, unknown> | null | undefined) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    name: row.name,
+    status: row.status,
+    start_date: row.start_date,
+    end_date: row.end_date,
+    plan_end: row.plan_end,
+  };
+}
+
 export async function listMilestones(projectId: number | string, actor: AccessActor) {
   await assertProjectAccess(projectId, actor);
   return listMilestonesRepo(projectId);
@@ -23,7 +35,17 @@ export async function createMilestone(
   body: Record<string, unknown>,
 ) {
   await assertProjectWriteAccess(projectId, actor);
-  return createMilestoneRepo(projectId, body);
+  const created = await createMilestoneRepo(projectId, body);
+  await auditLog({
+    actor_id: actor.user_id,
+    company_id: actor.company_id,
+    entity_type: 'milestone',
+    entity_id: String(created.id),
+    action: 'create',
+    before: null,
+    after: auditSnapshot(created),
+  });
+  return created;
 }
 
 /**
@@ -37,8 +59,18 @@ export async function updateMilestone(
   body: Record<string, unknown>,
 ) {
   await assertProjectWriteAccess(projectId, actor);
+  const prior = await getMilestoneRepo(projectId, milestoneId);
   const updated = await updateMilestoneRepo(projectId, milestoneId, body);
   if (!updated) throw new NotFoundError('Not found', 'milestone');
+  await auditLog({
+    actor_id: actor.user_id,
+    company_id: actor.company_id,
+    entity_type: 'milestone',
+    entity_id: String(milestoneId),
+    action: 'update',
+    before: auditSnapshot(prior),
+    after: auditSnapshot(updated),
+  });
   return updated;
 }
 
