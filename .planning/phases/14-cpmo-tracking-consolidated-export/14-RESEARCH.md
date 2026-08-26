@@ -440,18 +440,13 @@ const pmDisplayName = primary
 
 **If A2 wrong:** Export still legal per D-02 — tech section empty when snapshot lacks flag; no live backfill.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Bulk PM join vs per-project loop**
-   - What we know: `getActivePrimaryAssignment` is single-project [VERIFIED: lib/repositories/pm-assignments.repo.ts:47-55].
-   - Recommendation: Add one repo query joining `project_pm_assignments` + `users` for all obligated project_ids in period.
+1. **Bulk PM join vs per-project loop** — RESOLVED: `listPeriodShellsRepo` left-joins active primary `project_pm_assignments` + `users.display_name` for all obligated project_ids (same `effective_from` / `effective_to` window as `getActivePrimaryAssignment`). Locked in 14-01 interfaces.
 
-2. **Extend `weekly-reports.service.ts` vs new `weekly-tracking.service.ts`**
-   - What we know: Phase 13 service already exports `listPeriodShells`.
-   - Recommendation: New tracking/export service file to keep Phase 13 surface stable; re-export `getPeriodTracking` for Phase 16.
+2. **Extend `weekly-reports.service.ts` vs new `weekly-tracking.service.ts`** — RESOLVED: new `lib/services/weekly-tracking.service.ts`; export `getPeriodTracking` for Phase 16. Do not bloat Phase 13 `weekly-reports.service.ts` with tracking/export orchestration. Locked in 14-01.
 
-3. **Sheet naming / Word heading hierarchy**
-   - Planner discretion (D-12). Default: summary sheet `Portfolio Summary`, per-project sheets sanitized `project_code`.
+3. **Sheet naming / Word heading hierarchy** — RESOLVED: xlsx summary sheet `Portfolio Summary`, per-project sheets sanitized `project_code` (Excel 31-char unique); Word Heading 1 = `period.display_name`, Heading 2 per project covering every D-08 field. Locked in 14-03 discretion.
 
 ## Environment Availability
 
