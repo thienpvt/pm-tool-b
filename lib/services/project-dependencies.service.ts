@@ -7,6 +7,7 @@ import {
   type DependencyType,
   type ProjectDependencyRow,
 } from '@/lib/repositories/project-dependencies.repo';
+import { parseIsoDate } from '@/lib/fiscal/iso-date';
 import { assertProjectAccess, assertProjectWriteAccess, type AccessActor } from './access';
 import { auditLog } from './audit.service';
 import { ConflictError, NotFoundError, ValidationError } from './errors';
@@ -38,13 +39,6 @@ function parseDependencyType(value: unknown): DependencyType {
     throw new ValidationError('dependency_type is invalid', 'dependency_type');
   }
   return value as DependencyType;
-}
-
-function parseIsoDate(value: unknown, field: string): string {
-  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    throw new ValidationError(`${field} must be YYYY-MM-DD`, field);
-  }
-  return value;
 }
 
 export async function listProjectDependenciesForProject(
@@ -149,8 +143,12 @@ export async function endProjectDependency(
 
   const effectiveTo =
     typeof body?.effective_to === 'string' && body.effective_to.trim()
-      ? body.effective_to.trim()
+      ? parseIsoDate(body.effective_to.trim(), 'effective_to')
       : undefined;
+
+  if (effectiveTo !== undefined && effectiveTo < before.effective_from) {
+    throw new ValidationError('effective_to must be on or after effective_from', 'effective_to');
+  }
 
   const after = await softEndDependency(projectId, dependencyId, effectiveTo);
   if (!after) throw new NotFoundError('Not found', 'project_dependency');

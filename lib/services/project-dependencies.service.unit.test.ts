@@ -197,6 +197,22 @@ describe('endProjectDependency', () => {
     });
     await expect(endProjectDependency(7, pmActor, 11)).rejects.toBeInstanceOf(NotFoundError);
   });
+
+  it('rejects invalid effective_to with ValidationError', async () => {
+    getDependencyInFromProjectRepo.mockResolvedValue(dependencyRow);
+    await expect(
+      endProjectDependency(7, pmActor, 11, { effective_to: 'not-a-date' }),
+    ).rejects.toMatchObject({ name: 'ValidationError', field: 'effective_to' });
+    expect(softEndDependencyRepo).not.toHaveBeenCalled();
+  });
+
+  it('rejects effective_to before effective_from with ValidationError', async () => {
+    getDependencyInFromProjectRepo.mockResolvedValue(dependencyRow);
+    await expect(
+      endProjectDependency(7, pmActor, 11, { effective_to: '2025-12-31' }),
+    ).rejects.toMatchObject({ name: 'ValidationError', field: 'effective_to' });
+    expect(softEndDependencyRepo).not.toHaveBeenCalled();
+  });
 });
 
 describe('listProjectDependenciesForProject', () => {

@@ -1,4 +1,5 @@
 import { getDb } from '@/lib/db';
+import { coerceVndSafe } from '@/lib/fiscal/vnd';
 
 export type BudgetAdjustmentRow = {
   id: number;
@@ -49,5 +50,5 @@ export async function sumAdjustmentsVnd(fiscalBudgetId: number | string): Promis
     'SELECT COALESCE(SUM(amount_vnd), 0) AS total FROM budget_adjustments WHERE fiscal_budget_id = ?',
     fiscalBudgetId,
   );
-  return Number(row?.total ?? 0);
+  return coerceVndSafe(row?.total ?? 0, 'amount_vnd');
 }

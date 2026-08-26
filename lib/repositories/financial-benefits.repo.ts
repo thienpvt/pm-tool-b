@@ -1,4 +1,5 @@
 import { getDb } from '@/lib/db';
+import { coerceVndSafe } from '@/lib/fiscal/vnd';
 
 export type FinancialBenefitRow = {
   id: number;
@@ -14,8 +15,8 @@ export type BenefitType = 'COST_SAVING' | 'REVENUE' | 'PRODUCTIVITY';
 function normalizeRow(row: FinancialBenefitRow): FinancialBenefitRow {
   return {
     ...row,
-    expected_vnd: Number(row.expected_vnd),
-    actual_vnd: row.actual_vnd === null ? null : Number(row.actual_vnd),
+    expected_vnd: coerceVndSafe(row.expected_vnd, 'expected_vnd'),
+    actual_vnd: row.actual_vnd === null ? null : coerceVndSafe(row.actual_vnd, 'actual_vnd'),
   };
 }
 

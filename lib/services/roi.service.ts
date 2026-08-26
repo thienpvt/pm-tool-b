@@ -2,6 +2,7 @@ import { listFiscalBudgets } from '@/lib/repositories/fiscal-budget.repo';
 import { sumAdjustmentsVnd } from '@/lib/repositories/budget-adjustments.repo';
 import { listFinancialBenefitsForYear } from '@/lib/repositories/financial-benefits.repo';
 import { computeActualRoi, computeExpectedRoi } from '@/lib/fiscal/roi';
+import { coerceVndSafe } from '@/lib/fiscal/vnd';
 import { assertProjectAccess, type AccessActor } from './access';
 
 export async function getProjectRoi(
@@ -18,16 +19,19 @@ export async function getProjectRoi(
   let actualSpend = 0;
   for (const row of yearRows) {
     const adjustments = await sumAdjustmentsVnd(row.id);
-    approvedNet += Number(row.approved_amount_vnd) + adjustments;
-    actualSpend += Number(row.actual_amount_vnd);
+    approvedNet += coerceVndSafe(row.approved_amount_vnd, 'approved_amount_vnd') + adjustments;
+    actualSpend += coerceVndSafe(row.actual_amount_vnd, 'actual_amount_vnd');
   }
 
   const benefitRows = await listFinancialBenefitsForYear(projectId, fiscalYear);
   const hasBenefitRow = benefitRows.length > 0;
-  const sumExpected = benefitRows.reduce((sum, row) => sum + Number(row.expected_vnd), 0);
+  const sumExpected = benefitRows.reduce(
+    (sum, row) => sum + coerceVndSafe(row.expected_vnd, 'expected_vnd'),
+    0,
+  );
   const allActualsPresent = benefitRows.every((row) => row.actual_vnd !== null);
   const sumActual = benefitRows.reduce(
-    (sum, row) => sum + (row.actual_vnd === null ? 0 : Number(row.actual_vnd)),
+    (sum, row) => sum + (row.actual_vnd === null ? 0 : coerceVndSafe(row.actual_vnd, 'actual_vnd')),
     0,
   );
 

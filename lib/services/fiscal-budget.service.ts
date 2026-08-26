@@ -11,7 +11,9 @@ import {
   sumAdjustmentsVnd,
 } from '@/lib/repositories/budget-adjustments.repo';
 import { computeFiscalBudgetMetrics } from '@/lib/fiscal/budget-metrics';
+import { parseIsoDate } from '@/lib/fiscal/iso-date';
 import {
+  coerceVndSafe,
   parseCostType,
   parseFiscalYear,
   parseNonNegativeVnd,
@@ -30,10 +32,6 @@ function isUniqueViolation(err: unknown): boolean {
   );
 }
 
-function coerceVnd(value: string | number): number {
-  return Number(value);
-}
-
 function fiscalBudgetSnapshot(row: {
   id: number;
   fiscal_year: number;
@@ -46,8 +44,8 @@ function fiscalBudgetSnapshot(row: {
     id: row.id,
     fiscal_year: row.fiscal_year,
     cost_type: row.cost_type,
-    approved_amount_vnd: coerceVnd(row.approved_amount_vnd),
-    actual_amount_vnd: coerceVnd(row.actual_amount_vnd),
+    approved_amount_vnd: coerceVndSafe(row.approved_amount_vnd, 'approved_amount_vnd'),
+    actual_amount_vnd: coerceVndSafe(row.actual_amount_vnd, 'actual_amount_vnd'),
   };
 }
 
@@ -100,8 +98,8 @@ export async function getFiscalBudgetOverview(projectId: number | string, actor:
     rows.map(async (row) => {
       const adjustments = await listBudgetAdjustments(row.id);
       const adjustmentSum = await sumAdjustmentsVnd(row.id);
-      const approvedBaseline = coerceVnd(row.approved_amount_vnd);
-      const actual = coerceVnd(row.actual_amount_vnd);
+      const approvedBaseline = coerceVndSafe(row.approved_amount_vnd, 'approved_amount_vnd');
+      const actual = coerceVndSafe(row.actual_amount_vnd, 'actual_amount_vnd');
       const metrics = computeFiscalBudgetMetrics(approvedBaseline, adjustmentSum, actual);
       return { ...row, adjustments, metrics };
     }),
@@ -129,8 +127,8 @@ export async function patchFiscalBudgetActual(
     entity_type: 'fiscal_budget',
     entity_id: String(budgetId),
     action: 'update',
-    before: { actual_amount_vnd: coerceVnd(prior.actual_amount_vnd) },
-    after: { actual_amount_vnd: coerceVnd(updated.actual_amount_vnd) },
+    before: { actual_amount_vnd: coerceVndSafe(prior.actual_amount_vnd, 'actual_amount_vnd') },
+    after: { actual_amount_vnd: coerceVndSafe(updated.actual_amount_vnd, 'actual_amount_vnd') },
   });
   return updated;
 }
@@ -146,7 +144,7 @@ function adjustmentSnapshot(row: {
   return {
     id: row.id,
     fiscal_budget_id: row.fiscal_budget_id,
-    amount_vnd: coerceVnd(row.amount_vnd),
+    amount_vnd: coerceVndSafe(row.amount_vnd, 'amount_vnd'),
     effective_date: row.effective_date,
     reason: row.reason,
   };
@@ -163,10 +161,10 @@ export async function addBudgetAdjustment(
   if (!budget) throw new NotFoundError('Not found', 'fiscal_budget');
 
   const amountVnd = parseSignedNonZeroVnd(body.amount_vnd, 'amount_vnd');
-  const effectiveDate = typeof body.effective_date === 'string' ? body.effective_date.trim() : '';
-  if (!effectiveDate) {
+  if (typeof body.effective_date !== 'string' || !body.effective_date.trim()) {
     throw new ValidationError('effective_date is required', 'effective_date');
   }
+  const effectiveDate = parseIsoDate(body.effective_date.trim(), 'effective_date');
   const reason = typeof body.reason === 'string' ? body.reason.trim() : '';
   if (!reason) {
     throw new ValidationError('reason is required', 'reason');

@@ -207,6 +207,18 @@ describe('fiscal-budget.service', () => {
     ).rejects.toBeInstanceOf(ValidationError);
   });
 
+  it('addBudgetAdjustment rejects invalid effective_date', async () => {
+    getFiscalBudgetInProjectRepo.mockResolvedValue({ id: 5 });
+    await expect(
+      addBudgetAdjustment(7, 5, owner, {
+        amount_vnd: 100,
+        effective_date: 'not-a-date',
+        reason: 'Approved increase',
+      }),
+    ).rejects.toMatchObject({ name: 'ValidationError', field: 'effective_date' });
+    expect(insertBudgetAdjustmentRepo).not.toHaveBeenCalled();
+  });
+
   it('addBudgetAdjustment 404s unknown budgetId in project', async () => {
     getFiscalBudgetInProjectRepo.mockResolvedValue(undefined);
     await expect(

@@ -1,6 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import { ValidationError } from '@/lib/services/errors';
-import { parseNonNegativeVnd, parseSignedNonZeroVnd } from './vnd';
+import { coerceVndSafe, parseNonNegativeVnd, parseSignedNonZeroVnd } from './vnd';
+
+describe('coerceVndSafe', () => {
+  it('coerces string and numeric safe integers', () => {
+    expect(coerceVndSafe('1000000')).toBe(1_000_000);
+    expect(coerceVndSafe(500)).toBe(500);
+  });
+
+  it('rejects values outside Number.isSafeInteger range', () => {
+    const unsafe = String(Number.MAX_SAFE_INTEGER + 1);
+    expect(() => coerceVndSafe(unsafe, 'approved_amount_vnd')).toThrow(ValidationError);
+    expect(() => coerceVndSafe(Number.MAX_SAFE_INTEGER + 1, 'amount_vnd')).toThrow(ValidationError);
+  });
+});
 
 describe('parseNonNegativeVnd', () => {
   it('accepts 0 and 1000000', () => {

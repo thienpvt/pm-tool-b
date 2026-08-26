@@ -8,6 +8,14 @@ export function parseNonNegativeVnd(value: unknown, field: string): number {
   return n;
 }
 
+export function coerceVndSafe(value: string | number, field = 'amount_vnd'): number {
+  const n = Number(value);
+  if (!Number.isSafeInteger(n)) {
+    throw new ValidationError(`${field} exceeds safe integer range`, field);
+  }
+  return n;
+}
+
 export function parseSignedNonZeroVnd(value: unknown, field: string): number {
   const n = typeof value === 'string' && value !== '' ? Number(value) : value;
   if (typeof n !== 'number' || !Number.isSafeInteger(n) || n === 0) {
