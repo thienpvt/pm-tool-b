@@ -1,0 +1,150 @@
+import { NextRequest } from 'next/server';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+const {
+  projectAccessRow,
+  hasActivePmAssignment,
+  insertProjectDependencyRepo,
+  listProjectDependenciesRepo,
+  hasOverlappingEquivalentDependencyRepo,
+  getDependencyInFromProjectRepo,
+  softEndDependencyRepo,
+  auditLogFn,
+} = vi.hoisted(() => ({
+  projectAccessRow: vi.fn(),
+  hasActivePmAssignment: vi.fn(),
+  insertProjectDependencyRepo: vi.fn(),
+  listProjectDependenciesRepo: vi.fn(),
+  hasOverlappingEquivalentDependencyRepo: vi.fn(),
+  getDependencyInFromProjectRepo: vi.fn(),
+  softEndDependencyRepo: vi.fn(),
+  auditLogFn: vi.fn(),
+}));
+
+vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
+vi.mock('@/lib/repositories/projects.repo', () => ({ projectAccessRow }));
+vi.mock('@/lib/repositories/pm-assignments.repo', () => ({ hasActivePmAssignment }));
+vi.mock('@/lib/repositories/project-dependencies.repo', () => ({
+  insertProjectDependency: insertProjectDependencyRepo,
+  listProjectDependencies: listProjectDependenciesRepo,
+  hasOverlappingEquivalentDependency: hasOverlappingEquivalentDependencyRepo,
+  getDependencyInFromProject: getDependencyInFromProjectRepo,
+  softEndDependency: softEndDependencyRepo,
+}));
+vi.mock('@/lib/services/audit.service', () => ({ auditLog: auditLogFn }));
+
+import { getSessionFromRequest } from '@/lib/auth';
+import { GET, POST } from './route';
+
+const ownerSession = {
+  id: 2,
+  username: 'ava',
+  display_name: 'Ava',
+  company_id: 5,
+  company_name: 'Acme',
+  is_admin: 0,
+  onboarding_completed: 1,
+  roles: ['pm'],
+  status: 'active',
+  email: 'ava@example.com',
+};
+
+const cpmoSession = {
+  ...ownerSession,
+  username: 'cpmo',
+  roles: ['cpmo'],
+};
+
+describe('/api/projects/[id]/dependencies', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    projectAccessRow.mockResolvedValue({ company_id: 5, customer_company_id: null });
+    hasActivePmAssignment.mockResolvedValue(true);
+    hasOverlappingEquivalentDependencyRepo.mockResolvedValue(false);
+    auditLogFn.mockResolvedValue(undefined);
+  });
+
+  const fromParams = { params: Promise.resolve({ id: '7' }) };
+  const toParams = { params: Promise.resolve({ id: '9' }) };
+
+  function req(pathId: string, method: string, body?: unknown) {
+    return new NextRequest(`http://localhost/api/projects/${pathId}/dependencies`, {
+      method,
+      body: body === undefined ? undefined : JSON.stringify(body),
+      headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
+    });
+  }
+
+  it('GET returns 401 when session is missing', async () => {
+    vi.mocked(getSessionFromRequest).mockResolvedValue(null as never);
+    const res = await GET(req('7', 'GET'), fromParams);
+    expect(res.status).toBe(401);
+  });
+
+  it('POST returns 201 on from project', async () => {
+    vi.mocked(getSessionFromRequest).mockResolvedValue(cpmoSession as never);
+    insertProjectDependencyRepo.mockResolvedValue({
+      id: 3,
+      from_project_id: 7,
+      to_project_id: 9,
+      dependency_type: 'FINISH_TO_START',
+      need_by: '2026-12-31',
+      effective_from: '2026-01-01',
+      effective_to: null,
+    });
+    const res = await POST(
+      req('7', 'POST', {
+        to_project_id: 9,
+        dependency_type: 'FINISH_TO_START',
+        need_by: '2026-12-31',
+        effective_from: '2026-01-01',
+      }),
+      fromParams,
+    );
+    expect(res.status).toBe(201);
+    await expect(res.json()).resolves.toMatchObject({ id: 3, from_project_id: 7 });
+    expect(insertProjectDependencyRepo).toHaveBeenCalledWith(
+      expect.objectContaining({ fromProjectId: 7, toProjectId: 9 }),
+    );
+  });
+
+  it('GET on from project returns outgoing edge', async () => {
+    vi.mocked(getSessionFromRequest).mockResolvedValue(ownerSession as never);
+    listProjectDependenciesRepo.mockResolvedValue([
+      {
+        id: 3,
+        from_project_id: 7,
+        to_project_id: 9,
+        dependency_type: 'FINISH_TO_START',
+        need_by: '2026-12-31',
+        effective_from: '2026-01-01',
+        effective_to: null,
+        direction: 'outgoing',
+      },
+    ]);
+    const res = await GET(req('7', 'GET'), fromParams);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body[0]).toMatchObject({ direction: 'outgoing', peer_project_id: 9 });
+  });
+
+  it('GET on to project returns incoming edge for PM with access', async () => {
+    vi.mocked(getSessionFromRequest).mockResolvedValue(ownerSession as never);
+    listProjectDependenciesRepo.mockResolvedValue([
+      {
+        id: 3,
+        from_project_id: 7,
+        to_project_id: 9,
+        dependency_type: 'FINISH_TO_START',
+        need_by: '2026-12-31',
+        effective_from: '2026-01-01',
+        effective_to: null,
+        direction: 'incoming',
+      },
+    ]);
+    const res = await GET(req('9', 'GET'), toParams);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body[0]).toMatchObject({ direction: 'incoming', peer_project_id: 7 });
+  });
+});
