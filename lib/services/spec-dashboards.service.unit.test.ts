@@ -6,6 +6,7 @@ const {
   assertCompanyWrite,
   listProjects,
   getDashboardFilters,
+  upsertDashboardFilters,
   getActivePrimaryAssignment,
   listOverdueMilestones,
   listHighOpenRaid,
@@ -14,6 +15,7 @@ const {
   assertCompanyWrite: vi.fn(),
   listProjects: vi.fn(),
   getDashboardFilters: vi.fn(),
+  upsertDashboardFilters: vi.fn(),
   getActivePrimaryAssignment: vi.fn(),
   listOverdueMilestones: vi.fn(),
   listHighOpenRaid: vi.fn(),
@@ -22,7 +24,10 @@ const {
 
 vi.mock('@/lib/services/access', () => ({ assertCompanyWrite }));
 vi.mock('@/lib/repositories/projects.repo', () => ({ listProjects }));
-vi.mock('@/lib/repositories/dashboard-filter-state.repo', () => ({ getDashboardFilters }));
+vi.mock('@/lib/repositories/dashboard-filter-state.repo', () => ({
+  getDashboardFilters,
+  upsertDashboardFilters,
+}));
 vi.mock('@/lib/repositories/pm-assignments.repo', () => ({ getActivePrimaryAssignment }));
 vi.mock('@/lib/services/raid-masters.service', () => ({
   listOverdueMilestones,
@@ -30,8 +35,12 @@ vi.mock('@/lib/services/raid-masters.service', () => ({
   listTechnologyCouncilIssues,
 }));
 
-import { ForbiddenError } from './errors';
-import { getPortfolioDashboard } from './spec-dashboards.service';
+import { ForbiddenError, ValidationError } from './errors';
+import {
+  clearPortfolioDashboardFilters,
+  getPortfolioDashboard,
+  savePortfolioDashboardFilters,
+} from './spec-dashboards.service';
 
 const cpmoActor = {
   company_id: 5 as number | null,
@@ -93,6 +102,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   assertCompanyWrite.mockImplementation(() => undefined);
   getDashboardFilters.mockResolvedValue({ filters: {}, updated_at: null });
+  upsertDashboardFilters.mockResolvedValue(undefined);
   listProjects.mockResolvedValue(mockProjects);
   getActivePrimaryAssignment.mockResolvedValue(null);
   listOverdueMilestones.mockResolvedValue([]);
@@ -222,5 +232,56 @@ describe('getPortfolioDashboard', () => {
     expect(result.kpis.active_count).toBe(1);
     expect(result.drilldowns.overdue_milestones).toHaveLength(1);
     expect(result.drilldowns.overdue_milestones[0].project_id).toBe(10);
+  });
+});
+
+describe('savePortfolioDashboardFilters', () => {
+  it('upserts parsed filters for actor user_id and portfolio surface (D-07)', async () => {
+    await savePortfolioDashboardFilters(cpmoActor, { stage: 'L2' });
+
+    expect(assertCompanyWrite).toHaveBeenCalledWith(cpmoActor);
+    expect(upsertDashboardFilters).toHaveBeenCalledWith(1, 'portfolio', { stage: 'L2' });
+  });
+
+  it('throws ValidationError on unknown filter key (D-06)', async () => {
+    await expect(
+      savePortfolioDashboardFilters(cpmoActor, { bogus: 'x' } as Record<string, unknown>),
+    ).rejects.toBeInstanceOf(ValidationError);
+    expect(upsertDashboardFilters).not.toHaveBeenCalled();
+  });
+
+  it('save then getPortfolioDashboard applies stored blob to list (D-07, PDSH-05)', async () => {
+    upsertDashboardFilters.mockImplementation(async (_uid, _surface, filters) => {
+      getDashboardFilters.mockResolvedValue({
+        filters,
+        updated_at: '2026-08-26T00:00:00Z',
+      });
+    });
+
+    await savePortfolioDashboardFilters(cpmoActor, { stage: 'L2' });
+    const result = await getPortfolioDashboard(cpmoActor);
+
+    expect(result.filters).toEqual({ stage: 'L2' });
+    expect(result.list.map((p) => p.id)).toEqual([10, 12]);
+    expect(result.kpis.active_count).toBe(1);
+  });
+});
+
+describe('clearPortfolioDashboardFilters', () => {
+  it('upserts empty object for actor user_id (D-07, PDSH-06)', async () => {
+    await clearPortfolioDashboardFilters(cpmoActor);
+
+    expect(assertCompanyWrite).toHaveBeenCalledWith(cpmoActor);
+    expect(upsertDashboardFilters).toHaveBeenCalledWith(1, 'portfolio', {});
+  });
+
+  it('clear then getPortfolioDashboard uses empty filters (D-07)', async () => {
+    getDashboardFilters.mockResolvedValue({ filters: {}, updated_at: '2026-08-26T00:00:00Z' });
+
+    await clearPortfolioDashboardFilters(cpmoActor);
+    const result = await getPortfolioDashboard(cpmoActor);
+
+    expect(result.filters).toEqual({});
+    expect(result.list).toHaveLength(3);
   });
 });
