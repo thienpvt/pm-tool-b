@@ -11,6 +11,29 @@ import { assertProjectAccess, assertProjectWriteAccess, type AccessActor } from 
 import { auditLog } from './audit.service';
 import { ConflictError, NotFoundError } from './errors';
 
+type RiskRow = {
+  id: number;
+  code: string;
+  description: string;
+  status: string;
+  priority: string;
+  due_date?: string | null;
+  owner: string;
+};
+
+function auditSnapshot(row: RiskRow | null | undefined) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    code: row.code,
+    description: row.description,
+    status: row.status,
+    priority: row.priority,
+    due_date: row.due_date ?? null,
+    owner: row.owner,
+  };
+}
+
 function isUniqueViolation(err: unknown): boolean {
   return (
     typeof err === 'object'
@@ -43,7 +66,17 @@ export async function createRisk(
     assertUniqueCode(await findRiskByCode(projectId, code), 'Risk code already exists');
   }
   try {
-    return await createRiskRepo(projectId, body);
+    const created = await createRiskRepo(projectId, body);
+    await auditLog({
+      actor_id: actor.user_id,
+      company_id: actor.company_id,
+      entity_type: 'risk',
+      entity_id: String(created.id),
+      action: 'create',
+      before: null,
+      after: auditSnapshot(created as RiskRow),
+    });
+    return created;
   } catch (err) {
     if (isUniqueViolation(err)) throw new ConflictError('Risk code already exists');
     throw err;
@@ -64,9 +97,10 @@ export async function updateRisk(
       'Risk code already exists',
     );
   }
-  const prior = fields.due_date !== undefined ? await getRiskRepo(projectId, rowId) : null;
+  const prior = await getRiskRepo(projectId, rowId);
   const updated = await updateRiskRepo(projectId, rowId, fields);
   if (!updated) throw new NotFoundError('Not found', 'risk');
+  const hasNonDueDateFields = Object.keys(fields).some((k) => k !== 'due_date');
   if (
     fields.due_date !== undefined
     && prior
@@ -87,6 +121,17 @@ export async function updateRisk(
       action: 'due_date_change',
       before: { due_date: prior.due_date ?? null },
       after: { due_date: fields.due_date ?? null },
+    });
+  }
+  if (hasNonDueDateFields) {
+    await auditLog({
+      actor_id: actor.user_id,
+      company_id: actor.company_id,
+      entity_type: 'risk',
+      entity_id: String(rowId),
+      action: 'update',
+      before: auditSnapshot(prior as RiskRow | null | undefined),
+      after: auditSnapshot(updated as RiskRow),
     });
   }
   return updated;
