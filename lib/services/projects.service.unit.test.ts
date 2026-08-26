@@ -11,6 +11,8 @@ const {
   findProjectByCompanyCode,
   getProgram,
   auditLogFn,
+  generateProjectChecklistFn,
+  listChecklistByProjectFn,
 } = vi.hoisted(() => ({
   assertProjectAccess: vi.fn(),
   assertProjectWriteAccess: vi.fn(),
@@ -22,6 +24,8 @@ const {
   findProjectByCompanyCode: vi.fn(),
   getProgram: vi.fn(),
   auditLogFn: vi.fn(),
+  generateProjectChecklistFn: vi.fn(),
+  listChecklistByProjectFn: vi.fn(),
 }));
 
 vi.mock('@/lib/services/access', () => ({
@@ -44,15 +48,23 @@ vi.mock('@/lib/repositories/programs.repo', () => ({
 vi.mock('@/lib/services/audit.service', () => ({
   auditLog: auditLogFn,
 }));
+vi.mock('@/lib/services/document-checklist-generate', () => ({
+  generateProjectChecklist: generateProjectChecklistFn,
+}));
+vi.mock('@/lib/repositories/project-document-checklist.repo', () => ({
+  listChecklistByProject: listChecklistByProjectFn,
+}));
 
 import { UnknownColumnError } from '@/lib/repositories/_helpers';
 import { createProject, deleteProject, getProject, listProjects, updateProject } from './projects.service';
-import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors';
+import { ConflictError, ForbiddenError, MandatoryIncompleteError, NotFoundError, ValidationError } from './errors';
 
 beforeEach(() => {
   vi.clearAllMocks();
   assertProjectAccess.mockResolvedValue(undefined);
   assertProjectWriteAccess.mockResolvedValue(undefined);
+  generateProjectChecklistFn.mockResolvedValue({ inserted: 0 });
+  listChecklistByProjectFn.mockResolvedValue([]);
 });
 
 const pmActor = {
@@ -233,6 +245,122 @@ describe('projects.service', () => {
         UnknownColumnError,
       );
     });
+
+    it('L2→L3 with incomplete mandatory L2 row throws MandatoryIncompleteError (D-09)', async () => {
+      getProjectRepo.mockResolvedValue({
+        id: 7,
+        company_id: 5,
+        stage: 'L2',
+        progress_pct: 50,
+        status: 'Active',
+      });
+      listChecklistByProjectFn.mockResolvedValue([
+        {
+          id: 100,
+          catalog_id: 10,
+          catalog_name: 'Charter',
+          catalog_stage: 'L2',
+          catalog_mandatory: true,
+          status: 'none',
+        },
+      ]);
+      await expect(updateProject(7, cpmoActor, { stage: 'L3' })).rejects.toBeInstanceOf(
+        MandatoryIncompleteError,
+      );
+      expect(updateProjectRepo).not.toHaveBeenCalled();
+      expect(generateProjectChecklistFn).not.toHaveBeenCalled();
+    });
+
+    it('destination-stage incomplete rows do not block when current stage is complete (D-09)', async () => {
+      getProjectRepo.mockResolvedValue({
+        id: 7,
+        company_id: 5,
+        stage: 'L2',
+        progress_pct: 50,
+        status: 'Active',
+      });
+      listChecklistByProjectFn.mockResolvedValue([
+        {
+          id: 100,
+          catalog_id: 10,
+          catalog_name: 'Charter',
+          catalog_stage: 'L2',
+          catalog_mandatory: true,
+          status: 'approved',
+        },
+        {
+          id: 101,
+          catalog_id: 11,
+          catalog_name: 'Design Doc',
+          catalog_stage: 'L3',
+          catalog_mandatory: true,
+          status: 'none',
+        },
+      ]);
+      updateProjectRepo.mockResolvedValue({ id: 7, stage: 'L3' });
+      await updateProject(7, cpmoActor, { stage: 'L3' });
+      expect(updateProjectRepo).toHaveBeenCalled();
+      expect(generateProjectChecklistFn).toHaveBeenCalledWith(7, {
+        companyId: cpmoActor.company_id,
+        stage: 'L3',
+      });
+    });
+
+    it('acknowledge_incomplete_mandatory allows stage write, generate, and auditLog (D-09, D-14)', async () => {
+      getProjectRepo.mockResolvedValue({
+        id: 7,
+        company_id: 5,
+        stage: 'L2',
+        progress_pct: 50,
+        status: 'Active',
+      });
+      listChecklistByProjectFn.mockResolvedValue([
+        {
+          id: 100,
+          catalog_id: 10,
+          catalog_name: 'Charter',
+          catalog_stage: 'L2',
+          catalog_mandatory: true,
+          status: 'drafting',
+        },
+      ]);
+      updateProjectRepo.mockResolvedValue({ id: 7, stage: 'L3' });
+      await updateProject(7, cpmoActor, {
+        stage: 'L3',
+        acknowledge_incomplete_mandatory: true,
+      });
+      expect(updateProjectRepo).toHaveBeenCalledWith(7, { stage: 'L3' });
+      expect(generateProjectChecklistFn).toHaveBeenCalledWith(7, {
+        companyId: cpmoActor.company_id,
+        stage: 'L3',
+      });
+      expect(auditLogFn).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'stage_change_ack',
+          entity_type: 'project',
+          entity_id: '7',
+          before: { stage: 'L2' },
+          after: { stage: 'L3' },
+        }),
+      );
+    });
+
+    it('acknowledge_incomplete_mandatory is not passed to updateProjectRepo (D-09)', async () => {
+      getProjectRepo.mockResolvedValue({
+        id: 7,
+        company_id: 5,
+        stage: 'L2',
+        progress_pct: 50,
+        status: 'Active',
+      });
+      updateProjectRepo.mockResolvedValue({ id: 7, stage: 'L3' });
+      await updateProject(7, cpmoActor, {
+        stage: 'L3',
+        acknowledge_incomplete_mandatory: false,
+      });
+      const repoFields = updateProjectRepo.mock.calls[0][1];
+      expect(repoFields).not.toHaveProperty('acknowledge_incomplete_mandatory');
+    });
   });
 
   describe('deleteProject', () => {
@@ -354,12 +482,14 @@ describe('projects.service', () => {
         portfolio_year: 2026,
         customer_id: 10,
         company_id: cpmoActor.company_id,
+        stage: 'L2',
       });
       const result = await createProject(cpmoActor, {
         name: 'Alpha',
         project_code: 'PRJ-001',
         portfolio_year: 2026,
         customer_id: 10,
+        stage: 'L2',
       });
       expect(result.warnings).toEqual([]);
       expect(getProgram).toHaveBeenCalledWith(10);
@@ -369,6 +499,11 @@ describe('projects.service', () => {
         project_code: 'PRJ-001',
         portfolio_year: 2026,
         customer_id: 10,
+        stage: 'L2',
+      });
+      expect(generateProjectChecklistFn).toHaveBeenCalledWith(1, {
+        companyId: cpmoActor.company_id,
+        stage: 'L2',
       });
     });
 
