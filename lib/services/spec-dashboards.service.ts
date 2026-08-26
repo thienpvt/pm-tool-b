@@ -1,5 +1,5 @@
 import { applyDashboardFilters, parseDashboardFilters, type DashboardFilters } from '@/lib/dashboards/filters';
-import { resolveCurrentPeriod } from '@/lib/dashboards/period-resolver';
+import { resolveCurrentPeriod, isDueInUpcomingOrOverdue } from '@/lib/dashboards/period-resolver';
 import { computePortfolioCharts, computePortfolioKpis } from '@/lib/dashboards/kpi';
 import {
   generatePortfolioDashboardPdf,
@@ -19,6 +19,7 @@ import {
   listHighOpenRaid,
   listOverdueMilestones,
   listTechnologyCouncilIssues,
+  listUpcomingMilestones,
 } from '@/lib/services/raid-masters.service';
 import { isWeeklyReportOverdue } from '@/lib/services/weekly-reports.service';
 import { assertCompanyWrite, hasRole, type AccessActor } from './access';
@@ -71,6 +72,11 @@ async function enrichProjectListRows(
     });
   }
   return enriched;
+}
+
+function assertPmDashboardActor(actor: AccessActor): void {
+  if (actor.company_id === null) throw new ForbiddenError();
+  if (!hasRole(actor, 'pm') && !hasRole(actor, 'cpmo')) throw new ForbiddenError();
 }
 
 async function buildPortfolioDashboard(actor: AccessActor, filters: DashboardFilters) {
@@ -176,24 +182,23 @@ export async function exportPortfolioDashboard(actor: AccessActor, body: Portfol
 }
 
 export async function getPmDashboard(actor: AccessActor) {
-  if (actor.company_id === null) throw new ForbiddenError();
-  if (!hasRole(actor, 'pm') && !hasRole(actor, 'cpmo')) throw new ForbiddenError();
+  assertPmDashboardActor(actor);
 
   const stored = await getDashboardFilters(actor.user_id, 'pm');
   const filters = parseDashboardFilters(stored.filters);
 
-  const rawProjects = await listProjects(actor.company_id, { pmUserId: actor.user_id });
+  const rawProjects = await listProjects(actor.company_id!, { pmUserId: actor.user_id });
   const enriched = await enrichProjectListRows(rawProjects as Record<string, unknown>[]);
   const filtered = applyDashboardFilters(enriched, filters);
   const assignedIds = new Set(filtered.map((p) => p.id));
 
   const today = new Date().toISOString().slice(0, 10);
-  const periods = await listWeeklyPeriods(actor.company_id);
+  const periods = await listWeeklyPeriods(actor.company_id!);
   const period = resolveCurrentPeriod(periods, today);
   const now = new Date();
 
   const shells = period
-    ? (await listPeriodShellsRepo(actor.company_id, period.id)).filter((s) =>
+    ? (await listPeriodShellsRepo(actor.company_id!, period.id)).filter((s) =>
         assignedIds.has(s.project_id),
       )
     : [];
@@ -211,13 +216,75 @@ export async function getPmDashboard(actor: AccessActor) {
       href: `/projects/${s.project_id}/weekly-reports/${s.report_id}`,
     }));
 
+  const upcomingAll = await listUpcomingMilestones(actor.company_id!);
+  const overdueAll = await listOverdueMilestones(actor.company_id!);
+  const milestoneById = new Map<number, Record<string, unknown>>();
+
+  for (const row of upcomingAll as Record<string, unknown>[]) {
+    if (!assignedIds.has(Number(row.project_id))) continue;
+    milestoneById.set(Number(row.id), { ...row, kind: 'upcoming' as const });
+  }
+  for (const row of overdueAll as Record<string, unknown>[]) {
+    if (!assignedIds.has(Number(row.project_id))) continue;
+    milestoneById.set(Number(row.id), { ...row, kind: 'overdue' as const });
+  }
+
+  const milestones = [...milestoneById.values()].map((m) => ({
+    project_id: Number(m.project_id),
+    milestone_id: Number(m.id),
+    name: String(m.name ?? ''),
+    plan_end: (m.plan_end as string | null) ?? null,
+    adjusted_end: (m.adjusted_end as string | null) ?? null,
+    kind: m.kind as 'upcoming' | 'overdue',
+    href: `/projects/${m.project_id}/milestones`,
+  }));
+
+  const raidAll = await listHighOpenRaid(actor.company_id!);
+  const councilIds = new Set(
+    (await listTechnologyCouncilIssues(actor.company_id!)).map((r: { id: number }) => r.id),
+  );
+
+  const raid = raidAll.records
+    .filter(
+      (r: { project_id: number; due_date: string | null }) =>
+        assignedIds.has(r.project_id) && isDueInUpcomingOrOverdue(r.due_date, today),
+    )
+    .map((r: { project_id: number; entity_type: string; id: number; code: string; due_date: string | null }) => ({
+      project_id: r.project_id,
+      entity_type: r.entity_type,
+      id: r.id,
+      code: r.code,
+      due_date: r.due_date,
+      has_technology_council: r.entity_type === 'issue' && councilIds.has(r.id),
+      href: `/projects/${r.project_id}/raid`,
+    }));
+
   return {
     filters,
     projects: filtered,
     actions: {
       weekly,
-      milestones: [],
-      raid: [],
+      milestones,
+      raid,
     },
   };
+}
+
+export async function getPmDashboardFilters(actor: AccessActor) {
+  assertPmDashboardActor(actor);
+  return getDashboardFilters(actor.user_id, 'pm');
+}
+
+export async function savePmDashboardFilters(
+  actor: AccessActor,
+  body: Record<string, unknown>,
+) {
+  assertPmDashboardActor(actor);
+  const parsed = parseDashboardFilters(body);
+  await upsertDashboardFilters(actor.user_id, 'pm', parsed);
+}
+
+export async function clearPmDashboardFilters(actor: AccessActor) {
+  assertPmDashboardActor(actor);
+  await upsertDashboardFilters(actor.user_id, 'pm', {});
 }
