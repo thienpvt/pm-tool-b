@@ -5,16 +5,16 @@ milestone_name: Portfolio One View
 current_phase: 17
 current_phase_name: Document Templates & Confluence Checklist
 status: planning
-stopped_at: Phase 16 complete, ready to plan Phase 17
-last_updated: "2026-08-26T14:35:12.738Z"
+stopped_at: Completed 17-01-PLAN.md
+last_updated: "2026-08-26T14:59:54.033Z"
 last_activity: 2026-08-26
 last_activity_desc: Phase 16 complete, transitioned to Phase 17
-state_head: 77af628aa82ec6325bcbde124c6f8dacc2bc8494
+state_head: afba5d9ae53e210d18c2c8492ad63cd2fc5bea0f
 progress:
   total_phases: 10
   completed_phases: 8
-  total_plans: 34
-  completed_plans: 34
+  total_plans: 37
+  completed_plans: 35
 ---
 
 # Project State
@@ -89,6 +89,7 @@ Progress: [█░░░░░░░░░] 10%
 | Phase 16 P01 | 25 | 3 tasks | 14 files |
 | Phase 16 P02 | 15min | 2 tasks | 15 files |
 | Phase 16-portfolio-pm-dashboards P03 | 5 | 2 tasks | 8 files |
+| Phase 17-document-templates-confluence-checklist P01 | 25 | 3 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -155,6 +156,7 @@ Recent decisions affecting current work:
 - [Phase 16]: Filter upsert replaces whole blob; export Buffer before auditLog
 - [Phase 16]: PM dashboard uses listProjects pmUserId; weekly via listPeriodShellsRepo not getPeriodTracking
 - [Phase 16]: PM filter routes use withAuth and surface pm (not withCpmo)
+- [Phase 17]: apply_to_in_flight shipped in tracer task 1; task 2 tests validate behavior
 
 ### Pending Todos
 
@@ -175,6 +177,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-08-26T14:27:02.205Z
-Stopped at: Phase 16 complete, ready to plan Phase 17
+Last session: 2026-08-26T14:59:53.180Z
+Stopped at: Completed 17-01-PLAN.md
 Resume file: None

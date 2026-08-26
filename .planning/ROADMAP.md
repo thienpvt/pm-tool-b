@@ -300,12 +300,12 @@ Plans:
   3. PM can view/download templates and update checklist metadata, Confluence HTTPS link, and status (None / Drafting / Pending approval / Approved / Not applicable) — and cannot upload project file binaries; Approved requires approval date and approver; Not applicable requires a reason; Approved mandatory items count as compliant
   4. CPMO can see portfolio compliance (compliant / not compliant / not applicable) with filters, and is warned when a stage change leaves mandatory items incomplete
 
-**Plans:** 3 plans
+**Plans:** 1/3 plans executed
 
 Plans:
 **Wave 1**
 
-- [ ] 17-01-PLAN.md — Tracer: DDL, catalog CRUD, in-flight apply, generate helper
+- [x] 17-01-PLAN.md — Tracer: DDL, catalog CRUD, in-flight apply, generate helper
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -351,7 +351,7 @@ Phases execute in numeric order: 9 → 10 → 11 → 12 → 13 → 14 → 15 →
 | 14. CPMO Tracking & Consolidated Export | v2.0 | 3/3 | Complete    | 2026-08-26 |
 | 15. Budget, Value, ROI & Dependencies | v2.0 | 3/3 | Complete    | 2026-08-26 |
 | 16. Portfolio & PM Dashboards | v2.0 | 3/3 | Complete    | 2026-08-26 |
-| 17. Document Templates & Confluence Checklist | v2.0 | 0/3 | Not started | - |
+| 17. Document Templates & Confluence Checklist | v2.0 | 1/3 | In Progress|  |
 | 18. Append-Only Audit Log | v2.0 | 0/? | Not started | - |
 
 ## Coverage
