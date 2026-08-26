@@ -271,12 +271,12 @@ Plans:
   4. PM sees only assigned projects, with the same list fields as the portfolio list for those rows, plus weekly-report actions for obligated Not submitted/Draft reports, milestone actions for upcoming or overdue assigned-project milestones, and High open/in-progress RAID actions that are also upcoming or overdue (with a technology-council flag when set)
   5. Each PM action deep-links to the screen that resolves it; completing the action refreshes the dashboard in the same session
 
-**Plans:** 3 plans
+**Plans:** 1/3 plans executed
 
 Plans:
 **Wave 1**
 
-- [ ] 16-01-PLAN.md — Tracer: DDL, KPI helpers, CPMO GET portfolio (tiles, charts, list, drill-downs, AND filters)
+- [x] 16-01-PLAN.md — Tracer: DDL, KPI helpers, CPMO GET portfolio (tiles, charts, list, drill-downs, AND filters)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -339,7 +339,7 @@ Phases execute in numeric order: 9 → 10 → 11 → 12 → 13 → 14 → 15 →
 | 13. Weekly Periods & PM Submit | v2.0 | 3/3 | Complete    | 2026-08-26 |
 | 14. CPMO Tracking & Consolidated Export | v2.0 | 3/3 | Complete    | 2026-08-26 |
 | 15. Budget, Value, ROI & Dependencies | v2.0 | 3/3 | Complete    | 2026-08-26 |
-| 16. Portfolio & PM Dashboards | v2.0 | 0/3 | Not started | - |
+| 16. Portfolio & PM Dashboards | v2.0 | 1/3 | In Progress|  |
 | 17. Document Templates & Confluence Checklist | v2.0 | 0/? | Not started | - |
 | 18. Append-Only Audit Log | v2.0 | 0/? | Not started | - |
 

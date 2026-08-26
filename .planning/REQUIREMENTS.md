@@ -107,11 +107,11 @@ Requirements for this milestone. Each maps to roadmap phases. Jira import, AI re
 
 ### Portfolio Dashboard
 
-- [ ] **PDSH-01**: CPMO/leadership dashboard shows active project count (status Active and stage L0–L4), on-track (Active + Green), and watch/act (Active + Amber/Red)
-- [ ] **PDSH-02**: Dashboard charts projects by L0–L5 and by RAG; Green + Amber + Red equals the active count
-- [ ] **PDSH-03**: Dashboard shows overdue-milestone project count and High open RAID record count, with drill-down lists matching the tiles
-- [ ] **PDSH-04**: Dashboard shows technology-council issue count with a drill-down list of open/in-progress flagged issues
-- [ ] **PDSH-05**: Project list and AND-combined filters (year, program, unit, PM, stage, status, RAG, type, weekly-report flag) apply to the whole dashboard, persist in the session, and are inherited on drill-down
+- [x] **PDSH-01**: CPMO/leadership dashboard shows active project count (status Active and stage L0–L4), on-track (Active + Green), and watch/act (Active + Amber/Red)
+- [x] **PDSH-02**: Dashboard charts projects by L0–L5 and by RAG; Green + Amber + Red equals the active count
+- [x] **PDSH-03**: Dashboard shows overdue-milestone project count and High open RAID record count, with drill-down lists matching the tiles
+- [x] **PDSH-04**: Dashboard shows technology-council issue count with a drill-down list of open/in-progress flagged issues
+- [x] **PDSH-05**: Project list and AND-combined filters (year, program, unit, PM, stage, status, RAG, type, weekly-report flag) apply to the whole dashboard, persist in the session, and are inherited on drill-down
 - [ ] **PDSH-06**: User can clear filters, restore defaults, and export the dashboard to Excel and PDF
 
 ### PM Dashboard
@@ -246,11 +246,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CPMO-02 | Phase 14 | Complete |
 | CPMO-03 | Phase 14 | Complete |
 | CPMO-04 | Phase 14 | Complete |
-| PDSH-01 | Phase 16 | Pending |
-| PDSH-02 | Phase 16 | Pending |
-| PDSH-03 | Phase 16 | Pending |
-| PDSH-04 | Phase 16 | Pending |
-| PDSH-05 | Phase 16 | Pending |
+| PDSH-01 | Phase 16 | Complete |
+| PDSH-02 | Phase 16 | Complete |
+| PDSH-03 | Phase 16 | Complete |
+| PDSH-04 | Phase 16 | Complete |
+| PDSH-05 | Phase 16 | Complete |
 | PDSH-06 | Phase 16 | Pending |
 | MDSH-01 | Phase 16 | Pending |
 | MDSH-02 | Phase 16 | Pending |
