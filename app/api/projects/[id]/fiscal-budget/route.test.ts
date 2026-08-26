@@ -226,7 +226,10 @@ describe('/api/projects/[id]/fiscal-budget/[budgetId]/adjustments', () => {
       { id: 1, amount_vnd: '200', reason: 'Increase' },
     ]);
     sumAdjustmentsVndRepo.mockResolvedValue(200);
-    const res = await GET(req('GET'), { params: Promise.resolve({ id: '7' }) });
+    const getReq = new NextRequest('http://localhost/api/projects/7/fiscal-budget', {
+      method: 'GET',
+    });
+    const res = await GET(getReq, { params: Promise.resolve({ id: '7' }) });
     const body = await res.json();
     expect(body[0].adjustments).toHaveLength(1);
     expect(body[0].metrics.approved_net_vnd).toBe(1200);

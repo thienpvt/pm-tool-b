@@ -6,6 +6,7 @@ import {
   updateFiscalBudgetActual,
 } from '@/lib/repositories/fiscal-budget.repo';
 import {
+  insertBudgetAdjustment,
   listBudgetAdjustments,
   sumAdjustmentsVnd,
 } from '@/lib/repositories/budget-adjustments.repo';
@@ -14,6 +15,7 @@ import {
   parseCostType,
   parseFiscalYear,
   parseNonNegativeVnd,
+  parseSignedNonZeroVnd,
 } from '@/lib/fiscal/vnd';
 import { assertProjectAccess, assertProjectWriteAccess, type AccessActor } from './access';
 import { auditLog } from './audit.service';
@@ -131,4 +133,59 @@ export async function patchFiscalBudgetActual(
     after: { actual_amount_vnd: coerceVnd(updated.actual_amount_vnd) },
   });
   return updated;
+}
+
+function adjustmentSnapshot(row: {
+  id: number;
+  fiscal_budget_id: number;
+  amount_vnd: string | number;
+  effective_date: string;
+  reason: string;
+} | null | undefined) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    fiscal_budget_id: row.fiscal_budget_id,
+    amount_vnd: coerceVnd(row.amount_vnd),
+    effective_date: row.effective_date,
+    reason: row.reason,
+  };
+}
+
+export async function addBudgetAdjustment(
+  projectId: number | string,
+  budgetId: number | string,
+  actor: AccessActor,
+  body: Record<string, unknown>,
+) {
+  await assertProjectWriteAccess(projectId, actor);
+  const budget = await getFiscalBudgetInProject(projectId, budgetId);
+  if (!budget) throw new NotFoundError('Not found', 'fiscal_budget');
+
+  const amountVnd = parseSignedNonZeroVnd(body.amount_vnd, 'amount_vnd');
+  const effectiveDate = typeof body.effective_date === 'string' ? body.effective_date.trim() : '';
+  if (!effectiveDate) {
+    throw new ValidationError('effective_date is required', 'effective_date');
+  }
+  const reason = typeof body.reason === 'string' ? body.reason.trim() : '';
+  if (!reason) {
+    throw new ValidationError('reason is required', 'reason');
+  }
+
+  const row = await insertBudgetAdjustment(budgetId, {
+    amount_vnd: amountVnd,
+    effective_date: effectiveDate,
+    reason,
+    created_by: actor.user_id,
+  });
+  await auditLog({
+    actor_id: actor.user_id,
+    company_id: actor.company_id,
+    entity_type: 'budget_adjustment',
+    entity_id: String(row!.id),
+    action: 'create',
+    before: null,
+    after: adjustmentSnapshot(row),
+  });
+  return row;
 }
