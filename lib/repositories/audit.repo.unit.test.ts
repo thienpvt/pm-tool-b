@@ -81,9 +81,15 @@ describe('audit.repo append-only persistence (D-07)', () => {
       });
       return { lastInsertRowid: store.length, changes: 1 };
     });
-    db.all.mockImplementation(async (_sql: string, companyId: unknown) => {
+    db.all.mockImplementation(async (_sql: string, ...params: unknown[]) => {
+      const companyId = params[0];
       return store
         .filter(r => r.company_id === companyId)
+        .map(r => ({
+          ...r,
+          before: r.before == null ? null : JSON.parse(String(r.before)),
+          after: r.after == null ? null : JSON.parse(String(r.after)),
+        }))
         .sort((a, b) => Number(b.id) - Number(a.id));
     });
 
