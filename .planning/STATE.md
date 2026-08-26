@@ -5,16 +5,16 @@ milestone_name: Portfolio One View
 current_phase: 14
 current_phase_name: CPMO Tracking & Consolidated Export
 status: executing
-stopped_at: Phase 13 complete, ready to plan Phase 14
-last_updated: "2026-08-26T00:10:29.927Z"
+stopped_at: Completed 14-02-PLAN.md
+last_updated: "2026-08-26T00:22:18.896Z"
 last_activity: 2026-08-26
 last_activity_desc: Phase 13 complete, transitioned to Phase 14
-state_head: f71118e64ab6fbc1c2a7c6b345bd198b683913ea
+state_head: 97f6a795e0ca891331a37e8948f0471f39b19ba1
 progress:
   total_phases: 10
   completed_phases: 5
   total_plans: 28
-  completed_plans: 25
+  completed_plans: 27
 ---
 
 # Project State
@@ -80,6 +80,8 @@ Progress: [█░░░░░░░░░] 10%
 | Phase 13-weekly-periods-pm-submit P01 | 25 | 2 tasks | 18 files |
 | Phase 13-weekly-periods-pm-submit P02 | 25min | 2 tasks | 12 files |
 | Phase 13-weekly-periods-pm-submit P03 | 25 | 2 tasks | 9 files |
+| Phase 14-cpmo-tracking-consolidated-export P01 | 12min | 2 tasks | 10 files |
+| Phase 14 P02 | 8min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -133,6 +135,9 @@ Recent decisions affecting current work:
 - [Phase 13]: Snapshot stores draft_raid_json on shell only until 13-03 submit RAID writes
 - [Phase 13]: SubmitValidationError fields[] separate from ValidationError.field for multi-field 400 mapping
 - [Phase 13]: Submit copies progress_pct read-only; updateProject rag-only when this_week_rag differs
+- [Phase 14]: Tracking orchestration in weekly-tracking.service.ts; counts before filters; company-scoped listPeriodShellsRepo
+- [Phase 14]: Export preview eligibility uses SubmitValidationError with stringified project_ids in fields
+- [Phase 14]: assembleSnapshotSections exported for 14-03 with full raid arrays and snapshot-only tech issues
 
 ### Pending Todos
 
@@ -153,6 +158,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-08-25T23:50:25.732Z
-Stopped at: Phase 13 complete, ready to plan Phase 14
+Last session: 2026-08-26T00:22:18.412Z
+Stopped at: Completed 14-02-PLAN.md
 Resume file: None
