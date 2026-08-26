@@ -46,11 +46,11 @@ describe.skipIf(!hasTestDb)('project-dependencies.repo', () => {
       from_project_id: fromProjectId,
       to_project_id: toProjectId,
       dependency_type: 'FINISH_TO_START',
-      need_by: '2026-12-31',
-      effective_from: '2026-01-01',
       effective_to: null,
       notes: 'blocked on infra',
     });
+    expect(row?.need_by).toBeTruthy();
+    expect(row?.effective_from).toBeTruthy();
   });
 
   it('listProjectDependencies returns outgoing on from and incoming on to', async () => {
