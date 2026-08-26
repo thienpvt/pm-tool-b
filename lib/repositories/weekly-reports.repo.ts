@@ -380,31 +380,59 @@ export type PeriodShellListRow = {
   report_id: number;
   due_at: string;
   rag: string | null;
+  name: string;
+  project_code: string | null;
+  stage: string | null;
+  pm_user_id: number | null;
+  pm_display_name: string | null;
+};
+
+export type WeeklyPeriodCompanyRow = {
+  id: number;
+  company_id: number;
+  iso_week: string;
+  start_date: string;
+  end_date: string;
+  due_at: string;
+  display_name: string;
 };
 
 export async function getWeeklyPeriodByCompany(
   companyId: number,
   periodId: number,
-): Promise<{ id: number; due_at: string } | undefined> {
+): Promise<WeeklyPeriodCompanyRow | undefined> {
   const db = await getDb();
-  return db.get<{ id: number; due_at: string }>(
-    `SELECT id, due_at FROM weekly_periods WHERE id = ? AND company_id = ?`,
+  return db.get<WeeklyPeriodCompanyRow>(
+    `SELECT id, company_id, iso_week, start_date, end_date, due_at, display_name
+     FROM weekly_periods WHERE id = ? AND company_id = ?`,
     periodId,
     companyId,
   );
 }
 
-export async function listPeriodShellsRepo(periodId: number): Promise<PeriodShellListRow[]> {
+export async function listPeriodShellsRepo(
+  companyId: number,
+  periodId: number,
+): Promise<PeriodShellListRow[]> {
   const db = await getDb();
   return db.all<PeriodShellListRow>(
     `SELECT wr.project_id, wr.status, wr.first_submitted_at, wr.first_lateness,
-            wr.latest_version, wr.id AS report_id, wp.due_at, wv.rag
+            wr.latest_version, wr.id AS report_id, wp.due_at, wv.rag,
+            p.name, p.project_code, p.stage,
+            pma.user_id AS pm_user_id, u.display_name AS pm_display_name
      FROM weekly_reports wr
-     JOIN weekly_periods wp ON wp.id = wr.period_id
+     JOIN weekly_periods wp ON wp.id = wr.period_id AND wp.company_id = ?
+     JOIN projects p ON p.id = wr.project_id
      LEFT JOIN weekly_report_versions wv
        ON wv.report_id = wr.id AND wv.version = wr.latest_version
+     LEFT JOIN project_pm_assignments pma
+       ON pma.project_id = wr.project_id AND pma.role = 'primary'
+       AND pma.effective_from <= CURRENT_DATE
+       AND (pma.effective_to IS NULL OR pma.effective_to > CURRENT_DATE)
+     LEFT JOIN users u ON u.id = pma.user_id
      WHERE wr.period_id = ?
      ORDER BY wr.project_id`,
+    companyId,
     periodId,
   );
 }

@@ -561,7 +561,7 @@ export async function listPeriodShells(
   if (actor.company_id !== companyId) throw new ForbiddenError();
   const period = await getWeeklyPeriodByCompany(companyId, periodId);
   if (!period) throw new NotFoundError('Not found', 'weekly_period');
-  const rows = await listPeriodShellsRepo(periodId);
+  const rows = await listPeriodShellsRepo(companyId, periodId);
   const now = new Date();
   return rows.map((row) => ({
     project_id: row.project_id,

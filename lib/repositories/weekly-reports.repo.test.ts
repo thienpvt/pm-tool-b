@@ -35,6 +35,10 @@ describe.skipIf(!hasTestDb)('weekly-reports.repo', () => {
       [companyId],
     );
     await pool.query('DELETE FROM weekly_periods WHERE company_id = $1', [companyId]);
+    await pool.query(
+      'DELETE FROM project_pm_assignments WHERE project_id IN (SELECT id FROM projects WHERE company_id = $1)',
+      [companyId],
+    );
     await pool.query('DELETE FROM projects WHERE company_id = $1', [companyId]);
   });
 
@@ -64,10 +68,11 @@ describe.skipIf(!hasTestDb)('weekly-reports.repo', () => {
       `UPDATE projects SET name = $1, project_code = $2, stage = $3 WHERE id = $4`,
       ['Alpha Project', 'AP-001', 'L3', projectId],
     );
+    const unique = Date.now();
     const userRes = await pool.query(
       `INSERT INTO users (username, display_name, email, password_hash, company_id, status)
        VALUES ($1, $2, $3, $4, $5, 'active') RETURNING id`,
-      [`pm-${Date.now()}`, 'Primary PM', 'pm@test.com', 'hash', companyId],
+      [`pm-${unique}`, 'Primary PM', `pm-${unique}@test.com`, 'hash', companyId],
     );
     const pmUserId = userRes.rows[0].id as number;
     await pool.query(

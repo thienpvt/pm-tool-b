@@ -73,6 +73,24 @@ export const WEEKLY_REPORTS_INDEX_DDL = [
      ON weekly_report_versions (report_id, version)`,
 ];
 
+export const WEEKLY_EXPORT_LOGS_DDL_FLAG = 'weekly_export_logs_ddl_v1';
+
+export const WEEKLY_EXPORT_LOGS_DDL = [
+  `
+    CREATE TABLE IF NOT EXISTS weekly_export_logs (
+      id SERIAL PRIMARY KEY,
+      period_id INTEGER NOT NULL REFERENCES weekly_periods(id),
+      company_id INTEGER NOT NULL REFERENCES companies(id),
+      exported_by INTEGER NOT NULL REFERENCES users(id),
+      exported_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      format TEXT NOT NULL,
+      data_version INTEGER NOT NULL,
+      project_ids JSONB NOT NULL,
+      period_display_name TEXT NOT NULL
+    )
+  `,
+];
+
 async function settingsFlagExists(pool: Pool, key: string): Promise<boolean> {
   try {
     const res = await pool.query('SELECT 1 FROM settings WHERE key = $1 LIMIT 1', [key]);
@@ -109,11 +127,23 @@ async function migrateWeeklyReportsIndexes(pool: Pool): Promise<void> {
   await writeSettingsFlag(pool, WEEKLY_REPORTS_INDEX_FLAG);
 }
 
+/** Idempotent weekly export log DDL (D-09, D-10). */
+export async function migrateWeeklyExportLogs(pool: Pool): Promise<void> {
+  if (await settingsFlagExists(pool, WEEKLY_EXPORT_LOGS_DDL_FLAG)) return;
+
+  for (const sql of WEEKLY_EXPORT_LOGS_DDL) {
+    await pool.query(sql);
+  }
+
+  await writeSettingsFlag(pool, WEEKLY_EXPORT_LOGS_DDL_FLAG);
+}
+
 /** Idempotent weekly report DDL in the getDb migrate loop (D-02, D-14). */
 export async function migrateWeeklyReports(pool: Pool): Promise<void> {
   try {
     await migrateWeeklyReportsDdl(pool);
     await migrateWeeklyReportsIndexes(pool);
+    await migrateWeeklyExportLogs(pool);
   } catch {
     /* settings table may not exist yet on first run — will retry next boot */
   }
