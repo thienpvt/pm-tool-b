@@ -52,6 +52,7 @@ Do not use `-x` in automated plan commands (Vitest 4 ignores it).
 | **PDSH-06** | Export POST `format: xlsx` returns spreadsheet buffer | `lib/export/dashboard-portfolio.unit.test.ts` | unit |
 | **PDSH-06** | Export POST `format: pdf` returns PDF buffer via jspdf (no new package) | Same export unit test | unit |
 | **PDSH-06** | Export includes filtered project list + KPI numbers + drill-down ids | Export unit asserts sheet/section content | unit |
+| **PDSH-06** | Optional export `body.filters` is one-shot (not written to `dashboard_filter_state`) | Service unit | unit |
 | **PDSH-06** | `auditLog` action `dashboard_export` on export | Service/route unit mock | unit |
 | **MDSH-01** | PM GET returns only assignment-window projects | Service unit: `listProjects` called with `{ pmUserId: actor.user_id }` | unit |
 | **MDSH-01** | PM project list fields match portfolio list shape for same rows | Service unit shape assertion | unit |
@@ -64,7 +65,7 @@ Do not use `-x` in automated plan commands (Vitest 4 ignores it).
 | **MDSH-03** | Milestone action rows include dates + update href | Service unit shape | unit |
 | **MDSH-04** | RAID actions = High open/in-progress with due in upcoming window or past due | Service unit date filter | unit |
 | **MDSH-04** | RAID rows include `has_technology_council` when issue flagged | Service unit with council lookup | unit |
-| **MDSH-05** | Each action row includes `href` deep-link string | Service unit | unit |
+| **MDSH-05** | Each action row includes `href` deep-link string: weekly `/projects/{id}/weekly-reports/{reportId}`; milestone `/projects/{id}/milestones`; RAID `/projects/{id}/raid` | Service unit | unit |
 | **MDSH-05** | Second GET after mutator omits resolved action (live read, no cache) | Service unit: simulate status change between calls | unit |
 
 ### Cross-cutting (locked D-01..D-16)
@@ -102,6 +103,8 @@ Do not use `-x` in automated plan commands (Vitest 4 ignores it).
 - [ ] `lib/export/dashboard-portfolio.ts` + `.unit.test.ts`
 - [ ] `app/api/dashboards/portfolio/route.ts` + `filters/route.ts` + `export/route.ts` + route tests
 - [ ] `app/api/dashboards/pm/route.ts` + `route.test.ts`
+- [ ] `app/api/dashboards/pm/filters/route.ts` + `route.test.ts`
+- [ ] `lib/dashboards/filter-schema.ts`
 
 ---
 
