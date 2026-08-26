@@ -26,6 +26,28 @@ import {
 } from './errors';
 import { applyProjectGovernance } from './project-governance';
 
+function auditSnapshot(row: Record<string, unknown> | null | undefined) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    name: row.name,
+    project_code: row.project_code,
+    status: row.status,
+    rag: row.rag,
+    stage: row.stage,
+    company_id: row.company_id,
+    customer_id: row.customer_id,
+    portfolio_year: row.portfolio_year,
+  };
+}
+
+function snapshotsEqual(
+  before: ReturnType<typeof auditSnapshot>,
+  after: ReturnType<typeof auditSnapshot>,
+): boolean {
+  return JSON.stringify(before) === JSON.stringify(after);
+}
+
 /**
  * Owner-scoped project CRUD for `app/api/projects/[id]/route.ts` — the canonical
  * home for the ownership check that route used to keep as a file-local `checkAccess`.
@@ -95,6 +117,15 @@ export async function createProject(actor: AccessActor, body: Record<string, unk
   await generateProjectChecklist(Number(row.id), {
     companyId: actor.company_id,
     stage: (row.stage as string | null) ?? null,
+  });
+  await auditLog({
+    actor_id: actor.user_id,
+    company_id: actor.company_id,
+    entity_type: 'project',
+    entity_id: String(row.id),
+    action: 'create',
+    before: null,
+    after: auditSnapshot(row),
   });
   return { ...row, warnings };
 }
@@ -202,6 +233,20 @@ export async function updateProject(
 
   const row = await updateProjectRepo(projectId, governed);
 
+  const beforeSnap = auditSnapshot(current);
+  const afterSnap = auditSnapshot(row);
+  if (!snapshotsEqual(beforeSnap, afterSnap)) {
+    await auditLog({
+      actor_id: actor.user_id,
+      company_id: actor.company_id,
+      entity_type: 'project',
+      entity_id: String(projectId),
+      action: 'update',
+      before: beforeSnap,
+      after: afterSnap,
+    });
+  }
+
   if (stageChanged) {
     const ownerCompanyId = Number(current.company_id);
     if (!Number.isFinite(ownerCompanyId)) {
@@ -230,5 +275,16 @@ export async function updateProject(
 
 export async function deleteProject(projectId: number | string, actor: AccessActor) {
   await assertProjectWriteAccess(projectId, actor);
-  return deleteProjectRepo(projectId);
+  const prior = await getProjectRepo(projectId);
+  const result = await deleteProjectRepo(projectId);
+  await auditLog({
+    actor_id: actor.user_id,
+    company_id: actor.company_id,
+    entity_type: 'project',
+    entity_id: String(projectId),
+    action: 'delete',
+    before: auditSnapshot(prior),
+    after: null,
+  });
+  return result;
 }
