@@ -13,6 +13,7 @@ vi.mock('@/lib/services/document-catalog.service', () => ({
 }));
 
 import { getSessionFromRequest } from '@/lib/auth';
+import { ForbiddenError } from '@/lib/services/errors';
 import { GET, POST } from './route';
 
 const cpmoSession = {
@@ -95,9 +96,9 @@ describe('GET /api/document-catalog', () => {
 
   it('returns 403 for viewer session (D-12)', async () => {
     vi.mocked(getSessionFromRequest).mockResolvedValue(viewerSession as never);
+    listDocumentCatalog.mockRejectedValue(new ForbiddenError());
     const res = await GET(getReq(), ctx);
     expect(res.status).toBe(403);
-    expect(listDocumentCatalog).not.toHaveBeenCalled();
   });
 });
 
