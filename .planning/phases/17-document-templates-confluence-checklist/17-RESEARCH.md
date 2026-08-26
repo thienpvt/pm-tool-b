@@ -518,17 +518,19 @@ export function projectComplianceStatus(
 | A4 | Mandatory incomplete items filtered by catalog.stage matching **current project stage** (not ALL-stage catalog on every guard) | D-09 | Over-blocking if ALL mandatory items always checked |
 | A5 | `approved_by` accepts numeric user id OR non-empty display string | D-08 | Validation rules need adjustment if id-only |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Exact compliance route path**
    - What we know: D-01 allows `/api/dashboards/document-compliance` or `/api/document-compliance`.
    - What's unclear: Which path Phase 17 plans standardize on.
    - Recommendation: Prefer `/api/dashboards/document-compliance` for consistency with Phase 16 dashboard namespace.
+   - RESOLVED: Plans lock `/api/dashboards/document-compliance` (17-03, COVERAGE.md).
 
 2. **Template "upload" UX without bytes**
    - What we know: D-05 allows URL pointer; DOC-03 says upload/replace.
    - What's unclear: Whether CPMO accepts URL-only as satisfying "upload".
    - Recommendation: POST body `{ template_url, ...metadata }` counts as upload; document in PLAN.
+   - RESOLVED: DOC-03 upload is POST JSON `{ catalog_id, name, document_type, effective_date, guidance, template_url }` with `parseHttpsUrl`; no BYTEA (17-02, COVERAGE.md).
 
 ## Environment Availability
 
