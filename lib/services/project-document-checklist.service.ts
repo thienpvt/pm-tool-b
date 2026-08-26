@@ -85,6 +85,38 @@ function buildUpdateFields(
   return fields;
 }
 
+function checklistAuditPayload(row: {
+  status: string;
+  confluence_url: string | null;
+  approved_at: string | null;
+  approved_by: string | number | null;
+  na_reason: string | null;
+  notes: string | null;
+}) {
+  return {
+    status: row.status,
+    confluence_url: row.confluence_url,
+    approved_at: row.approved_at,
+    approved_by: row.approved_by,
+    na_reason: row.na_reason,
+    notes: row.notes,
+  };
+}
+
+function checklistFieldsDiffer(
+  before: ReturnType<typeof checklistAuditPayload>,
+  after: ReturnType<typeof checklistAuditPayload>,
+): boolean {
+  return (
+    before.status !== after.status ||
+    before.confluence_url !== after.confluence_url ||
+    before.approved_at !== after.approved_at ||
+    String(before.approved_by ?? '') !== String(after.approved_by ?? '') ||
+    before.na_reason !== after.na_reason ||
+    before.notes !== after.notes
+  );
+}
+
 export async function listProjectDocumentChecklist(
   projectId: number | string,
   actor: AccessActor,
@@ -134,15 +166,21 @@ export async function patchChecklistItem(
   const updated = await updateChecklistItemRepo(Number(projectId), Number(itemId), fields);
   if (!updated) throw new NotFoundError('Not found', 'document_checklist');
 
-  if (updated.status !== existing.status || updated.confluence_url !== existing.confluence_url) {
+  const beforePayload = checklistAuditPayload(existing);
+  const afterPayload = checklistAuditPayload(updated);
+  if (checklistFieldsDiffer(beforePayload, afterPayload)) {
+    const action =
+      updated.status !== existing.status || updated.confluence_url !== existing.confluence_url
+        ? 'status_change'
+        : 'update';
     await auditLog({
       actor_id: actor.user_id,
       company_id: actor.company_id,
       entity_type: 'document_checklist',
       entity_id: String(updated.id),
-      action: 'status_change',
-      before: { status: existing.status, confluence_url: existing.confluence_url },
-      after: { status: updated.status, confluence_url: updated.confluence_url },
+      action,
+      before: beforePayload,
+      after: afterPayload,
     });
   }
 
