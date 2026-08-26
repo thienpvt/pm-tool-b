@@ -11,6 +11,7 @@ vi.mock('@/lib/db', () => ({
 }));
 
 import {
+  hasOverlappingEquivalentDependency,
   insertProjectDependency,
   listProjectDependencies,
 } from './project-dependencies.repo';
@@ -70,5 +71,35 @@ describe.skipIf(!hasTestDb)('project-dependencies.repo', () => {
     const toList = await listProjectDependencies(toProjectId);
     const incoming = toList.find((r) => r.id === created!.id);
     expect(incoming?.direction).toBe('incoming');
+  });
+
+  it('hasOverlappingEquivalentDependency detects window intersection not only CURRENT_DATE active', async () => {
+    await insertProjectDependency({
+      fromProjectId,
+      toProjectId,
+      dependencyType: 'START_TO_START',
+      needBy: '2027-06-30',
+      effectiveFrom: '2027-01-01',
+      effectiveTo: '2027-12-31',
+      createdBy: 1,
+    });
+
+    const overlapsFuture = await hasOverlappingEquivalentDependency(
+      fromProjectId,
+      toProjectId,
+      'START_TO_START',
+      '2027-06-01',
+      '2027-09-30',
+    );
+    expect(overlapsFuture).toBe(true);
+
+    const noOverlap = await hasOverlappingEquivalentDependency(
+      fromProjectId,
+      toProjectId,
+      'START_TO_START',
+      '2028-01-01',
+      '2028-06-30',
+    );
+    expect(noOverlap).toBe(false);
   });
 });

@@ -35,6 +35,7 @@ vi.mock('@/lib/services/audit.service', () => ({ auditLog: auditLogFn }));
 
 import { getSessionFromRequest } from '@/lib/auth';
 import { GET, POST } from './route';
+import * as routeModule from './route';
 
 const ownerSession = {
   id: 2,
@@ -146,5 +147,76 @@ describe('/api/projects/[id]/dependencies', () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body[0]).toMatchObject({ direction: 'incoming', peer_project_id: 7 });
+  });
+
+  it('POST as viewer-only returns 403', async () => {
+    vi.mocked(getSessionFromRequest).mockResolvedValue({
+      ...ownerSession,
+      roles: ['viewer'],
+    } as never);
+    const res = await POST(
+      req('7', 'POST', {
+        to_project_id: 9,
+        dependency_type: 'FINISH_TO_START',
+        need_by: '2026-12-31',
+        effective_from: '2026-01-01',
+      }),
+      fromParams,
+    );
+    expect(res.status).toBe(403);
+    expect(insertProjectDependencyRepo).not.toHaveBeenCalled();
+  });
+
+  it('POST self-link returns 400', async () => {
+    vi.mocked(getSessionFromRequest).mockResolvedValue(cpmoSession as never);
+    const res = await POST(
+      req('7', 'POST', {
+        to_project_id: 7,
+        dependency_type: 'FINISH_TO_START',
+        need_by: '2026-12-31',
+        effective_from: '2026-01-01',
+      }),
+      fromParams,
+    );
+    expect(res.status).toBe(400);
+  });
+
+  it('POST overlap returns 409', async () => {
+    vi.mocked(getSessionFromRequest).mockResolvedValue(cpmoSession as never);
+    hasOverlappingEquivalentDependencyRepo.mockResolvedValue(true);
+    const res = await POST(
+      req('7', 'POST', {
+        to_project_id: 9,
+        dependency_type: 'BLOCKS',
+        need_by: '2026-12-31',
+        effective_from: '2026-01-01',
+      }),
+      fromParams,
+    );
+    expect(res.status).toBe(409);
+  });
+
+  it('POST to foreign project returns 403', async () => {
+    vi.mocked(getSessionFromRequest).mockResolvedValue(ownerSession as never);
+    projectAccessRow.mockImplementation(async (id) => {
+      if (Number(id) === 9) {
+        return { company_id: 99, customer_company_id: null };
+      }
+      return { company_id: 5, customer_company_id: null };
+    });
+    const res = await POST(
+      req('7', 'POST', {
+        to_project_id: 9,
+        dependency_type: 'FINISH_TO_START',
+        need_by: '2026-12-31',
+        effective_from: '2026-01-01',
+      }),
+      fromParams,
+    );
+    expect(res.status).toBe(403);
+  });
+
+  it('does not export DELETE', () => {
+    expect(routeModule.DELETE).toBeUndefined();
   });
 });

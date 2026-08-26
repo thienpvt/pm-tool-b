@@ -34,6 +34,7 @@ import {
   createProjectDependency,
   listProjectDependenciesForProject,
 } from './project-dependencies.service';
+import { ConflictError, ForbiddenError, ValidationError } from './errors';
 import type { AccessActor } from './access';
 
 const pmActor: AccessActor = {
@@ -89,6 +90,80 @@ describe('createProjectDependency', () => {
         entity_id: '11',
       }),
     );
+  });
+});
+
+describe('createProjectDependency validation', () => {
+  it('rejects self-link with ValidationError on to_project_id', async () => {
+    await expect(
+      createProjectDependency(7, pmActor, {
+        to_project_id: 7,
+        dependency_type: 'FINISH_TO_START',
+        need_by: '2026-12-31',
+        effective_from: '2026-01-01',
+      }),
+    ).rejects.toBeInstanceOf(ValidationError);
+    await expect(
+      createProjectDependency(7, pmActor, {
+        to_project_id: 7,
+        dependency_type: 'FINISH_TO_START',
+        need_by: '2026-12-31',
+        effective_from: '2026-01-01',
+      }),
+    ).rejects.toMatchObject({ field: 'to_project_id' });
+    expect(insertProjectDependencyRepo).not.toHaveBeenCalled();
+  });
+
+  it('rejects empty need_by', async () => {
+    await expect(
+      createProjectDependency(7, pmActor, {
+        to_project_id: 9,
+        dependency_type: 'FINISH_TO_START',
+        need_by: '',
+        effective_from: '2026-01-01',
+      }),
+    ).rejects.toMatchObject({ name: 'ValidationError', field: 'need_by' });
+  });
+
+  it('rejects effective_to before effective_from', async () => {
+    await expect(
+      createProjectDependency(7, pmActor, {
+        to_project_id: 9,
+        dependency_type: 'FINISH_TO_START',
+        need_by: '2026-12-31',
+        effective_from: '2026-06-01',
+        effective_to: '2026-01-01',
+      }),
+    ).rejects.toMatchObject({ name: 'ValidationError', field: 'effective_to' });
+  });
+
+  it('rejects overlapping equivalent relation with ConflictError', async () => {
+    hasOverlappingEquivalentDependencyRepo.mockResolvedValue(true);
+    await expect(
+      createProjectDependency(7, pmActor, {
+        to_project_id: 9,
+        dependency_type: 'BLOCKS',
+        need_by: '2026-12-31',
+        effective_from: '2026-01-01',
+      }),
+    ).rejects.toBeInstanceOf(ConflictError);
+    expect(insertProjectDependencyRepo).not.toHaveBeenCalled();
+  });
+
+  it('propagates ForbiddenError when actor lacks access on to project', async () => {
+    assertProjectAccess.mockImplementation(async (projectId) => {
+      if (Number(projectId) === 9) throw new ForbiddenError();
+      return { company_id: 5, customer_company_id: null };
+    });
+    await expect(
+      createProjectDependency(7, pmActor, {
+        to_project_id: 9,
+        dependency_type: 'FINISH_TO_START',
+        need_by: '2026-12-31',
+        effective_from: '2026-01-01',
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+    expect(insertProjectDependencyRepo).not.toHaveBeenCalled();
   });
 });
 
