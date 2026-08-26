@@ -119,6 +119,52 @@ describe('projects.service', () => {
       expect(updateProjectRepo).toHaveBeenCalledWith(7, { name: 'Renamed' });
     });
 
+    it('calls auditLog action update when general fields change (D-02, D-03)', async () => {
+      getProjectRepo.mockResolvedValue({
+        id: 7,
+        name: 'Before',
+        status: 'Active',
+        rag: 'Green',
+        progress_pct: 50,
+      });
+      updateProjectRepo.mockResolvedValue({ id: 7, name: 'Renamed', status: 'Active', rag: 'Green' });
+      await updateProject(7, pmActor, { name: 'Renamed' });
+      expect(auditLogFn).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'update',
+          entity_type: 'project',
+          entity_id: '7',
+          before: expect.objectContaining({ name: 'Before' }),
+          after: expect.objectContaining({ name: 'Renamed' }),
+        }),
+      );
+    });
+
+    it('calls auditLog action update when status or rag changes (D-02)', async () => {
+      getProjectRepo.mockResolvedValue({
+        id: 7,
+        name: 'Alpha',
+        status: 'Active',
+        rag: 'Green',
+        progress_pct: 50,
+      });
+      updateProjectRepo.mockResolvedValue({
+        id: 7,
+        name: 'Alpha',
+        status: 'On Hold',
+        rag: 'Amber',
+      });
+      await updateProject(7, pmActor, { status: 'On Hold', rag: 'Amber' });
+      expect(auditLogFn).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'update',
+          entity_type: 'project',
+          before: expect.objectContaining({ status: 'Active', rag: 'Green' }),
+          after: expect.objectContaining({ status: 'On Hold', rag: 'Amber' }),
+        }),
+      );
+    });
+
     it('strips project_code from PM update payload (D-03)', async () => {
       getProjectRepo.mockResolvedValue({
         id: 7,
@@ -423,6 +469,42 @@ describe('projects.service', () => {
       expect(deleteProjectRepo).toHaveBeenCalledWith(7);
     });
 
+    it('calls auditLog action delete with before snapshot and after null (D-02, D-03)', async () => {
+      getProjectRepo.mockResolvedValue({
+        id: 7,
+        name: 'Alpha',
+        project_code: 'PRJ-001',
+        status: 'Active',
+        rag: 'Green',
+        stage: 'L2',
+        company_id: 5,
+        customer_id: 10,
+        portfolio_year: 2026,
+      });
+      deleteProjectRepo.mockResolvedValue({ lastInsertRowid: 0, changes: 1 });
+      await deleteProject(7, pmActor);
+      expect(getProjectRepo).toHaveBeenCalledWith(7);
+      expect(auditLogFn).toHaveBeenCalledWith({
+        actor_id: pmActor.user_id,
+        company_id: pmActor.company_id,
+        entity_type: 'project',
+        entity_id: '7',
+        action: 'delete',
+        before: {
+          id: 7,
+          name: 'Alpha',
+          project_code: 'PRJ-001',
+          status: 'Active',
+          rag: 'Green',
+          stage: 'L2',
+          company_id: 5,
+          customer_id: 10,
+          portfolio_year: 2026,
+        },
+        after: null,
+      });
+    });
+
     it('does not call the repository when write access is denied', async () => {
       assertProjectWriteAccess.mockRejectedValue(new ForbiddenError());
       await expect(deleteProject(7, foreign)).rejects.toBeInstanceOf(ForbiddenError);
@@ -456,6 +538,7 @@ describe('projects.service', () => {
     it('throws ForbiddenError for PM (D-13, D-15)', async () => {
       await expect(createProject(pmActor, { name: 'Alpha' })).rejects.toBeInstanceOf(ForbiddenError);
       expect(createProjectRepo).not.toHaveBeenCalled();
+      expect(auditLogFn).not.toHaveBeenCalled();
     });
 
     it('throws ForbiddenError for viewer-only (D-15)', async () => {
@@ -556,6 +639,25 @@ describe('projects.service', () => {
       expect(generateProjectChecklistFn).toHaveBeenCalledWith(1, {
         companyId: cpmoActor.company_id,
         stage: 'L2',
+      });
+      expect(auditLogFn).toHaveBeenCalledWith({
+        actor_id: cpmoActor.user_id,
+        company_id: cpmoActor.company_id,
+        entity_type: 'project',
+        entity_id: '1',
+        action: 'create',
+        before: null,
+        after: {
+          id: 1,
+          name: 'Alpha',
+          project_code: 'PRJ-001',
+          portfolio_year: 2026,
+          customer_id: 10,
+          company_id: cpmoActor.company_id,
+          stage: 'L2',
+          status: undefined,
+          rag: undefined,
+        },
       });
     });
 
