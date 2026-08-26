@@ -161,4 +161,47 @@ describe('getPortfolioDashboard', () => {
     expect(listProjects).toHaveBeenCalledWith(5);
     expect(getDashboardFilters).toHaveBeenCalledWith(1, 'portfolio');
   });
+
+  it('overdue tile is distinct projects; drill-down is per milestone (D-05)', async () => {
+    listOverdueMilestones.mockResolvedValue([
+      { project_id: 10, milestone_id: 1, name: 'M1' },
+      { project_id: 10, milestone_id: 2, name: 'M2' },
+      { project_id: 99, milestone_id: 3, name: 'Other' },
+    ]);
+
+    const result = await getPortfolioDashboard(cpmoActor);
+
+    expect(result.kpis.overdue_milestone_project_count).toBe(1);
+    expect(result.drilldowns.overdue_milestones).toHaveLength(2);
+  });
+
+  it('high_open_raid_count is filtered record length not distinct projects (D-05)', async () => {
+    listHighOpenRaid.mockResolvedValue({
+      records: [
+        { id: 1, project_id: 10, entity_type: 'risk' },
+        { id: 2, project_id: 10, entity_type: 'issue' },
+        { id: 3, project_id: 99, entity_type: 'risk' },
+      ],
+      count: 3,
+    });
+
+    const result = await getPortfolioDashboard(cpmoActor);
+
+    expect(result.kpis.high_open_raid_count).toBe(2);
+    expect(result.drilldowns.high_raid).toHaveLength(2);
+    expect(result.drilldowns.high_raid.map((r: { id: number }) => r.id)).toEqual([1, 2]);
+  });
+
+  it('technology_council_count equals drill-down length for filtered set (D-05)', async () => {
+    listTechnologyCouncilIssues.mockResolvedValue([
+      { id: 1, project_id: 10 },
+      { id: 2, project_id: 11 },
+      { id: 3, project_id: 99 },
+    ]);
+
+    const result = await getPortfolioDashboard(cpmoActor);
+
+    expect(result.kpis.technology_council_count).toBe(2);
+    expect(result.drilldowns.technology_council).toHaveLength(2);
+  });
 });
