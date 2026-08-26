@@ -137,7 +137,7 @@ Requirements for this milestone. Each maps to roadmap phases. Jira import, AI re
 
 ### Audit
 
-- [ ] **AUDIT-01**: Mutations to users, assignments, project master, RAID, milestones, budget adjustments, weekly submissions, and document checklist status append an audit record (actor, time, entity, before/after) that cannot be edited in place
+- [x] **AUDIT-01**: Mutations to users, assignments, project master, RAID, milestones, budget adjustments, weekly submissions, and document checklist status append an audit record (actor, time, entity, before/after) that cannot be edited in place
 
 ## Future Requirements
 
@@ -264,7 +264,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DOC-05 | Phase 17 | Complete |
 | DOC-06 | Phase 17 | Complete |
 | TENANT-01 | Phase 9 | Complete |
-| AUDIT-01 | Phase 18 | Pending |
+| AUDIT-01 | Phase 18 | Complete |
 
 **Coverage:**
 

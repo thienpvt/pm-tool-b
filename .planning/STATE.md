@@ -5,16 +5,16 @@ milestone_name: Portfolio One View
 current_phase: 18
 current_phase_name: Append-Only Audit Log
 status: planning
-stopped_at: Phase 17 complete, ready to plan Phase 18
-last_updated: "2026-08-26T15:14:33.921Z"
+stopped_at: Completed 18-01-PLAN.md
+last_updated: "2026-08-26T15:35:50.351Z"
 last_activity: 2026-08-26
 last_activity_desc: Phase 17 complete, transitioned to Phase 18
-state_head: 85be0e9e63164f87f2a27bbb5bd3fc88e6a9ee2e
+state_head: 54730ca3afd0424876addc7f42ae8f49d7dca5db
 progress:
   total_phases: 10
   completed_phases: 9
-  total_plans: 37
-  completed_plans: 37
+  total_plans: 40
+  completed_plans: 38
 ---
 
 # Project State
@@ -92,6 +92,7 @@ Progress: [█░░░░░░░░░] 10%
 | Phase 17-document-templates-confluence-checklist P01 | 25 | 3 tasks | 13 files |
 | Phase 17-document-templates-confluence-checklist P02 | 25min | 3 tasks | 15 files |
 | Phase 17-document-templates-confluence-checklist P03 | 15 | 3 tasks | 11 files |
+| Phase 18-append-only-audit-log P01 | 12 | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -162,6 +163,8 @@ Recent decisions affecting current work:
 - [Phase 17]: URL-only templates via template_url; effective list DISTINCT ON catalog_id
 - [Phase 17]: Stage guard checks current-stage mandatory items only; ALL-stage catalog excluded
 - [Phase 17]: Structured 409 mandatory_incomplete distinct from ConflictError error shape
+- [Phase 18]: Route tests mock repo listAuditLogs so real assertCompanyWrite runs for null-company CPMO 403
+- [Phase 18]: Skipped D-10 settings-flag migrate — company_id column already exists
 
 ### Pending Todos
 
@@ -182,6 +185,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-08-26T15:09:35.492Z
-Stopped at: Phase 17 complete, ready to plan Phase 18
+Last session: 2026-08-26T15:35:49.259Z
+Stopped at: Completed 18-01-PLAN.md
 Resume file: None
