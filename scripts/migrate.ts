@@ -14,7 +14,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { Pool } from 'pg';
-import { resolveSsl } from '@/lib/db';
+import { getDb, resolveSsl } from '@/lib/db';
 import { parseMigrationFile, type MigrationFile } from '@/lib/migrate/plan';
 import { computePendingMigrations, runMigrations } from '@/lib/migrate/runner';
 
@@ -62,9 +62,10 @@ async function main(): Promise<void> {
     for (const f of result.applied) console.log(`Applied ${f}`);
     if (result.applied.length === 0) console.log('Migrations up to date');
 
-    // Seeding is wired in the data-layer plan Task 3: after a successful run the
-    // ledger exists, so getDb() passes its assert-migrated guard and seeds the
-    // admin user when `users` is empty (idempotent).
+    // After a successful run the ledger exists, so getDb() passes its
+    // assert-migrated guard and seeds the admin user when `users` is empty
+    // (idempotent — a second `npm run migrate` is a no-op for both).
+    await getDb();
   } finally {
     client.release();
     await pool.end();

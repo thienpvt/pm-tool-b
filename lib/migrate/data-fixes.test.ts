@@ -45,7 +45,7 @@ describe('one-off data-fix scripts', () => {
       const src = readFileSync(path.join(dataFixesDir(), f), 'utf8');
       // Extract the SQL template literal passed to runFix({ sql: `...` }) or
       // built as `const sql = `...``.
-      const m = /sql\s*[:=]\s*`([^`]*)`/s.exec(src);
+      const m = /sql\s*[:=]\s*`([^`]*)`/.exec(src);
       expect(m, `${f} should pass a SQL template literal to runFix`).not.toBeNull();
       const sql = m![1].trim();
       expect(sql.length, `${f} SQL should be non-empty`).toBeGreaterThan(0);
