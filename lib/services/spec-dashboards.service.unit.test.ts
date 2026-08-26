@@ -11,6 +11,7 @@ const {
   listOverdueMilestones,
   listHighOpenRaid,
   listTechnologyCouncilIssues,
+  auditLogFn,
 } = vi.hoisted(() => ({
   assertCompanyWrite: vi.fn(),
   listProjects: vi.fn(),
@@ -20,6 +21,7 @@ const {
   listOverdueMilestones: vi.fn(),
   listHighOpenRaid: vi.fn(),
   listTechnologyCouncilIssues: vi.fn(),
+  auditLogFn: vi.fn(),
 }));
 
 vi.mock('@/lib/services/access', () => ({ assertCompanyWrite }));
@@ -34,10 +36,16 @@ vi.mock('@/lib/services/raid-masters.service', () => ({
   listHighOpenRaid,
   listTechnologyCouncilIssues,
 }));
+vi.mock('@/lib/services/audit.service', () => ({ auditLog: auditLogFn }));
+vi.mock('@/lib/export/dashboard-portfolio', () => ({
+  generatePortfolioDashboardXlsx: vi.fn(async () => Buffer.from('xlsx')),
+  generatePortfolioDashboardPdf: vi.fn(async () => Buffer.from('%PDF')),
+}));
 
 import { ForbiddenError, ValidationError } from './errors';
 import {
   clearPortfolioDashboardFilters,
+  exportPortfolioDashboard,
   getPortfolioDashboard,
   savePortfolioDashboardFilters,
 } from './spec-dashboards.service';
@@ -108,6 +116,7 @@ beforeEach(() => {
   listOverdueMilestones.mockResolvedValue([]);
   listHighOpenRaid.mockResolvedValue({ records: [], count: 0 });
   listTechnologyCouncilIssues.mockResolvedValue([]);
+  auditLogFn.mockResolvedValue(undefined);
 });
 
 describe('spec-dashboards.service source (D-01)', () => {
@@ -283,5 +292,55 @@ describe('clearPortfolioDashboardFilters', () => {
 
     expect(result.filters).toEqual({});
     expect(result.list).toHaveLength(3);
+  });
+});
+
+describe('exportPortfolioDashboard', () => {
+  it('calls auditLog with dashboard_export after successful buffer (D-08)', async () => {
+    const result = await exportPortfolioDashboard(cpmoActor, { format: 'xlsx' });
+
+    expect(result.contentType).toBe(
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    expect(result.filename).toBe('portfolio-dashboard.xlsx');
+    expect(auditLogFn).toHaveBeenCalledWith({
+      actor_id: 1,
+      company_id: 5,
+      entity_type: 'dashboard',
+      entity_id: 'portfolio',
+      action: 'dashboard_export',
+      before: null,
+      after: expect.objectContaining({ format: 'xlsx', filters: {} }),
+    });
+  });
+
+  it('body.filters overrides stored filters without upserting (D-07, D-08)', async () => {
+    getDashboardFilters.mockResolvedValue({
+      filters: { stage: 'L2' },
+      updated_at: '2026-08-26T00:00:00Z',
+    });
+
+    await exportPortfolioDashboard(cpmoActor, {
+      format: 'pdf',
+      filters: { status: 'Active' },
+    });
+
+    expect(upsertDashboardFilters).not.toHaveBeenCalled();
+    expect(auditLogFn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        after: expect.objectContaining({ format: 'pdf', filters: { status: 'Active' } }),
+      }),
+    );
+  });
+
+  it('throws ForbiddenError when assertCompanyWrite fails (D-12)', async () => {
+    assertCompanyWrite.mockImplementation(() => {
+      throw new ForbiddenError();
+    });
+
+    await expect(exportPortfolioDashboard(cpmoActor, { format: 'xlsx' })).rejects.toBeInstanceOf(
+      ForbiddenError,
+    );
+    expect(auditLogFn).not.toHaveBeenCalled();
   });
 });
