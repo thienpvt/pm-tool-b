@@ -432,7 +432,6 @@ async function migratePostgresSchema(pool: Pool) {
     `ALTER TABLE issues ADD COLUMN IF NOT EXISTS impact TEXT DEFAULT 'Major'`,
     `ALTER TABLE issues ADD COLUMN IF NOT EXISTS affected_activity_id INTEGER`,
     `ALTER TABLE users ADD COLUMN IF NOT EXISTS onboarding_completed INTEGER DEFAULT 0`,
-    `UPDATE users SET onboarding_completed = 1 WHERE created_at < '2026-05-08 00:00:00' AND onboarding_completed = 0`,
     `CREATE TABLE IF NOT EXISTS timeline_import_mappings (id SERIAL PRIMARY KEY, name TEXT NOT NULL, mappings_json TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
     `CREATE TABLE IF NOT EXISTS budget_items (id SERIAL PRIMARY KEY, project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE, type TEXT NOT NULL DEFAULT 'CAPEX', group_name TEXT NOT NULL DEFAULT '', name TEXT NOT NULL, planned_amount NUMERIC(15,2) NOT NULL DEFAULT 0, actual_amount NUMERIC(15,2) NOT NULL DEFAULT 0, unit TEXT NOT NULL DEFAULT 'USD', notes TEXT DEFAULT '', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
     `CREATE TABLE IF NOT EXISTS budget_expenses (id SERIAL PRIMARY KEY, budget_item_id INTEGER NOT NULL REFERENCES budget_items(id) ON DELETE CASCADE, project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE, expense_date DATE NOT NULL DEFAULT CURRENT_DATE, description TEXT NOT NULL DEFAULT '', amount NUMERIC(15,2) NOT NULL DEFAULT 0, reference TEXT DEFAULT '', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
@@ -440,7 +439,6 @@ async function migratePostgresSchema(pool: Pool) {
     `ALTER TABLE activities ADD COLUMN IF NOT EXISTS sprint TEXT DEFAULT ''`,
     `CREATE TABLE IF NOT EXISTS portfolio_members (id SERIAL PRIMARY KEY, company_id INTEGER REFERENCES companies(id) ON DELETE SET NULL, role TEXT DEFAULT '', name TEXT NOT NULL, email TEXT DEFAULT '', note TEXT DEFAULT '', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
     `ALTER TABLE portfolio_members ADD COLUMN IF NOT EXISTS member_type TEXT DEFAULT 'internal'`,
-    `UPDATE portfolio_members SET member_type = 'external' WHERE LOWER(note) LIKE '%ai platform%' AND (member_type IS NULL OR member_type = 'internal')`,
     `ALTER TABLE companies ADD COLUMN IF NOT EXISTS headcount_quota INTEGER DEFAULT 0`,
     `ALTER TABLE projects ADD COLUMN IF NOT EXISTS headcount_quota INTEGER DEFAULT 0`,
     `ALTER TABLE budget_items ADD COLUMN IF NOT EXISTS approved_amount NUMERIC(15,2) DEFAULT 0`,
@@ -466,8 +464,6 @@ async function migratePostgresSchema(pool: Pool) {
     `ALTER TABLE projects ADD COLUMN IF NOT EXISTS budget_currency TEXT DEFAULT 'VND'`,
     `CREATE TABLE IF NOT EXISTS milestones (id SERIAL PRIMARY KEY, project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE, name TEXT NOT NULL, start_date TEXT, end_date TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
     `CREATE TABLE IF NOT EXISTS milestone_epics (id SERIAL PRIMARY KEY, milestone_id INTEGER NOT NULL REFERENCES milestones(id) ON DELETE CASCADE, activity_id INTEGER NOT NULL REFERENCES activities(id) ON DELETE CASCADE, UNIQUE(milestone_id, activity_id))`,
-    // Sync ALL projects' company_id to match their customer's company_id (definitive data fix)
-    `UPDATE projects SET company_id = c.company_id FROM customers c WHERE projects.customer_id = c.id AND c.company_id IS NOT NULL`,
     `CREATE TABLE IF NOT EXISTS demo_requests (id SERIAL PRIMARY KEY, full_name TEXT NOT NULL, phone TEXT NOT NULL, email TEXT NOT NULL, company_name TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending', notes TEXT DEFAULT '', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
     `ALTER TABLE activities ADD COLUMN IF NOT EXISTS parent_id INTEGER REFERENCES activities(id) ON DELETE SET NULL`,
     `CREATE TABLE IF NOT EXISTS bugs (id SERIAL PRIMARY KEY, project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE, issue_type TEXT DEFAULT '', issue_key TEXT DEFAULT '', issue_id TEXT DEFAULT '', summary TEXT NOT NULL DEFAULT '', assignee TEXT DEFAULT '', reporter TEXT DEFAULT '', priority TEXT DEFAULT 'Medium', status TEXT DEFAULT 'To Do', resolution TEXT DEFAULT '', created TEXT DEFAULT '', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
@@ -479,24 +475,6 @@ async function migratePostgresSchema(pool: Pool) {
     `CREATE TABLE IF NOT EXISTS jira_sync_mappings (id SERIAL PRIMARY KEY, mappings_json TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
     `ALTER TABLE jira_jql_presets ADD COLUMN IF NOT EXISTS context TEXT DEFAULT ''`,
     `ALTER TABLE activities ADD COLUMN IF NOT EXISTS priority TEXT DEFAULT 'Medium'`,
-    // Fix existing Jira-imported activities: set parent_id for children whose phase matches an Epic's phase.
-    // Only runs when there is exactly one Epic in the phase (safe, idempotent — parent_id IS NULL guard).
-    `UPDATE activities a
-     SET parent_id = e.id
-     FROM activities e
-     WHERE a.project_id = e.project_id
-       AND a.phase = e.phase
-       AND a.id != e.id
-       AND a.parent_id IS NULL
-       AND e.no = 'EPIC'
-       AND a.no != 'EPIC'
-       AND NOT EXISTS (
-         SELECT 1 FROM activities e2
-         WHERE e2.project_id = e.project_id
-           AND e2.phase = e.phase
-           AND e2.no = 'EPIC'
-           AND e2.id != e.id
-       )`,
   ];
   for (const sql of migrations) {
     try { await pool.query(sql); } catch { /* column already exists */ }
