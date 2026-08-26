@@ -1,0 +1,29 @@
+import { describe, expect, it } from 'vitest';
+import { ValidationError } from '@/lib/services/errors';
+import { parseNonNegativeVnd, parseSignedNonZeroVnd } from './vnd';
+
+describe('parseNonNegativeVnd', () => {
+  it('accepts 0 and 1000000', () => {
+    expect(parseNonNegativeVnd(0, 'amount')).toBe(0);
+    expect(parseNonNegativeVnd(1000000, 'amount')).toBe(1000000);
+  });
+
+  it('rejects 1.5, -1, empty string, and non-safe integers', () => {
+    expect(() => parseNonNegativeVnd(1.5, 'amount')).toThrow(ValidationError);
+    expect(() => parseNonNegativeVnd(-1, 'amount')).toThrow(ValidationError);
+    expect(() => parseNonNegativeVnd('', 'amount')).toThrow(ValidationError);
+    expect(() => parseNonNegativeVnd(Number.MAX_SAFE_INTEGER + 1, 'amount')).toThrow(ValidationError);
+  });
+});
+
+describe('parseSignedNonZeroVnd', () => {
+  it('accepts positive and negative non-zero integers', () => {
+    expect(parseSignedNonZeroVnd(500, 'amount')).toBe(500);
+    expect(parseSignedNonZeroVnd(-500, 'amount')).toBe(-500);
+  });
+
+  it('rejects 0 and non-integers', () => {
+    expect(() => parseSignedNonZeroVnd(0, 'amount')).toThrow(ValidationError);
+    expect(() => parseSignedNonZeroVnd(1.5, 'amount')).toThrow(ValidationError);
+  });
+});
