@@ -1,4 +1,5 @@
 import { applyDashboardFilters, parseDashboardFilters, type DashboardFilters } from '@/lib/dashboards/filters';
+import { resolveCurrentPeriod } from '@/lib/dashboards/period-resolver';
 import { computePortfolioCharts, computePortfolioKpis } from '@/lib/dashboards/kpi';
 import {
   generatePortfolioDashboardPdf,
@@ -12,13 +13,17 @@ import {
   upsertDashboardFilters,
 } from '@/lib/repositories/dashboard-filter-state.repo';
 import { listProjects } from '@/lib/repositories/projects.repo';
+import { listWeeklyPeriods } from '@/lib/repositories/weekly-periods.repo';
+import { listPeriodShellsRepo } from '@/lib/repositories/weekly-reports.repo';
 import {
   listHighOpenRaid,
   listOverdueMilestones,
   listTechnologyCouncilIssues,
 } from '@/lib/services/raid-masters.service';
-import { assertCompanyWrite, type AccessActor } from './access';
+import { isWeeklyReportOverdue } from '@/lib/services/weekly-reports.service';
+import { assertCompanyWrite, hasRole, type AccessActor } from './access';
 import { auditLog } from './audit.service';
+import { ForbiddenError } from './errors';
 
 export type PortfolioDashboardListRow = {
   id: number;
@@ -37,10 +42,11 @@ export type PortfolioDashboardListRow = {
   pm_name: string | null;
 };
 
-async function buildPortfolioDashboard(actor: AccessActor, filters: DashboardFilters) {
-  const rawProjects = await listProjects(actor.company_id!);
+async function enrichProjectListRows(
+  rawProjects: Record<string, unknown>[],
+): Promise<PortfolioDashboardListRow[]> {
   const enriched: PortfolioDashboardListRow[] = [];
-  for (const p of rawProjects as Record<string, unknown>[]) {
+  for (const p of rawProjects) {
     const primary = await getActivePrimaryAssignment(Number(p.id));
     const pmUserId = primary?.user_id ?? null;
     const pmName =
@@ -64,6 +70,12 @@ async function buildPortfolioDashboard(actor: AccessActor, filters: DashboardFil
       pm_name: pmName,
     });
   }
+  return enriched;
+}
+
+async function buildPortfolioDashboard(actor: AccessActor, filters: DashboardFilters) {
+  const rawProjects = await listProjects(actor.company_id!);
+  const enriched = await enrichProjectListRows(rawProjects as Record<string, unknown>[]);
 
   const filtered = applyDashboardFilters(enriched, filters);
   const filteredIds = new Set(filtered.map((p) => p.id));
@@ -160,5 +172,52 @@ export async function exportPortfolioDashboard(actor: AccessActor, body: Portfol
     buffer,
     contentType: PORTFOLIO_EXPORT_CONTENT_TYPE[body.format],
     filename: PORTFOLIO_EXPORT_FILENAME[body.format],
+  };
+}
+
+export async function getPmDashboard(actor: AccessActor) {
+  if (actor.company_id === null) throw new ForbiddenError();
+  if (!hasRole(actor, 'pm') && !hasRole(actor, 'cpmo')) throw new ForbiddenError();
+
+  const stored = await getDashboardFilters(actor.user_id, 'pm');
+  const filters = parseDashboardFilters(stored.filters);
+
+  const rawProjects = await listProjects(actor.company_id, { pmUserId: actor.user_id });
+  const enriched = await enrichProjectListRows(rawProjects as Record<string, unknown>[]);
+  const filtered = applyDashboardFilters(enriched, filters);
+  const assignedIds = new Set(filtered.map((p) => p.id));
+
+  const today = new Date().toISOString().slice(0, 10);
+  const periods = await listWeeklyPeriods(actor.company_id);
+  const period = resolveCurrentPeriod(periods, today);
+  const now = new Date();
+
+  const shells = period
+    ? (await listPeriodShellsRepo(actor.company_id, period.id)).filter((s) =>
+        assignedIds.has(s.project_id),
+      )
+    : [];
+
+  const weekly = shells
+    .filter((s) => s.status === 'not_submitted' || s.status === 'draft')
+    .map((s) => ({
+      project_id: s.project_id,
+      report_id: s.report_id,
+      period_id: period!.id,
+      period_display_name: period!.display_name,
+      due_at: s.due_at,
+      status: s.status,
+      overdue: isWeeklyReportOverdue(s.status, s.due_at, now),
+      href: `/projects/${s.project_id}/weekly-reports/${s.report_id}`,
+    }));
+
+  return {
+    filters,
+    projects: filtered,
+    actions: {
+      weekly,
+      milestones: [],
+      raid: [],
+    },
   };
 }

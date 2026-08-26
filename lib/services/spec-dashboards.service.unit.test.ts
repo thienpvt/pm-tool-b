@@ -30,7 +30,10 @@ const {
   isWeeklyReportOverdue: vi.fn(),
 }));
 
-vi.mock('@/lib/services/access', () => ({ assertCompanyWrite }));
+vi.mock('@/lib/services/access', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/services/access')>();
+  return { ...actual, assertCompanyWrite };
+});
 vi.mock('@/lib/repositories/projects.repo', () => ({ listProjects }));
 vi.mock('@/lib/repositories/dashboard-filter-state.repo', () => ({
   getDashboardFilters,
