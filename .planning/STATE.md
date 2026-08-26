@@ -2,16 +2,11 @@
 gsd_state_version: 1.0
 milestone: v1.0
 status: Awaiting next milestone
-stopped_at: Phase 8 complete — all phases complete
-last_updated: "2026-08-25T15:15:05.247Z"
+stopped_at: Quick 260826-ded complete (DATA-01/02/03)
+last_updated: "2026-08-26T04:42:15.596Z"
 last_activity: 2026-08-25
 last_activity_desc: Milestone v1.0 completed and archived
-state_head: 8c2af3784ea75e53644a9e88efa24ae079415cda
-progress:
-  total_phases: 8
-  completed_phases: 8
-  total_plans: 35
-  completed_plans: 35
+state_head: f3b96947b8b82566da4bc083e485f24dd3b60714
 milestone_name: milestone
 current_phase: 8
 ---
@@ -85,6 +80,7 @@ Last activity: 2026-08-25 — Milestone v1.0 completed and archived
 | Phase 07-ui-decomposition P07 | 45min | 3 tasks | 12 files |
 | Phase 07-ui-decomposition P08 | 8 | 2 tasks | 7 files |
 | Phase 08-intg-08-credential-cutover P01 | 12 | 3 tasks | 4 files |
+| Phase quick/260826-ded P01 | 90min | 3 tasks | 22 files |
 
 ## Accumulated Context
 
@@ -142,6 +138,8 @@ Recent decisions affecting current work:
 - [Phase 7]: Phase 07-07: useImportMapping owns fetch-on-open; importLogic.ts holds Jira/preview helpers; dialog stays at components/timeline/
 - [Phase 7]: Phase 07-08: Gate fixes limited to test mock typing and auth/me coverage — no product changes
 - [Phase 8]: INTG-08 closed: cutover script exit 0 (vacuous zero-row + anthropic match), HYG-01 deletion e0b2cea
+- [Phase 8]: DATA-01/02/03 resolve (quick 260826-ded): pinned tsx 4.23.12 as devDependency (not npx tsx) so npm ci + npm run migrate is hermetic — Docker runner has no registry access; knowingly breaks the plan's no-deps claim (operator Decision 2)
+- [Phase 8]: getDb() no longer creates schema or runs the migration loop; it connects -> assertMigrated guard -> cache singleton -> seed-if-empty. Data-fix UPDATEs and weighted backfill moved to one-off scripts under scripts/data-fixes/. No predev/prestart migrate script (operator Decision 1).
 
 ### Pending Todos
 
@@ -174,8 +172,8 @@ None. Phase 6 human UAT closed 2026-08-25 (`06-UAT.md`: shadow review, residual-
 
 ## Session Continuity
 
-Last session: 2026-08-25T15:06:06.458Z
-Stopped at: Phase 8 complete — all phases complete
+Last session: 2026-08-26T04:41:30.371Z
+Stopped at: Quick 260826-ded complete (DATA-01/02/03)
 Resume file: None
 
 ## Operator Next Steps
