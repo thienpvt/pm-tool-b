@@ -1,7 +1,10 @@
 import { applyDashboardFilters, parseDashboardFilters } from '@/lib/dashboards/filters';
 import { computePortfolioCharts, computePortfolioKpis } from '@/lib/dashboards/kpi';
 import { getActivePrimaryAssignment } from '@/lib/repositories/pm-assignments.repo';
-import { getDashboardFilters } from '@/lib/repositories/dashboard-filter-state.repo';
+import {
+  getDashboardFilters,
+  upsertDashboardFilters,
+} from '@/lib/repositories/dashboard-filter-state.repo';
 import { listProjects } from '@/lib/repositories/projects.repo';
 import {
   listHighOpenRaid,
@@ -88,4 +91,23 @@ export async function getPortfolioDashboard(actor: AccessActor) {
       technology_council: techCouncilFiltered,
     },
   };
+}
+
+export async function getPortfolioDashboardFilters(actor: AccessActor) {
+  assertCompanyWrite(actor);
+  return getDashboardFilters(actor.user_id, 'portfolio');
+}
+
+export async function savePortfolioDashboardFilters(
+  actor: AccessActor,
+  body: Record<string, unknown>,
+) {
+  assertCompanyWrite(actor);
+  const parsed = parseDashboardFilters(body);
+  await upsertDashboardFilters(actor.user_id, 'portfolio', parsed);
+}
+
+export async function clearPortfolioDashboardFilters(actor: AccessActor) {
+  assertCompanyWrite(actor);
+  await upsertDashboardFilters(actor.user_id, 'portfolio', {});
 }

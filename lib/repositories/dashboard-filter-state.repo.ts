@@ -19,3 +19,21 @@ export async function getDashboardFilters(userId: number, surface: DashboardSurf
       : {};
   return { filters, updated_at: row.updated_at };
 }
+
+export async function upsertDashboardFilters(
+  userId: number,
+  surface: DashboardSurface,
+  filtersJson: Record<string, unknown>,
+): Promise<void> {
+  const db = await getDb();
+  await db.run(
+    `INSERT INTO dashboard_filter_state (user_id, surface, filters_json)
+     VALUES (?, ?, ?::jsonb)
+     ON CONFLICT (user_id, surface) DO UPDATE SET
+       filters_json = excluded.filters_json,
+       updated_at = now()`,
+    userId,
+    surface,
+    JSON.stringify(filtersJson),
+  );
+}
