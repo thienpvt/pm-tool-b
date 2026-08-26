@@ -244,7 +244,18 @@ Plans:
   3. A user can record financial benefits by year and type (expected vs actual; actual blank means no data, distinct from 0) and non-financial benefits with group, measure, and target; expected and actual ROI display as a computed percent only when inputs are complete — otherwise the UI shows insufficient data, never a fake 0%
   4. A user with write access can create a dependency between two different projects with required fields and a valid need-by / effective date window; the system rejects self-links, duplicate equivalent active relations, and invalid date ranges; a saved dependency appears on both projects with the correct direction; PMs of both projects can view it; the action is audit-logged
 
-**Plans**: TBD
+**Plans:** 3 plans
+
+Plans:
+**Wave 1**
+
+- [ ] 15-01-PLAN.md — Tracer: fiscal DDL, VND parsers, computed remaining/utilization, create/GET/PATCH actual, append-only adjustments
+
+**Wave 2** *(blocked on Wave 1; 15-02 and 15-03 parallel)*
+
+- [ ] 15-02-PLAN.md — Financial + nonfinancial benefits and honest year-level ROI GET
+- [ ] 15-03-PLAN.md — Cross-project dependencies create/list/end, validation, auditLog
+
 **UI hint**: yes
 
 ### Phase 16: Portfolio & PM Dashboards
@@ -313,7 +324,7 @@ Phases execute in numeric order: 9 → 10 → 11 → 12 → 13 → 14 → 15 →
 | 12. Milestone & RAID Master Registers | v2.0 | 3/3 | Complete    | 2026-08-26 |
 | 13. Weekly Periods & PM Submit | v2.0 | 3/3 | Complete    | 2026-08-26 |
 | 14. CPMO Tracking & Consolidated Export | v2.0 | 3/3 | Complete    | 2026-08-26 |
-| 15. Budget, Value, ROI & Dependencies | v2.0 | 0/? | Not started | - |
+| 15. Budget, Value, ROI & Dependencies | v2.0 | 0/3 | Planned | - |
 | 16. Portfolio & PM Dashboards | v2.0 | 0/? | Not started | - |
 | 17. Document Templates & Confluence Checklist | v2.0 | 0/? | Not started | - |
 | 18. Append-Only Audit Log | v2.0 | 0/? | Not started | - |
