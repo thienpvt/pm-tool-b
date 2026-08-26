@@ -12,7 +12,7 @@ vi.mock('@/lib/repositories/audit.repo', () => ({
 
 import type { AccessActor } from './access';
 import { auditLog, listAuditLogs } from './audit.service';
-import { ForbiddenError } from './errors';
+import { ForbiddenError, ValidationError } from './errors';
 
 const cpmoActor: AccessActor = {
   company_id: 5,
@@ -65,6 +65,34 @@ describe('audit.service listAuditLogs', () => {
 
   it('throws ForbiddenError when company_id is null and does not call repo (D-05)', async () => {
     await expect(listAuditLogs(nullCompanyCpmo)).rejects.toThrow(ForbiddenError);
+    expect(listAuditLogsRepo).not.toHaveBeenCalled();
+  });
+
+  it('defaults limit to 50 when omitted (D-06)', async () => {
+    listAuditLogsRepo.mockResolvedValue([]);
+    await listAuditLogs(cpmoActor);
+    expect(listAuditLogsRepo).toHaveBeenCalledWith(5, expect.objectContaining({ limit: 50 }));
+  });
+
+  it('caps limit at 200 (D-06)', async () => {
+    listAuditLogsRepo.mockResolvedValue([]);
+    await listAuditLogs(cpmoActor, { limit: 201 });
+    expect(listAuditLogsRepo).toHaveBeenCalledWith(5, expect.objectContaining({ limit: 200 }));
+  });
+
+  it('passes limit 1 unchanged (D-06)', async () => {
+    listAuditLogsRepo.mockResolvedValue([]);
+    await listAuditLogs(cpmoActor, { limit: 1 });
+    expect(listAuditLogsRepo).toHaveBeenCalledWith(5, expect.objectContaining({ limit: 1 }));
+  });
+
+  it('throws ValidationError for invalid from date and does not call repo (D-06)', async () => {
+    await expect(listAuditLogs(cpmoActor, { from: 'not-a-date' })).rejects.toThrow(ValidationError);
+    expect(listAuditLogsRepo).not.toHaveBeenCalled();
+  });
+
+  it('throws ValidationError for invalid to date and does not call repo (D-06)', async () => {
+    await expect(listAuditLogs(cpmoActor, { to: '2026/01/01' })).rejects.toThrow(ValidationError);
     expect(listAuditLogsRepo).not.toHaveBeenCalled();
   });
 });
