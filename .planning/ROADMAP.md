@@ -39,7 +39,7 @@ Audit: [.planning/milestones/v1.0-MILESTONE-AUDIT.md](milestones/v1.0-MILESTONE-
 - [x] **Phase 14: CPMO Tracking & Consolidated Export** - Submission grid, lateness, snapshot-based pack export (completed 2026-08-26)
 - [x] **Phase 15: Budget, Value, ROI & Dependencies** - Fiscal budget ledger, honest ROI, cross-project links (completed 2026-08-26)
 - [x] **Phase 16: Portfolio & PM Dashboards** - Spec KPIs, drill-down filters, PM action queues (completed 2026-08-26)
-- [ ] **Phase 17: Document Templates & Confluence Checklist** - Catalog, templates, Confluence links — no binary upload
+- [x] **Phase 17: Document Templates & Confluence Checklist** - Catalog, templates, Confluence links — no binary upload (completed 2026-08-26)
 - [ ] **Phase 18: Append-Only Audit Log** - Immutable actor/time/before-after trail on governed mutations
 
 ## Phase Details
@@ -300,7 +300,7 @@ Plans:
   3. PM can view/download templates and update checklist metadata, Confluence HTTPS link, and status (None / Drafting / Pending approval / Approved / Not applicable) — and cannot upload project file binaries; Approved requires approval date and approver; Not applicable requires a reason; Approved mandatory items count as compliant
   4. CPMO can see portfolio compliance (compliant / not compliant / not applicable) with filters, and is warned when a stage change leaves mandatory items incomplete
 
-**Plans:** 3/3 plans executed
+**Plans:** 3/3 plans complete
 
 Plans:
 **Wave 1**
@@ -351,7 +351,7 @@ Phases execute in numeric order: 9 → 10 → 11 → 12 → 13 → 14 → 15 →
 | 14. CPMO Tracking & Consolidated Export | v2.0 | 3/3 | Complete    | 2026-08-26 |
 | 15. Budget, Value, ROI & Dependencies | v2.0 | 3/3 | Complete    | 2026-08-26 |
 | 16. Portfolio & PM Dashboards | v2.0 | 3/3 | Complete    | 2026-08-26 |
-| 17. Document Templates & Confluence Checklist | v2.0 | 3/3 | In Progress|  |
+| 17. Document Templates & Confluence Checklist | v2.0 | 3/3 | Complete    | 2026-08-26 |
 | 18. Append-Only Audit Log | v2.0 | 0/? | Not started | - |
 
 ## Coverage

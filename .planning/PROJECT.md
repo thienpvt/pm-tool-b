@@ -59,6 +59,7 @@ One source of truth for projects, milestones, RAID, and weekly reports — role-
 - ✓ PR-08 / BUDG-01..06 — Parallel fiscal budget (integer VND, append-only adjustments), financial/non-financial benefits, honest ROI — Phase 15
 - ✓ PR-13 / PDSH-01..06 — Spec CPMO portfolio KPIs, AND session filters, drill-downs, xlsx/pdf export on `/api/dashboards/portfolio` — Phase 16
 - ✓ PR-14 / MDSH-01..05 — Assignment-scoped PM dashboard with weekly/milestone/RAID action queues and deep-link hrefs — Phase 16
+- ✓ PR-15 / DOC-01..06 — Document catalog, URL-only templates, Confluence HTTPS checklist (no project binaries), CPMO compliance — Phase 17
 
 Remainder (ops/admin/config routes still repo-direct, proxy HTML-307 for API callers) is accepted v1.0 tech debt — see `.planning/milestones/v1.0-MILESTONE-AUDIT.md`. D-23 leftover: `app/api/operations/**` and platform `/api/admin/companies` stay session+tenant this milestone until later phases.
 
@@ -75,7 +76,7 @@ Remainder (ops/admin/config routes still repo-direct, proxy HTML-307 for API cal
 - [x] PR-12 CPMO submission tracking, consolidate, and export
 - [x] PR-13 Portfolio dashboard (active count, RAG, stage, high RAID, overdue milestones, drill-down)
 - [x] PR-14 PM personal dashboard (assigned projects + weekly/milestone/RAID actions)
-- [ ] PR-15 Project documents: CPMO templates + Confluence checklist (PM does not upload files)
+- [x] PR-15 Project documents: CPMO templates + Confluence checklist (PM does not upload files)
 
 ### Out of Scope
 
@@ -93,11 +94,11 @@ Remainder (ops/admin/config routes still repo-direct, proxy HTML-307 for API cal
 
 **Shipped:** v1.0 Layer Reorg & Hardening (2026-08-25) — 8 phases, 35 plans. Archive: `.planning/milestones/`.
 
-**Now:** v2.0 Portfolio One View — Phases 9–16 shipped. Next is Phase 17: document templates and Confluence checklist.
+**Now:** v2.0 Portfolio One View — Phases 9–17 shipped. Next is Phase 18: append-only audit log.
 
 The brownfield mess listed at kickoff is largely gone on the project-scoped path: tests exist (Vitest, 1019 passing), SQL lives in repositories, Jira/Anthropic/Resend go through clients + one credential resolver, services own tenant checks, wrappers enforce access, and the seven named god pages are decomposed.
 
-Existing project/RAID/budget/report/dashboard screens now enforce CPMO/PM/Viewer on the server. Weekly periods, PM submit, CPMO tracking/export, fiscal budget/ROI, dependencies, and spec dashboards shipped in Phases 13–16. Remaining gap: Confluence document checklist (Phase 17) and full append-only audit (Phase 18). Spec dashboards live on `/api/dashboards/*` — v1 `/api/portfolio` is unchanged.
+Existing project/RAID/budget/report/dashboard screens now enforce CPMO/PM/Viewer on the server. Spec surfaces through Phase 17 are shipped (weekly, fiscal, dashboards, Confluence checklist). Remaining gap: company-scoped append-only audit coverage (Phase 18).
 
 ## Next Milestone Goals
 
@@ -164,4 +165,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-08-26 after Phase 16*
+*Last updated: 2026-08-26 after Phase 17*
