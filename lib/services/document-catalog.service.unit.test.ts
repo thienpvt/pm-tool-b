@@ -45,6 +45,7 @@ vi.mock('@/lib/repositories/project-document-checklist.repo', () => ({
 import {
   createDocumentCatalogItem,
   listDocumentCatalog,
+  updateDocumentCatalogItem,
 } from './document-catalog.service';
 import { ForbiddenError } from './errors';
 
@@ -144,5 +145,124 @@ describe('listDocumentCatalog', () => {
   it('throws ForbiddenError for viewer-only actor (D-12)', async () => {
     await expect(listDocumentCatalog(viewer)).rejects.toBeInstanceOf(ForbiddenError);
     expect(listDocumentCatalogRepo).not.toHaveBeenCalled();
+  });
+});
+
+describe('createDocumentCatalogItem apply_to_in_flight (D-03)', () => {
+  beforeEach(() => {
+    assertCompanyWrite.mockImplementation(() => undefined);
+    auditLog.mockResolvedValue(undefined);
+    insertDocumentCatalog.mockResolvedValue({
+      id: 10,
+      company_id: 5,
+      name: 'Charter',
+      purpose: '',
+      stage: 'L2',
+      mandatory: false,
+      active: true,
+    });
+  });
+
+  it('inserts checklist rows for Active matching projects when apply_to_in_flight true', async () => {
+    listProjects.mockResolvedValue([
+      { id: 1, status: 'Active', stage: 'L2' },
+      { id: 2, status: 'active', stage: 'L2' },
+      { id: 3, status: 'Paused', stage: 'L2' },
+      { id: 4, status: 'Active', stage: 'L0' },
+    ]);
+    insertChecklistRowIfMissing.mockResolvedValue(1);
+
+    await createDocumentCatalogItem(cpmo, {
+      name: 'Charter',
+      stage: 'L2',
+      apply_to_in_flight: true,
+    });
+
+    expect(insertChecklistRowIfMissing).toHaveBeenCalledTimes(2);
+    expect(insertChecklistRowIfMissing).toHaveBeenCalledWith(1, 10);
+    expect(insertChecklistRowIfMissing).toHaveBeenCalledWith(2, 10);
+  });
+
+  it('matches ALL catalog stage to any Active project stage', async () => {
+    listProjects.mockResolvedValue([
+      { id: 1, status: 'Active', stage: 'L0' },
+      { id: 2, status: 'Active', stage: 'L5' },
+    ]);
+    insertDocumentCatalog.mockResolvedValue({
+      id: 11,
+      company_id: 5,
+      name: 'Universal',
+      purpose: '',
+      stage: 'ALL',
+      mandatory: false,
+      active: true,
+    });
+    insertChecklistRowIfMissing.mockResolvedValue(1);
+
+    await createDocumentCatalogItem(cpmo, {
+      name: 'Universal',
+      stage: 'ALL',
+      apply_to_in_flight: true,
+    });
+
+    expect(insertChecklistRowIfMissing).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not backfill when apply_to_in_flight omitted', async () => {
+    await createDocumentCatalogItem(cpmo, { name: 'Charter', stage: 'L2' });
+    expect(listProjects).not.toHaveBeenCalled();
+    expect(insertChecklistRowIfMissing).not.toHaveBeenCalled();
+  });
+
+  it('does not backfill when apply_to_in_flight false', async () => {
+    await createDocumentCatalogItem(cpmo, {
+      name: 'Charter',
+      stage: 'L2',
+      apply_to_in_flight: false,
+    });
+    expect(listProjects).not.toHaveBeenCalled();
+    expect(insertChecklistRowIfMissing).not.toHaveBeenCalled();
+  });
+});
+
+describe('updateDocumentCatalogItem (D-02, D-03)', () => {
+  const existing = {
+    id: 10,
+    company_id: 5,
+    name: 'Charter',
+    purpose: '',
+    stage: 'L2',
+    mandatory: false,
+    active: true,
+    created_at: '',
+    updated_at: '',
+  };
+
+  beforeEach(() => {
+    assertCompanyWrite.mockImplementation(() => undefined);
+    auditLog.mockResolvedValue(undefined);
+    getDocumentCatalog.mockResolvedValue(existing);
+  });
+
+  it('soft-retires via active=false without removing the catalog row', async () => {
+    updateDocumentCatalogRepo.mockResolvedValue({ ...existing, active: false });
+
+    const row = await updateDocumentCatalogItem(cpmo, 10, { active: false });
+
+    expect(row.active).toBe(false);
+    expect(updateDocumentCatalogRepo).toHaveBeenCalledWith(
+      10,
+      expect.objectContaining({ active: false }),
+    );
+  });
+
+  it('apply_to_in_flight true on update inserts missing checklist rows only', async () => {
+    updateDocumentCatalogRepo.mockResolvedValue(existing);
+    listProjects.mockResolvedValue([{ id: 1, status: 'Active', stage: 'L2' }]);
+    insertChecklistRowIfMissing.mockResolvedValue(1);
+
+    await updateDocumentCatalogItem(cpmo, 10, { apply_to_in_flight: true });
+
+    expect(insertChecklistRowIfMissing).toHaveBeenCalledWith(1, 10);
   });
 });
