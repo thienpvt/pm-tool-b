@@ -215,7 +215,21 @@ Plans:
   3. CPMO can tick-select projects, preview consolidation, reorder projects, and export an editable consolidated pack (Excel/Word/PPT as already supported)
   4. Export records period, data version, and who exported; project sections include identity, PM, stage, prior/current RAG, progress, highlights, next-week goals, nearest milestone, RAID, and technology issues
 
-**Plans**: TBD
+**Plans:** 3 plans
+
+Plans:
+**Wave 1**
+
+- [ ] 14-01-PLAN.md — Tracer: weekly_export_logs DDL, getPeriodTracking counts/filters, GET tracking
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 14-02-PLAN.md — Preview eligibility, caller-order snapshot sections
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 14-03-PLAN.md — xlsx/docx/pptx pack, weekly_export_logs insert, POST export
+
 **UI hint**: yes
 
 ### Phase 15: Budget, Value, ROI & Dependencies
