@@ -57,6 +57,8 @@ One source of truth for projects, milestones, RAID, and weekly reports — role-
 - ✓ PR-12 / CPMO-01..04 — Period tracking counts/filters and snapshot-only consolidated xlsx/docx/pptx export — Phase 14
 - ✓ PR-06 / DEP-01..03 — Bidirectional cross-project dependencies (write on from, access on to, soft-end, no physical DELETE) — Phase 15
 - ✓ PR-08 / BUDG-01..06 — Parallel fiscal budget (integer VND, append-only adjustments), financial/non-financial benefits, honest ROI — Phase 15
+- ✓ PR-13 / PDSH-01..06 — Spec CPMO portfolio KPIs, AND session filters, drill-downs, xlsx/pdf export on `/api/dashboards/portfolio` — Phase 16
+- ✓ PR-14 / MDSH-01..05 — Assignment-scoped PM dashboard with weekly/milestone/RAID action queues and deep-link hrefs — Phase 16
 
 Remainder (ops/admin/config routes still repo-direct, proxy HTML-307 for API callers) is accepted v1.0 tech debt — see `.planning/milestones/v1.0-MILESTONE-AUDIT.md`. D-23 leftover: `app/api/operations/**` and platform `/api/admin/companies` stay session+tenant this milestone until later phases.
 
@@ -65,14 +67,14 @@ Remainder (ops/admin/config routes still repo-direct, proxy HTML-307 for API cal
 **v2.0 Portfolio One View** — spec is source of truth. Existing screens/APIs that already match stay; mismatches change. Jira import, AI reports, and Excel/PPT/Word export stay.
 
 - [x] PR-06 Cross-project dependencies
-- [ ] PR-07 Milestones (dashboard UI in Phase 16; weekly snapshot shipped Phase 13)
+- [x] PR-07 Milestones (dashboard consumption Phase 16; weekly snapshot shipped Phase 13)
 - [x] PR-08 Budget and value (approved vs actual, financial/non-financial benefits, ROI)
-- [ ] PR-09 Risk & Issue register weekly snapshots shipped Phase 13; dashboard refresh in Phase 16
+- [x] PR-09 Risk & Issue register weekly snapshots shipped Phase 13; dashboard refresh Phase 16
 - [x] PR-10 CPMO weekly-report period configuration
 - [x] PR-11 PM draft/submit weekly report with versioned snapshots
 - [x] PR-12 CPMO submission tracking, consolidate, and export
-- [ ] PR-13 Portfolio dashboard (active count, RAG, stage, high RAID, overdue milestones, drill-down)
-- [ ] PR-14 PM personal dashboard (assigned projects + weekly/milestone/RAID actions)
+- [x] PR-13 Portfolio dashboard (active count, RAG, stage, high RAID, overdue milestones, drill-down)
+- [x] PR-14 PM personal dashboard (assigned projects + weekly/milestone/RAID actions)
 - [ ] PR-15 Project documents: CPMO templates + Confluence checklist (PM does not upload files)
 
 ### Out of Scope
@@ -91,11 +93,11 @@ Remainder (ops/admin/config routes still repo-direct, proxy HTML-307 for API cal
 
 **Shipped:** v1.0 Layer Reorg & Hardening (2026-08-25) — 8 phases, 35 plans. Archive: `.planning/milestones/`.
 
-**Now:** v2.0 Portfolio One View — Phases 9–15 shipped. Next is Phase 16: portfolio and PM dashboards.
+**Now:** v2.0 Portfolio One View — Phases 9–16 shipped. Next is Phase 17: document templates and Confluence checklist.
 
 The brownfield mess listed at kickoff is largely gone on the project-scoped path: tests exist (Vitest, 1019 passing), SQL lives in repositories, Jira/Anthropic/Resend go through clients + one credential resolver, services own tenant checks, wrappers enforce access, and the seven named god pages are decomposed.
 
-Existing project/RAID/budget/report/dashboard screens now enforce CPMO/PM/Viewer on the server. Weekly periods, PM submit, CPMO tracking/export, fiscal budget/ROI, and cross-project dependencies shipped in Phases 13–15. Remaining gaps: dashboards and the Confluence document checklist. Spec fiscal data lives in parallel tables — v1 line-item `/budget` is unchanged.
+Existing project/RAID/budget/report/dashboard screens now enforce CPMO/PM/Viewer on the server. Weekly periods, PM submit, CPMO tracking/export, fiscal budget/ROI, dependencies, and spec dashboards shipped in Phases 13–16. Remaining gap: Confluence document checklist (Phase 17) and full append-only audit (Phase 18). Spec dashboards live on `/api/dashboards/*` — v1 `/api/portfolio` is unchanged.
 
 ## Next Milestone Goals
 
@@ -162,4 +164,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-08-26 after Phase 15*
+*Last updated: 2026-08-26 after Phase 16*

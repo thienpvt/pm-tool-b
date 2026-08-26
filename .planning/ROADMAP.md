@@ -38,7 +38,7 @@ Audit: [.planning/milestones/v1.0-MILESTONE-AUDIT.md](milestones/v1.0-MILESTONE-
 - [x] **Phase 13: Weekly Periods & PM Submit** - CPMO periods, versioned submit, RAID/milestone snapshots (completed 2026-08-26)
 - [x] **Phase 14: CPMO Tracking & Consolidated Export** - Submission grid, lateness, snapshot-based pack export (completed 2026-08-26)
 - [x] **Phase 15: Budget, Value, ROI & Dependencies** - Fiscal budget ledger, honest ROI, cross-project links (completed 2026-08-26)
-- [ ] **Phase 16: Portfolio & PM Dashboards** - Spec KPIs, drill-down filters, PM action queues
+- [x] **Phase 16: Portfolio & PM Dashboards** - Spec KPIs, drill-down filters, PM action queues (completed 2026-08-26)
 - [ ] **Phase 17: Document Templates & Confluence Checklist** - Catalog, templates, Confluence links — no binary upload
 - [ ] **Phase 18: Append-Only Audit Log** - Immutable actor/time/before-after trail on governed mutations
 
@@ -271,7 +271,7 @@ Plans:
   4. PM sees only assigned projects, with the same list fields as the portfolio list for those rows, plus weekly-report actions for obligated Not submitted/Draft reports, milestone actions for upcoming or overdue assigned-project milestones, and High open/in-progress RAID actions that are also upcoming or overdue (with a technology-council flag when set)
   5. Each PM action deep-links to the screen that resolves it; completing the action refreshes the dashboard in the same session
 
-**Plans:** 3/3 plans executed
+**Plans:** 3/3 plans complete
 
 Plans:
 **Wave 1**
@@ -339,7 +339,7 @@ Phases execute in numeric order: 9 → 10 → 11 → 12 → 13 → 14 → 15 →
 | 13. Weekly Periods & PM Submit | v2.0 | 3/3 | Complete    | 2026-08-26 |
 | 14. CPMO Tracking & Consolidated Export | v2.0 | 3/3 | Complete    | 2026-08-26 |
 | 15. Budget, Value, ROI & Dependencies | v2.0 | 3/3 | Complete    | 2026-08-26 |
-| 16. Portfolio & PM Dashboards | v2.0 | 3/3 | In Progress|  |
+| 16. Portfolio & PM Dashboards | v2.0 | 3/3 | Complete    | 2026-08-26 |
 | 17. Document Templates & Confluence Checklist | v2.0 | 0/? | Not started | - |
 | 18. Append-Only Audit Log | v2.0 | 0/? | Not started | - |
 
