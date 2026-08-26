@@ -215,6 +215,8 @@ export async function updateProject(
     stageChanged = true;
   }
 
+  const row = await updateProjectRepo(projectId, governed);
+
   if (
     isCpmo(actor) &&
     governed.project_code !== undefined &&
@@ -227,11 +229,9 @@ export async function updateProject(
       entity_id: String(projectId),
       action: 'code_change',
       before: { project_code: current.project_code },
-      after: { project_code: governed.project_code },
+      after: { project_code: row.project_code },
     });
   }
-
-  const row = await updateProjectRepo(projectId, governed);
 
   const beforeSnap = auditSnapshot(current);
   const afterSnap = auditSnapshot(row);
@@ -277,14 +277,16 @@ export async function deleteProject(projectId: number | string, actor: AccessAct
   await assertProjectWriteAccess(projectId, actor);
   const prior = await getProjectRepo(projectId);
   const result = await deleteProjectRepo(projectId);
-  await auditLog({
-    actor_id: actor.user_id,
-    company_id: actor.company_id,
-    entity_type: 'project',
-    entity_id: String(projectId),
-    action: 'delete',
-    before: auditSnapshot(prior),
-    after: null,
-  });
+  if (result.changes !== 0) {
+    await auditLog({
+      actor_id: actor.user_id,
+      company_id: actor.company_id,
+      entity_type: 'project',
+      entity_id: String(projectId),
+      action: 'delete',
+      before: auditSnapshot(prior),
+      after: null,
+    });
+  }
   return result;
 }

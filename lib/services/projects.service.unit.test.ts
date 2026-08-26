@@ -510,6 +510,24 @@ describe('projects.service', () => {
       await expect(deleteProject(7, foreign)).rejects.toBeInstanceOf(ForbiddenError);
       expect(deleteProjectRepo).not.toHaveBeenCalled();
     });
+
+    it('does not audit when delete affects zero rows (WR-02, D-03)', async () => {
+      getProjectRepo.mockResolvedValue({
+        id: 7,
+        name: 'Alpha',
+        project_code: 'PRJ-001',
+        status: 'Active',
+        rag: 'Green',
+        stage: 'L2',
+        company_id: 5,
+        customer_id: 10,
+        portfolio_year: 2026,
+      });
+      deleteProjectRepo.mockResolvedValue({ lastInsertRowid: 0, changes: 0 });
+      await expect(deleteProject(7, pmActor)).resolves.toEqual({ lastInsertRowid: 0, changes: 0 });
+      expect(deleteProjectRepo).toHaveBeenCalledWith(7);
+      expect(auditLogFn).not.toHaveBeenCalled();
+    });
   });
 
   describe('listProjects', () => {
