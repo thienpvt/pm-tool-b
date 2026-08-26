@@ -40,7 +40,7 @@ Audit: [.planning/milestones/v1.0-MILESTONE-AUDIT.md](milestones/v1.0-MILESTONE-
 - [x] **Phase 15: Budget, Value, ROI & Dependencies** - Fiscal budget ledger, honest ROI, cross-project links (completed 2026-08-26)
 - [x] **Phase 16: Portfolio & PM Dashboards** - Spec KPIs, drill-down filters, PM action queues (completed 2026-08-26)
 - [x] **Phase 17: Document Templates & Confluence Checklist** - Catalog, templates, Confluence links — no binary upload (completed 2026-08-26)
-- [ ] **Phase 18: Append-Only Audit Log** - Immutable actor/time/before-after trail on governed mutations
+- [x] **Phase 18: Append-Only Audit Log** - Immutable actor/time/before-after trail on governed mutations (completed 2026-08-26)
 
 ## Phase Details
 
@@ -325,7 +325,7 @@ Plans:
   2. An audit record cannot be edited in place; after a later business edit, the original actor, time, and payload are still visible
   3. Audit history is company-scoped — a user from another company cannot read another tenant's audit records
 
-**Plans:** 3/3 plans executed
+**Plans:** 3/3 plans complete
 
 Plans:
 
@@ -359,7 +359,7 @@ Phases execute in numeric order: 9 → 10 → 11 → 12 → 13 → 14 → 15 →
 | 15. Budget, Value, ROI & Dependencies | v2.0 | 3/3 | Complete    | 2026-08-26 |
 | 16. Portfolio & PM Dashboards | v2.0 | 3/3 | Complete    | 2026-08-26 |
 | 17. Document Templates & Confluence Checklist | v2.0 | 3/3 | Complete    | 2026-08-26 |
-| 18. Append-Only Audit Log | v2.0 | 3/3 | In Progress|  |
+| 18. Append-Only Audit Log | v2.0 | 3/3 | Complete    | 2026-08-26 |
 
 ## Coverage
 

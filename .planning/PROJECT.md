@@ -60,6 +60,7 @@ One source of truth for projects, milestones, RAID, and weekly reports — role-
 - ✓ PR-13 / PDSH-01..06 — Spec CPMO portfolio KPIs, AND session filters, drill-downs, xlsx/pdf export on `/api/dashboards/portfolio` — Phase 16
 - ✓ PR-14 / MDSH-01..05 — Assignment-scoped PM dashboard with weekly/milestone/RAID action queues and deep-link hrefs — Phase 16
 - ✓ PR-15 / DOC-01..06 — Document catalog, URL-only templates, Confluence HTTPS checklist (no project binaries), CPMO compliance — Phase 17
+- ✓ AUDIT-01 — Governed mutations append actor/time/entity/before-after on `audit_logs`; INSERT+SELECT only; CPMO GET `/api/audit` company-scoped — Phase 18
 
 Remainder (ops/admin/config routes still repo-direct, proxy HTML-307 for API callers) is accepted v1.0 tech debt — see `.planning/milestones/v1.0-MILESTONE-AUDIT.md`. D-23 leftover: `app/api/operations/**` and platform `/api/admin/companies` stay session+tenant this milestone until later phases.
 
@@ -77,6 +78,7 @@ Remainder (ops/admin/config routes still repo-direct, proxy HTML-307 for API cal
 - [x] PR-13 Portfolio dashboard (active count, RAG, stage, high RAID, overdue milestones, drill-down)
 - [x] PR-14 PM personal dashboard (assigned projects + weekly/milestone/RAID actions)
 - [x] PR-15 Project documents: CPMO templates + Confluence checklist (PM does not upload files)
+- [x] AUDIT-01 Append-only, company-scoped audit trail on governed mutations
 
 ### Out of Scope
 
@@ -94,15 +96,15 @@ Remainder (ops/admin/config routes still repo-direct, proxy HTML-307 for API cal
 
 **Shipped:** v1.0 Layer Reorg & Hardening (2026-08-25) — 8 phases, 35 plans. Archive: `.planning/milestones/`.
 
-**Now:** v2.0 Portfolio One View — Phases 9–17 shipped. Next is Phase 18: append-only audit log.
+**Now:** v2.0 Portfolio One View — Phases 9–18 shipped (all ten phase goals). Ready for milestone audit → complete → cleanup.
 
 The brownfield mess listed at kickoff is largely gone on the project-scoped path: tests exist (Vitest, 1019 passing), SQL lives in repositories, Jira/Anthropic/Resend go through clients + one credential resolver, services own tenant checks, wrappers enforce access, and the seven named god pages are decomposed.
 
-Existing project/RAID/budget/report/dashboard screens now enforce CPMO/PM/Viewer on the server. Spec surfaces through Phase 17 are shipped (weekly, fiscal, dashboards, Confluence checklist). Remaining gap: company-scoped append-only audit coverage (Phase 18).
+Existing project/RAID/budget/report/dashboard screens now enforce CPMO/PM/Viewer on the server. Spec surfaces through Phase 18 are shipped (weekly, fiscal, dashboards, Confluence checklist, company-scoped append-only audit). Remaining work is leftover v1.0 debt, not this milestone.
 
 ## Next Milestone Goals
 
-v2.0 is in progress. After it: leftover v1.0 debt (ops-route thinning, proxy JSON 401, HYG-02 confirm) and DATA/ENF/PERF.
+v2.0 product scope is implemented. After archive: leftover v1.0 debt (ops-route thinning, proxy JSON 401, HYG-02 confirm) and DATA/ENF/PERF.
 
 ## Context
 
@@ -138,8 +140,11 @@ Still true and still not this milestone:
 | Refactor + opportunistic fixes, not pure freeze | Moving code surfaces real bugs; leaving them in place to preserve a bug-for-bug freeze wastes the pass | HYG-02: Anthropic 500→502 still needs operator confirm |
 | Migrations-out-of-`getDb()` deferred | Real problem, but cold-start slowness is not a correctness or isolation risk | Still deferred (not v2.0) |
 | INTG-08 evidence before deleting dead Jira helpers | Resolver live paths already matched; deletion gated on `verify-credential-cutover.ts` | Closed Phase 8 (`e0b2cea`) |
-| Spec as source of truth for v2.0 | Bank PPM requirements are the product; existing screens that already match stay, mismatches change | — Pending |
-| Keep Jira / AI / Excel-PPT-Word export | Spec does not replace those integrations; they remain differentiators beside One View | — Pending |
+| Spec as source of truth for v2.0 | Bank PPM requirements are the product; existing screens that already match stay, mismatches change | Shipped Phases 9–18 (PR-01..15 + AUDIT-01) |
+| Keep Jira / AI / Excel-PPT-Word export | Spec does not replace those integrations; they remain differentiators beside One View | Kept — not rewritten |
+| Keep existing `audit_logs` + INSERT `auditLog` | Second table would dual-write; column `company_id` already existed | Shipped Phase 18 (D-01, D-10 skip migrate) |
+| GET `/api/audit` withCpmo + `assertCompanyWrite` | Company-scoped SELECT; PM/Viewer/null-company 403; INSERT+SELECT only | Shipped Phase 18 (D-04..D-07) |
+| RAID audit entity_type stays `risk` / `issue` | Do not invent a unified `raid` string; fill create/update gaps only | Shipped Phase 18 (D-02) |
 | v2.0 deferred pack is TENANT-01 only | User pointed at the four mapping-table `company_id` follow-up, not DATA/ENF/PERF or leftover route debt | Shipped Phase 9 |
 | Mapping tenancy via `migrateMappingTableTenancy` | Nullable column → duplicate-per-company backfill → NOT NULL+FK → `UNIQUE(company_id, name)` (JQL adds `context`); never collapse to company 1 | Shipped Phase 9 |
 | Authorization truth is `roles[]`, not `is_admin` | Backfilled admins stay `is_admin=1` for leftover platform routes; product checks must not use that flag as a cross-tenant bypass (D-03, D-13) | Shipped Phase 10 |
@@ -165,4 +170,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-08-26 after Phase 17*
+*Last updated: 2026-08-26 after Phase 18*
