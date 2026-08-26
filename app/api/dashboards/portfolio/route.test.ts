@@ -57,31 +57,33 @@ function jsonReq(url = 'http://localhost/api/dashboards/portfolio') {
 
 beforeEach(() => vi.clearAllMocks());
 
+const ctx = { params: Promise.resolve({}) };
+
 describe('GET /api/dashboards/portfolio', () => {
   it('returns 401 without session (D-12)', async () => {
     vi.mocked(getSessionFromRequest).mockResolvedValue(null);
-    const res = await GET(jsonReq());
+    const res = await GET(jsonReq(), ctx);
     expect(res.status).toBe(401);
     expect(getPortfolioDashboard).not.toHaveBeenCalled();
   });
 
   it('returns 403 for pm session', async () => {
     vi.mocked(getSessionFromRequest).mockResolvedValue(pmSession as never);
-    const res = await GET(jsonReq());
+    const res = await GET(jsonReq(), ctx);
     expect(res.status).toBe(403);
     expect(getPortfolioDashboard).not.toHaveBeenCalled();
   });
 
   it('returns 403 for viewer session', async () => {
     vi.mocked(getSessionFromRequest).mockResolvedValue(viewerSession as never);
-    const res = await GET(jsonReq());
+    const res = await GET(jsonReq(), ctx);
     expect(res.status).toBe(403);
     expect(getPortfolioDashboard).not.toHaveBeenCalled();
   });
 
   it('returns 403 for null-company admin session', async () => {
     vi.mocked(getSessionFromRequest).mockResolvedValue(nullCompanyAdminSession as never);
-    const res = await GET(jsonReq());
+    const res = await GET(jsonReq(), ctx);
     expect(res.status).toBe(403);
     expect(getPortfolioDashboard).not.toHaveBeenCalled();
   });
@@ -96,7 +98,7 @@ describe('GET /api/dashboards/portfolio', () => {
       drilldowns: { overdue_milestones: [], high_raid: [], technology_council: [] },
     });
 
-    const res = await GET(jsonReq());
+    const res = await GET(jsonReq(), ctx);
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.kpis.active_count).toBe(2);

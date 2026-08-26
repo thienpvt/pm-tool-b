@@ -632,6 +632,8 @@ export async function getDb(): Promise<DbClient> {
   await migrateWeeklyReports(pool);
   const { migrateFiscalBudget } = await import('./db-fiscal-budget');
   await migrateFiscalBudget(pool);
+  const { migrateDashboards } = await import('./db-dashboards');
+  await migrateDashboards(pool);
   await backfillWeightedCompletion(pool);
   _client = client;
 
