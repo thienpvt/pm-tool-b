@@ -225,6 +225,20 @@ export async function getPeriodTracking(
   };
 }
 
+async function loadSnapshotsForProjects(
+  projectIds: number[],
+  shellMap: Map<number, PeriodShellListRow>,
+): Promise<Map<number, Record<string, unknown>>> {
+  const snapshotByReportId = new Map<number, Record<string, unknown>>();
+  for (const projectId of projectIds) {
+    const shell = shellMap.get(projectId)!;
+    const snapshot = await getLatestVersionSnapshot(shell.report_id, shell.latest_version);
+    if (!snapshot) throw new NotFoundError('Not found', 'weekly_report_version');
+    snapshotByReportId.set(shell.report_id, snapshot);
+  }
+  return snapshotByReportId;
+}
+
 export function assertExportEligible(
   shellsByProjectId: Map<number, PeriodShellListRow>,
   projectIds: number[],
@@ -257,13 +271,7 @@ export async function previewConsolidatedExport(
   const shellMap = new Map(shells.map((shell) => [shell.project_id, shell]));
   assertExportEligible(shellMap, projectIds);
 
-  const snapshotByReportId = new Map<number, Record<string, unknown>>();
-  for (const projectId of projectIds) {
-    const shell = shellMap.get(projectId)!;
-    const snapshot = await getLatestVersionSnapshot(shell.report_id, shell.latest_version);
-    snapshotByReportId.set(shell.report_id, snapshot ?? {});
-  }
-
+  const snapshotByReportId = await loadSnapshotsForProjects(projectIds, shellMap);
   const sections = assembleSnapshotSections(projectIds, shellMap, snapshotByReportId);
 
   return {
@@ -300,13 +308,7 @@ export async function exportConsolidatedWeekly(
   const shellMap = new Map(shells.map((shell) => [shell.project_id, shell]));
   assertExportEligible(shellMap, body.project_ids);
 
-  const snapshotByReportId = new Map<number, Record<string, unknown>>();
-  for (const projectId of body.project_ids) {
-    const shell = shellMap.get(projectId)!;
-    const snapshot = await getLatestVersionSnapshot(shell.report_id, shell.latest_version);
-    snapshotByReportId.set(shell.report_id, snapshot ?? {});
-  }
-
+  const snapshotByReportId = await loadSnapshotsForProjects(body.project_ids, shellMap);
   const sections = assembleSnapshotSections(body.project_ids, shellMap, snapshotByReportId);
   const dataVersion = Math.max(
     ...body.project_ids.map((projectId) => shellMap.get(projectId)!.latest_version),

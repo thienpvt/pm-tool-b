@@ -9,6 +9,7 @@ import {
   generateConsolidatedPptx,
   generateConsolidatedWeekly,
   generateConsolidatedXlsx,
+  sanitizeConsolidatedFilename,
   type ConsolidatedWeeklyPayload,
 } from './consolidated-weekly';
 
@@ -170,5 +171,11 @@ describe('consolidated-weekly generators (D-07, D-08)', () => {
     expect(src).not.toMatch(/@\/lib\/repositories\//);
     expect(src).not.toMatch(/getWeeklyProjectReport/);
     expect(src).not.toMatch(/generateProjectPlan/);
+  });
+
+  it('strips control characters from download filenames (WR-01)', () => {
+    expect(sanitizeConsolidatedFilename('2026-W01 |\r\nfoo', 'xlsx')).toBe(
+      '2026-W01 ___foo consolidated.xlsx',
+    );
   });
 });

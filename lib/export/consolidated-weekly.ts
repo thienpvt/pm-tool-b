@@ -115,8 +115,12 @@ function sanitizeSheetName(
 }
 
 export function sanitizeConsolidatedFilename(displayName: string, ext: string): string {
-  const safe = displayName.replace(/[\\/:*?"<>|]/g, '_').trim() || 'consolidated';
-  return `${safe} consolidated.${ext}`;
+  const safe = displayName
+    .replace(/[\u0000-\u001F\u007F]/g, '_')
+    .replace(/[\\/:*?"<>|]/g, '_')
+    .trim() || 'consolidated';
+  const safeExt = ext.replace(/[^a-z0-9]/gi, '') || 'xlsx';
+  return `${safe} consolidated.${safeExt}`;
 }
 
 export const CONTENT_TYPE_BY_FORMAT: Record<ConsolidatedExportFormat, string> = {

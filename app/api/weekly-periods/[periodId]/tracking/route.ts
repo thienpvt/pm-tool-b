@@ -5,6 +5,12 @@ import {
   type PeriodTrackingFilters,
 } from '@/lib/services/weekly-tracking.service';
 
+function parsePeriodIdParam(raw: string): number | null {
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n <= 0) return null;
+  return n;
+}
+
 function parseTrackingFilters(searchParams: URLSearchParams): PeriodTrackingFilters {
   const filters: PeriodTrackingFilters = {};
 
@@ -44,7 +50,10 @@ function parseTrackingFilters(searchParams: URLSearchParams): PeriodTrackingFilt
 
 export const GET = withCpmo<{ periodId: string }>(async (req, { actor, params }) => {
   const { periodId: periodIdParam } = await params;
-  const periodId = Number(periodIdParam);
+  const periodId = parsePeriodIdParam(periodIdParam);
+  if (periodId === null) {
+    return NextResponse.json({ error: 'Invalid periodId' }, { status: 400 });
+  }
   const filters = parseTrackingFilters(req.nextUrl.searchParams);
   return NextResponse.json(
     await getPeriodTracking(actor.company_id!, periodId, actor, filters),

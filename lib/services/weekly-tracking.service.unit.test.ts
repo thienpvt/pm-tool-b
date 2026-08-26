@@ -556,6 +556,14 @@ describe('previewConsolidatedExport snapshot assembly (D-06, D-01, D-02)', () =>
     expect(result.sections[0].tech_issue_counts).toBe(1);
     expect(listTechnologyCouncilIssuesRepo).not.toHaveBeenCalled();
   });
+
+  it('throws NotFoundError when a submitted shell has no version snapshot (WR-02)', async () => {
+    getLatestVersionSnapshotRepo.mockResolvedValue(undefined);
+
+    await expect(previewConsolidatedExport(5, 1, cpmoActor, [100])).rejects.toBeInstanceOf(
+      NotFoundError,
+    );
+  });
 });
 
 describe('exportConsolidatedWeekly (D-07, D-09, D-14)', () => {
