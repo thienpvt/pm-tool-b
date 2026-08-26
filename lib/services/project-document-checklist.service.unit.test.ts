@@ -179,11 +179,125 @@ describe('patchChecklistItem (D-06, D-07, D-08, D-14)', () => {
     updateChecklistItemRepo.mockResolvedValue({
       ...existingItem,
       status: 'approved',
+      confluence_url: 'https://conf.example.com/x',
+      approved_at: '2026-01-15',
+      approved_by: '42',
       notes: 'updated',
     });
     await expect(
       patchChecklistItem(7, 100, pm, { notes: 'updated' }),
     ).resolves.toBeDefined();
+    expect(auditLog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        entity_type: 'document_checklist',
+        entity_id: '100',
+        action: 'update',
+      }),
+    );
+  });
+
+  it('calls auditLog action update when only approved_at and approved_by change (D-02)', async () => {
+    getChecklistItemRepo.mockResolvedValue({
+      ...existingItem,
+      status: 'approved',
+      confluence_url: 'https://conf.example.com/x',
+      approved_at: '2026-01-15',
+      approved_by: '42',
+    });
+    updateChecklistItemRepo.mockResolvedValue({
+      ...existingItem,
+      status: 'approved',
+      confluence_url: 'https://conf.example.com/x',
+      approved_at: '2026-02-01',
+      approved_by: '99',
+    });
+    await patchChecklistItem(7, 100, pm, {
+      approved_at: '2026-02-01',
+      approved_by: '99',
+    });
+    expect(auditLog).toHaveBeenCalledWith({
+      actor_id: pm.user_id,
+      company_id: pm.company_id,
+      entity_type: 'document_checklist',
+      entity_id: '100',
+      action: 'update',
+      before: {
+        status: 'approved',
+        confluence_url: 'https://conf.example.com/x',
+        approved_at: '2026-01-15',
+        approved_by: '42',
+        na_reason: null,
+        notes: null,
+      },
+      after: {
+        status: 'approved',
+        confluence_url: 'https://conf.example.com/x',
+        approved_at: '2026-02-01',
+        approved_by: '99',
+        na_reason: null,
+        notes: null,
+      },
+    });
+  });
+
+  it('calls auditLog action update when only na_reason changes (D-02)', async () => {
+    getChecklistItemRepo.mockResolvedValue({
+      ...existingItem,
+      status: 'not_applicable',
+      na_reason: 'Out of scope',
+    });
+    updateChecklistItemRepo.mockResolvedValue({
+      ...existingItem,
+      status: 'not_applicable',
+      na_reason: 'Revised rationale',
+    });
+    await patchChecklistItem(7, 100, pm, { na_reason: 'Revised rationale' });
+    expect(auditLog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        entity_type: 'document_checklist',
+        entity_id: '100',
+        action: 'update',
+        before: expect.objectContaining({ na_reason: 'Out of scope' }),
+        after: expect.objectContaining({ na_reason: 'Revised rationale' }),
+      }),
+    );
+  });
+
+  it('calls auditLog action update when only notes change (D-02)', async () => {
+    getChecklistItemRepo.mockResolvedValue({
+      ...existingItem,
+      status: 'drafting',
+      notes: 'old note',
+    });
+    updateChecklistItemRepo.mockResolvedValue({
+      ...existingItem,
+      status: 'drafting',
+      notes: 'new note',
+    });
+    await patchChecklistItem(7, 100, pm, { notes: 'new note' });
+    expect(auditLog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        entity_type: 'document_checklist',
+        action: 'update',
+        before: expect.objectContaining({ notes: 'old note' }),
+        after: expect.objectContaining({ notes: 'new note' }),
+      }),
+    );
+  });
+
+  it('does not call auditLog when none of the six tracked fields change (D-02)', async () => {
+    getChecklistItemRepo.mockResolvedValue({
+      ...existingItem,
+      status: 'drafting',
+      notes: 'same',
+    });
+    updateChecklistItemRepo.mockResolvedValue({
+      ...existingItem,
+      status: 'drafting',
+      notes: 'same',
+    });
+    await patchChecklistItem(7, 100, pm, { notes: 'same' });
+    expect(auditLog).not.toHaveBeenCalled();
   });
 
   it('clears approval metadata when downgrading from approved (WR-02)', async () => {
