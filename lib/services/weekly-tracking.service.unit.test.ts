@@ -28,6 +28,7 @@ vi.mock('@/lib/repositories/issues.repo', () => ({
 
 import {
   assertExportEligible,
+  assembleSnapshotSections,
   getPeriodTracking,
   previewConsolidatedExport,
 } from './weekly-tracking.service';
@@ -403,5 +404,134 @@ describe('previewConsolidatedExport eligibility (D-06, D-11, D-14)', () => {
       SubmitValidationError,
     );
     expect(getLatestVersionSnapshotRepo).not.toHaveBeenCalled();
+  });
+});
+
+const shellB = {
+  ...submittedShell,
+  project_id: 101,
+  report_id: 11,
+  name: 'Beta',
+  project_code: 'B-001',
+};
+
+const richSnapshot = {
+  highlights: 'Shipped alpha',
+  next_week_goals: 'Start beta',
+  this_week_rag: 'Amber',
+  prev_week_rag: 'Green',
+  progress_pct: 42,
+  nearest_milestone: 'Gate review',
+  raid: {
+    risks: [{ id: 1, description: 'Risk A' }, { id: 2 }],
+    issues: [
+      { id: 10, technology_council: true, description: 'Tech issue' },
+      { id: 11, technology_council: false },
+      { id: 12, description: 'Plain issue' },
+    ],
+  },
+};
+
+describe('assembleSnapshotSections (D-01, D-02, D-08)', () => {
+  it('walks projectIds in caller order and maps snapshot summary fields', () => {
+    const map = shellMap([submittedShell, shellB]);
+    const snapshots = new Map<number, Record<string, unknown>>([
+      [10, richSnapshot],
+      [11, { ...richSnapshot, this_week_rag: 'Red', progress_pct: 10 }],
+    ]);
+
+    const sections = assembleSnapshotSections([101, 100], map, snapshots);
+
+    expect(sections.map((s) => s.project_id)).toEqual([101, 100]);
+    expect(sections[0]).toMatchObject({
+      project_id: 101,
+      report_id: 11,
+      name: 'Beta',
+      project_code: 'B-001',
+      this_week_rag: 'Red',
+      progress_pct: 10,
+      highlights: 'Shipped alpha',
+      next_week_goals: 'Start beta',
+      prev_week_rag: 'Green',
+      nearest_milestone: 'Gate review',
+      raid_counts: { risks: 2, issues: 3 },
+      tech_issue_counts: 1,
+    });
+    expect(sections[0].raid.risks).toHaveLength(2);
+    expect(sections[0].raid.issues).toHaveLength(3);
+    expect(sections[0].tech_issues).toEqual([
+      { id: 10, technology_council: true, description: 'Tech issue' },
+    ]);
+  });
+
+  it('renders blank fields and zero counts for missing snapshot keys (D-08)', () => {
+    const map = shellMap([submittedShell]);
+    const sections = assembleSnapshotSections([100], map, new Map([[10, {}]]));
+
+    expect(sections[0]).toMatchObject({
+      prev_week_rag: null,
+      this_week_rag: null,
+      progress_pct: null,
+      highlights: null,
+      next_week_goals: null,
+      nearest_milestone: null,
+      raid_counts: { risks: 0, issues: 0 },
+      tech_issue_counts: 0,
+      raid: { risks: [], issues: [] },
+      tech_issues: [],
+    });
+  });
+
+  it('counts zero tech issues when technology_council flag is absent on every issue (D-02)', () => {
+    const map = shellMap([submittedShell]);
+    const snapshots = new Map<number, Record<string, unknown>>([
+      [
+        10,
+        {
+          raid: {
+            risks: [],
+            issues: [{ id: 1 }, { id: 2, technology_council: false }],
+          },
+        },
+      ],
+    ]);
+
+    const sections = assembleSnapshotSections([100], map, snapshots);
+    expect(sections[0].tech_issue_counts).toBe(0);
+    expect(sections[0].tech_issues).toEqual([]);
+  });
+});
+
+describe('previewConsolidatedExport snapshot assembly (D-06, D-01, D-02)', () => {
+  beforeEach(() => {
+    getWeeklyPeriodByCompanyRepo.mockResolvedValue(basePeriod);
+    listPeriodShellsRepo.mockResolvedValue([submittedShell, shellB]);
+  });
+
+  it('returns sections in caller project_ids order (D-06, CPMO-03)', async () => {
+    getLatestVersionSnapshotRepo.mockImplementation(async (reportId: number) => {
+      if (reportId === 10) return richSnapshot;
+      if (reportId === 11) return { ...richSnapshot, this_week_rag: 'Red' };
+      return {};
+    });
+
+    const result = await previewConsolidatedExport(5, 1, cpmoActor, [101, 100]);
+
+    expect(result.sections.map((s) => s.project_id)).toEqual([101, 100]);
+    expect(result.sections[0].this_week_rag).toBe('Red');
+    expect(result.sections[1].this_week_rag).toBe('Amber');
+    expect(listTechnologyCouncilIssuesRepo).not.toHaveBeenCalled();
+  });
+
+  it('loads preview content only via getLatestVersionSnapshot (D-01)', async () => {
+    getLatestVersionSnapshotRepo.mockResolvedValue(richSnapshot);
+
+    const result = await previewConsolidatedExport(5, 1, cpmoActor, [100]);
+
+    expect(getLatestVersionSnapshotRepo).toHaveBeenCalledWith(10, 1);
+    expect(result.sections[0].highlights).toBe('Shipped alpha');
+    expect(result.sections[0].raid_counts).toEqual({ risks: 2, issues: 3 });
+    expect(result.sections[0].tech_issue_counts).toBe(1);
+    expect(listTechnologyCouncilIssuesRepo).not.toHaveBeenCalled();
   });
 });
