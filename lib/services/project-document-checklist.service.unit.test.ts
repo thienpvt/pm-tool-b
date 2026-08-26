@@ -152,6 +152,88 @@ describe('patchChecklistItem (D-06, D-07, D-08, D-14)', () => {
     ).rejects.toBeInstanceOf(ValidationError);
   });
 
+  it('allows pending_approval when confluence_url exists on row (WR-01)', async () => {
+    getChecklistItemRepo.mockResolvedValue({
+      ...existingItem,
+      confluence_url: 'https://conf.example.com/existing',
+    });
+    updateChecklistItemRepo.mockResolvedValue({
+      ...existingItem,
+      status: 'pending_approval',
+      confluence_url: 'https://conf.example.com/existing',
+    });
+    await expect(
+      patchChecklistItem(7, 100, pm, { status: 'pending_approval' }),
+    ).resolves.toBeDefined();
+    expect(updateChecklistItemRepo).toHaveBeenCalled();
+  });
+
+  it('allows notes patch on approved item without resending approval fields (WR-01)', async () => {
+    getChecklistItemRepo.mockResolvedValue({
+      ...existingItem,
+      status: 'approved',
+      confluence_url: 'https://conf.example.com/x',
+      approved_at: '2026-01-15',
+      approved_by: '42',
+    });
+    updateChecklistItemRepo.mockResolvedValue({
+      ...existingItem,
+      status: 'approved',
+      notes: 'updated',
+    });
+    await expect(
+      patchChecklistItem(7, 100, pm, { notes: 'updated' }),
+    ).resolves.toBeDefined();
+  });
+
+  it('clears approval metadata when downgrading from approved (WR-02)', async () => {
+    getChecklistItemRepo.mockResolvedValue({
+      ...existingItem,
+      status: 'approved',
+      confluence_url: 'https://conf.example.com/x',
+      approved_at: '2026-01-15',
+      approved_by: '42',
+    });
+    updateChecklistItemRepo.mockResolvedValue({
+      ...existingItem,
+      status: 'drafting',
+      approved_at: null,
+      approved_by: null,
+    });
+    await patchChecklistItem(7, 100, pm, { status: 'drafting' });
+    expect(updateChecklistItemRepo).toHaveBeenCalledWith(
+      7,
+      100,
+      expect.objectContaining({
+        status: 'drafting',
+        approved_at: null,
+        approved_by: null,
+      }),
+    );
+  });
+
+  it('clears na_reason when leaving not_applicable (WR-02)', async () => {
+    getChecklistItemRepo.mockResolvedValue({
+      ...existingItem,
+      status: 'not_applicable',
+      na_reason: 'Out of scope',
+    });
+    updateChecklistItemRepo.mockResolvedValue({
+      ...existingItem,
+      status: 'none',
+      na_reason: null,
+    });
+    await patchChecklistItem(7, 100, pm, { status: 'none' });
+    expect(updateChecklistItemRepo).toHaveBeenCalledWith(
+      7,
+      100,
+      expect.objectContaining({
+        status: 'none',
+        na_reason: null,
+      }),
+    );
+  });
+
   it('calls auditLog on status change (D-14)', async () => {
     updateChecklistItemRepo.mockResolvedValue({
       ...existingItem,

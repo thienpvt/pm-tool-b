@@ -17,6 +17,13 @@ import { NotFoundError } from './errors';
 function buildUpdateFields(
   body: Record<string, unknown>,
   status: string,
+  existing: {
+    status: string;
+    confluence_url: string | null;
+    approved_at: string | null;
+    approved_by: string | null;
+    na_reason: string | null;
+  },
 ): {
   status: string;
   confluence_url?: string | null;
@@ -41,8 +48,13 @@ function buildUpdateFields(
   }
 
   if (status === 'approved') {
-    fields.approved_at = parseIsoDate(body.approved_at, 'approved_at');
-    const by = body.approved_by;
+    const approvedAt = Object.prototype.hasOwnProperty.call(body, 'approved_at')
+      ? body.approved_at
+      : existing.approved_at;
+    fields.approved_at = parseIsoDate(approvedAt, 'approved_at');
+    const by = Object.prototype.hasOwnProperty.call(body, 'approved_by')
+      ? body.approved_by
+      : existing.approved_by;
     if (typeof by === 'number' && Number.isFinite(by)) {
       fields.approved_by = by;
     } else if (typeof by === 'string' && by.trim()) {
@@ -52,6 +64,16 @@ function buildUpdateFields(
 
   if (status === 'not_applicable' && typeof body.na_reason === 'string') {
     fields.na_reason = body.na_reason.trim();
+  }
+
+  if (status !== existing.status) {
+    if (existing.status === 'approved' && status !== 'approved') {
+      fields.approved_at = null;
+      fields.approved_by = null;
+    }
+    if (existing.status === 'not_applicable' && status !== 'not_applicable') {
+      fields.na_reason = null;
+    }
   }
 
   if (typeof body.notes === 'string') {
@@ -97,9 +119,18 @@ export async function patchChecklistItem(
   const status =
     typeof body.status === 'string' && body.status ? body.status : existing.status;
 
-  assertChecklistPatchRules(body, status);
+  const mergedForValidation = {
+    status,
+    confluence_url: existing.confluence_url,
+    approved_at: existing.approved_at,
+    approved_by: existing.approved_by,
+    na_reason: existing.na_reason,
+    notes: existing.notes,
+    ...body,
+  };
+  assertChecklistPatchRules(mergedForValidation, status);
 
-  const fields = buildUpdateFields(body, status);
+  const fields = buildUpdateFields(body, status, existing);
   const updated = await updateChecklistItemRepo(Number(projectId), Number(itemId), fields);
   if (!updated) throw new NotFoundError('Not found', 'document_checklist');
 

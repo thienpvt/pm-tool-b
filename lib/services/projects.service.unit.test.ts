@@ -205,6 +205,7 @@ describe('projects.service', () => {
     it('stage L5 returns id and warnings on 200-shaped object (D-07)', async () => {
       getProjectRepo.mockResolvedValue({
         id: 7,
+        company_id: 5,
         progress_pct: 40,
         status: 'Active',
         rag: 'Green',
@@ -301,9 +302,60 @@ describe('projects.service', () => {
       await updateProject(7, cpmoActor, { stage: 'L3' });
       expect(updateProjectRepo).toHaveBeenCalled();
       expect(generateProjectChecklistFn).toHaveBeenCalledWith(7, {
-        companyId: cpmoActor.company_id,
+        companyId: 5,
         stage: 'L3',
       });
+    });
+
+    it('stage-change generate uses project company_id not actor company (CR-01, D-02)', async () => {
+      const customerPm = { ...pmActor, company_id: 9 };
+      getProjectRepo.mockResolvedValue({
+        id: 7,
+        company_id: 99,
+        stage: 'L2',
+        progress_pct: 50,
+        status: 'Active',
+      });
+      listChecklistByProjectFn.mockResolvedValue([
+        {
+          id: 100,
+          catalog_id: 10,
+          catalog_name: 'Charter',
+          catalog_stage: 'L2',
+          catalog_mandatory: true,
+          status: 'approved',
+        },
+      ]);
+      updateProjectRepo.mockResolvedValue({ id: 7, stage: 'L3' });
+      await updateProject(7, customerPm, { stage: 'L3' });
+      expect(generateProjectChecklistFn).toHaveBeenCalledWith(7, {
+        companyId: 99,
+        stage: 'L3',
+      });
+    });
+
+    it('null stage treats ALL mandatory rows as current-stage guard (WR-03, D-09)', async () => {
+      getProjectRepo.mockResolvedValue({
+        id: 7,
+        company_id: 5,
+        stage: null,
+        progress_pct: 50,
+        status: 'Active',
+      });
+      listChecklistByProjectFn.mockResolvedValue([
+        {
+          id: 100,
+          catalog_id: 10,
+          catalog_name: 'Global Policy',
+          catalog_stage: 'ALL',
+          catalog_mandatory: true,
+          status: 'none',
+        },
+      ]);
+      await expect(updateProject(7, cpmoActor, { stage: 'L2' })).rejects.toBeInstanceOf(
+        MandatoryIncompleteError,
+      );
+      expect(updateProjectRepo).not.toHaveBeenCalled();
     });
 
     it('acknowledge_incomplete_mandatory allows stage write, generate, and auditLog (D-09, D-14)', async () => {
@@ -331,7 +383,7 @@ describe('projects.service', () => {
       });
       expect(updateProjectRepo).toHaveBeenCalledWith(7, { stage: 'L3' });
       expect(generateProjectChecklistFn).toHaveBeenCalledWith(7, {
-        companyId: cpmoActor.company_id,
+        companyId: 5,
         stage: 'L3',
       });
       expect(auditLogFn).toHaveBeenCalledWith(

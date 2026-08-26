@@ -162,7 +162,8 @@ export async function updateProject(
     String(governed.stage) !== String(current.stage ?? '')
   ) {
     const rows = await listChecklistByProject(Number(projectId));
-    const currentStage = String(current.stage ?? '');
+    const currentStage =
+      current.stage == null || current.stage === '' ? 'ALL' : String(current.stage);
     const incomplete = rows.filter(
       (row) =>
         row.catalog_mandatory &&
@@ -202,8 +203,12 @@ export async function updateProject(
   const row = await updateProjectRepo(projectId, governed);
 
   if (stageChanged) {
+    const ownerCompanyId = Number(current.company_id);
+    if (!Number.isFinite(ownerCompanyId)) {
+      throw new ValidationError('project has no company_id; cannot generate checklist', 'company_id');
+    }
     await generateProjectChecklist(Number(projectId), {
-      companyId: actor.company_id ?? Number(current.company_id),
+      companyId: ownerCompanyId,
       stage: String(governed.stage),
     });
   }
