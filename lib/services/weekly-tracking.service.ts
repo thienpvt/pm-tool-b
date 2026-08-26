@@ -43,6 +43,88 @@ export type PeriodTrackingCounts = {
   late: number;
 };
 
+export type ExportPreviewSection = {
+  project_id: number;
+  report_id: number;
+  latest_version: number;
+  project_code: string | null;
+  name: string;
+  pm_display_name: string | null;
+  stage: string | null;
+  prev_week_rag: string | null;
+  this_week_rag: string | null;
+  progress_pct: number | null;
+  highlights: string | null;
+  next_week_goals: string | null;
+  nearest_milestone: string | null;
+  raid_counts: { risks: number; issues: number };
+  tech_issue_counts: number;
+  raid: { risks: unknown[]; issues: unknown[] };
+  tech_issues: unknown[];
+};
+
+function readSnapshotString(snapshot: Record<string, unknown>, key: string): string | null {
+  const value = snapshot[key];
+  return typeof value === 'string' ? value : null;
+}
+
+function readSnapshotNumber(snapshot: Record<string, unknown>, key: string): number | null {
+  const value = snapshot[key];
+  return typeof value === 'number' ? value : null;
+}
+
+function readSnapshotRaid(snapshot: Record<string, unknown>): { risks: unknown[]; issues: unknown[] } {
+  const raid = snapshot.raid;
+  if (!raid || typeof raid !== 'object') return { risks: [], issues: [] };
+  const record = raid as Record<string, unknown>;
+  return {
+    risks: Array.isArray(record.risks) ? record.risks : [],
+    issues: Array.isArray(record.issues) ? record.issues : [],
+  };
+}
+
+function filterSnapshotTechIssues(issues: unknown[]): unknown[] {
+  return issues.filter(
+    (issue) =>
+      issue !== null
+      && typeof issue === 'object'
+      && (issue as Record<string, unknown>).technology_council === true,
+  );
+}
+
+export function assembleSnapshotSections(
+  projectIds: number[],
+  shellMap: Map<number, PeriodShellListRow>,
+  snapshotByReportId: Map<number, Record<string, unknown>>,
+): ExportPreviewSection[] {
+  return projectIds.map((projectId) => {
+    const shell = shellMap.get(projectId)!;
+    const snapshot = snapshotByReportId.get(shell.report_id) ?? {};
+    const { risks, issues } = readSnapshotRaid(snapshot);
+    const techIssues = filterSnapshotTechIssues(issues);
+
+    return {
+      project_id: shell.project_id,
+      report_id: shell.report_id,
+      latest_version: shell.latest_version,
+      project_code: shell.project_code,
+      name: shell.name,
+      pm_display_name: shell.pm_display_name,
+      stage: shell.stage,
+      prev_week_rag: readSnapshotString(snapshot, 'prev_week_rag'),
+      this_week_rag: readSnapshotString(snapshot, 'this_week_rag'),
+      progress_pct: readSnapshotNumber(snapshot, 'progress_pct'),
+      highlights: readSnapshotString(snapshot, 'highlights'),
+      next_week_goals: readSnapshotString(snapshot, 'next_week_goals'),
+      nearest_milestone: readSnapshotString(snapshot, 'nearest_milestone'),
+      raid_counts: { risks: risks.length, issues: issues.length },
+      tech_issue_counts: techIssues.length,
+      raid: { risks, issues },
+      tech_issues: techIssues,
+    };
+  });
+}
+
 function buildCounts(rows: PeriodTrackingRow[]): PeriodTrackingCounts {
   return {
     obligated: rows.length,
@@ -167,29 +249,14 @@ export async function previewConsolidatedExport(
   const shellMap = new Map(shells.map((shell) => [shell.project_id, shell]));
   assertExportEligible(shellMap, projectIds);
 
-  const sections = await Promise.all(
-    projectIds.map(async (projectId) => {
-      const shell = shellMap.get(projectId)!;
-      await getLatestVersionSnapshot(shell.report_id, shell.latest_version);
-      return {
-        project_id: shell.project_id,
-        report_id: shell.report_id,
-        latest_version: shell.latest_version,
-        project_code: shell.project_code,
-        name: shell.name,
-        pm_display_name: shell.pm_display_name,
-        stage: shell.stage,
-        prev_week_rag: null as string | null,
-        this_week_rag: null as string | null,
-        progress_pct: null as number | null,
-        highlights: null as string | null,
-        next_week_goals: null as string | null,
-        nearest_milestone: null as string | null,
-        raid_counts: { risks: 0, issues: 0 },
-        tech_issue_counts: 0,
-      };
-    }),
-  );
+  const snapshotByReportId = new Map<number, Record<string, unknown>>();
+  for (const projectId of projectIds) {
+    const shell = shellMap.get(projectId)!;
+    const snapshot = await getLatestVersionSnapshot(shell.report_id, shell.latest_version);
+    snapshotByReportId.set(shell.report_id, snapshot ?? {});
+  }
+
+  const sections = assembleSnapshotSections(projectIds, shellMap, snapshotByReportId);
 
   return {
     period: {
