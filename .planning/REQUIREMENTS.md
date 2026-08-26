@@ -116,11 +116,11 @@ Requirements for this milestone. Each maps to roadmap phases. Jira import, AI re
 
 ### PM Dashboard
 
-- [ ] **MDSH-01**: PM sees only assigned projects, with the same list fields as the portfolio list for those rows
-- [ ] **MDSH-02**: PM sees weekly-report actions for obligated Not submitted/Draft reports, with period, due, status, and a submit control
-- [ ] **MDSH-03**: PM sees milestone actions for upcoming or overdue assigned-project milestones, with dates and an update control
-- [ ] **MDSH-04**: PM sees High open/in-progress RAID actions that are also upcoming or overdue, with a technology-council flag when set
-- [ ] **MDSH-05**: Each action deep-links to the screen that resolves it; completing the action refreshes the dashboard in the same session
+- [x] **MDSH-01**: PM sees only assigned projects, with the same list fields as the portfolio list for those rows
+- [x] **MDSH-02**: PM sees weekly-report actions for obligated Not submitted/Draft reports, with period, due, status, and a submit control
+- [x] **MDSH-03**: PM sees milestone actions for upcoming or overdue assigned-project milestones, with dates and an update control
+- [x] **MDSH-04**: PM sees High open/in-progress RAID actions that are also upcoming or overdue, with a technology-council flag when set
+- [x] **MDSH-05**: Each action deep-links to the screen that resolves it; completing the action refreshes the dashboard in the same session
 
 ### Project Documents
 
@@ -252,11 +252,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PDSH-04 | Phase 16 | Complete |
 | PDSH-05 | Phase 16 | Complete |
 | PDSH-06 | Phase 16 | Complete |
-| MDSH-01 | Phase 16 | Pending |
-| MDSH-02 | Phase 16 | Pending |
-| MDSH-03 | Phase 16 | Pending |
-| MDSH-04 | Phase 16 | Pending |
-| MDSH-05 | Phase 16 | Pending |
+| MDSH-01 | Phase 16 | Complete |
+| MDSH-02 | Phase 16 | Complete |
+| MDSH-03 | Phase 16 | Complete |
+| MDSH-04 | Phase 16 | Complete |
+| MDSH-05 | Phase 16 | Complete |
 | DOC-01 | Phase 17 | Pending |
 | DOC-02 | Phase 17 | Pending |
 | DOC-03 | Phase 17 | Pending |

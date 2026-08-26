@@ -5,16 +5,16 @@ milestone_name: Portfolio One View
 current_phase: 16
 current_phase_name: Portfolio & PM Dashboards
 status: planning
-stopped_at: Completed 16-02-PLAN.md
-last_updated: "2026-08-26T14:22:18.480Z"
+stopped_at: Completed 16-03-PLAN.md
+last_updated: "2026-08-26T14:27:02.959Z"
 last_activity: 2026-08-26
 last_activity_desc: Phase 15 complete, transitioned to Phase 16
-state_head: 7e53ccf0637bce5149a4657f1d92dd32dea0745e
+state_head: 6fc2a1ca3b0f47a7956145057b8bd85564e9488f
 progress:
   total_phases: 10
   completed_phases: 7
   total_plans: 34
-  completed_plans: 33
+  completed_plans: 34
 ---
 
 # Project State
@@ -88,6 +88,7 @@ Progress: [█░░░░░░░░░] 10%
 | Phase 15-budget-value-roi-dependencies P03 | 25 | 3 tasks | 7 files |
 | Phase 16 P01 | 25 | 3 tasks | 14 files |
 | Phase 16 P02 | 15min | 2 tasks | 15 files |
+| Phase 16-portfolio-pm-dashboards P03 | 5 | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -152,6 +153,8 @@ Recent decisions affecting current work:
 - [Phase 15]: Overlap duplicate uses date-window intersection with open-ended effective_to
 - [Phase 16]: Tracer shipped full portfolio dashboard spine; tasks 02-03 were test-only expansions
 - [Phase 16]: Filter upsert replaces whole blob; export Buffer before auditLog
+- [Phase 16]: PM dashboard uses listProjects pmUserId; weekly via listPeriodShellsRepo not getPeriodTracking
+- [Phase 16]: PM filter routes use withAuth and surface pm (not withCpmo)
 
 ### Pending Todos
 
@@ -172,6 +175,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-08-26T14:22:17.724Z
-Stopped at: Completed 16-02-PLAN.md
+Last session: 2026-08-26T14:27:02.205Z
+Stopped at: Completed 16-03-PLAN.md
 Resume file: None
