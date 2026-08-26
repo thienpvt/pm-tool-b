@@ -45,7 +45,7 @@ vi.mock('@/lib/repositories/nonfinancial-benefits.repo', () => ({
 vi.mock('@/lib/services/audit.service', () => ({ auditLog: auditLogFn }));
 
 import { getSessionFromRequest } from '@/lib/auth';
-import { GET, POST } from './route';
+import { GET, PATCH, POST } from './route';
 import { ConflictError } from '@/lib/services/errors';
 
 const ownerSession = {
@@ -167,5 +167,57 @@ describe('/api/projects/[id]/benefits', () => {
       params,
     );
     expect(res.status).toBe(403);
+  });
+
+  it('POST kind nonfinancial as write-access actor returns 201', async () => {
+    vi.mocked(getSessionFromRequest).mockResolvedValue(cpmoSession as never);
+    insertNonfinancialBenefitRepo.mockResolvedValue({
+      id: 4,
+      group_name: 'Customer',
+      measure: 'NPS',
+      target: '>= 80',
+      actual_text: null,
+    });
+    const res = await POST(
+      req('POST', {
+        kind: 'nonfinancial',
+        group_name: 'Customer',
+        measure: 'NPS',
+        target: '>= 80',
+      }),
+      params,
+    );
+    expect(res.status).toBe(201);
+    await expect(res.json()).resolves.toMatchObject({ group_name: 'Customer' });
+  });
+
+  it('PATCH financial actual_vnd null returns 200', async () => {
+    vi.mocked(getSessionFromRequest).mockResolvedValue(cpmoSession as never);
+    getFinancialBenefitInProjectRepo.mockResolvedValue({
+      id: 5,
+      fiscal_year: 2026,
+      benefit_type: 'COST_SAVING',
+      expected_vnd: '100',
+      actual_vnd: '50',
+    });
+    updateFinancialBenefitRepo.mockResolvedValue({
+      id: 5,
+      fiscal_year: 2026,
+      benefit_type: 'COST_SAVING',
+      expected_vnd: '100',
+      actual_vnd: null,
+    });
+    const res = await PATCH(
+      req('PATCH', { id: 5, kind: 'financial', actual_vnd: null }),
+      params,
+    );
+    expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toMatchObject({ actual_vnd: null });
+  });
+
+  it('PATCH missing id returns 400', async () => {
+    vi.mocked(getSessionFromRequest).mockResolvedValue(cpmoSession as never);
+    const res = await PATCH(req('PATCH', { kind: 'financial', actual_vnd: 0 }), params);
+    expect(res.status).toBe(400);
   });
 });

@@ -10,6 +10,7 @@ const {
   listNonfinancialBenefitsRepo,
   getFinancialBenefitInProjectRepo,
   updateFinancialBenefitRepo,
+  insertNonfinancialBenefitRepo,
   getNonfinancialBenefitInProjectRepo,
   updateNonfinancialBenefitRepo,
   auditLogFn,
@@ -23,6 +24,7 @@ const {
   updateFinancialBenefitRepo: vi.fn(),
   getNonfinancialBenefitInProjectRepo: vi.fn(),
   updateNonfinancialBenefitRepo: vi.fn(),
+  insertNonfinancialBenefitRepo: vi.fn(),
   auditLogFn: vi.fn(),
 }));
 
@@ -37,12 +39,12 @@ vi.mock('@/lib/repositories/nonfinancial-benefits.repo', () => ({
   listNonfinancialBenefits: listNonfinancialBenefitsRepo,
   getNonfinancialBenefitInProject: getNonfinancialBenefitInProjectRepo,
   updateNonfinancialBenefit: updateNonfinancialBenefitRepo,
-  insertNonfinancialBenefit: vi.fn(),
+  insertNonfinancialBenefit: insertNonfinancialBenefitRepo,
 }));
 vi.mock('@/lib/services/audit.service', () => ({ auditLog: auditLogFn }));
 
-import { createProjectBenefit, listProjectBenefits } from './benefits.service';
-import { ConflictError, ForbiddenError, ValidationError } from './errors';
+import { createProjectBenefit, listProjectBenefits, patchProjectBenefit } from './benefits.service';
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors';
 import type { AccessActor } from './access';
 
 beforeEach(() => {
@@ -174,5 +176,94 @@ describe('benefits.service', () => {
       nonfinancial: [],
     });
     expect(assertProjectAccess).toHaveBeenCalledWith(7, owner);
+  });
+
+  it('createProjectBenefit nonfinancial requires group_name, measure, target', async () => {
+    insertNonfinancialBenefitRepo.mockResolvedValue({
+      id: 10,
+      group_name: 'Customer',
+      measure: 'NPS',
+      target: '>= 80',
+      actual_text: null,
+    });
+    await createProjectBenefit(7, owner, {
+      kind: 'nonfinancial',
+      group_name: 'Customer',
+      measure: 'NPS',
+      target: '>= 80',
+    });
+    expect(insertNonfinancialBenefitRepo).toHaveBeenCalledWith(
+      7,
+      expect.objectContaining({
+        group_name: 'Customer',
+        measure: 'NPS',
+        target: '>= 80',
+      }),
+    );
+    expect(auditLogFn).toHaveBeenCalledWith(
+      expect.objectContaining({ entity_type: 'nonfinancial_benefit', action: 'create' }),
+    );
+  });
+
+  it('createProjectBenefit nonfinancial rejects missing target', async () => {
+    await expect(
+      createProjectBenefit(7, owner, {
+        kind: 'nonfinancial',
+        group_name: 'Customer',
+        measure: 'NPS',
+      }),
+    ).rejects.toBeInstanceOf(ValidationError);
+  });
+
+  it('patchProjectBenefit financial sets actual_vnd to null', async () => {
+    getFinancialBenefitInProjectRepo.mockResolvedValue({
+      id: 5,
+      fiscal_year: 2026,
+      benefit_type: 'COST_SAVING',
+      expected_vnd: 100,
+      actual_vnd: 50,
+    });
+    updateFinancialBenefitRepo.mockResolvedValue({
+      id: 5,
+      fiscal_year: 2026,
+      benefit_type: 'COST_SAVING',
+      expected_vnd: 100,
+      actual_vnd: null,
+    });
+    const row = await patchProjectBenefit(7, owner, 5, {
+      kind: 'financial',
+      actual_vnd: null,
+    });
+    expect(row.actual_vnd).toBeNull();
+    expect(updateFinancialBenefitRepo).toHaveBeenCalledWith(7, 5, { actual_vnd: null });
+  });
+
+  it('patchProjectBenefit missing row throws NotFoundError', async () => {
+    getFinancialBenefitInProjectRepo.mockResolvedValue(undefined);
+    await expect(
+      patchProjectBenefit(7, owner, 99, { kind: 'financial', actual_vnd: 0 }),
+    ).rejects.toBeInstanceOf(NotFoundError);
+  });
+
+  it('patchProjectBenefit nonfinancial updates actual_text', async () => {
+    getNonfinancialBenefitInProjectRepo.mockResolvedValue({
+      id: 8,
+      group_name: 'Ops',
+      measure: 'Uptime',
+      target: '99%',
+      actual_text: null,
+    });
+    updateNonfinancialBenefitRepo.mockResolvedValue({
+      id: 8,
+      group_name: 'Ops',
+      measure: 'Uptime',
+      target: '99%',
+      actual_text: 'Met',
+    });
+    await patchProjectBenefit(7, owner, 8, {
+      kind: 'nonfinancial',
+      actual_text: 'Met',
+    });
+    expect(updateNonfinancialBenefitRepo).toHaveBeenCalledWith(7, 8, { actual_text: 'Met' });
   });
 });
