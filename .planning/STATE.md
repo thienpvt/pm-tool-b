@@ -5,16 +5,16 @@ milestone_name: Portfolio One View
 current_phase: 18
 current_phase_name: Append-Only Audit Log
 status: planning
-stopped_at: Completed 18-02-PLAN.md
-last_updated: "2026-08-26T15:38:39.472Z"
+stopped_at: Completed 18-03-PLAN.md
+last_updated: "2026-08-26T15:42:19.432Z"
 last_activity: 2026-08-26
 last_activity_desc: Phase 17 complete, transitioned to Phase 18
-state_head: 7ee301a3214408fea84cf91f0ab5cc9d0711bf5f
+state_head: 5ed1309e0b63b5cb5a9db9f6b881c12fe17e159b
 progress:
   total_phases: 10
   completed_phases: 9
   total_plans: 40
-  completed_plans: 39
+  completed_plans: 40
 ---
 
 # Project State
@@ -94,6 +94,7 @@ Progress: [█░░░░░░░░░] 10%
 | Phase 17-document-templates-confluence-checklist P03 | 15 | 3 tasks | 11 files |
 | Phase 18-append-only-audit-log P01 | 12 | 3 tasks | 7 files |
 | Phase 18 P02 | 3min | 2 tasks | 4 files |
+| Phase 18 P03 | 12min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -168,6 +169,8 @@ Recent decisions affecting current work:
 - [Phase 18]: Skipped D-10 settings-flag migrate — company_id column already exists
 - [Phase 18]: entity_type remains risk and issue separately — no unified raid string (D-02 discretion locked)
 - [Phase 18]: due_date-only updates emit due_date_change only; non-due_date keys emit action update
+- [Phase 18]: General project updates use action update with full snapshots; code_change and stage_change_ack remain separate
+- [Phase 18]: Checklist uses action status_change when status or confluence_url differs; otherwise action update
 
 ### Pending Todos
 
@@ -188,6 +191,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-08-26T15:38:38.307Z
-Stopped at: Completed 18-02-PLAN.md
+Last session: 2026-08-26T15:42:18.218Z
+Stopped at: Completed 18-03-PLAN.md
 Resume file: None

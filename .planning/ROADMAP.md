@@ -325,13 +325,13 @@ Plans:
   2. An audit record cannot be edited in place; after a later business edit, the original actor, time, and payload are still visible
   3. Audit history is company-scoped — a user from another company cannot read another tenant's audit records
 
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans executed
 
 Plans:
 
 - [x] 18-01-PLAN.md — GET /api/audit, append-only list, immutability
 - [x] 18-02-PLAN.md — RAID create/update audit coverage
-- [ ] 18-03-PLAN.md — project, milestone, checklist audit gaps
+- [x] 18-03-PLAN.md — project, milestone, checklist audit gaps
 
 **UI hint**: yes
 
@@ -359,7 +359,7 @@ Phases execute in numeric order: 9 → 10 → 11 → 12 → 13 → 14 → 15 →
 | 15. Budget, Value, ROI & Dependencies | v2.0 | 3/3 | Complete    | 2026-08-26 |
 | 16. Portfolio & PM Dashboards | v2.0 | 3/3 | Complete    | 2026-08-26 |
 | 17. Document Templates & Confluence Checklist | v2.0 | 3/3 | Complete    | 2026-08-26 |
-| 18. Append-Only Audit Log | v2.0 | 2/3 | In Progress|  |
+| 18. Append-Only Audit Log | v2.0 | 3/3 | In Progress|  |
 
 ## Coverage
 
