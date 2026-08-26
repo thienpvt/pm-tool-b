@@ -11,7 +11,10 @@ export function normalizeRag(raw: string | null | undefined): NormalizedRag {
   return 'amber';
 }
 
-/** Active = status Active AND stage L0–L4 (D-02). */
+/** Active = status Active AND stage L0–L4 (D-02). Status compare is case-insensitive (DB default is lowercase). */
 export function isActiveProject(p: { status: string; stage: string | null | undefined }): boolean {
-  return p.status === 'Active' && ACTIVE_STAGES.includes(p.stage as (typeof ACTIVE_STAGES)[number]);
+  return (
+    p.status.toLowerCase() === 'active' &&
+    ACTIVE_STAGES.includes(p.stage as (typeof ACTIVE_STAGES)[number])
+  );
 }

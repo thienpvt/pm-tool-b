@@ -50,10 +50,7 @@ async function enrichProjectListRows(
   for (const p of rawProjects) {
     const primary = await getActivePrimaryAssignment(Number(p.id));
     const pmUserId = primary?.user_id ?? null;
-    const pmName =
-      (p.pm_name as string | undefined) ||
-      (primary as { display_name?: string } | null)?.display_name ||
-      null;
+    const pmName = primary?.display_name ?? (p.pm_name as string | undefined) ?? null;
     enriched.push({
       id: Number(p.id),
       name: String(p.name ?? ''),

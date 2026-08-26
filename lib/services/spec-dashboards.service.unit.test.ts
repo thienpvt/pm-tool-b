@@ -227,6 +227,30 @@ describe('getPortfolioDashboard', () => {
     expect(getDashboardFilters).toHaveBeenCalledWith(1, 'portfolio');
   });
 
+  it('prefers assignment display_name over stale projects.pm_name (WR-01)', async () => {
+    listProjects.mockResolvedValue([{ ...mockProjects[0], pm_name: 'Stale Name' }]);
+    getActivePrimaryAssignment.mockResolvedValue({
+      user_id: 7,
+      role: 'primary',
+      display_name: 'Pat PM',
+    });
+
+    const result = await getPortfolioDashboard(cpmoActor);
+
+    expect(result.list[0].pm_name).toBe('Pat PM');
+    expect(result.list[0].pm_user_id).toBe(7);
+  });
+
+  it('falls back to projects.pm_name when no active primary assignment', async () => {
+    listProjects.mockResolvedValue([{ ...mockProjects[0], pm_name: 'Legacy PM' }]);
+    getActivePrimaryAssignment.mockResolvedValue(null);
+
+    const result = await getPortfolioDashboard(cpmoActor);
+
+    expect(result.list[0].pm_name).toBe('Legacy PM');
+    expect(result.list[0].pm_user_id).toBeNull();
+  });
+
   it('overdue tile is distinct projects; drill-down is per milestone (D-05)', async () => {
     listOverdueMilestones.mockResolvedValue([
       { project_id: 10, milestone_id: 1, name: 'M1' },

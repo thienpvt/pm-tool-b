@@ -12,6 +12,10 @@ export type PmAssignmentRow = {
   effective_to: string | null;
 };
 
+export type ActivePrimaryAssignment = PmAssignmentRow & {
+  display_name: string | null;
+};
+
 const ACTIVE_WINDOW = `
   effective_from <= CURRENT_DATE
   AND (effective_to IS NULL OR effective_to > CURRENT_DATE)
@@ -46,9 +50,13 @@ export async function listPmAssignments(projectId: number | string) {
 
 export async function getActivePrimaryAssignment(projectId: number | string) {
   const db = await getDb();
-  return db.get<PmAssignmentRow>(
-    `SELECT * FROM project_pm_assignments
-     WHERE project_id = ? AND role = 'primary' AND ${ACTIVE_WINDOW}
+  return db.get<ActivePrimaryAssignment>(
+    `SELECT a.*, u.display_name
+     FROM project_pm_assignments a
+     LEFT JOIN users u ON u.id = a.user_id
+     WHERE a.project_id = ? AND a.role = 'primary'
+       AND a.effective_from <= CURRENT_DATE
+       AND (a.effective_to IS NULL OR a.effective_to > CURRENT_DATE)
      LIMIT 1`,
     Number(projectId),
   );

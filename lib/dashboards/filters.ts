@@ -53,7 +53,7 @@ function matchesFilter(row: FilterableProjectRow, key: DashboardFilterKey, value
     case 'stage':
       return row.stage === value;
     case 'status':
-      return row.status === value;
+      return String(row.status ?? '').toLowerCase() === String(value).toLowerCase();
     case 'rag':
       return normalizeRag(row.rag) === normalizeRag(String(value));
     case 'type':

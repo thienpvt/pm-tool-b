@@ -25,6 +25,15 @@ describe('computePortfolioKpis active/on-track/watch (D-02, D-03)', () => {
     expect(kpis.on_track_count).toBe(1);
     expect(kpis.watch_act_count).toBe(4);
   });
+
+  it('counts lowercase active status as active (DB default)', () => {
+    const lowercaseActive: ProjectRow[] = [
+      { id: 1, status: 'active', stage: 'L2', rag: 'Green' },
+      { id: 2, status: 'Active', stage: 'L3', rag: 'Green' },
+    ];
+    const kpis = computePortfolioKpis(lowercaseActive, [], [], []);
+    expect(kpis.active_count).toBe(2);
+  });
 });
 
 describe('computePortfolioCharts stage and RAG identity (D-03, D-04)', () => {

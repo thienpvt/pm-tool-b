@@ -70,6 +70,15 @@ describe('applyDashboardFilters AND matrix (D-06)', () => {
     expect(applyDashboardFilters(rows, { rag: 'green' }).map((r) => r.id)).toEqual([1]);
   });
 
+  it('filters status case-insensitively (lowercase DB default matches Active filter)', () => {
+    const mixedStatus: FilterableProjectRow[] = [
+      { id: 1, status: 'active', stage: 'L2' },
+      { id: 2, status: 'Active', stage: 'L3' },
+      { id: 3, status: 'Closed', stage: 'L2' },
+    ];
+    expect(applyDashboardFilters(mixedStatus, { status: 'Active' }).map((r) => r.id)).toEqual([1, 2]);
+  });
+
   it('filters type via classification', () => {
     expect(applyDashboardFilters(rows, { type: 'Run' }).map((r) => r.id)).toEqual([2]);
   });

@@ -22,9 +22,12 @@ files_reviewed_list:
   - app/api/dashboards/pm/filters/route.ts
 findings:
   critical: 0
-  warning: 2
+  warning: 0
   info: 1
-  total: 3
+  total: 1
+  resolved_warnings:
+    - WR-01
+    - WR-02
 status: issues_found
 ---
 
@@ -39,9 +42,19 @@ status: issues_found
 
 Phase 16 dashboard backend is structurally sound: portfolio routes are CPMO-only (`withCpmo` + `assertCompanyWrite`), PM routes require non-null `company_id` and pm/cpmo role with assignment-scoped `listProjects`, drill-down/KPI filtering respects the filtered project set, export reuses `buildPortfolioDashboard` (no cross-company leak path), and there is no `getPortfolioSummary` or `getPeriodTracking` reuse on the PM path. RAG normalization and G+A+R = active invariants hold in `kpi.ts`/`rag.ts`.
 
-Two warnings affect KPI/display correctness for edge-case data; no security blockers or tenant-isolation defects were found.
+Two warnings affect KPI/display correctness for edge-case data; no security blockers or tenant-isolation defects were found. **WR-01 and WR-02 resolved** — see Resolved Warnings below.
 
-## Warnings
+## Resolved Warnings
+
+### WR-01: `pm_name` ignores assigned PM when `projects.pm_name` is populated — **RESOLVED**
+
+**Resolution:** `getActivePrimaryAssignment` joins `users.display_name`; `enrichProjectListRows` prefers assignment display name over denormalized `projects.pm_name`.
+
+### WR-02: Active KPI excludes lowercase `'active'` status from DB default — **RESOLVED**
+
+**Resolution:** `isActiveProject` and dashboard status filter compare case-insensitively.
+
+## Warnings (historical)
 
 ### WR-01: `pm_name` ignores assigned PM when `projects.pm_name` is populated
 
