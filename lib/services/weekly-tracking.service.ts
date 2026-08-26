@@ -1,8 +1,13 @@
-import { getWeeklyPeriodByCompany, listPeriodShellsRepo } from '@/lib/repositories/weekly-reports.repo';
+import {
+  getLatestVersionSnapshot,
+  getWeeklyPeriodByCompany,
+  listPeriodShellsRepo,
+  type PeriodShellListRow,
+} from '@/lib/repositories/weekly-reports.repo';
 import { listTechnologyCouncilIssues } from '@/lib/repositories/issues.repo';
 import { assertCompanyWrite, type AccessActor } from './access';
 import { isWeeklyReportOverdue } from './weekly-reports.service';
-import { ForbiddenError, NotFoundError } from './errors';
+import { ForbiddenError, NotFoundError, SubmitValidationError } from './errors';
 
 export type PeriodTrackingFilters = {
   status?: 'not_submitted' | 'draft' | 'submitted' | 'overdue';
@@ -127,5 +132,74 @@ export async function getPeriodTracking(
     },
     counts,
     rows,
+  };
+}
+
+export function assertExportEligible(
+  shellsByProjectId: Map<number, PeriodShellListRow>,
+  projectIds: number[],
+): void {
+  const ineligible: string[] = [];
+  for (const projectId of projectIds) {
+    const shell = shellsByProjectId.get(projectId);
+    if (!shell || shell.status !== 'submitted' || shell.latest_version < 1) {
+      ineligible.push(String(projectId));
+    }
+  }
+  if (ineligible.length > 0) {
+    throw new SubmitValidationError('Projects not eligible for export', ineligible);
+  }
+}
+
+export async function previewConsolidatedExport(
+  companyId: number,
+  periodId: number,
+  actor: AccessActor,
+  projectIds: number[],
+) {
+  assertCompanyWrite(actor);
+  if (actor.company_id !== companyId) throw new ForbiddenError();
+
+  const period = await getWeeklyPeriodByCompany(companyId, periodId);
+  if (!period) throw new NotFoundError('Not found', 'weekly_period');
+
+  const shells = await listPeriodShellsRepo(companyId, periodId);
+  const shellMap = new Map(shells.map((shell) => [shell.project_id, shell]));
+  assertExportEligible(shellMap, projectIds);
+
+  const sections = await Promise.all(
+    projectIds.map(async (projectId) => {
+      const shell = shellMap.get(projectId)!;
+      await getLatestVersionSnapshot(shell.report_id, shell.latest_version);
+      return {
+        project_id: shell.project_id,
+        report_id: shell.report_id,
+        latest_version: shell.latest_version,
+        project_code: shell.project_code,
+        name: shell.name,
+        pm_display_name: shell.pm_display_name,
+        stage: shell.stage,
+        prev_week_rag: null as string | null,
+        this_week_rag: null as string | null,
+        progress_pct: null as number | null,
+        highlights: null as string | null,
+        next_week_goals: null as string | null,
+        nearest_milestone: null as string | null,
+        raid_counts: { risks: 0, issues: 0 },
+        tech_issue_counts: 0,
+      };
+    }),
+  );
+
+  return {
+    period: {
+      id: period.id,
+      display_name: period.display_name,
+      iso_week: period.iso_week,
+      due_at: period.due_at,
+      start_date: period.start_date,
+      end_date: period.end_date,
+    },
+    sections,
   };
 }
