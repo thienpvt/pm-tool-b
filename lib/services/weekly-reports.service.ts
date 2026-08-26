@@ -12,6 +12,7 @@ import {
   getWeeklyReportFullRow,
   getWeeklyReportWithPeriod,
   insertWeeklyReportVersion,
+  lockWeeklyReportShell,
   listPeriodShellsRepo,
   listProjectWeeklyHistoryRepo,
   openCorrectionOnShell,
@@ -33,6 +34,7 @@ import {
   type AccessActor,
 } from './access';
 import { auditLog } from './audit.service';
+import { runInTransaction } from '@/lib/db';
 import { ConflictError, ForbiddenError, NotFoundError, SubmitValidationError, ValidationError } from './errors';
 
 const DEFAULT_CONFIG = { due_weekday: 5, due_time_utc: '18:00:00' };
@@ -185,6 +187,25 @@ function copyMilestoneSnapshot(row: Record<string, unknown>) {
   };
 }
 
+function raidSnapshotToDraftJson(snapshot: Record<string, unknown>): unknown | null {
+  if (snapshot.draft_raid_json != null) return snapshot.draft_raid_json;
+  const raid = snapshot.raid;
+  if (!raid || typeof raid !== 'object') return null;
+  const { risks, issues } = raid as { risks?: unknown[]; issues?: unknown[] };
+  const toEntry = (row: unknown) => {
+    if (!row || typeof row !== 'object') return null;
+    const r = row as Record<string, unknown>;
+    const id = typeof r.id === 'number' ? r.id : null;
+    if (id == null) return null;
+    const { id: _id, ...fields } = r;
+    return { id, fields };
+  };
+  return {
+    risks: (Array.isArray(risks) ? risks : []).map(toEntry).filter(Boolean),
+    issues: (Array.isArray(issues) ? issues : []).map(toEntry).filter(Boolean),
+  };
+}
+
 function snapshotToDraftFields(snapshot: Record<string, unknown>): DraftUpdateFields {
   const nearest = snapshot.nearest_milestone;
   let nearestText: string | null = null;
@@ -204,8 +225,18 @@ function snapshotToDraftFields(snapshot: Record<string, unknown>): DraftUpdateFi
     leadership_support:
       typeof snapshot.leadership_support === 'string' ? snapshot.leadership_support : null,
     this_week_rag: typeof snapshot.this_week_rag === 'string' ? snapshot.this_week_rag : null,
-    draft_raid_json: snapshot.draft_raid_json ?? null,
+    draft_raid_json: raidSnapshotToDraftJson(snapshot),
   };
+}
+
+function assertCanSubmit(shell: { status: string; correction_open: boolean }): void {
+  const canSubmit =
+    shell.status === 'draft'
+    || shell.status === 'not_submitted'
+    || shell.correction_open;
+  if (!canSubmit) {
+    throw new ConflictError('Report cannot be submitted in current state');
+  }
 }
 
 export function isWeeklyReportOverdue(
@@ -349,13 +380,7 @@ export async function submitWeeklyReport(
   const shell = await getWeeklyReportWithPeriod(pid, rid);
   if (!shell) throw new NotFoundError('Not found', 'weekly_report');
 
-  const canSubmit =
-    shell.status === 'draft'
-    || shell.status === 'not_submitted'
-    || shell.correction_open;
-  if (!canSubmit) {
-    throw new ConflictError('Report cannot be submitted in current state');
-  }
+  assertCanSubmit(shell);
 
   if (!shell.this_week_rag) {
     throw new ValidationError('this_week_rag is required for submit', 'this_week_rag');
@@ -367,86 +392,100 @@ export async function submitWeeklyReport(
     throw new SubmitValidationError('Submit validation failed', validation.fields);
   }
 
-  const draftRaid = parseDraftRaidJson(shell.draft_raid_json);
-  const riskIds: number[] = [];
-  for (const entry of draftRaid.risks) {
-    if (!entry || typeof entry !== 'object') continue;
-    const fields = entry.fields && typeof entry.fields === 'object' ? entry.fields : {};
-    if (entry.id === 'new') {
-      const created = await createRisk(pid, actor, fields);
-      riskIds.push(Number(created.id));
-    } else if (typeof entry.id === 'number') {
-      await updateRisk(pid, actor, entry.id, fields);
-      riskIds.push(entry.id);
-    }
+  let newVersion = shell.latest_version + 1;
+  let isFirstSubmit = shell.first_submitted_at === null;
+
+  try {
+    await runInTransaction(async () => {
+      const locked = await lockWeeklyReportShell(pid, rid);
+      if (!locked) throw new NotFoundError('Not found', 'weekly_report');
+      assertCanSubmit(locked);
+      newVersion = locked.latest_version + 1;
+      isFirstSubmit = locked.first_submitted_at === null;
+
+      const draftRaid = parseDraftRaidJson(shell.draft_raid_json);
+      const riskIds: number[] = [];
+      for (const entry of draftRaid.risks) {
+        if (!entry || typeof entry !== 'object') continue;
+        const fields = entry.fields && typeof entry.fields === 'object' ? entry.fields : {};
+        if (entry.id === 'new') {
+          const created = await createRisk(pid, actor, fields);
+          riskIds.push(Number(created.id));
+        } else if (typeof entry.id === 'number') {
+          await updateRisk(pid, actor, entry.id, fields);
+          riskIds.push(entry.id);
+        }
+      }
+
+      const issueIds: number[] = [];
+      for (const entry of draftRaid.issues) {
+        if (!entry || typeof entry !== 'object') continue;
+        const fields = entry.fields && typeof entry.fields === 'object' ? entry.fields : {};
+        if (entry.id === 'new') {
+          const created = await createIssue(pid, actor, fields);
+          issueIds.push(Number(created.id));
+        } else if (typeof entry.id === 'number') {
+          await updateIssue(pid, actor, entry.id, fields);
+          issueIds.push(entry.id);
+        }
+      }
+
+      const project = await getProject(pid);
+      const progressPct = project && typeof project.progress_pct === 'number'
+        ? project.progress_pct
+        : Number(project?.progress_pct ?? 0) || 0;
+
+      if (project && shell.this_week_rag !== project.rag) {
+        await updateProject(pid, { rag: shell.this_week_rag });
+      }
+
+      const lockedRisks = [];
+      for (const id of riskIds) {
+        const row = await getRisk(pid, id);
+        if (row) lockedRisks.push({ ...row });
+      }
+      const lockedIssues = [];
+      for (const id of issueIds) {
+        const row = await getIssue(pid, id);
+        if (row) lockedIssues.push({ ...row });
+      }
+
+      const prevWeekRag = await ensurePrevWeekRag(pid, rid, shell);
+      const shellForSnapshot = { ...shell, prev_week_rag: prevWeekRag };
+      const snapshot = {
+        ...buildSnapshotFromShell(shellForSnapshot),
+        progress_pct: progressPct,
+        raid: { risks: lockedRisks, issues: lockedIssues },
+        milestones: validation.milestoneRow ? [copyMilestoneSnapshot(validation.milestoneRow)] : [],
+      };
+      const now = new Date().toISOString();
+
+      await insertWeeklyReportVersion({
+        reportId: rid,
+        version: newVersion,
+        snapshot,
+        submittedAt: now,
+        submittedBy: actor.user_id,
+        rag: shell.this_week_rag,
+        progressPct,
+      });
+
+      const dueAt = new Date(shell.due_at);
+      const latenessForFirst = new Date(now).getTime() <= dueAt.getTime() ? 'on_time' : 'late';
+
+      await finalizeWeeklyReportSubmit({
+        projectId: pid,
+        reportId: rid,
+        latestVersion: newVersion,
+        firstSubmittedAt: locked.first_submitted_at,
+        firstLateness: isFirstSubmit ? latenessForFirst : locked.first_lateness,
+        now,
+      });
+    });
+  } catch (err) {
+    if (isPgUniqueViolation(err)) throw new ConflictError('Report already submitted');
+    throw err;
   }
-
-  const issueIds: number[] = [];
-  for (const entry of draftRaid.issues) {
-    if (!entry || typeof entry !== 'object') continue;
-    const fields = entry.fields && typeof entry.fields === 'object' ? entry.fields : {};
-    if (entry.id === 'new') {
-      const created = await createIssue(pid, actor, fields);
-      issueIds.push(Number(created.id));
-    } else if (typeof entry.id === 'number') {
-      await updateIssue(pid, actor, entry.id, fields);
-      issueIds.push(entry.id);
-    }
-  }
-
-  const project = await getProject(pid);
-  const progressPct = project && typeof project.progress_pct === 'number'
-    ? project.progress_pct
-    : Number(project?.progress_pct ?? 0) || 0;
-
-  if (project && shell.this_week_rag !== project.rag) {
-    await updateProject(pid, { rag: shell.this_week_rag });
-  }
-
-  const lockedRisks = [];
-  for (const id of riskIds) {
-    const row = await getRisk(pid, id);
-    if (row) lockedRisks.push({ ...row });
-  }
-  const lockedIssues = [];
-  for (const id of issueIds) {
-    const row = await getIssue(pid, id);
-    if (row) lockedIssues.push({ ...row });
-  }
-
-  const prevWeekRag = await ensurePrevWeekRag(pid, rid, shell);
-  const shellForSnapshot = { ...shell, prev_week_rag: prevWeekRag };
-  const snapshot = {
-    ...buildSnapshotFromShell(shellForSnapshot),
-    progress_pct: progressPct,
-    raid: { risks: lockedRisks, issues: lockedIssues },
-    milestones: validation.milestoneRow ? [copyMilestoneSnapshot(validation.milestoneRow)] : [],
-  };
-  const newVersion = shell.latest_version + 1;
-  const now = new Date().toISOString();
-  const isFirstSubmit = shell.first_submitted_at === null;
-
-  await insertWeeklyReportVersion({
-    reportId: rid,
-    version: newVersion,
-    snapshot,
-    submittedAt: now,
-    submittedBy: actor.user_id,
-    rag: shell.this_week_rag,
-    progressPct,
-  });
-
-  const dueAt = new Date(shell.due_at);
-  const latenessForFirst = new Date(now).getTime() <= dueAt.getTime() ? 'on_time' : 'late';
-
-  await finalizeWeeklyReportSubmit({
-    projectId: pid,
-    reportId: rid,
-    latestVersion: newVersion,
-    firstSubmittedAt: shell.first_submitted_at,
-    firstLateness: isFirstSubmit ? latenessForFirst : shell.first_lateness,
-    now,
-  });
 
   await auditLog({
     actor_id: actor.user_id,

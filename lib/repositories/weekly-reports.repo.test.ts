@@ -2,8 +2,13 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import { hasTestDb, testPool } from '@/test/db';
 import { seedCompany, seedProject, setupRepoTables, testDb } from '@/test/repo-db';
 import { migrateWeeklyReports } from '@/lib/db-weekly-reports';
+import { runInTransactionOnPool } from '@/lib/db-tx';
 
-vi.mock('@/lib/db', () => ({ getDb: vi.fn(async () => testDb()) }));
+vi.mock('@/lib/db', () => ({
+  getDb: vi.fn(async () => testDb()),
+  runInTransaction: (fn: (client: import('pg').PoolClient) => Promise<unknown>) =>
+    runInTransactionOnPool(testPool(), fn),
+}));
 
 import { getShellsForPeriod } from './weekly-reports.repo';
 import { createPeriodWithShells } from './weekly-periods.repo';

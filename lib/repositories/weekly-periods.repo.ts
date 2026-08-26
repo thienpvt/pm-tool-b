@@ -1,5 +1,5 @@
-import { Pool, type PoolClient } from 'pg';
-import { getDb } from '@/lib/db';
+import type { PoolClient } from 'pg';
+import { getDb, runInTransaction } from '@/lib/db';
 import {
   formatPeriodDisplayName,
   isoWeekBoundsUtc,
@@ -39,24 +39,7 @@ const DEFAULT_CONFIG: CompanyWeeklyConfigRow = {
 };
 
 async function withPgTransaction<T>(fn: (client: PoolClient) => Promise<T>): Promise<T> {
-  const url = process.env.VITEST
-    ? (process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL)
-    : process.env.DATABASE_URL;
-  if (!url) throw new Error('DATABASE_URL is required');
-  const pool = new Pool({ connectionString: url });
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-    const result = await fn(client);
-    await client.query('COMMIT');
-    return result;
-  } catch (err) {
-    await client.query('ROLLBACK');
-    throw err;
-  } finally {
-    client.release();
-    await pool.end();
-  }
+  return runInTransaction(fn);
 }
 
 export async function getCompanyWeeklyConfig(

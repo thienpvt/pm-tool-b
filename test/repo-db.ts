@@ -1,5 +1,6 @@
 import type { Pool } from 'pg';
 import type { DbClient } from '@/lib/db';
+import { txQueryTarget } from '@/lib/db-tx';
 import { testPool } from './db';
 
 /**
@@ -28,13 +29,17 @@ class TestDbClient implements DbClient {
     return result.replace(/\?/g, () => `$${++i}`);
   }
 
+  private querier() {
+    return txQueryTarget(this.pool);
+  }
+
   async get<T>(sql: string, ...params: unknown[]): Promise<T | undefined> {
-    const { rows } = await this.pool.query(this.toPositional(sql), params.length ? params : undefined);
+    const { rows } = await this.querier().query(this.toPositional(sql), params.length ? params : undefined);
     return rows[0] as T | undefined;
   }
 
   async all<T>(sql: string, ...params: unknown[]): Promise<T[]> {
-    const { rows } = await this.pool.query(this.toPositional(sql), params.length ? params : undefined);
+    const { rows } = await this.querier().query(this.toPositional(sql), params.length ? params : undefined);
     return rows as T[];
   }
 
@@ -50,13 +55,13 @@ class TestDbClient implements DbClient {
   async run(sql: string, ...params: unknown[]): Promise<{ lastInsertRowid: number | bigint; changes: number }> {
     let pgSql = this.toPositional(sql);
     if (/^\s*INSERT\s/i.test(sql) && this.needsReturningId(sql)) pgSql += ' RETURNING id';
-    const result = await this.pool.query(pgSql, params.length ? params : undefined);
+    const result = await this.querier().query(pgSql, params.length ? params : undefined);
     return { lastInsertRowid: result.rows[0]?.id ?? 0, changes: result.rowCount ?? 0 };
   }
 
   async exec(sql: string): Promise<void> {
     for (const stmt of sql.split(';').map(s => s.trim()).filter(Boolean)) {
-      await this.pool.query(stmt);
+      await this.querier().query(stmt);
     }
   }
 }

@@ -15,6 +15,7 @@ const {
   updatePrevWeekRag,
   getPriorPeriodSubmittedRag,
   insertWeeklyReportVersion,
+  lockWeeklyReportShell,
   finalizeWeeklyReportSubmit,
   openCorrectionOnShell,
   getLatestVersionSnapshot,
@@ -30,6 +31,7 @@ const {
   updateRiskFn,
   createIssueFn,
   updateIssueFn,
+  runInTransaction,
 } = vi.hoisted(() => ({
   assertCompanyWrite: vi.fn(),
   assertProjectAccess: vi.fn(),
@@ -45,6 +47,7 @@ const {
   updatePrevWeekRag: vi.fn(),
   getPriorPeriodSubmittedRag: vi.fn(),
   insertWeeklyReportVersion: vi.fn(),
+  lockWeeklyReportShell: vi.fn(),
   finalizeWeeklyReportSubmit: vi.fn(),
   openCorrectionOnShell: vi.fn(),
   getLatestVersionSnapshot: vi.fn(),
@@ -60,6 +63,7 @@ const {
   updateRiskFn: vi.fn(),
   createIssueFn: vi.fn(),
   updateIssueFn: vi.fn(),
+  runInTransaction: vi.fn(async (fn: (client: unknown) => Promise<unknown>) => fn({})),
 }));
 
 vi.mock('./access', () => ({
@@ -81,12 +85,16 @@ vi.mock('@/lib/repositories/weekly-reports.repo', () => ({
   updatePrevWeekRag,
   getPriorPeriodSubmittedRag,
   insertWeeklyReportVersion,
+  lockWeeklyReportShell,
   finalizeWeeklyReportSubmit,
   openCorrectionOnShell,
   getLatestVersionSnapshot,
   listProjectWeeklyHistoryRepo,
   getWeeklyPeriodByCompany: getWeeklyPeriodByCompanyRepo,
   listPeriodShellsRepo,
+}));
+vi.mock('@/lib/db', () => ({
+  runInTransaction,
 }));
 vi.mock('@/lib/repositories/projects.repo', () => ({
   getProject: getProjectRepo,
@@ -178,6 +186,16 @@ beforeEach(() => {
   getPriorPeriodSubmittedRag.mockResolvedValue(null);
   getProjectRepo.mockResolvedValue({ rag: 'Green' });
   updatePrevWeekRag.mockResolvedValue(undefined);
+  lockWeeklyReportShell.mockResolvedValue({
+    id: 10,
+    latest_version: 0,
+    status: 'draft',
+    correction_open: false,
+    first_submitted_at: null,
+    first_lateness: null,
+  });
+  insertWeeklyReportVersion.mockResolvedValue({});
+  finalizeWeeklyReportSubmit.mockResolvedValue({});
 });
 
 describe('createWeeklyPeriod', () => {
@@ -491,6 +509,14 @@ describe('submitWeeklyReport', () => {
   });
 
   it('correction submit inserts version 2 with weekly_correct audit (D-08, WKRP-05)', async () => {
+    lockWeeklyReportShell.mockResolvedValue({
+      id: 10,
+      latest_version: 1,
+      status: 'submitted',
+      correction_open: true,
+      first_submitted_at: '2026-01-08T12:00:00.000Z',
+      first_lateness: 'on_time',
+    });
     getWeeklyReportWithPeriod
       .mockResolvedValueOnce({
         ...baseShell,
@@ -707,6 +733,44 @@ describe('submitWeeklyReport', () => {
     );
   });
 
+  it('maps version unique violation to ConflictError (WR-02)', async () => {
+    getWeeklyReportWithPeriod
+      .mockResolvedValueOnce({
+        ...baseShell,
+        status: 'draft',
+        this_week_rag: 'Green',
+        prev_week_rag: 'Amber',
+      })
+      .mockResolvedValue({ ...baseShell, status: 'submitted', this_week_rag: 'Green' });
+    insertWeeklyReportVersion.mockRejectedValue(Object.assign(new Error('dup'), { code: '23505' }));
+
+    await expect(submitWeeklyReport(100, 10, pmActor)).rejects.toBeInstanceOf(ConflictError);
+    expect(finalizeWeeklyReportSubmit).not.toHaveBeenCalled();
+  });
+
+  it('does not finalize when version insert fails after createRisk (CR-02)', async () => {
+    createRiskFn.mockResolvedValue({ id: 99, description: 'New risk' });
+    getRiskRepo.mockResolvedValue({ id: 99, description: 'New risk' });
+    getWeeklyReportWithPeriod
+      .mockResolvedValueOnce({
+        ...baseShell,
+        status: 'draft',
+        this_week_rag: 'Green',
+        prev_week_rag: 'Amber',
+        draft_raid_json: {
+          risks: [{ id: 'new', fields: { description: 'New risk' } }],
+          issues: [],
+        },
+      })
+      .mockResolvedValue({ ...baseShell, status: 'draft', this_week_rag: 'Green' });
+    insertWeeklyReportVersion.mockRejectedValue(new Error('version insert failed'));
+
+    await expect(submitWeeklyReport(100, 10, pmActor)).rejects.toThrow('version insert failed');
+    expect(createRiskFn).toHaveBeenCalled();
+    expect(finalizeWeeklyReportSubmit).not.toHaveBeenCalled();
+    expect(runInTransaction).toHaveBeenCalled();
+  });
+
   it('does not call updateProject when this_week_rag matches project rag (D-10)', async () => {
     getProjectRepo.mockResolvedValue({ rag: 'Green', progress_pct: 50 });
 
@@ -763,6 +827,39 @@ describe('openWeeklyReportCorrection', () => {
       expect.objectContaining({ highlights: 'overlay', nearest_milestone: 'M1' }),
     );
     expect(insertWeeklyReportVersion).not.toHaveBeenCalled();
+  });
+
+  it('reconstructs draft_raid_json from snapshot.raid when draft_raid_json is absent (CR-01)', async () => {
+    getWeeklyReportFullRow.mockResolvedValue({
+      ...baseShell,
+      status: 'submitted',
+      latest_version: 1,
+    });
+    getLatestVersionSnapshot.mockResolvedValue({
+      highlights: 'snap hi',
+      this_week_rag: 'Green',
+      raid: { risks: [{ id: 5, description: 'x', status: 'Open' }], issues: [] },
+    });
+    openCorrectionOnShell.mockResolvedValue({ ...baseShell, correction_open: true });
+    getWeeklyReportWithPeriod.mockResolvedValue({
+      ...baseShell,
+      status: 'submitted',
+      correction_open: true,
+      prev_week_rag: 'Green',
+    });
+
+    await openWeeklyReportCorrection(100, 10, pmActor);
+
+    expect(openCorrectionOnShell).toHaveBeenCalledWith(
+      100,
+      10,
+      expect.objectContaining({
+        draft_raid_json: {
+          risks: [{ id: 5, fields: { description: 'x', status: 'Open' } }],
+          issues: [],
+        },
+      }),
+    );
   });
 });
 

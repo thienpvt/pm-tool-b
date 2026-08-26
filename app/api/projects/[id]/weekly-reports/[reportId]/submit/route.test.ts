@@ -6,6 +6,7 @@ const {
   hasActivePmAssignment,
   getWeeklyReportWithPeriod,
   insertWeeklyReportVersion,
+  lockWeeklyReportShell,
   finalizeWeeklyReportSubmit,
   updatePrevWeekRag,
   getPriorPeriodSubmittedRag,
@@ -16,6 +17,7 @@ const {
   hasActivePmAssignment: vi.fn(),
   getWeeklyReportWithPeriod: vi.fn(),
   insertWeeklyReportVersion: vi.fn(),
+  lockWeeklyReportShell: vi.fn(),
   finalizeWeeklyReportSubmit: vi.fn(),
   updatePrevWeekRag: vi.fn(),
   getPriorPeriodSubmittedRag: vi.fn(),
@@ -28,9 +30,13 @@ vi.mock('@/lib/services/audit.service', () => ({ auditLog: vi.fn().mockResolvedV
 vi.mock('@/lib/repositories/projects.repo', () => ({ projectAccessRow, getProject: getProjectRepo }));
 vi.mock('@/lib/repositories/pm-assignments.repo', () => ({ hasActivePmAssignment }));
 vi.mock('@/lib/repositories/risks.repo', () => ({ getRisk: getRiskRepo }));
+vi.mock('@/lib/db', () => ({
+  runInTransaction: async (fn: (client: unknown) => Promise<unknown>) => fn({}),
+}));
 vi.mock('@/lib/repositories/weekly-reports.repo', () => ({
   getWeeklyReportWithPeriod,
   insertWeeklyReportVersion,
+  lockWeeklyReportShell,
   finalizeWeeklyReportSubmit,
   updatePrevWeekRag,
   getPriorPeriodSubmittedRag,
@@ -46,6 +52,14 @@ describe('POST /api/projects/[id]/weekly-reports/[reportId]/submit', () => {
     getPriorPeriodSubmittedRag.mockResolvedValue('Amber');
     updatePrevWeekRag.mockResolvedValue(undefined);
     insertWeeklyReportVersion.mockResolvedValue({});
+    lockWeeklyReportShell.mockResolvedValue({
+      id: 10,
+      latest_version: 0,
+      status: 'draft',
+      correction_open: false,
+      first_submitted_at: null,
+      first_lateness: null,
+    });
     finalizeWeeklyReportSubmit.mockResolvedValue({});
     getProjectRepo.mockResolvedValue({ rag: 'Green', progress_pct: 0 });
   });

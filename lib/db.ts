@@ -1,6 +1,7 @@
-import { Pool } from 'pg';
+import { Pool, type PoolClient } from 'pg';
 import crypto from 'crypto';
 import { STATUS_WEIGHTS } from './status-weights';
+import { runInTransactionOnPool, txQueryTarget } from './db-tx';
 
 // ── Interface ──────────────────────────────────────────────────────────────────
 export interface DbClient {
@@ -32,24 +33,28 @@ class PostgresClient implements DbClient {
     return !!table && !noIdTables.includes(table);
   }
 
+  private querier() {
+    return txQueryTarget(this.pool);
+  }
+
   async get<T>(sql: string, ...params: unknown[]): Promise<T | undefined> {
-    const { rows } = await this.pool.query(this.toPositional(sql), params.length ? params : undefined);
+    const { rows } = await this.querier().query(this.toPositional(sql), params.length ? params : undefined);
     return rows[0] as T | undefined;
   }
   async all<T>(sql: string, ...params: unknown[]): Promise<T[]> {
-    const { rows } = await this.pool.query(this.toPositional(sql), params.length ? params : undefined);
+    const { rows } = await this.querier().query(this.toPositional(sql), params.length ? params : undefined);
     return rows as T[];
   }
   async run(sql: string, ...params: unknown[]): Promise<{ lastInsertRowid: number | bigint; changes: number }> {
     const isInsert = /^\s*INSERT\s/i.test(sql);
     let pgSql = this.toPositional(sql);
     if (isInsert && this.needsReturningId(sql)) pgSql += ' RETURNING id';
-    const result = await this.pool.query(pgSql, params.length ? params : undefined);
+    const result = await this.querier().query(pgSql, params.length ? params : undefined);
     return { lastInsertRowid: result.rows[0]?.id ?? 0, changes: result.rowCount ?? 0 };
   }
   async exec(sql: string): Promise<void> {
     const stmts = sql.split(';').map(s => s.trim()).filter(Boolean);
-    for (const stmt of stmts) await this.pool.query(stmt);
+    for (const stmt of stmts) await this.querier().query(stmt);
   }
 }
 
@@ -592,6 +597,13 @@ function resolveSsl(databaseUrl: string): false | { rejectUnauthorized: boolean 
 
 // ── Singleton ──────────────────────────────────────────────────────────────────
 let _client: DbClient | null = null;
+let _pool: Pool | null = null;
+
+export async function runInTransaction<T>(fn: (client: PoolClient) => Promise<T>): Promise<T> {
+  await getDb();
+  if (!_pool) throw new Error('Database pool is not initialized');
+  return runInTransactionOnPool(_pool, fn);
+}
 
 export async function getDb(): Promise<DbClient> {
   if (_client) return _client;
@@ -604,6 +616,7 @@ export async function getDb(): Promise<DbClient> {
     connectionString: process.env.DATABASE_URL,
     ssl: resolveSsl(process.env.DATABASE_URL),
   });
+  _pool = pool;
   const client = new PostgresClient(pool);
   await initPostgresSchema(client);
   await migratePostgresSchema(pool);

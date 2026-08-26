@@ -99,14 +99,40 @@ export async function getWeeklyReportFullRow(
   );
 }
 
+export async function lockWeeklyReportShell(
+  projectId: number,
+  reportId: number,
+): Promise<{
+  id: number;
+  latest_version: number;
+  status: string;
+  correction_open: boolean;
+  first_submitted_at: string | null;
+  first_lateness: string | null;
+} | undefined> {
+  const db = await getDb();
+  return db.get(
+    `SELECT id, latest_version, status, correction_open, first_submitted_at, first_lateness
+     FROM weekly_reports
+     WHERE id = ? AND project_id = ?
+     FOR UPDATE`,
+    reportId,
+    projectId,
+  );
+}
+
 export async function getWeeklyReportWithPeriod(
   projectId: number,
   reportId: number,
 ): Promise<WeeklyReportWithPeriodRow | undefined> {
   const db = await getDb();
   return db.get<WeeklyReportWithPeriodRow>(
-    `${FULL_SHELL_SELECT.replace('FROM weekly_reports wr', 'FROM weekly_reports wr')}
-     , wp.iso_week, wp.due_at, wp.display_name, wp.company_id
+    `SELECT wr.id, wr.period_id, wr.project_id, wr.status,
+            wr.first_submitted_at, wr.first_lateness, wr.latest_version, wr.correction_open,
+            wr.highlights, wr.completed_work, wr.next_week_goals, wr.nearest_milestone,
+            wr.nearest_milestone_id, wr.raid_dependency, wr.leadership_support,
+            wr.this_week_rag, wr.prev_week_rag, wr.draft_raid_json,
+            wp.iso_week, wp.due_at, wp.display_name, wp.company_id
      FROM weekly_reports wr
      JOIN weekly_periods wp ON wp.id = wr.period_id
      WHERE wr.id = ? AND wr.project_id = ?`,
