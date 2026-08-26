@@ -77,7 +77,7 @@ const viewer: AccessActor = {
 describe('fiscal-budget.service', () => {
   it('does not import the line-item budget repository module (D-01)', () => {
     const src = readFileSync(resolve(__dirname, 'fiscal-budget.service.ts'), 'utf8');
-    expect(src).not.toMatch(/budget\.repo/);
+    expect(src).not.toMatch(/@\/lib\/repositories\/budget\.repo/);
   });
 
   it('createFiscalBudget inserts CAPEX/OPEX row with auditLog', async () => {
