@@ -35,7 +35,7 @@ Audit: [.planning/milestones/v1.0-MILESTONE-AUDIT.md](milestones/v1.0-MILESTONE-
 - [x] **Phase 10: Users, Roles & Server Authorization** - Admin user lifecycle plus CPMO / PM / Viewer enforcement (completed 2026-08-26)
 - [x] **Phase 11: Project Master, PM Assignment & Stakeholders** - L0–L5 master data, assignment windows, stakeholder records (completed 2026-08-26)
 - [x] **Phase 12: Milestone & RAID Master Registers** - Upcoming/overdue masters with soft-delete and Viewer read-only (completed 2026-08-26)
-- [ ] **Phase 13: Weekly Periods & PM Submit** - CPMO periods, versioned submit, RAID/milestone snapshots
+- [x] **Phase 13: Weekly Periods & PM Submit** - CPMO periods, versioned submit, RAID/milestone snapshots (completed 2026-08-26)
 - [ ] **Phase 14: CPMO Tracking & Consolidated Export** - Submission grid, lateness, snapshot-based pack export
 - [ ] **Phase 15: Budget, Value, ROI & Dependencies** - Fiscal budget ledger, honest ROI, cross-project links
 - [ ] **Phase 16: Portfolio & PM Dashboards** - Spec KPIs, drill-down filters, PM action queues
@@ -186,7 +186,7 @@ Plans:
   4. The RAID register remains the master: draft weekly-report RAID edits stay on the draft until submit; submit validates, writes the master, stores a version, locks the snapshot, and refreshes dashboards — or rejects the submit with the fields to fix; later RAID edits do not change old reports
   5. Submitted weekly reports store a milestone snapshot; later milestone edits do not change old reports
 
-**Plans:** 3/3 plans executed
+**Plans:** 3/3 plans complete
 
 Plans:
 **Wave 1**
@@ -297,7 +297,7 @@ Phases execute in numeric order: 9 → 10 → 11 → 12 → 13 → 14 → 15 →
 | 10. Users, Roles & Server Authorization | v2.0 | 11/11 | Complete    | 2026-08-26 |
 | 11. Project Master, PM Assignment & Stakeholders | v2.0 | 5/5 | Complete    | 2026-08-26 |
 | 12. Milestone & RAID Master Registers | v2.0 | 3/3 | Complete    | 2026-08-26 |
-| 13. Weekly Periods & PM Submit | v2.0 | 3/3 | In Progress|  |
+| 13. Weekly Periods & PM Submit | v2.0 | 3/3 | Complete    | 2026-08-26 |
 | 14. CPMO Tracking & Consolidated Export | v2.0 | 0/? | Not started | - |
 | 15. Budget, Value, ROI & Dependencies | v2.0 | 0/? | Not started | - |
 | 16. Portfolio & PM Dashboards | v2.0 | 0/? | Not started | - |

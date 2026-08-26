@@ -52,6 +52,8 @@ One source of truth for projects, milestones, RAID, and weekly reports — role-
 - ✓ PR-04 / PMAS-01..04 — Assignment windows (`project_pm_assignments`); one active primary or none; collaborators cascade when primary ends; write access follows the window — Phase 11
 - ✓ PR-07 / MS-01..03, MS-05 — Milestone master: cancel-in-place (no physical delete), upcoming 7-day and overdue helpers — Phase 12
 - ✓ RAID-01, RAID-04..06 — RAID master: unique codes, deactivate-in-place, due-date history, High-open record counts, tech-council list — Phase 12
+- ✓ PR-10 / PERD-01..03 — CPMO weekly periods, frozen due/config snapshot, overdue computed, obligated shells only — Phase 13
+- ✓ PR-11 / WKRP-01..06, MS-04, RAID-02..03 — PM draft/submit/correct with versioned snapshots; RAID writes on submit only; progress_pct copy-never-write-back — Phase 13
 
 Remainder (ops/admin/config routes still repo-direct, proxy HTML-307 for API callers) is accepted v1.0 tech debt — see `.planning/milestones/v1.0-MILESTONE-AUDIT.md`. D-23 leftover: `app/api/operations/**` and platform `/api/admin/companies` stay session+tenant this milestone until later phases.
 
@@ -60,11 +62,11 @@ Remainder (ops/admin/config routes still repo-direct, proxy HTML-307 for API cal
 **v2.0 Portfolio One View** — spec is source of truth. Existing screens/APIs that already match stay; mismatches change. Jira import, AI reports, and Excel/PPT/Word export stay.
 
 - [ ] PR-06 Cross-project dependencies
-- [ ] PR-07 Milestones (dashboard UI in Phase 16; weekly snapshot in Phase 13)
+- [ ] PR-07 Milestones (dashboard UI in Phase 16; weekly snapshot shipped Phase 13)
 - [ ] PR-08 Budget and value (approved vs actual, financial/non-financial benefits, ROI)
-- [ ] PR-09 Risk & Issue register weekly snapshots and sync on submit (masters shipped Phase 12)
-- [ ] PR-10 CPMO weekly-report period configuration
-- [ ] PR-11 PM draft/submit weekly report with versioned snapshots
+- [ ] PR-09 Risk & Issue register weekly snapshots shipped Phase 13; dashboard refresh in Phase 16
+- [x] PR-10 CPMO weekly-report period configuration
+- [x] PR-11 PM draft/submit weekly report with versioned snapshots
 - [ ] PR-12 CPMO submission tracking, consolidate, and export
 - [ ] PR-13 Portfolio dashboard (active count, RAG, stage, high RAID, overdue milestones, drill-down)
 - [ ] PR-14 PM personal dashboard (assigned projects + weekly/milestone/RAID actions)
@@ -86,11 +88,11 @@ Remainder (ops/admin/config routes still repo-direct, proxy HTML-307 for API cal
 
 **Shipped:** v1.0 Layer Reorg & Hardening (2026-08-25) — 8 phases, 35 plans. Archive: `.planning/milestones/`.
 
-**Now:** v2.0 Portfolio One View — Phases 9–12 shipped. Next is Phase 13: weekly periods and PM submit.
+**Now:** v2.0 Portfolio One View — Phases 9–13 shipped. Next is Phase 14: CPMO tracking and consolidated export.
 
 The brownfield mess listed at kickoff is largely gone on the project-scoped path: tests exist (Vitest, 1019 passing), SQL lives in repositories, Jira/Anthropic/Resend go through clients + one credential resolver, services own tenant checks, wrappers enforce access, and the seven named god pages are decomposed.
 
-Existing project/RAID/budget/report/dashboard screens now enforce CPMO/PM/Viewer on the server; they still do not match L0–L5 rules, snapshot weekly reports, or the Confluence document checklist.
+Existing project/RAID/budget/report/dashboard screens now enforce CPMO/PM/Viewer on the server. Weekly periods and versioned PM submit shipped in Phase 13. Remaining gaps: CPMO tracking/export, budget/ROI/dependencies, dashboards, and the Confluence document checklist.
 
 ## Next Milestone Goals
 
