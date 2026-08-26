@@ -10,6 +10,26 @@ export type AuditLogInput = {
   after: unknown;
 };
 
+export type AuditListFilters = {
+  entity_type?: string;
+  entity_id?: string;
+  from?: string;
+  to?: string;
+  limit?: number;
+};
+
+export type AuditLogRow = {
+  id: number;
+  company_id: number | null;
+  actor_id: number;
+  entity_type: string;
+  entity_id: string;
+  action: string;
+  before: unknown;
+  after: unknown;
+  created_at: string;
+};
+
 export async function insertAuditLog(input: AuditLogInput): Promise<void> {
   const db = await getDb();
   await db.run(
@@ -23,4 +43,26 @@ export async function insertAuditLog(input: AuditLogInput): Promise<void> {
     input.before === null ? null : JSON.stringify(input.before),
     input.after === null ? null : JSON.stringify(input.after),
   );
+}
+
+/** Company-scoped SELECT only — append-only alongside insertAuditLog (D-04, D-05). */
+export async function listAuditLogs(
+  companyId: number,
+  filters: AuditListFilters = {},
+): Promise<AuditLogRow[]> {
+  const db = await getDb();
+  const conditions = ['company_id = ?'];
+  const params: unknown[] = [companyId];
+  const limit = filters.limit ?? 50;
+
+  const rows = await db.all<AuditLogRow>(
+    `SELECT id, company_id, actor_id, entity_type, entity_id, action, before, after, created_at
+     FROM audit_logs
+     WHERE ${conditions.join(' AND ')}
+     ORDER BY created_at DESC, id DESC
+     LIMIT ?`,
+    ...params,
+    limit,
+  );
+  return rows;
 }
