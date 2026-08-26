@@ -15,6 +15,7 @@ const {
   listWeeklyPeriods,
   listPeriodShellsRepo,
   isWeeklyReportOverdue,
+  listUpcomingMilestones,
 } = vi.hoisted(() => ({
   assertCompanyWrite: vi.fn(),
   listProjects: vi.fn(),
@@ -28,6 +29,7 @@ const {
   listWeeklyPeriods: vi.fn(),
   listPeriodShellsRepo: vi.fn(),
   isWeeklyReportOverdue: vi.fn(),
+  listUpcomingMilestones: vi.fn(),
 }));
 
 vi.mock('@/lib/services/access', async (importOriginal) => {
@@ -44,6 +46,7 @@ vi.mock('@/lib/services/raid-masters.service', () => ({
   listOverdueMilestones,
   listHighOpenRaid,
   listTechnologyCouncilIssues,
+  listUpcomingMilestones,
 }));
 vi.mock('@/lib/services/audit.service', () => ({ auditLog: auditLogFn }));
 vi.mock('@/lib/repositories/weekly-periods.repo', () => ({ listWeeklyPeriods }));
@@ -64,10 +67,12 @@ vi.mock('@/lib/export/dashboard-portfolio', () => ({
 
 import { ForbiddenError, ValidationError } from './errors';
 import {
+  clearPmDashboardFilters,
   clearPortfolioDashboardFilters,
   exportPortfolioDashboard,
   getPmDashboard,
   getPortfolioDashboard,
+  savePmDashboardFilters,
   savePortfolioDashboardFilters,
 } from './spec-dashboards.service';
 
@@ -152,6 +157,7 @@ beforeEach(() => {
   listWeeklyPeriods.mockResolvedValue([]);
   listPeriodShellsRepo.mockResolvedValue([]);
   isWeeklyReportOverdue.mockReturnValue(false);
+  listUpcomingMilestones.mockResolvedValue([]);
 });
 
 describe('spec-dashboards.service source (D-01)', () => {
@@ -456,6 +462,186 @@ describe('getPmDashboard', () => {
     const nullCompany = { ...cpmoActor, company_id: null };
     await expect(getPmDashboard(nullCompany)).rejects.toBeInstanceOf(ForbiddenError);
     expect(listProjects).not.toHaveBeenCalled();
+  });
+
+  it('unions upcoming and overdue milestones on assigned projects with href (D-11, MDSH-03)', async () => {
+    listProjects.mockResolvedValue([
+      { ...mockProjects[0], id: 10 },
+      { ...mockProjects[1], id: 11 },
+    ]);
+    listUpcomingMilestones.mockResolvedValue([
+      {
+        id: 1,
+        project_id: 10,
+        name: 'Upcoming M',
+        plan_end: '2026-09-01',
+        adjusted_end: null,
+      },
+      {
+        id: 3,
+        project_id: 99,
+        name: 'Unassigned',
+        plan_end: '2026-09-02',
+        adjusted_end: null,
+      },
+    ]);
+    listOverdueMilestones.mockResolvedValue([
+      {
+        id: 2,
+        project_id: 10,
+        name: 'Overdue M',
+        plan_end: '2026-08-01',
+        adjusted_end: null,
+      },
+      {
+        id: 1,
+        project_id: 10,
+        name: 'Upcoming M',
+        plan_end: '2026-09-01',
+        adjusted_end: null,
+      },
+    ]);
+
+    const result = await getPmDashboard(pmActor);
+
+    expect(result.actions.milestones).toHaveLength(2);
+    expect(result.actions.milestones.find((m: { milestone_id: number }) => m.milestone_id === 1)).toMatchObject({
+      project_id: 10,
+      milestone_id: 1,
+      name: 'Upcoming M',
+      kind: 'overdue',
+      href: '/projects/10/milestones',
+    });
+    expect(result.actions.milestones.find((m: { milestone_id: number }) => m.milestone_id === 2)).toMatchObject({
+      project_id: 10,
+      milestone_id: 2,
+      kind: 'overdue',
+      href: '/projects/10/milestones',
+    });
+  });
+
+  it('includes High RAID records in upcoming/overdue window with tech-council flag (D-11, MDSH-04)', async () => {
+    listProjects.mockResolvedValue([{ ...mockProjects[0], id: 10 }]);
+    listHighOpenRaid.mockResolvedValue({
+      records: [
+        {
+          id: 5,
+          project_id: 10,
+          entity_type: 'issue',
+          code: 'I-001',
+          due_date: '2026-08-20',
+        },
+        {
+          id: 6,
+          project_id: 10,
+          entity_type: 'risk',
+          code: 'R-001',
+          due_date: null,
+        },
+        {
+          id: 7,
+          project_id: 99,
+          entity_type: 'issue',
+          code: 'I-002',
+          due_date: '2026-08-20',
+        },
+        {
+          id: 8,
+          project_id: 10,
+          entity_type: 'issue',
+          code: 'I-003',
+          due_date: '2099-01-01',
+        },
+      ],
+      count: 4,
+    });
+    listTechnologyCouncilIssues.mockResolvedValue([{ id: 5, project_id: 10 }]);
+
+    const result = await getPmDashboard(pmActor);
+
+    expect(result.actions.raid).toHaveLength(1);
+    expect(result.actions.raid[0]).toMatchObject({
+      project_id: 10,
+      entity_type: 'issue',
+      id: 5,
+      code: 'I-001',
+      has_technology_council: true,
+      href: '/projects/10/raid',
+    });
+  });
+
+  it('omits weekly action on second GET after shell becomes submitted (D-11, MDSH-05)', async () => {
+    listProjects.mockResolvedValue([{ ...mockProjects[0], id: 10 }]);
+    listWeeklyPeriods.mockResolvedValue([
+      {
+        id: 50,
+        company_id: 5,
+        iso_week: '2026-W34',
+        start_date: '2026-08-18',
+        end_date: '2026-08-24',
+        due_at: '2026-08-22T18:00:00.000Z',
+        display_name: '2026-W34',
+        config_snapshot: { due_weekday: 5, due_time_utc: '18:00:00', obligation_rule_version: 1 },
+        created_by: 1,
+        created_at: '2026-08-18T00:00:00Z',
+      },
+    ]);
+    listPeriodShellsRepo.mockResolvedValueOnce([
+      {
+        project_id: 10,
+        status: 'not_submitted',
+        due_at: '2026-08-22T18:00:00.000Z',
+        report_id: 100,
+        first_submitted_at: null,
+        first_lateness: null,
+        latest_version: 0,
+        rag: null,
+        name: 'Alpha',
+        project_code: 'A-01',
+        stage: 'L2',
+        pm_user_id: 7,
+        pm_display_name: 'Pat PM',
+      },
+    ]);
+    listPeriodShellsRepo.mockResolvedValueOnce([
+      {
+        project_id: 10,
+        status: 'submitted',
+        due_at: '2026-08-22T18:00:00.000Z',
+        report_id: 100,
+        first_submitted_at: '2026-08-21T10:00:00Z',
+        first_lateness: null,
+        latest_version: 1,
+        rag: 'Green',
+        name: 'Alpha',
+        project_code: 'A-01',
+        stage: 'L2',
+        pm_user_id: 7,
+        pm_display_name: 'Pat PM',
+      },
+    ]);
+
+    const first = await getPmDashboard(pmActor);
+    const second = await getPmDashboard(pmActor);
+
+    expect(first.actions.weekly).toHaveLength(1);
+    expect(second.actions.weekly).toHaveLength(0);
+  });
+});
+
+describe('savePmDashboardFilters', () => {
+  it('upserts parsed filters for actor user_id and pm surface (D-07)', async () => {
+    await savePmDashboardFilters(pmActor, { stage: 'L2' });
+
+    expect(upsertDashboardFilters).toHaveBeenCalledWith(7, 'pm', { stage: 'L2' });
+  });
+});
+
+describe('clearPmDashboardFilters', () => {
+  it('upserts empty object for actor user_id and pm surface (D-07)', async () => {
+    await clearPmDashboardFilters(pmActor);
+
+    expect(upsertDashboardFilters).toHaveBeenCalledWith(7, 'pm', {});
   });
 });
 

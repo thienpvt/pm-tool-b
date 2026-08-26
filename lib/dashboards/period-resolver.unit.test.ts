@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { resolveCurrentPeriod } from './period-resolver';
+import { resolveCurrentPeriod, isDueInUpcomingOrOverdue } from './period-resolver';
 import type { WeeklyPeriodRow } from '@/lib/repositories/weekly-periods.repo';
 
 function period(
@@ -42,5 +42,25 @@ describe('resolveCurrentPeriod (D-10)', () => {
 
   it('returns null when there are no periods', () => {
     expect(resolveCurrentPeriod([], '2026-01-10')).toBeNull();
+  });
+});
+
+describe('isDueInUpcomingOrOverdue (D-11)', () => {
+  it('returns false for null or empty due dates', () => {
+    expect(isDueInUpcomingOrOverdue(null, '2026-01-10')).toBe(false);
+    expect(isDueInUpcomingOrOverdue('', '2026-01-10')).toBe(false);
+  });
+
+  it('returns true when due date is before today (overdue)', () => {
+    expect(isDueInUpcomingOrOverdue('2026-01-09', '2026-01-10')).toBe(true);
+  });
+
+  it('returns true when due date is within the next 7 UTC days (upcoming)', () => {
+    expect(isDueInUpcomingOrOverdue('2026-01-10', '2026-01-10')).toBe(true);
+    expect(isDueInUpcomingOrOverdue('2026-01-17', '2026-01-10')).toBe(true);
+  });
+
+  it('returns false when due date is beyond the 7-day window', () => {
+    expect(isDueInUpcomingOrOverdue('2026-01-18', '2026-01-10')).toBe(false);
   });
 });
