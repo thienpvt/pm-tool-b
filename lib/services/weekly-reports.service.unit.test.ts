@@ -953,6 +953,7 @@ describe('listPeriodShells', () => {
 
     expect(assertCompanyWrite).toHaveBeenCalledWith(cpmoActor);
     expect(getWeeklyPeriodByCompanyRepo).toHaveBeenCalledWith(5, 1);
+    expect(listPeriodShellsRepo).toHaveBeenCalledWith(5, 1);
     expect(rows).toHaveLength(2);
     expect(rows[0].overdue).toBe(true);
     expect(rows[0].project_id).toBe(100);
