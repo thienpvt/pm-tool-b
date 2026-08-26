@@ -266,3 +266,22 @@ describe('updateDocumentCatalogItem (D-02, D-03)', () => {
     expect(insertChecklistRowIfMissing).toHaveBeenCalledWith(1, 10);
   });
 });
+
+describe('getDocumentCatalogItem company isolation (D-02)', () => {
+  it('throws ForbiddenError on company mismatch', async () => {
+    getDocumentCatalog.mockResolvedValue({
+      id: 10,
+      company_id: 9,
+      name: 'Other',
+      purpose: '',
+      stage: 'L2',
+      mandatory: false,
+      active: true,
+      created_at: '',
+      updated_at: '',
+    });
+
+    const { getDocumentCatalogItem } = await import('./document-catalog.service');
+    await expect(getDocumentCatalogItem(cpmo, 10)).rejects.toBeInstanceOf(ForbiddenError);
+  });
+});
