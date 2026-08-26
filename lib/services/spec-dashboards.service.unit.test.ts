@@ -204,4 +204,23 @@ describe('getPortfolioDashboard', () => {
     expect(result.kpis.technology_council_count).toBe(2);
     expect(result.drilldowns.technology_council).toHaveLength(2);
   });
+
+  it('stored stage filter shrinks kpis, list, and overdue drill-down together (D-07, PDSH-05)', async () => {
+    getDashboardFilters.mockResolvedValue({
+      filters: { stage: 'L2' },
+      updated_at: '2026-08-26T00:00:00Z',
+    });
+    listOverdueMilestones.mockResolvedValue([
+      { project_id: 10, milestone_id: 1 },
+      { project_id: 11, milestone_id: 2 },
+    ]);
+
+    const result = await getPortfolioDashboard(cpmoActor);
+
+    expect(result.filters).toEqual({ stage: 'L2' });
+    expect(result.list.map((p) => p.id)).toEqual([10, 12]);
+    expect(result.kpis.active_count).toBe(1);
+    expect(result.drilldowns.overdue_milestones).toHaveLength(1);
+    expect(result.drilldowns.overdue_milestones[0].project_id).toBe(10);
+  });
 });
