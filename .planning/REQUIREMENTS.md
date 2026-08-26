@@ -53,9 +53,9 @@ Requirements for this milestone. Each maps to roadmap phases. Jira import, AI re
 
 ### Cross-Project Dependencies
 
-- [ ] **DEP-01**: User with write access can create a dependency between two different projects with required fields and a valid need-by / effective date window
-- [ ] **DEP-02**: System rejects self-links, duplicate equivalent active relations, and invalid date ranges
-- [ ] **DEP-03**: A saved dependency appears on both projects with the correct direction; PMs of both projects can view it; the action is audit-logged
+- [x] **DEP-01**: User with write access can create a dependency between two different projects with required fields and a valid need-by / effective date window
+- [x] **DEP-02**: System rejects self-links, duplicate equivalent active relations, and invalid date ranges
+- [x] **DEP-03**: A saved dependency appears on both projects with the correct direction; PMs of both projects can view it; the action is audit-logged
 
 ### Milestones
 
@@ -213,9 +213,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | STKH-01 | Phase 11 | Complete |
 | STKH-02 | Phase 11 | Complete |
 | STKH-03 | Phase 11 | Complete |
-| DEP-01 | Phase 15 | Pending |
-| DEP-02 | Phase 15 | Pending |
-| DEP-03 | Phase 15 | Pending |
+| DEP-01 | Phase 15 | Complete |
+| DEP-02 | Phase 15 | Complete |
+| DEP-03 | Phase 15 | Complete |
 | MS-01 | Phase 12 | Complete |
 | MS-02 | Phase 12 | Complete |
 | MS-03 | Phase 12 | Complete |

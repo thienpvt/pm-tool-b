@@ -5,16 +5,16 @@ milestone_name: Portfolio One View
 current_phase: 15
 current_phase_name: Budget, Value, ROI & Dependencies
 status: planning
-stopped_at: Completed 15-02-PLAN.md
-last_updated: "2026-08-26T13:26:54.571Z"
+stopped_at: Completed 15-03-PLAN.md
+last_updated: "2026-08-26T13:33:10.274Z"
 last_activity: 2026-08-26
 last_activity_desc: Phase 14 complete, transitioned to Phase 15
-state_head: 9d967c083d7dca5048afb023f7a7520624ccbb69
+state_head: 4eee59e2bc7a3ee206b8e40f56fabfe62e9eda35
 progress:
   total_phases: 10
   completed_phases: 6
   total_plans: 31
-  completed_plans: 30
+  completed_plans: 31
 ---
 
 # Project State
@@ -85,6 +85,7 @@ Progress: [█░░░░░░░░░] 10%
 | Phase 14-cpmo-tracking-consolidated-export P03 | 3min | 2 tasks | 9 files |
 | Phase 15-budget-value-roi-dependencies P01 | 25min | 2 tasks | 15 files |
 | Phase 15-budget-value-roi-dependencies P02 | 25 | 3 tasks | 15 files |
+| Phase 15-budget-value-roi-dependencies P03 | 25 | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -146,6 +147,7 @@ Recent decisions affecting current work:
 - [Phase 15]: Import guard targets line-item budget.repo only
 - [Phase 15]: budget-adjustments.repo included in task 1 for GET overview sum
 - [Phase 15]: Nonfinancial benefits and PATCH shipped in task-1 GREEN commit e6f7f55 for cohesive benefits.service
+- [Phase 15]: Overlap duplicate uses date-window intersection with open-ended effective_to
 
 ### Pending Todos
 
@@ -166,6 +168,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-08-26T13:26:53.958Z
-Stopped at: Completed 15-02-PLAN.md
+Last session: 2026-08-26T13:33:09.616Z
+Stopped at: Completed 15-03-PLAN.md
 Resume file: None
