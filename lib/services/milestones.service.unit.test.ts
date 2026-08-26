@@ -89,6 +89,7 @@ describe('milestones.service', () => {
     assertProjectWriteAccess.mockRejectedValue(new ForbiddenError());
     await expect(createMilestone(7, foreign, {})).rejects.toBeInstanceOf(ForbiddenError);
     expect(createMilestoneRepo).not.toHaveBeenCalled();
+    expect(auditLog).not.toHaveBeenCalled();
   });
 
   it('createMilestone asserts write access before inserting', async () => {
@@ -96,6 +97,78 @@ describe('milestones.service', () => {
     await expect(createMilestone(7, owner, { name: 'M1' })).resolves.toEqual({ id: 1 });
     expect(assertProjectWriteAccess).toHaveBeenCalledWith(7, owner);
     expect(createMilestoneRepo).toHaveBeenCalledWith(7, { name: 'M1' });
+  });
+
+  it('createMilestone calls auditLog action create on success (D-02, D-03)', async () => {
+    createMilestoneRepo.mockResolvedValue({
+      id: 1,
+      name: 'M1',
+      status: 'planned',
+      start_date: '2026-01-01',
+      end_date: '2026-06-30',
+      plan_end: '2026-06-30',
+    });
+    await createMilestone(7, owner, { name: 'M1', start_date: '2026-01-01', end_date: '2026-06-30' });
+    expect(auditLog).toHaveBeenCalledWith({
+      actor_id: owner.user_id,
+      company_id: owner.company_id,
+      entity_type: 'milestone',
+      entity_id: '1',
+      action: 'create',
+      before: null,
+      after: {
+        id: 1,
+        name: 'M1',
+        status: 'planned',
+        start_date: '2026-01-01',
+        end_date: '2026-06-30',
+        plan_end: '2026-06-30',
+      },
+    });
+  });
+
+  it('updateMilestone calls auditLog action update on success (D-02)', async () => {
+    getMilestoneRepo.mockResolvedValue({
+      id: 3,
+      name: 'Before',
+      status: 'planned',
+      start_date: '2026-01-01',
+      end_date: '2026-06-30',
+      plan_end: '2026-06-30',
+    });
+    updateMilestoneRepo.mockResolvedValue({
+      id: 3,
+      name: 'Renamed',
+      status: 'planned',
+      start_date: '2026-01-01',
+      end_date: '2026-06-30',
+      plan_end: '2026-06-30',
+    });
+    await updateMilestone(7, owner, 3, { name: 'Renamed' });
+    expect(getMilestoneRepo).toHaveBeenCalledWith(7, 3);
+    expect(auditLog).toHaveBeenCalledWith({
+      actor_id: owner.user_id,
+      company_id: owner.company_id,
+      entity_type: 'milestone',
+      entity_id: '3',
+      action: 'update',
+      before: {
+        id: 3,
+        name: 'Before',
+        status: 'planned',
+        start_date: '2026-01-01',
+        end_date: '2026-06-30',
+        plan_end: '2026-06-30',
+      },
+      after: {
+        id: 3,
+        name: 'Renamed',
+        status: 'planned',
+        start_date: '2026-01-01',
+        end_date: '2026-06-30',
+        plan_end: '2026-06-30',
+      },
+    });
   });
 
   it('updateMilestone throws NotFoundError when milestone is outside the parent project', async () => {
