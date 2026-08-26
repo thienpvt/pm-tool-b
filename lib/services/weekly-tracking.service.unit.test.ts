@@ -6,12 +6,18 @@ const {
   listPeriodShellsRepo,
   listTechnologyCouncilIssuesRepo,
   getLatestVersionSnapshotRepo,
+  generateConsolidatedWeeklyExport,
+  insertWeeklyExportLogRepo,
+  auditLogService,
 } = vi.hoisted(() => ({
   assertCompanyWrite: vi.fn(),
   getWeeklyPeriodByCompanyRepo: vi.fn(),
   listPeriodShellsRepo: vi.fn(),
   listTechnologyCouncilIssuesRepo: vi.fn(),
   getLatestVersionSnapshotRepo: vi.fn(),
+  generateConsolidatedWeeklyExport: vi.fn(),
+  insertWeeklyExportLogRepo: vi.fn(),
+  auditLogService: vi.fn(),
 }));
 
 vi.mock('./access', () => ({
@@ -25,10 +31,26 @@ vi.mock('@/lib/repositories/weekly-reports.repo', () => ({
 vi.mock('@/lib/repositories/issues.repo', () => ({
   listTechnologyCouncilIssues: listTechnologyCouncilIssuesRepo,
 }));
+vi.mock('@/lib/export/consolidated-weekly', () => ({
+  generateConsolidatedWeekly: generateConsolidatedWeeklyExport,
+  sanitizeConsolidatedFilename: (display: string, ext: string) => `${display} consolidated.${ext}`,
+  CONTENT_TYPE_BY_FORMAT: {
+    xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  },
+}));
+vi.mock('@/lib/repositories/weekly-export.repo', () => ({
+  insertWeeklyExportLog: insertWeeklyExportLogRepo,
+}));
+vi.mock('./audit.service', () => ({
+  auditLog: auditLogService,
+}));
 
 import {
   assertExportEligible,
   assembleSnapshotSections,
+  exportConsolidatedWeekly,
   getPeriodTracking,
   previewConsolidatedExport,
 } from './weekly-tracking.service';
@@ -533,5 +555,100 @@ describe('previewConsolidatedExport snapshot assembly (D-06, D-01, D-02)', () =>
     expect(result.sections[0].raid_counts).toEqual({ risks: 2, issues: 3 });
     expect(result.sections[0].tech_issue_counts).toBe(1);
     expect(listTechnologyCouncilIssuesRepo).not.toHaveBeenCalled();
+  });
+});
+
+describe('exportConsolidatedWeekly (D-07, D-09, D-14)', () => {
+  const shellV2 = { ...submittedShell, latest_version: 2 };
+  const shellV3 = {
+    ...submittedShell,
+    project_id: 101,
+    report_id: 11,
+    name: 'Beta',
+    project_code: 'B-001',
+    latest_version: 3,
+  };
+
+  beforeEach(() => {
+    getWeeklyPeriodByCompanyRepo.mockResolvedValue(basePeriod);
+    listPeriodShellsRepo.mockResolvedValue([shellV2, shellV3]);
+    getLatestVersionSnapshotRepo.mockResolvedValue(richSnapshot);
+    generateConsolidatedWeeklyExport.mockResolvedValue(Buffer.from('pack'));
+    insertWeeklyExportLogRepo.mockResolvedValue(99);
+    auditLogService.mockResolvedValue(undefined);
+  });
+
+  it('generates buffer then insertWeeklyExportLog then auditLog weekly_export (D-09)', async () => {
+    const callOrder: string[] = [];
+    generateConsolidatedWeeklyExport.mockImplementation(async () => {
+      callOrder.push('generate');
+      return Buffer.from('pack');
+    });
+    insertWeeklyExportLogRepo.mockImplementation(async () => {
+      callOrder.push('log');
+      return 99;
+    });
+    auditLogService.mockImplementation(async () => {
+      callOrder.push('audit');
+    });
+
+    const result = await exportConsolidatedWeekly(5, 1, cpmoActor, {
+      project_ids: [100, 101],
+      format: 'xlsx',
+    });
+
+    expect(callOrder).toEqual(['generate', 'log', 'audit']);
+    expect(result.buffer).toEqual(Buffer.from('pack'));
+    expect(result.contentType).toBe(
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    expect(insertWeeklyExportLogRepo).toHaveBeenCalledWith({
+      period_id: 1,
+      company_id: 5,
+      exported_by: 1,
+      format: 'xlsx',
+      data_version: 3,
+      project_ids: [100, 101],
+      period_display_name: basePeriod.display_name,
+    });
+    expect(auditLogService).toHaveBeenCalledWith({
+      actor_id: 1,
+      company_id: 5,
+      entity_type: 'weekly_period',
+      entity_id: '1',
+      action: 'weekly_export',
+      before: null,
+      after: { format: 'xlsx', data_version: 3, project_ids: [100, 101] },
+    });
+  });
+
+  it('two sequential successful exports call insertWeeklyExportLog twice (D-14)', async () => {
+    await exportConsolidatedWeekly(5, 1, cpmoActor, { project_ids: [100], format: 'xlsx' });
+    await exportConsolidatedWeekly(5, 1, cpmoActor, { project_ids: [100], format: 'docx' });
+    expect(insertWeeklyExportLogRepo).toHaveBeenCalledTimes(2);
+  });
+
+  it('throws SubmitValidationError for ineligible ids without insertWeeklyExportLog (D-06, D-14)', async () => {
+    listPeriodShellsRepo.mockResolvedValue([
+      shellV2,
+      { ...shellV3, status: 'draft', latest_version: 0 },
+    ]);
+
+    await expect(
+      exportConsolidatedWeekly(5, 1, cpmoActor, { project_ids: [100, 101], format: 'xlsx' }),
+    ).rejects.toBeInstanceOf(SubmitValidationError);
+    expect(generateConsolidatedWeeklyExport).not.toHaveBeenCalled();
+    expect(insertWeeklyExportLogRepo).not.toHaveBeenCalled();
+    expect(auditLogService).not.toHaveBeenCalled();
+  });
+
+  it('does not insert log when generator fails (D-09)', async () => {
+    generateConsolidatedWeeklyExport.mockRejectedValue(new Error('generator failed'));
+
+    await expect(
+      exportConsolidatedWeekly(5, 1, cpmoActor, { project_ids: [100], format: 'xlsx' }),
+    ).rejects.toThrow('generator failed');
+    expect(insertWeeklyExportLogRepo).not.toHaveBeenCalled();
+    expect(auditLogService).not.toHaveBeenCalled();
   });
 });
