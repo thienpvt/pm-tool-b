@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { hasTestDb, testPool } from '@/test/db';
-import { seedCompany, seedProject, seedUser, setupRepoTables, testDb } from '@/test/repo-db';
+import { seedCompany, seedProject, setupRepoTables, testDb } from '@/test/repo-db';
 import { migrateWeeklyReports } from '@/lib/db-weekly-reports';
 import { runInTransactionOnPool } from '@/lib/db-tx';
 
@@ -22,7 +22,12 @@ describe.skipIf(!hasTestDb)('weekly-export.repo', () => {
     const pool = testPool();
     await migrateWeeklyReports(pool);
     companyId = await seedCompany(`weekly-export-${Date.now()}`);
-    userId = await seedUser(`exporter-${Date.now()}`, companyId);
+    const userRes = await pool.query<{ id: number }>(
+      `INSERT INTO users (username, password_hash, display_name, company_id)
+       VALUES ($1, 'hash', 'Exporter', $2) RETURNING id`,
+      [`exporter-${Date.now()}`, companyId],
+    );
+    userId = userRes.rows[0].id;
     const projectId = await seedProject('Export Project', { company_id: companyId });
     const periodRes = await pool.query<{ id: number }>(
       `INSERT INTO weekly_periods (company_id, iso_week, start_date, end_date, due_at, display_name, config_snapshot)

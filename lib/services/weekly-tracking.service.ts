@@ -8,6 +8,14 @@ import { listTechnologyCouncilIssues } from '@/lib/repositories/issues.repo';
 import { assertCompanyWrite, type AccessActor } from './access';
 import { isWeeklyReportOverdue } from './weekly-reports.service';
 import { ForbiddenError, NotFoundError, SubmitValidationError } from './errors';
+import {
+  generateConsolidatedWeekly,
+  sanitizeConsolidatedFilename,
+  CONTENT_TYPE_BY_FORMAT,
+  type ConsolidatedExportFormat,
+} from '@/lib/export/consolidated-weekly';
+import { insertWeeklyExportLog } from '@/lib/repositories/weekly-export.repo';
+import { auditLog } from './audit.service';
 
 export type PeriodTrackingFilters = {
   status?: 'not_submitted' | 'draft' | 'submitted' | 'overdue';
@@ -268,5 +276,79 @@ export async function previewConsolidatedExport(
       end_date: period.end_date,
     },
     sections,
+  };
+}
+
+export type ConsolidatedExportBody = {
+  project_ids: number[];
+  format: ConsolidatedExportFormat;
+};
+
+export async function exportConsolidatedWeekly(
+  companyId: number,
+  periodId: number,
+  actor: AccessActor,
+  body: ConsolidatedExportBody,
+) {
+  assertCompanyWrite(actor);
+  if (actor.company_id !== companyId) throw new ForbiddenError();
+
+  const period = await getWeeklyPeriodByCompany(companyId, periodId);
+  if (!period) throw new NotFoundError('Not found', 'weekly_period');
+
+  const shells = await listPeriodShellsRepo(companyId, periodId);
+  const shellMap = new Map(shells.map((shell) => [shell.project_id, shell]));
+  assertExportEligible(shellMap, body.project_ids);
+
+  const snapshotByReportId = new Map<number, Record<string, unknown>>();
+  for (const projectId of body.project_ids) {
+    const shell = shellMap.get(projectId)!;
+    const snapshot = await getLatestVersionSnapshot(shell.report_id, shell.latest_version);
+    snapshotByReportId.set(shell.report_id, snapshot ?? {});
+  }
+
+  const sections = assembleSnapshotSections(body.project_ids, shellMap, snapshotByReportId);
+  const dataVersion = Math.max(
+    ...body.project_ids.map((projectId) => shellMap.get(projectId)!.latest_version),
+  );
+
+  const buffer = await generateConsolidatedWeekly(
+    {
+      period: {
+        id: period.id,
+        display_name: period.display_name,
+        iso_week: period.iso_week,
+        due_at: period.due_at,
+      },
+      data_version: dataVersion,
+      sections,
+    },
+    body.format,
+  );
+
+  await insertWeeklyExportLog({
+    period_id: periodId,
+    company_id: companyId,
+    exported_by: actor.user_id,
+    format: body.format,
+    data_version: dataVersion,
+    project_ids: body.project_ids,
+    period_display_name: period.display_name,
+  });
+
+  await auditLog({
+    actor_id: actor.user_id,
+    company_id: actor.company_id,
+    entity_type: 'weekly_period',
+    entity_id: String(periodId),
+    action: 'weekly_export',
+    before: null,
+    after: { format: body.format, data_version: dataVersion, project_ids: body.project_ids },
+  });
+
+  return {
+    buffer,
+    filename: sanitizeConsolidatedFilename(period.display_name, body.format),
+    contentType: CONTENT_TYPE_BY_FORMAT[body.format],
   };
 }
