@@ -170,3 +170,106 @@ describe('getPeriodTracking', () => {
     expect(result.rows[2].first_lateness).toBe('late');
   });
 });
+
+describe('getPeriodTracking filters (D-04, D-05, CPMO-02)', () => {
+  const shells = [
+    {
+      project_id: 100,
+      status: 'not_submitted',
+      first_submitted_at: null,
+      first_lateness: null,
+      latest_version: 0,
+      report_id: 10,
+      due_at: '2020-01-01T00:00:00.000Z',
+      rag: null,
+      name: 'Alpha',
+      project_code: 'A-001',
+      stage: 'L3',
+      pm_user_id: 7,
+      pm_display_name: 'PM One',
+    },
+    {
+      project_id: 101,
+      status: 'submitted',
+      first_submitted_at: '2026-01-02T10:00:00.000Z',
+      first_lateness: 'on_time',
+      latest_version: 1,
+      report_id: 11,
+      due_at: '2020-01-01T00:00:00.000Z',
+      rag: 'Green',
+      name: 'Beta',
+      project_code: 'B-001',
+      stage: 'L4',
+      pm_user_id: 8,
+      pm_display_name: 'PM Two',
+    },
+    {
+      project_id: 102,
+      status: 'submitted',
+      first_submitted_at: '2026-01-03T10:00:00.000Z',
+      first_lateness: 'late',
+      latest_version: 1,
+      report_id: 12,
+      due_at: '2020-01-01T00:00:00.000Z',
+      rag: 'Amber',
+      name: 'Gamma',
+      project_code: 'G-001',
+      stage: 'L3',
+      pm_user_id: 7,
+      pm_display_name: 'PM One',
+    },
+  ];
+
+  beforeEach(() => {
+    getWeeklyPeriodByCompanyRepo.mockResolvedValue(basePeriod);
+    listPeriodShellsRepo.mockResolvedValue(shells);
+  });
+
+  it('keeps unfiltered counts when status filter shrinks rows (D-04)', async () => {
+    const result = await getPeriodTracking(5, 1, cpmoActor, { status: 'submitted' });
+    expect(result.counts.obligated).toBe(3);
+    expect(result.counts.submitted).toBe(2);
+    expect(result.rows).toHaveLength(2);
+    expect(result.rows.every((r) => r.status === 'submitted')).toBe(true);
+  });
+
+  it('status=overdue keeps computed-overdue draft/not_submitted only (D-05)', async () => {
+    const result = await getPeriodTracking(5, 1, cpmoActor, { status: 'overdue' });
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0].project_id).toBe(100);
+    expect(result.rows[0].overdue).toBe(true);
+  });
+
+  it('lateness=on_time and lateness=late filter by first_lateness (D-05)', async () => {
+    const onTime = await getPeriodTracking(5, 1, cpmoActor, { lateness: 'on_time' });
+    expect(onTime.rows).toHaveLength(1);
+    expect(onTime.rows[0].project_id).toBe(101);
+
+    const late = await getPeriodTracking(5, 1, cpmoActor, { lateness: 'late' });
+    expect(late.rows).toHaveLength(1);
+    expect(late.rows[0].project_id).toBe(102);
+  });
+
+  it('filters by pm_user_id, stage, and version rag (D-03, D-05)', async () => {
+    const byPm = await getPeriodTracking(5, 1, cpmoActor, { pm_user_id: 7 });
+    expect(byPm.rows.map((r) => r.project_id).sort()).toEqual([100, 102]);
+
+    const byStage = await getPeriodTracking(5, 1, cpmoActor, { stage: 'L4' });
+    expect(byStage.rows).toHaveLength(1);
+    expect(byStage.rows[0].project_id).toBe(101);
+
+    const byRag = await getPeriodTracking(5, 1, cpmoActor, { rag: 'Amber' });
+    expect(byRag.rows).toHaveLength(1);
+    expect(byRag.rows[0].project_id).toBe(102);
+  });
+
+  it('technology_council=true keeps rows with live council issues (D-02)', async () => {
+    listTechnologyCouncilIssuesRepo.mockResolvedValue([{ project_id: 102 }]);
+
+    const result = await getPeriodTracking(5, 1, cpmoActor, { technology_council: true });
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0].project_id).toBe(102);
+    expect(result.rows[0].has_technology_council_issues).toBe(true);
+    expect(result.counts.obligated).toBe(3);
+  });
+});

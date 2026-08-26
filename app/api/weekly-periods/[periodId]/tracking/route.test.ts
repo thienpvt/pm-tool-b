@@ -89,4 +89,31 @@ describe('GET /api/weekly-periods/[periodId]/tracking', () => {
       {},
     );
   });
+
+  it('forwards query filters to getPeriodTracking (D-05)', async () => {
+    vi.mocked(getSessionFromRequest).mockResolvedValue(cpmoSession as never);
+    getPeriodTracking.mockResolvedValue({
+      period: { id: 1 },
+      counts: { obligated: 0, not_submitted: 0, draft: 0, submitted: 0, overdue: 0, late: 0 },
+      rows: [],
+    });
+
+    const url =
+      'http://localhost/api/weekly-periods/1/tracking?status=overdue&lateness=late&pm_user_id=7&stage=L3&rag=Amber&technology_council=true';
+    const res = await GET(jsonReq(url), ctx);
+    expect(res.status).toBe(200);
+    expect(getPeriodTracking).toHaveBeenCalledWith(
+      5,
+      1,
+      expect.objectContaining({ company_id: 5 }),
+      {
+        status: 'overdue',
+        lateness: 'late',
+        pm_user_id: 7,
+        stage: 'L3',
+        rag: 'Amber',
+        technology_council: true,
+      },
+    );
+  });
 });
