@@ -126,10 +126,10 @@ Requirements for this milestone. Each maps to roadmap phases. Jira import, AI re
 
 - [x] **DOC-01**: CPMO can maintain a document catalog (name, purpose, stage, mandatory flag, active status) and decide whether catalog changes apply to in-flight projects
 - [x] **DOC-02**: Creating a project or changing stage generates the applicable checklist; prior-stage items remain for history
-- [ ] **DOC-03**: CPMO can upload, replace, and retire templates (name, document type, version, effective date, guidance); only the effective version is shown to PMs by default; old versions stay for history
-- [ ] **DOC-04**: PM can view/download templates and update checklist metadata, Confluence HTTPS link, and status (None / Drafting / Pending approval / Approved / Not applicable) — and cannot upload project file binaries
-- [ ] **DOC-05**: Approved requires approval date and approver; Not applicable requires a reason; Approved mandatory items count as compliant
-- [ ] **DOC-06**: CPMO can see portfolio compliance (compliant / not compliant / not applicable) with filters, and is warned when a stage change leaves mandatory items incomplete
+- [x] **DOC-03**: CPMO can upload, replace, and retire templates (name, document type, version, effective date, guidance); only the effective version is shown to PMs by default; old versions stay for history
+- [x] **DOC-04**: PM can view/download templates and update checklist metadata, Confluence HTTPS link, and status (None / Drafting / Pending approval / Approved / Not applicable) — and cannot upload project file binaries
+- [x] **DOC-05**: Approved requires approval date and approver; Not applicable requires a reason; Approved mandatory items count as compliant
+- [x] **DOC-06**: CPMO can see portfolio compliance (compliant / not compliant / not applicable) with filters, and is warned when a stage change leaves mandatory items incomplete
 
 ### Tenant Isolation Follow-up
 
@@ -259,10 +259,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | MDSH-05 | Phase 16 | Complete |
 | DOC-01 | Phase 17 | Complete |
 | DOC-02 | Phase 17 | Complete |
-| DOC-03 | Phase 17 | Pending |
-| DOC-04 | Phase 17 | Pending |
-| DOC-05 | Phase 17 | Pending |
-| DOC-06 | Phase 17 | Pending |
+| DOC-03 | Phase 17 | Complete |
+| DOC-04 | Phase 17 | Complete |
+| DOC-05 | Phase 17 | Complete |
+| DOC-06 | Phase 17 | Complete |
 | TENANT-01 | Phase 9 | Complete |
 | AUDIT-01 | Phase 18 | Pending |
 

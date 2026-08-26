@@ -5,16 +5,16 @@ milestone_name: Portfolio One View
 current_phase: 17
 current_phase_name: Document Templates & Confluence Checklist
 status: planning
-stopped_at: Completed 17-01-PLAN.md
-last_updated: "2026-08-26T14:59:54.033Z"
+stopped_at: Completed 17-03-PLAN.md
+last_updated: "2026-08-26T15:09:36.418Z"
 last_activity: 2026-08-26
 last_activity_desc: Phase 16 complete, transitioned to Phase 17
-state_head: afba5d9ae53e210d18c2c8492ad63cd2fc5bea0f
+state_head: 4b7e3eb9c2bfd7ecf25f76db55a434ac901a02d7
 progress:
   total_phases: 10
   completed_phases: 8
   total_plans: 37
-  completed_plans: 35
+  completed_plans: 37
 ---
 
 # Project State
@@ -90,6 +90,8 @@ Progress: [█░░░░░░░░░] 10%
 | Phase 16 P02 | 15min | 2 tasks | 15 files |
 | Phase 16-portfolio-pm-dashboards P03 | 5 | 2 tasks | 8 files |
 | Phase 17-document-templates-confluence-checklist P01 | 25 | 3 tasks | 13 files |
+| Phase 17-document-templates-confluence-checklist P02 | 25min | 3 tasks | 15 files |
+| Phase 17-document-templates-confluence-checklist P03 | 15 | 3 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -157,6 +159,9 @@ Recent decisions affecting current work:
 - [Phase 16]: PM dashboard uses listProjects pmUserId; weekly via listPeriodShellsRepo not getPeriodTracking
 - [Phase 16]: PM filter routes use withAuth and surface pm (not withCpmo)
 - [Phase 17]: apply_to_in_flight shipped in tracer task 1; task 2 tests validate behavior
+- [Phase 17]: URL-only templates via template_url; effective list DISTINCT ON catalog_id
+- [Phase 17]: Stage guard checks current-stage mandatory items only; ALL-stage catalog excluded
+- [Phase 17]: Structured 409 mandatory_incomplete distinct from ConflictError error shape
 
 ### Pending Todos
 
@@ -177,6 +182,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-08-26T14:59:53.180Z
-Stopped at: Completed 17-01-PLAN.md
+Last session: 2026-08-26T15:09:35.492Z
+Stopped at: Completed 17-03-PLAN.md
 Resume file: None
