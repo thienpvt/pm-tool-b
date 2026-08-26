@@ -76,6 +76,7 @@ export async function listProjectDependencies(projectId: number | string) {
   );
 }
 
+/** Active-window list for Phase 16 dashboards (D-16). */
 export async function listOpenProjectDependencies(projectId: number | string) {
   const db = await getDb();
   return db.all<ProjectDependencyListRow>(

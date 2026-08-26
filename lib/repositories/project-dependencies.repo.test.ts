@@ -145,6 +145,8 @@ describe.skipIf(!hasTestDb)('project-dependencies.repo', () => {
     const openIds = openRows.map((r) => r.id);
     expect(openIds).toContain(open!.id);
     expect(openIds).not.toContain(closed!.id);
+  });
+
   it('exports listOpenProjectDependencies as a named export for Phase 16', () => {
     expect(typeof listOpenProjectDependencies).toBe('function');
   });
