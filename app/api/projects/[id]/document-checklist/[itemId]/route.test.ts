@@ -4,24 +4,25 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const {
   projectAccessRow,
   hasActivePmAssignment,
-  listProjectDocumentChecklist,
-  getChecklistItem,
-  patchChecklistItem,
+  getChecklistItemRepo,
+  updateChecklistItemRepo,
+  listChecklistByProject,
 } = vi.hoisted(() => ({
   projectAccessRow: vi.fn(),
   hasActivePmAssignment: vi.fn(),
-  listProjectDocumentChecklist: vi.fn(),
-  getChecklistItem: vi.fn(),
-  patchChecklistItem: vi.fn(),
+  getChecklistItemRepo: vi.fn(),
+  updateChecklistItemRepo: vi.fn(),
+  listChecklistByProject: vi.fn(),
 }));
 
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
+vi.mock('@/lib/services/audit.service', () => ({ auditLog: vi.fn().mockResolvedValue(undefined) }));
 vi.mock('@/lib/repositories/projects.repo', () => ({ projectAccessRow }));
 vi.mock('@/lib/repositories/pm-assignments.repo', () => ({ hasActivePmAssignment }));
-vi.mock('@/lib/services/project-document-checklist.service', () => ({
-  listProjectDocumentChecklist,
-  getChecklistItem,
-  patchChecklistItem,
+vi.mock('@/lib/repositories/project-document-checklist.repo', () => ({
+  getChecklistItem: getChecklistItemRepo,
+  updateChecklistItem: updateChecklistItemRepo,
+  listChecklistByProject,
 }));
 
 import { getSessionFromRequest } from '@/lib/auth';
@@ -45,7 +46,16 @@ describe('GET/PATCH /api/projects/[id]/document-checklist/[itemId]', () => {
     catalog_id: 1,
     status: 'none',
     confluence_url: null,
+    approved_at: null,
+    approved_by: null,
+    na_reason: null,
+    notes: null,
+    created_at: '',
+    updated_at: '',
     catalog_name: 'Charter',
+    catalog_stage: 'L2',
+    catalog_mandatory: true,
+    catalog_active: true,
   };
 
   const pmSession = {
@@ -88,27 +98,29 @@ describe('GET/PATCH /api/projects/[id]/document-checklist/[itemId]', () => {
     vi.mocked(getSessionFromRequest).mockResolvedValue(null);
     const res = await GET(jsonReq('GET'), params());
     expect(res.status).toBe(401);
-    expect(getChecklistItem).not.toHaveBeenCalled();
+    expect(getChecklistItemRepo).not.toHaveBeenCalled();
   });
 
   it('Viewer GET returns 200 (D-06)', async () => {
     vi.mocked(getSessionFromRequest).mockResolvedValue(viewerSession as never);
-    getChecklistItem.mockResolvedValue(item);
+    getChecklistItemRepo.mockResolvedValue(item);
     const res = await GET(jsonReq('GET'), params());
     expect(res.status).toBe(200);
-    expect(getChecklistItem).toHaveBeenCalled();
+    expect(getChecklistItemRepo).toHaveBeenCalled();
   });
 
   it('Viewer PATCH returns 403 (D-06)', async () => {
     vi.mocked(getSessionFromRequest).mockResolvedValue(viewerSession as never);
+    getChecklistItemRepo.mockResolvedValue(item);
     const res = await PATCH(jsonReq('PATCH', { status: 'drafting' }), params());
     expect(res.status).toBe(403);
-    expect(patchChecklistItem).not.toHaveBeenCalled();
+    expect(updateChecklistItemRepo).not.toHaveBeenCalled();
   });
 
   it('PM PATCH returns 200 (D-06)', async () => {
     vi.mocked(getSessionFromRequest).mockResolvedValue(pmSession as never);
-    patchChecklistItem.mockResolvedValue({ ...item, status: 'drafting' });
+    getChecklistItemRepo.mockResolvedValue(item);
+    updateChecklistItemRepo.mockResolvedValue({ ...item, status: 'drafting' });
     const res = await PATCH(jsonReq('PATCH', { status: 'drafting' }), params());
     expect(res.status).toBe(200);
     const json = await res.json();
@@ -122,7 +134,7 @@ describe('GET/PATCH /api/projects/[id]/document-checklist/[itemId]', () => {
     expect(res.status).toBe(400);
     const json = await res.json();
     expect(json.error).toBe('Invalid JSON');
-    expect(patchChecklistItem).not.toHaveBeenCalled();
+    expect(updateChecklistItemRepo).not.toHaveBeenCalled();
   });
 });
 
