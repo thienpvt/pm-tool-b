@@ -55,6 +55,8 @@ One source of truth for projects, milestones, RAID, and weekly reports — role-
 - ✓ PR-10 / PERD-01..03 — CPMO weekly periods, frozen due/config snapshot, overdue computed, obligated shells only — Phase 13
 - ✓ PR-11 / WKRP-01..06, MS-04, RAID-02..03 — PM draft/submit/correct with versioned snapshots; RAID writes on submit only; progress_pct copy-never-write-back — Phase 13
 - ✓ PR-12 / CPMO-01..04 — Period tracking counts/filters and snapshot-only consolidated xlsx/docx/pptx export — Phase 14
+- ✓ PR-06 / DEP-01..03 — Bidirectional cross-project dependencies (write on from, access on to, soft-end, no physical DELETE) — Phase 15
+- ✓ PR-08 / BUDG-01..06 — Parallel fiscal budget (integer VND, append-only adjustments), financial/non-financial benefits, honest ROI — Phase 15
 
 Remainder (ops/admin/config routes still repo-direct, proxy HTML-307 for API callers) is accepted v1.0 tech debt — see `.planning/milestones/v1.0-MILESTONE-AUDIT.md`. D-23 leftover: `app/api/operations/**` and platform `/api/admin/companies` stay session+tenant this milestone until later phases.
 
@@ -62,9 +64,9 @@ Remainder (ops/admin/config routes still repo-direct, proxy HTML-307 for API cal
 
 **v2.0 Portfolio One View** — spec is source of truth. Existing screens/APIs that already match stay; mismatches change. Jira import, AI reports, and Excel/PPT/Word export stay.
 
-- [ ] PR-06 Cross-project dependencies
+- [x] PR-06 Cross-project dependencies
 - [ ] PR-07 Milestones (dashboard UI in Phase 16; weekly snapshot shipped Phase 13)
-- [ ] PR-08 Budget and value (approved vs actual, financial/non-financial benefits, ROI)
+- [x] PR-08 Budget and value (approved vs actual, financial/non-financial benefits, ROI)
 - [ ] PR-09 Risk & Issue register weekly snapshots shipped Phase 13; dashboard refresh in Phase 16
 - [x] PR-10 CPMO weekly-report period configuration
 - [x] PR-11 PM draft/submit weekly report with versioned snapshots
@@ -89,11 +91,11 @@ Remainder (ops/admin/config routes still repo-direct, proxy HTML-307 for API cal
 
 **Shipped:** v1.0 Layer Reorg & Hardening (2026-08-25) — 8 phases, 35 plans. Archive: `.planning/milestones/`.
 
-**Now:** v2.0 Portfolio One View — Phases 9–14 shipped. Next is Phase 15: budget, value, ROI, and dependencies.
+**Now:** v2.0 Portfolio One View — Phases 9–15 shipped. Next is Phase 16: portfolio and PM dashboards.
 
 The brownfield mess listed at kickoff is largely gone on the project-scoped path: tests exist (Vitest, 1019 passing), SQL lives in repositories, Jira/Anthropic/Resend go through clients + one credential resolver, services own tenant checks, wrappers enforce access, and the seven named god pages are decomposed.
 
-Existing project/RAID/budget/report/dashboard screens now enforce CPMO/PM/Viewer on the server. Weekly periods, PM submit, and CPMO tracking/export shipped in Phases 13–14. Remaining gaps: budget/ROI/dependencies, dashboards, and the Confluence document checklist.
+Existing project/RAID/budget/report/dashboard screens now enforce CPMO/PM/Viewer on the server. Weekly periods, PM submit, CPMO tracking/export, fiscal budget/ROI, and cross-project dependencies shipped in Phases 13–15. Remaining gaps: dashboards and the Confluence document checklist. Spec fiscal data lives in parallel tables — v1 line-item `/budget` is unchanged.
 
 ## Next Milestone Goals
 
@@ -160,4 +162,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-08-26 after Phase 12*
+*Last updated: 2026-08-26 after Phase 15*

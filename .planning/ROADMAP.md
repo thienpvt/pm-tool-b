@@ -37,7 +37,7 @@ Audit: [.planning/milestones/v1.0-MILESTONE-AUDIT.md](milestones/v1.0-MILESTONE-
 - [x] **Phase 12: Milestone & RAID Master Registers** - Upcoming/overdue masters with soft-delete and Viewer read-only (completed 2026-08-26)
 - [x] **Phase 13: Weekly Periods & PM Submit** - CPMO periods, versioned submit, RAID/milestone snapshots (completed 2026-08-26)
 - [x] **Phase 14: CPMO Tracking & Consolidated Export** - Submission grid, lateness, snapshot-based pack export (completed 2026-08-26)
-- [ ] **Phase 15: Budget, Value, ROI & Dependencies** - Fiscal budget ledger, honest ROI, cross-project links
+- [x] **Phase 15: Budget, Value, ROI & Dependencies** - Fiscal budget ledger, honest ROI, cross-project links (completed 2026-08-26)
 - [ ] **Phase 16: Portfolio & PM Dashboards** - Spec KPIs, drill-down filters, PM action queues
 - [ ] **Phase 17: Document Templates & Confluence Checklist** - Catalog, templates, Confluence links — no binary upload
 - [ ] **Phase 18: Append-Only Audit Log** - Immutable actor/time/before-after trail on governed mutations
@@ -244,7 +244,7 @@ Plans:
   3. A user can record financial benefits by year and type (expected vs actual; actual blank means no data, distinct from 0) and non-financial benefits with group, measure, and target; expected and actual ROI display as a computed percent only when inputs are complete — otherwise the UI shows insufficient data, never a fake 0%
   4. A user with write access can create a dependency between two different projects with required fields and a valid need-by / effective date window; the system rejects self-links, duplicate equivalent active relations, and invalid date ranges; a saved dependency appears on both projects with the correct direction; PMs of both projects can view it; the action is audit-logged
 
-**Plans:** 3/3 plans executed
+**Plans:** 3/3 plans complete
 
 Plans:
 **Wave 1**
@@ -324,7 +324,7 @@ Phases execute in numeric order: 9 → 10 → 11 → 12 → 13 → 14 → 15 →
 | 12. Milestone & RAID Master Registers | v2.0 | 3/3 | Complete    | 2026-08-26 |
 | 13. Weekly Periods & PM Submit | v2.0 | 3/3 | Complete    | 2026-08-26 |
 | 14. CPMO Tracking & Consolidated Export | v2.0 | 3/3 | Complete    | 2026-08-26 |
-| 15. Budget, Value, ROI & Dependencies | v2.0 | 3/3 | In Progress|  |
+| 15. Budget, Value, ROI & Dependencies | v2.0 | 3/3 | Complete    | 2026-08-26 |
 | 16. Portfolio & PM Dashboards | v2.0 | 0/? | Not started | - |
 | 17. Document Templates & Confluence Checklist | v2.0 | 0/? | Not started | - |
 | 18. Append-Only Audit Log | v2.0 | 0/? | Not started | - |
