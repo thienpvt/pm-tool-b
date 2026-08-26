@@ -11,6 +11,7 @@ const {
   updateFiscalBudgetActualRepo,
   sumAdjustmentsVndRepo,
   listBudgetAdjustmentsRepo,
+  insertBudgetAdjustmentRepo,
   auditLogFn,
 } = vi.hoisted(() => ({
   projectAccessRow: vi.fn(),
@@ -22,6 +23,7 @@ const {
   updateFiscalBudgetActualRepo: vi.fn(),
   sumAdjustmentsVndRepo: vi.fn(),
   listBudgetAdjustmentsRepo: vi.fn(),
+  insertBudgetAdjustmentRepo: vi.fn(),
   auditLogFn: vi.fn(),
 }));
 
@@ -38,12 +40,14 @@ vi.mock('@/lib/repositories/fiscal-budget.repo', () => ({
 vi.mock('@/lib/repositories/budget-adjustments.repo', () => ({
   sumAdjustmentsVnd: sumAdjustmentsVndRepo,
   listBudgetAdjustments: listBudgetAdjustmentsRepo,
-  insertBudgetAdjustment: vi.fn(),
+  insertBudgetAdjustment: insertBudgetAdjustmentRepo,
 }));
 vi.mock('@/lib/services/audit.service', () => ({ auditLog: auditLogFn }));
 
 import { getSessionFromRequest } from '@/lib/auth';
 import { GET, PATCH, POST } from './route';
+import { POST as POST_ADJUSTMENT } from './[budgetId]/adjustments/route';
+import * as adjustmentsRouteModule from './[budgetId]/adjustments/route';
 
 const ownerSession = {
   id: 2,
@@ -160,5 +164,76 @@ describe('/api/projects/[id]/fiscal-budget', () => {
     vi.mocked(getSessionFromRequest).mockResolvedValue(viewerSession as never);
     const res = await PATCH(req('PATCH', { id: 4, actual_amount_vnd: 25 }), params);
     expect(res.status).toBe(403);
+  });
+});
+
+describe('/api/projects/[id]/fiscal-budget/[budgetId]/adjustments', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    projectAccessRow.mockResolvedValue({ company_id: 5, customer_company_id: null });
+    hasActivePmAssignment.mockResolvedValue(true);
+    auditLogFn.mockResolvedValue(undefined);
+  });
+
+  const adjParams = { params: Promise.resolve({ id: '7', budgetId: '5' }) };
+
+  function adjReq(body: unknown) {
+    return new NextRequest('http://localhost/api/projects/7/fiscal-budget/5/adjustments', {
+      method: 'POST',
+      body: JSON.stringify(body),
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  it('POST adjustment as PM returns 201', async () => {
+    vi.mocked(getSessionFromRequest).mockResolvedValue(cpmoSession as never);
+    getFiscalBudgetInProjectRepo.mockResolvedValue({ id: 5, approved_amount_vnd: '1000' });
+    insertBudgetAdjustmentRepo.mockResolvedValue({
+      id: 12,
+      fiscal_budget_id: 5,
+      amount_vnd: '300',
+      reason: 'Increase',
+    });
+    const res = await POST_ADJUSTMENT(
+      adjReq({ amount_vnd: 300, effective_date: '2026-04-01', reason: 'Increase' }),
+      adjParams,
+    );
+    expect(res.status).toBe(201);
+  });
+
+  it('POST adjustment as viewer returns 403', async () => {
+    vi.mocked(getSessionFromRequest).mockResolvedValue(viewerSession as never);
+    const res = await POST_ADJUSTMENT(
+      adjReq({ amount_vnd: 300, effective_date: '2026-04-01', reason: 'Increase' }),
+      adjParams,
+    );
+    expect(res.status).toBe(403);
+    expect(insertBudgetAdjustmentRepo).not.toHaveBeenCalled();
+  });
+
+  it('GET fiscal-budget lists adjustments on the row', async () => {
+    vi.mocked(getSessionFromRequest).mockResolvedValue(ownerSession as never);
+    listFiscalBudgetsRepo.mockResolvedValue([
+      {
+        id: 5,
+        fiscal_year: 2026,
+        cost_type: 'CAPEX',
+        approved_amount_vnd: '1000',
+        actual_amount_vnd: '0',
+      },
+    ]);
+    listBudgetAdjustmentsRepo.mockResolvedValue([
+      { id: 1, amount_vnd: '200', reason: 'Increase' },
+    ]);
+    sumAdjustmentsVndRepo.mockResolvedValue(200);
+    const res = await GET(req('GET'), { params: Promise.resolve({ id: '7' }) });
+    const body = await res.json();
+    expect(body[0].adjustments).toHaveLength(1);
+    expect(body[0].metrics.approved_net_vnd).toBe(1200);
+  });
+
+  it('does not export PATCH or DELETE on adjustments route', () => {
+    expect(adjustmentsRouteModule.PATCH).toBeUndefined();
+    expect(adjustmentsRouteModule.DELETE).toBeUndefined();
   });
 });

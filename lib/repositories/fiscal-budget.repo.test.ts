@@ -16,6 +16,11 @@ import {
   listFiscalBudgets,
   updateFiscalBudgetActual,
 } from './fiscal-budget.repo';
+import {
+  insertBudgetAdjustment,
+  listBudgetAdjustments,
+  sumAdjustmentsVnd,
+} from './budget-adjustments.repo';
 
 describe.skipIf(!hasTestDb)('fiscal-budget.repo', () => {
   let projectId: number;
@@ -81,5 +86,49 @@ describe.skipIf(!hasTestDb)('fiscal-budget.repo', () => {
     };
     expect(Number(updated.actual_amount_vnd)).toBe(75_000);
     expect(Number(updated.approved_amount_vnd)).toBe(Number(created.approved_amount_vnd));
+  });
+
+  it('insertBudgetAdjustment persists signed non-zero amount and sumAdjustmentsVnd aggregates', async () => {
+    const budget = await insertFiscalBudget(projectId, {
+      fiscal_year: 2022,
+      cost_type: 'CAPEX',
+      approved_amount_vnd: 1_000_000,
+    }) as { id: number };
+
+    const adj = await insertBudgetAdjustment(budget.id, {
+      amount_vnd: 250_000,
+      effective_date: '2026-01-15',
+      reason: 'Scope increase',
+      created_by: 1,
+    }) as { amount_vnd: string | number };
+    expect(Number(adj.amount_vnd)).toBe(250_000);
+
+    await insertBudgetAdjustment(budget.id, {
+      amount_vnd: -50_000,
+      effective_date: '2026-02-01',
+      reason: 'Descope',
+      created_by: 1,
+    });
+
+    expect(await sumAdjustmentsVnd(budget.id)).toBe(200_000);
+    const listed = await listBudgetAdjustments(budget.id);
+    expect(listed).toHaveLength(2);
+  });
+
+  it('rejects adjustment amount_vnd of 0', async () => {
+    const budget = await insertFiscalBudget(projectId, {
+      fiscal_year: 2021,
+      cost_type: 'OPEX',
+      approved_amount_vnd: 100,
+    }) as { id: number };
+
+    await expect(
+      insertBudgetAdjustment(budget.id, {
+        amount_vnd: 0,
+        effective_date: '2026-01-01',
+        reason: 'noop',
+        created_by: 1,
+      }),
+    ).rejects.toBeTruthy();
   });
 });

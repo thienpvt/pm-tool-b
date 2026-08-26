@@ -12,6 +12,7 @@ const {
   updateFiscalBudgetActualRepo,
   sumAdjustmentsVndRepo,
   listBudgetAdjustmentsRepo,
+  insertBudgetAdjustmentRepo,
   auditLogFn,
 } = vi.hoisted(() => ({
   assertProjectAccess: vi.fn(),
@@ -23,6 +24,7 @@ const {
   updateFiscalBudgetActualRepo: vi.fn(),
   sumAdjustmentsVndRepo: vi.fn(),
   listBudgetAdjustmentsRepo: vi.fn(),
+  insertBudgetAdjustmentRepo: vi.fn(),
   auditLogFn: vi.fn(),
 }));
 
@@ -37,16 +39,17 @@ vi.mock('@/lib/repositories/fiscal-budget.repo', () => ({
 vi.mock('@/lib/repositories/budget-adjustments.repo', () => ({
   sumAdjustmentsVnd: sumAdjustmentsVndRepo,
   listBudgetAdjustments: listBudgetAdjustmentsRepo,
-  insertBudgetAdjustment: vi.fn(),
+  insertBudgetAdjustment: insertBudgetAdjustmentRepo,
 }));
 vi.mock('@/lib/services/audit.service', () => ({ auditLog: auditLogFn }));
 
 import {
+  addBudgetAdjustment,
   createFiscalBudget,
   getFiscalBudgetOverview,
   patchFiscalBudgetActual,
 } from './fiscal-budget.service';
-import { ConflictError, ForbiddenError } from './errors';
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors';
 import type { AccessActor } from './access';
 
 beforeEach(() => {
@@ -156,5 +159,78 @@ describe('fiscal-budget.service', () => {
     expect(auditLogFn).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'update', entity_type: 'fiscal_budget' }),
     );
+  });
+
+  it('addBudgetAdjustment INSERTs signed amount then auditLog budget_adjustment create', async () => {
+    getFiscalBudgetInProjectRepo.mockResolvedValue({
+      id: 5,
+      approved_amount_vnd: '1000',
+      actual_amount_vnd: '0',
+    });
+    insertBudgetAdjustmentRepo.mockResolvedValue({
+      id: 11,
+      fiscal_budget_id: 5,
+      amount_vnd: '200',
+    });
+    await expect(
+      addBudgetAdjustment(7, 5, owner, {
+        amount_vnd: 200,
+        effective_date: '2026-03-01',
+        reason: 'Approved increase',
+      }),
+    ).resolves.toMatchObject({ id: 11 });
+    expect(insertBudgetAdjustmentRepo).toHaveBeenCalled();
+    expect(auditLogFn).toHaveBeenCalledWith(
+      expect.objectContaining({ entity_type: 'budget_adjustment', action: 'create' }),
+    );
+  });
+
+  it('addBudgetAdjustment rejects amount 0', async () => {
+    getFiscalBudgetInProjectRepo.mockResolvedValue({ id: 5 });
+    await expect(
+      addBudgetAdjustment(7, 5, owner, {
+        amount_vnd: 0,
+        effective_date: '2026-03-01',
+        reason: 'bad',
+      }),
+    ).rejects.toBeInstanceOf(ValidationError);
+  });
+
+  it('addBudgetAdjustment rejects empty reason', async () => {
+    getFiscalBudgetInProjectRepo.mockResolvedValue({ id: 5 });
+    await expect(
+      addBudgetAdjustment(7, 5, owner, {
+        amount_vnd: 100,
+        effective_date: '2026-03-01',
+        reason: '   ',
+      }),
+    ).rejects.toBeInstanceOf(ValidationError);
+  });
+
+  it('addBudgetAdjustment 404s unknown budgetId in project', async () => {
+    getFiscalBudgetInProjectRepo.mockResolvedValue(undefined);
+    await expect(
+      addBudgetAdjustment(7, 99, owner, {
+        amount_vnd: 100,
+        effective_date: '2026-03-01',
+        reason: 'x',
+      }),
+    ).rejects.toBeInstanceOf(NotFoundError);
+  });
+
+  it('GET metrics approved_net includes adjustment sum', async () => {
+    listFiscalBudgetsRepo.mockResolvedValue([
+      {
+        id: 6,
+        fiscal_year: 2026,
+        cost_type: 'CAPEX',
+        approved_amount_vnd: '1000',
+        actual_amount_vnd: '100',
+      },
+    ]);
+    sumAdjustmentsVndRepo.mockResolvedValue(200);
+    const rows = await getFiscalBudgetOverview(7, owner);
+    expect(rows[0].metrics.approved_net_vnd).toBe(1200);
+    expect(rows[0].metrics.remaining_vnd).toBe(1100);
   });
 });
