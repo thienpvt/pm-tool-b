@@ -43,6 +43,30 @@ export class ConflictError extends Error {
   }
 }
 
+/** Stage-change guard when mandatory checklist items are incomplete (D-09). Maps to 409 { code, items }. */
+export class MandatoryIncompleteError extends Error {
+  readonly code = 'mandatory_incomplete' as const;
+  readonly items: Array<{
+    checklist_id: number;
+    catalog_id: number;
+    name: string;
+    status: string;
+  }>;
+
+  constructor(
+    items: Array<{
+      checklist_id: number;
+      catalog_id: number;
+      name: string;
+      status: string;
+    }>,
+  ) {
+    super('Mandatory checklist items incomplete');
+    this.name = 'MandatoryIncompleteError';
+    this.items = items;
+  }
+}
+
 /** Multi-field submit validation (RAID-03). Maps to 400 { error, fields: string[] }. */
 export class SubmitValidationError extends Error {
   readonly fields: string[];
