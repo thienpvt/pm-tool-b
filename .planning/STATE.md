@@ -5,16 +5,16 @@ milestone_name: Portfolio One View
 current_phase: 15
 current_phase_name: Budget, Value, ROI & Dependencies
 status: planning
-stopped_at: Phase 14 complete, ready to plan Phase 15
-last_updated: "2026-08-26T00:31:09.410Z"
+stopped_at: Completed 15-02-PLAN.md
+last_updated: "2026-08-26T13:26:54.571Z"
 last_activity: 2026-08-26
 last_activity_desc: Phase 14 complete, transitioned to Phase 15
-state_head: 2f5c62e61e527e50c723a3075bbe6367136d7130
+state_head: 9d967c083d7dca5048afb023f7a7520624ccbb69
 progress:
   total_phases: 10
   completed_phases: 6
-  total_plans: 28
-  completed_plans: 28
+  total_plans: 31
+  completed_plans: 30
 ---
 
 # Project State
@@ -83,6 +83,8 @@ Progress: [█░░░░░░░░░] 10%
 | Phase 14-cpmo-tracking-consolidated-export P01 | 12min | 2 tasks | 10 files |
 | Phase 14 P02 | 8min | 2 tasks | 5 files |
 | Phase 14-cpmo-tracking-consolidated-export P03 | 3min | 2 tasks | 9 files |
+| Phase 15-budget-value-roi-dependencies P01 | 25min | 2 tasks | 15 files |
+| Phase 15-budget-value-roi-dependencies P02 | 25 | 3 tasks | 15 files |
 
 ## Accumulated Context
 
@@ -141,6 +143,9 @@ Recent decisions affecting current work:
 - [Phase 14]: assembleSnapshotSections exported for 14-03 with full raid arrays and snapshot-only tech issues
 - [Phase 14]: Generators accept ConsolidatedWeeklyPayload only — no live RAID reads (D-01, D-07)
 - [Phase 14]: Generate Buffer before insertWeeklyExportLog so pack failures leave no log row (D-09)
+- [Phase 15]: Import guard targets line-item budget.repo only
+- [Phase 15]: budget-adjustments.repo included in task 1 for GET overview sum
+- [Phase 15]: Nonfinancial benefits and PATCH shipped in task-1 GREEN commit e6f7f55 for cohesive benefits.service
 
 ### Pending Todos
 
@@ -161,6 +166,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-08-26T00:25:59.616Z
-Stopped at: Phase 14 complete, ready to plan Phase 15
+Last session: 2026-08-26T13:26:53.958Z
+Stopped at: Completed 15-02-PLAN.md
 Resume file: None

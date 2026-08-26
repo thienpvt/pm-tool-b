@@ -67,12 +67,12 @@ Requirements for this milestone. Each maps to roadmap phases. Jira import, AI re
 
 ### Budget and Value
 
-- [ ] **BUDG-01**: User with write access can record approved budget and actual spend by fiscal year and cost type in VND (non-negative integer amounts)
-- [ ] **BUDG-02**: Budget remaining and utilization are computed from approved vs actual; remaining < 0 is flagged as over budget; remaining = 0 shows fully used
-- [ ] **BUDG-03**: Budget increases or decreases are append-only adjustment records (amount, effective date, reason); prior approvals are never overwritten
-- [ ] **BUDG-04**: User can record financial benefits by year and type (expected vs actual; actual blank means no data, distinct from 0)
-- [ ] **BUDG-05**: User can record non-financial benefits with group, measure, and target
-- [ ] **BUDG-06**: Expected and actual ROI display as a computed percent only when inputs are complete; otherwise the UI shows insufficient data, never a fake 0%
+- [x] **BUDG-01**: User with write access can record approved budget and actual spend by fiscal year and cost type in VND (non-negative integer amounts)
+- [x] **BUDG-02**: Budget remaining and utilization are computed from approved vs actual; remaining < 0 is flagged as over budget; remaining = 0 shows fully used
+- [x] **BUDG-03**: Budget increases or decreases are append-only adjustment records (amount, effective date, reason); prior approvals are never overwritten
+- [x] **BUDG-04**: User can record financial benefits by year and type (expected vs actual; actual blank means no data, distinct from 0)
+- [x] **BUDG-05**: User can record non-financial benefits with group, measure, and target
+- [x] **BUDG-06**: Expected and actual ROI display as a computed percent only when inputs are complete; otherwise the UI shows insufficient data, never a fake 0%
 
 ### Risk and Issue Register
 
@@ -221,12 +221,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | MS-03 | Phase 12 | Complete |
 | MS-04 | Phase 13 | Complete |
 | MS-05 | Phase 12 | Complete |
-| BUDG-01 | Phase 15 | Pending |
-| BUDG-02 | Phase 15 | Pending |
-| BUDG-03 | Phase 15 | Pending |
-| BUDG-04 | Phase 15 | Pending |
-| BUDG-05 | Phase 15 | Pending |
-| BUDG-06 | Phase 15 | Pending |
+| BUDG-01 | Phase 15 | Complete |
+| BUDG-02 | Phase 15 | Complete |
+| BUDG-03 | Phase 15 | Complete |
+| BUDG-04 | Phase 15 | Complete |
+| BUDG-05 | Phase 15 | Complete |
+| BUDG-06 | Phase 15 | Complete |
 | RAID-01 | Phase 12 | Complete |
 | RAID-02 | Phase 13 | Complete |
 | RAID-03 | Phase 13 | Complete |
