@@ -23,13 +23,24 @@ production runner image has no npm network access.
 
 ## Files
 
-- `0001-baseline-schema.sql` — the 35 `CREATE TABLE` statements that used to
-  live in `getDb()`'s `initPostgresSchema`.
-- `0002-existing-schema-additions.sql` — the cumulative `ALTER TABLE ... ADD
-  COLUMN IF NOT EXISTS` / `CREATE TABLE IF NOT EXISTS` set plus the two
-  `allocated_headcount` numeric conversions (as type-guarded `DO` blocks) that
-  used to live in `migratePostgresSchema`.
+- `0001-baseline-schema.sql` — the whole pre-existing schema, in two labelled
+  parts: **Part 1** is the 35 `CREATE TABLE` statements that used to live in
+  `getDb()`'s `initPostgresSchema`; **Part 2** is the cumulative
+  `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` / `CREATE TABLE IF NOT EXISTS` set
+  plus the two `allocated_headcount` numeric conversions (as type-guarded `DO`
+  blocks) that used to live in `migratePostgresSchema`.
 - Future schema changes get their own `NNNN-description.sql` file.
+
+### Why Part 2's redundancy is kept on purpose
+
+Part 2 repeats work Part 1 already does — 19 of its 20 `CREATE TABLE`s and 20 of
+its 34 `ADD COLUMN`s are no-ops against a database Part 1 just built. Folding
+those columns into the Part 1 table bodies would read better and is **wrong**:
+`CREATE TABLE IF NOT EXISTS` cannot add a column to a table that already exists,
+so a folded-in column would never reach a **pre-existing** database. The old
+boot loop wrapped every statement in `try {} catch {}`, so there is no evidence
+it successfully added all of them to the live DB. The `ADD COLUMN IF NOT EXISTS`
+statements are the only repair path for that case. Keep both parts.
 
 ## Ledger contract
 
@@ -50,7 +61,7 @@ so the first `npm run migrate` is an adoption run:
 1. **Rehearse against a scratch copy first** — `pg_dump` the live schema into a
    scratch DB, then run `npm run migrate` there and confirm `--check` reports
    clean on the second run.
-2. All 0001/0002 statements are idempotent (`IF NOT EXISTS` / `DO`-guarded), so
+2. Every statement in `0001` is idempotent (`IF NOT EXISTS` / `DO`-guarded), so
    the real run against the live DB is a no-op for every statement and simply
    **stamps the ledger**. A broken statement would surface here for the first
    time (the old boot path swallowed errors), which is why step 1 matters.

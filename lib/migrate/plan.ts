@@ -25,7 +25,7 @@ const FILENAME_RE = /^(\d{1,4})-[A-Za-z0-9_-]+\.sql$/;
 /**
  * Parse a migration filename into a `MigrationFile`. The version is the leading
  * 1-4 digit prefix before the first `-`; the descriptive tail may contain
- * hyphens (e.g. `0002-existing-schema-additions.sql`). Anything else throws.
+ * hyphens (e.g. `0001-baseline-schema.sql`). Anything else throws.
  */
 export function parseMigrationFile(filename: string, sql: string): MigrationFile {
   const match = FILENAME_RE.exec(filename);

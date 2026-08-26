@@ -24,13 +24,17 @@ describe('migrations directory integrity', () => {
     expect(versions).toEqual([...versions].sort((a, b) => a - b)); // ascending
   });
 
-  it('keeps the four data-fix UPDATEs out of migration 0002', () => {
-    const sql = readFileSync(path.join(migrationsDir(), '0002-existing-schema-additions.sql'), 'utf8');
-    const updateLines = sql
-      .split('\n')
-      .map((l) => l.trim())
-      .filter((l) => /^UPDATE\b/i.test(l));
-    expect(updateLines).toEqual([]);
+  it('keeps the four data-fix UPDATEs out of every migration file', () => {
+    const files = readdirSync(migrationsDir()).filter((f) => f.endsWith('.sql'));
+    expect(files.length).toBeGreaterThan(0);
+
+    for (const f of files) {
+      const updateLines = readFileSync(path.join(migrationsDir(), f), 'utf8')
+        .split('\n')
+        .map((l) => l.trim())
+        .filter((l) => /^UPDATE\b/i.test(l));
+      expect(updateLines, `${f} must contain no data-fix UPDATE statements`).toEqual([]);
+    }
   });
 });
 
