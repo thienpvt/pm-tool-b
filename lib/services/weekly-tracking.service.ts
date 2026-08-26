@@ -51,9 +51,33 @@ function buildCounts(rows: PeriodTrackingRow[]): PeriodTrackingCounts {
 
 function applyTrackingFilters(
   rows: PeriodTrackingRow[],
-  _filters: PeriodTrackingFilters,
+  filters: PeriodTrackingFilters,
 ): PeriodTrackingRow[] {
-  return rows;
+  return rows.filter((row) => {
+    if (filters.status !== undefined) {
+      if (filters.status === 'overdue') {
+        if (!row.overdue) return false;
+      } else if (row.status !== filters.status) {
+        return false;
+      }
+    }
+    if (filters.lateness !== undefined && row.first_lateness !== filters.lateness) {
+      return false;
+    }
+    if (filters.pm_user_id !== undefined && row.pm_user_id !== filters.pm_user_id) {
+      return false;
+    }
+    if (filters.stage !== undefined && row.stage !== filters.stage) {
+      return false;
+    }
+    if (filters.rag !== undefined && row.rag !== filters.rag) {
+      return false;
+    }
+    if (filters.technology_council === true && !row.has_technology_council_issues) {
+      return false;
+    }
+    return true;
+  });
 }
 
 export async function getPeriodTracking(
