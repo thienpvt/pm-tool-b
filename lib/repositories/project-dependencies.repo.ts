@@ -91,6 +91,7 @@ export async function listOpenProjectDependencies(projectId: number | string) {
   );
 }
 
+/** Date-window intersection for same from/to/type (NULL effective_to is open-ended). */
 export async function hasOverlappingEquivalentDependency(
   fromId: number,
   toId: number,
