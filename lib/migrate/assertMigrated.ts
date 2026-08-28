@@ -17,6 +17,9 @@
  */
 const RUNBOOK_MESSAGE = 'Database schema not migrated — run "npm run migrate" first';
 
+const LEGACY_BOOT_WARN =
+  'schema_migrations ledger missing but companies table exists — run "npm run migrate" to stamp the ledger';
+
 export async function assertMigrated(
   query: (sql: string) => Promise<{ rows: unknown[] }>,
   ledgerTable = 'schema_migrations',
@@ -35,7 +38,10 @@ export async function assertMigrated(
     // database, not a fresh one — let the app boot.
     try {
       const probe = await query('SELECT 1 FROM companies LIMIT 1');
-      if (probe.rows.length > 0) return;
+      if (probe.rows.length > 0) {
+        console.warn(LEGACY_BOOT_WARN);
+        return;
+      }
     } catch {
       // companies missing too — genuinely fresh/unmigrated database.
     }

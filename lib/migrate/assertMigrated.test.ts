@@ -14,6 +14,7 @@ describe('assertMigrated', () => {
   });
 
   it('resolves when the ledger table is missing but a legacy 0.1.x-era schema is present', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     // First call (ledger SELECT) rejects with 42P01; second call (legacy schema
     // probe) resolves with a row — a pre-Task-3 database created by the old
     // inline migration array. The guard must not break that dev's boot.
@@ -22,6 +23,8 @@ describe('assertMigrated', () => {
       .mockRejectedValueOnce(new Error('relation "schema_migrations" does not exist'))
       .mockResolvedValueOnce({ rows: [{}] });
     await expect(assertMigrated(query)).resolves.toBeUndefined();
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('npm run migrate'));
+    warnSpy.mockRestore();
   });
 
   it('throws the runbook message when the ledger is missing and no legacy schema exists', async () => {
