@@ -314,4 +314,69 @@ describe('PmDashboardPage', () => {
 
     await waitFor(() => expect(getCount).toBeGreaterThanOrEqual(2));
   });
+
+  it('shows 403 forbidden copy without queue content', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) => {
+        if (url === '/api/dashboards/pm') {
+          return Promise.resolve({ ok: false, status: 403, json: () => Promise.resolve({}) });
+        }
+        return Promise.reject(new Error(`unexpected fetch: ${url}`));
+      }) as unknown as typeof fetch,
+    );
+
+    render(<PmDashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("You don't have access to this dashboard.")).toBeInTheDocument();
+    });
+    expect(screen.queryByText('Weekly reports')).not.toBeInTheDocument();
+  });
+
+  it('shows 401 session expired copy', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) => {
+        if (url === '/api/dashboards/pm') {
+          return Promise.resolve({ ok: false, status: 401, json: () => Promise.resolve({}) });
+        }
+        return Promise.reject(new Error(`unexpected fetch: ${url}`));
+      }) as unknown as typeof fetch,
+    );
+
+    render(<PmDashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Session expired — refresh the page and sign in again.')).toBeInTheDocument();
+    });
+  });
+
+  it('shows 500 load failed copy', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) => {
+        if (url === '/api/dashboards/pm') {
+          return Promise.resolve({ ok: false, status: 500, json: () => Promise.resolve({}) });
+        }
+        return Promise.reject(new Error(`unexpected fetch: ${url}`));
+      }) as unknown as typeof fetch,
+    );
+
+    render(<PmDashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Couldn't load the dashboard. Try again.")).toBeInTheDocument();
+    });
+  });
+
+  it('renders mixed weekly statuses with status badges', async () => {
+    render(<PmDashboardPage />);
+    resolvePm!(pmFixture);
+
+    await waitFor(() => expect(screen.getByText('draft')).toBeInTheDocument());
+    expect(screen.getByText('not_submitted')).toBeInTheDocument();
+    const weeklyQueue = screen.getByTestId('pm-weekly-queue');
+    expect(within(weeklyQueue).getAllByText('Overdue').length).toBeGreaterThanOrEqual(1);
+  });
 });
