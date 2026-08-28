@@ -46,9 +46,40 @@ const portfolioFixture = {
     },
   ],
   drilldowns: {
-    overdue_milestones: [],
+    overdue_milestones: [
+      {
+        project_id: 10,
+        milestone_id: 1,
+        name: 'Gate review',
+        project_name: 'Alpha',
+      },
+      {
+        milestone_id: 2,
+        name: 'No project link',
+        project_name: 'Orphan',
+      },
+    ],
     high_raid: [],
     technology_council: [],
+  },
+};
+
+const longName = 'A'.repeat(120);
+const overdueLongNameFixture = {
+  ...portfolioFixture,
+  drilldowns: {
+    ...portfolioFixture.drilldowns,
+    overdue_milestones: [
+      { project_id: 10, milestone_id: 99, name: longName, project_name: 'Alpha' },
+    ],
+  },
+};
+
+const emptyOverdueFixture = {
+  ...portfolioFixture,
+  drilldowns: {
+    ...portfolioFixture.drilldowns,
+    overdue_milestones: [],
   },
 };
 
@@ -286,6 +317,70 @@ describe('PortfolioDashboardPage', () => {
     });
     expect(screen.queryByTestId('spec-kpi-row')).not.toBeInTheDocument();
     expect(unauthorizedFetch).toHaveBeenCalledWith('/api/dashboards/portfolio');
+  });
+
+  it('opens overdue drill-down panel when Overdue milestones tile clicked', async () => {
+    render(<PortfolioDashboardPage />);
+    resolvePortfolio!(portfolioFixture);
+    await waitFor(() => expect(screen.getByTestId('spec-kpi-row')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: /Overdue milestones/i }));
+
+    expect(screen.getByTestId('portfolio-drilldown-panel')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Overdue milestones' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Gate review' })).toHaveAttribute(
+      'href',
+      '/projects/10/milestones',
+    );
+  });
+
+  it('collapses drill-down when clicking the active tile again', async () => {
+    render(<PortfolioDashboardPage />);
+    resolvePortfolio!(portfolioFixture);
+    await waitFor(() => expect(screen.getByTestId('spec-kpi-row')).toBeInTheDocument());
+
+    const tile = screen.getByRole('button', { name: /Overdue milestones/i });
+    fireEvent.click(tile);
+    expect(screen.getByTestId('portfolio-drilldown-panel')).toBeInTheDocument();
+    fireEvent.click(tile);
+    expect(screen.queryByTestId('portfolio-drilldown-panel')).not.toBeInTheDocument();
+  });
+
+  it('shows empty drill-down copy when overdue list is empty', async () => {
+    render(<PortfolioDashboardPage />);
+    resolvePortfolio!(emptyOverdueFixture);
+    await waitFor(() => expect(screen.getByTestId('spec-kpi-row')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: /Overdue milestones/i }));
+
+    expect(screen.getByText('No items in this drill-down')).toBeInTheDocument();
+    expect(
+      screen.getByText('The selected KPI has zero matching rows for the current filters.'),
+    ).toBeInTheDocument();
+  });
+
+  it('omits milestone link when project_id is missing', async () => {
+    render(<PortfolioDashboardPage />);
+    resolvePortfolio!(portfolioFixture);
+    await waitFor(() => expect(screen.getByTestId('spec-kpi-row')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: /Overdue milestones/i }));
+
+    expect(screen.queryByRole('link', { name: 'No project link' })).not.toBeInTheDocument();
+    expect(screen.getByText('No project link')).toBeInTheDocument();
+  });
+
+  it('truncates long drill-down name with title attribute', async () => {
+    render(<PortfolioDashboardPage />);
+    resolvePortfolio!(overdueLongNameFixture);
+    await waitFor(() => expect(screen.getByTestId('spec-kpi-row')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: /Overdue milestones/i }));
+
+    const link = screen.getByRole('link', { name: longName });
+    expect(link).toHaveAttribute('title', longName);
+    expect(link.className).toMatch(/truncate/);
+    expect(link.className).toMatch(/max-w-\[200px\]/);
   });
 
   it('shows 500 load failed copy', async () => {
