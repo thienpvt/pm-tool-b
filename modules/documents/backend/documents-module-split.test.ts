@@ -80,4 +80,18 @@ describe('documents module split contract (24-04)', () => {
       /export\s*\{\s*GET\s*\}\s*from\s*['"]@\/modules\/documents\/backend\/routes\/dashboards\/document-compliance\/route['"]/,
     );
   });
+
+  const p3ChecklistRoutes = [
+    'app/api/projects/[id]/document-checklist/route.ts',
+    'app/api/projects/[id]/document-checklist/[itemId]/route.ts',
+  ] as const;
+
+  it.each(p3ChecklistRoutes)(
+    'P3 ENF-01: %s contains withProjectAccess and module handler import',
+    (routePath) => {
+      const source = readUtf8(routePath);
+      expect(source).toMatch(/withProjectAccess[\(<]/);
+      expect(source).toContain('modules/documents/backend/routes');
+    },
+  );
 });
