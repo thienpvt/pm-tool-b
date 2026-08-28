@@ -10,6 +10,9 @@ const {
   listOperationsBudgetItemsRepo,
   listOperationsExpensesRepo,
   listOperationsIncidentsRepo,
+  deleteOperationsBudgetItemRepo,
+  deleteOperationsExpenseRepo,
+  deleteOperationsIncidentRepo,
 } = vi.hoisted(() => ({
   listOperationsSystemsRepo: vi.fn(),
   findOperationsSystemRepo: vi.fn(),
@@ -20,6 +23,9 @@ const {
   listOperationsBudgetItemsRepo: vi.fn(),
   listOperationsExpensesRepo: vi.fn(),
   listOperationsIncidentsRepo: vi.fn(),
+  deleteOperationsBudgetItemRepo: vi.fn(),
+  deleteOperationsExpenseRepo: vi.fn(),
+  deleteOperationsIncidentRepo: vi.fn(),
 }));
 
 vi.mock('@/lib/repositories/operations.repo', () => ({
@@ -34,16 +40,19 @@ vi.mock('@/lib/repositories/operations.repo', () => ({
   listOperationsIncidents: listOperationsIncidentsRepo,
   createOperationsBudgetItem: vi.fn(),
   updateOperationsBudgetItem: vi.fn(),
-  deleteOperationsBudgetItem: vi.fn(),
+  deleteOperationsBudgetItem: deleteOperationsBudgetItemRepo,
   createOperationsExpense: vi.fn(),
-  deleteOperationsExpense: vi.fn(),
+  deleteOperationsExpense: deleteOperationsExpenseRepo,
   createOperationsIncident: vi.fn(),
   updateOperationsIncident: vi.fn(),
-  deleteOperationsIncident: vi.fn(),
+  deleteOperationsIncident: deleteOperationsIncidentRepo,
 }));
 
 import type { SessionUser } from '@/lib/auth';
 import {
+  deleteBudgetItemForSystem,
+  deleteExpenseForSystem,
+  deleteIncidentForSystem,
   getOperationsSystemDetail,
   listBudgetItemsForSystem,
   listOperationsSystems,
@@ -85,5 +94,37 @@ describe('operations.service pass-through', () => {
     findOperationsSystemRepo.mockResolvedValue(undefined);
     await expect(listBudgetItemsForSystem(user, 99)).resolves.toBeNull();
     expect(listOperationsBudgetItemsRepo).not.toHaveBeenCalled();
+  });
+});
+
+describe('operations.service nested deletes (CR-01)', () => {
+  beforeEach(() => {
+    findOperationsSystemRepo.mockResolvedValue({ id: 42 });
+  });
+
+  it('deleteBudgetItemForSystem returns null when system missing', async () => {
+    findOperationsSystemRepo.mockResolvedValue(undefined);
+    await expect(deleteBudgetItemForSystem(user, 99, 1)).resolves.toBeNull();
+    expect(deleteOperationsBudgetItemRepo).not.toHaveBeenCalled();
+  });
+
+  it('deleteBudgetItemForSystem returns false when item row not deleted', async () => {
+    deleteOperationsBudgetItemRepo.mockResolvedValue({ changes: 0 });
+    await expect(deleteBudgetItemForSystem(user, 42, 999)).resolves.toBe(false);
+  });
+
+  it('deleteBudgetItemForSystem returns true when item deleted', async () => {
+    deleteOperationsBudgetItemRepo.mockResolvedValue({ changes: 1 });
+    await expect(deleteBudgetItemForSystem(user, 42, 1)).resolves.toBe(true);
+  });
+
+  it('deleteExpenseForSystem returns false when expense row not deleted', async () => {
+    deleteOperationsExpenseRepo.mockResolvedValue({ changes: 0 });
+    await expect(deleteExpenseForSystem(user, 42, 999)).resolves.toBe(false);
+  });
+
+  it('deleteIncidentForSystem returns false when incident row not deleted', async () => {
+    deleteOperationsIncidentRepo.mockResolvedValue({ changes: 0 });
+    await expect(deleteIncidentForSystem(user, 42, 999)).resolves.toBe(false);
   });
 });

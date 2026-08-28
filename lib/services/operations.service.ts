@@ -101,8 +101,8 @@ export async function deleteBudgetItemForSystem(
 ) {
   const existing = await findOperationsSystemForUser(user, id);
   if (!existing) return null;
-  await deleteOperationsBudgetItemRepo(id, itemId);
-  return true;
+  const result = await deleteOperationsBudgetItemRepo(id, itemId);
+  return (result.changes ?? 0) > 0;
 }
 
 export async function listExpensesForSystem(user: SessionUser, id: number | string) {
@@ -128,8 +128,8 @@ export async function deleteExpenseForSystem(
 ) {
   const existing = await findOperationsSystemForUser(user, id);
   if (!existing) return null;
-  await deleteOperationsExpenseRepo(id, expenseId);
-  return true;
+  const result = await deleteOperationsExpenseRepo(id, expenseId);
+  return (result.changes ?? 0) > 0;
 }
 
 export async function listIncidentsForSystem(user: SessionUser, id: number | string) {
@@ -166,6 +166,6 @@ export async function deleteIncidentForSystem(
 ) {
   const existing = await findOperationsSystemForUser(user, id);
   if (!existing) return null;
-  await deleteOperationsIncidentRepo(id, incidentId);
-  return true;
+  const result = await deleteOperationsIncidentRepo(id, incidentId);
+  return (result.changes ?? 0) > 0;
 }
