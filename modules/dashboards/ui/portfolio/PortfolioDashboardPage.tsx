@@ -5,10 +5,12 @@
 import { useState } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import Sidebar from '@/components/layout/Sidebar';
+import { Button } from '@/components/ui/button';
 import { PortfolioCharts } from './PortfolioCharts';
 import { PortfolioDrilldownTable } from './PortfolioDrilldownTable';
 import { PortfolioFiltersBar } from './PortfolioFiltersBar';
 import { PortfolioKpiTiles, type PortfolioDrilldownKey } from './PortfolioKpiTiles';
+import { PortfolioProjectTable } from './PortfolioProjectTable';
 import { usePortfolioSpecDashboard } from './usePortfolioSpecDashboard';
 
 const ERROR_COPY = {
@@ -18,7 +20,8 @@ const ERROR_COPY = {
 } as const;
 
 export default function PortfolioDashboardPage() {
-  const { data, loading, refreshing, error, saveFilters, clearFilters } = usePortfolioSpecDashboard();
+  const { data, loading, refreshing, exporting, error, saveFilters, clearFilters, exportDashboard } =
+    usePortfolioSpecDashboard();
   const [activeKey, setActiveKey] = useState<PortfolioDrilldownKey | null>(null);
 
   if (loading) {
@@ -55,7 +58,27 @@ export default function PortfolioDashboardPage() {
     <div className="flex flex-col lg:flex-row min-h-screen bg-slate-50">
       <Sidebar />
       <main className="flex-1 p-4 lg:p-6 lg:p-8 overflow-auto">
-        <h1 className="text-base font-semibold mb-4">Spec dashboard</h1>
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+          <h1 className="text-base font-semibold">Spec dashboard</h1>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={exporting}
+              onClick={() => exportDashboard('xlsx')}
+            >
+              {exporting ? 'Exporting…' : 'Export Excel'}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={exporting}
+              onClick={() => exportDashboard('pdf')}
+            >
+              Export PDF
+            </Button>
+          </div>
+        </div>
         <PortfolioFiltersBar
           filters={data.filters}
           list={data.list}
@@ -70,6 +93,7 @@ export default function PortfolioDashboardPage() {
           onSelect={setActiveKey}
         />
         <PortfolioCharts charts={data.charts} />
+        <PortfolioProjectTable list={data.list} />
         <PortfolioDrilldownTable activeKey={activeKey} drilldowns={data.drilldowns} />
         <p className="mt-4 text-xs text-muted-foreground">
           Budget and fiscal metrics are on Portfolio Budget (/portfolio/budget).
