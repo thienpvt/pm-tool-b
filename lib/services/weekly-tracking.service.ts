@@ -15,7 +15,7 @@ import {
   type ConsolidatedExportFormat,
 } from '@/lib/export/consolidated-weekly';
 import { insertWeeklyExportLog } from '@/lib/repositories/weekly-export.repo';
-import { auditLog } from './audit.service';
+import { auditLog } from '@/modules/audit/backend/services/audit.service';
 
 export type PeriodTrackingFilters = {
   status?: 'not_submitted' | 'draft' | 'submitted' | 'overdue';

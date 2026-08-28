@@ -41,7 +41,7 @@ vi.mock('@/lib/repositories/nonfinancial-benefits.repo', () => ({
   updateNonfinancialBenefit: updateNonfinancialBenefitRepo,
   insertNonfinancialBenefit: insertNonfinancialBenefitRepo,
 }));
-vi.mock('@/lib/services/audit.service', () => ({ auditLog: auditLogFn }));
+vi.mock('@/modules/audit/backend/services/audit.service', () => ({ auditLog: auditLogFn }));
 
 import { createProjectBenefit, listProjectBenefits, patchProjectBenefit } from './benefits.service';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors';

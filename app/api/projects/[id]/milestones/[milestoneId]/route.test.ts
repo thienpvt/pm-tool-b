@@ -13,7 +13,7 @@ const { projectAccessRow, hasActivePmAssignment, updateMilestoneRepo, cancelMile
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
 vi.mock('@/lib/repositories/projects.repo', () => ({ projectAccessRow }));
 vi.mock('@/lib/repositories/pm-assignments.repo', () => ({ hasActivePmAssignment }));
-vi.mock('@/lib/services/audit.service', () => ({ auditLog: vi.fn().mockResolvedValue(undefined) }));
+vi.mock('@/modules/audit/backend/services/audit.service', () => ({ auditLog: vi.fn().mockResolvedValue(undefined) }));
 vi.mock('@/lib/repositories/milestones.repo', () => ({
   listMilestones: vi.fn(),
   createMilestone: vi.fn(),

@@ -41,7 +41,7 @@ vi.mock('@/lib/repositories/budget-adjustments.repo', () => ({
   listBudgetAdjustments: listBudgetAdjustmentsRepo,
   insertBudgetAdjustment: insertBudgetAdjustmentRepo,
 }));
-vi.mock('@/lib/services/audit.service', () => ({ auditLog: auditLogFn }));
+vi.mock('@/modules/audit/backend/services/audit.service', () => ({ auditLog: auditLogFn }));
 
 import {
   addBudgetAdjustment,

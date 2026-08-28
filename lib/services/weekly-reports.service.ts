@@ -33,7 +33,7 @@ import {
   assertProjectWriteAccess,
   type AccessActor,
 } from './access';
-import { auditLog } from './audit.service';
+import { auditLog } from '@/modules/audit/backend/services/audit.service';
 import { runInTransaction } from '@/lib/db';
 import { ConflictError, ForbiddenError, NotFoundError, SubmitValidationError, ValidationError } from './errors';
 

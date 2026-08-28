@@ -9,7 +9,7 @@ import {
   updateMilestone as updateMilestoneRepo,
 } from '@/lib/repositories/milestones.repo';
 import { assertProjectAccess, assertProjectWriteAccess, type AccessActor } from './access';
-import { auditLog } from './audit.service';
+import { auditLog } from '@/modules/audit/backend/services/audit.service';
 import { NotFoundError } from './errors';
 
 function auditSnapshot(row: Record<string, unknown> | null | undefined) {

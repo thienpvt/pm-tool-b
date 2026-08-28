@@ -14,7 +14,7 @@ import {
   type UserListFilters,
   type UserRow,
 } from '@/lib/repositories/users.repo';
-import { auditLog } from '@/lib/services/audit.service';
+import { auditLog } from '@/modules/audit/backend/services/audit.service';
 import { hasRole, isCpmo, type AccessActor, type AppRole, type UserStatus } from './access';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors';
 

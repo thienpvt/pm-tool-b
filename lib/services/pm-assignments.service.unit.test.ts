@@ -50,7 +50,7 @@ vi.mock('@/lib/repositories/pm-assignments.repo', () => ({
   syncProjectPmDisplay,
 }));
 vi.mock('@/lib/repositories/users.repo', () => ({ findUserById }));
-vi.mock('./audit.service', () => ({ auditLog: auditLogFn }));
+vi.mock('@/modules/audit/backend/services/audit.service', () => ({ auditLog: auditLogFn }));
 
 import {
   createPmAssignment,

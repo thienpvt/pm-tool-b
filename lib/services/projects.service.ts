@@ -15,7 +15,7 @@ import {
   isCpmo,
   type AccessActor,
 } from './access';
-import { auditLog } from './audit.service';
+import { auditLog } from '@/modules/audit/backend/services/audit.service';
 import { generateProjectChecklist } from './document-checklist-generate';
 import {
   ConflictError,

@@ -9,7 +9,7 @@ import {
 } from '@/lib/repositories/project-dependencies.repo';
 import { parseIsoDate } from '@/lib/fiscal/iso-date';
 import { assertProjectAccess, assertProjectWriteAccess, type AccessActor } from './access';
-import { auditLog } from './audit.service';
+import { auditLog } from '@/modules/audit/backend/services/audit.service';
 import { ConflictError, NotFoundError, ValidationError } from './errors';
 
 const DEPENDENCY_TYPES: DependencyType[] = [

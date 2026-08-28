@@ -45,7 +45,7 @@ vi.mock('@/lib/repositories/projects.repo', () => ({
 vi.mock('@/lib/repositories/programs.repo', () => ({
   getProgram,
 }));
-vi.mock('@/lib/services/audit.service', () => ({
+vi.mock('@/modules/audit/backend/services/audit.service', () => ({
   auditLog: auditLogFn,
 }));
 vi.mock('@/lib/services/document-checklist-generate', () => ({

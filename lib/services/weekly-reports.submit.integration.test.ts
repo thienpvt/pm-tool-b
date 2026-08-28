@@ -17,7 +17,7 @@ vi.mock('@/lib/services/access', () => ({
   isCpmo: () => true,
 }));
 
-vi.mock('@/lib/services/audit.service', () => ({ auditLog: vi.fn() }));
+vi.mock('@/modules/audit/backend/services/audit.service', () => ({ auditLog: vi.fn() }));
 
 vi.mock('@/lib/repositories/weekly-reports.repo', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/repositories/weekly-reports.repo')>();

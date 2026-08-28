@@ -42,7 +42,7 @@ vi.mock('@/lib/repositories/nonfinancial-benefits.repo', () => ({
   getNonfinancialBenefitInProject: getNonfinancialBenefitInProjectRepo,
   updateNonfinancialBenefit: updateNonfinancialBenefitRepo,
 }));
-vi.mock('@/lib/services/audit.service', () => ({ auditLog: auditLogFn }));
+vi.mock('@/modules/audit/backend/services/audit.service', () => ({ auditLog: auditLogFn }));
 
 import { getSessionFromRequest } from '@/lib/auth';
 import { GET, PATCH, POST } from './route';

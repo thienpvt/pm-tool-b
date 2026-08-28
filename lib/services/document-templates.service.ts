@@ -11,7 +11,7 @@ import { parseHttpsUrl } from '@/lib/documents/https-url';
 import { parseIsoDate } from '@/lib/fiscal/iso-date';
 import type { AccessActor } from './access';
 import { assertCompanyWrite, hasRole } from './access';
-import { auditLog } from './audit.service';
+import { auditLog } from '@/modules/audit/backend/services/audit.service';
 import { ForbiddenError, NotFoundError, ValidationError } from './errors';
 
 function assertTemplateRead(actor: AccessActor): void {

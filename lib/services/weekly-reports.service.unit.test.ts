@@ -109,7 +109,7 @@ vi.mock('@/lib/repositories/risks.repo', () => ({
 vi.mock('@/lib/repositories/issues.repo', () => ({
   getIssue: getIssueRepo,
 }));
-vi.mock('./audit.service', () => ({ auditLog: auditLogFn }));
+vi.mock('@/modules/audit/backend/services/audit.service', () => ({ auditLog: auditLogFn }));
 vi.mock('./risks.service', () => ({
   createRisk: createRiskFn,
   updateRisk: updateRiskFn,

@@ -20,7 +20,7 @@ import {
   parseSignedNonZeroVnd,
 } from '@/lib/fiscal/vnd';
 import { assertProjectAccess, assertProjectWriteAccess, type AccessActor } from './access';
-import { auditLog } from './audit.service';
+import { auditLog } from '@/modules/audit/backend/services/audit.service';
 import { ConflictError, NotFoundError, ValidationError } from './errors';
 
 function isUniqueViolation(err: unknown): boolean {

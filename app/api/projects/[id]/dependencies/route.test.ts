@@ -31,7 +31,7 @@ vi.mock('@/lib/repositories/project-dependencies.repo', () => ({
   getDependencyInFromProject: getDependencyInFromProjectRepo,
   softEndDependency: softEndDependencyRepo,
 }));
-vi.mock('@/lib/services/audit.service', () => ({ auditLog: auditLogFn }));
+vi.mock('@/modules/audit/backend/services/audit.service', () => ({ auditLog: auditLogFn }));
 
 import { getSessionFromRequest } from '@/lib/auth';
 import { GET, PATCH, POST } from './route';

@@ -42,7 +42,7 @@ vi.mock('@/lib/repositories/pm-assignments.repo', () => ({
   softEndActivePrimary: vi.fn(),
 }));
 vi.mock('@/lib/repositories/users.repo', () => ({ findUserById }));
-vi.mock('@/lib/services/audit.service', () => ({ auditLog: auditLogFn }));
+vi.mock('@/modules/audit/backend/services/audit.service', () => ({ auditLog: auditLogFn }));
 
 import { getSessionFromRequest } from '@/lib/auth';
 import { GET, POST } from './route';

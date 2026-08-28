@@ -31,7 +31,7 @@ vi.mock('@/lib/repositories/stakeholders.repo', () => ({
   getStakeholder: getStakeholderRepo,
 }));
 vi.mock('@/lib/repositories/users.repo', () => ({ findUserById }));
-vi.mock('@/lib/services/audit.service', () => ({ auditLog: auditLogFn }));
+vi.mock('@/modules/audit/backend/services/audit.service', () => ({ auditLog: auditLogFn }));
 
 import {
   createProjectStakeholder,

@@ -27,7 +27,7 @@ const {
 }));
 
 vi.mock('@/lib/services/access', () => ({ assertProjectAccess, assertProjectWriteAccess }));
-vi.mock('@/lib/services/audit.service', () => ({ auditLog }));
+vi.mock('@/modules/audit/backend/services/audit.service', () => ({ auditLog }));
 vi.mock('@/lib/repositories/milestones.repo', () => ({
   listMilestones: listMilestonesRepo,
   createMilestone: createMilestoneRepo,

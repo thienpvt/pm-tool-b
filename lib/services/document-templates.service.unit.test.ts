@@ -40,7 +40,7 @@ vi.mock('@/lib/repositories/document-templates.repo', () => ({
   getMaxVersion,
 }));
 
-vi.mock('./audit.service', () => ({ auditLog }));
+vi.mock('@/modules/audit/backend/services/audit.service', () => ({ auditLog }));
 
 import {
   createTemplateVersion,

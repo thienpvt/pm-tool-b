@@ -43,7 +43,7 @@ vi.mock('@/lib/export/consolidated-weekly', () => ({
 vi.mock('@/lib/repositories/weekly-export.repo', () => ({
   insertWeeklyExportLog: insertWeeklyExportLogRepo,
 }));
-vi.mock('./audit.service', () => ({
+vi.mock('@/modules/audit/backend/services/audit.service', () => ({
   auditLog: auditLogService,
 }));
 

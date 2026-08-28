@@ -11,7 +11,7 @@ import {
 } from '@/lib/repositories/project-document-checklist.repo';
 import type { AccessActor } from './access';
 import { assertProjectAccess, assertProjectWriteAccess } from './access';
-import { auditLog } from './audit.service';
+import { auditLog } from '@/modules/audit/backend/services/audit.service';
 import { NotFoundError } from './errors';
 
 function buildUpdateFields(

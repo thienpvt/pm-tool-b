@@ -48,7 +48,7 @@ vi.mock('@/lib/services/raid-masters.service', () => ({
   listTechnologyCouncilIssues,
   listUpcomingMilestones,
 }));
-vi.mock('@/lib/services/audit.service', () => ({ auditLog: auditLogFn }));
+vi.mock('@/modules/audit/backend/services/audit.service', () => ({ auditLog: auditLogFn }));
 vi.mock('@/lib/repositories/weekly-periods.repo', () => ({ listWeeklyPeriods }));
 vi.mock('@/lib/repositories/weekly-reports.repo', () => ({ listPeriodShellsRepo }));
 vi.mock('@/lib/services/weekly-reports.service', () => ({ isWeeklyReportOverdue }));

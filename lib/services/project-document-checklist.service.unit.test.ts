@@ -27,7 +27,7 @@ vi.mock('@/lib/repositories/project-document-checklist.repo', () => ({
   updateChecklistItem: updateChecklistItemRepo,
 }));
 
-vi.mock('./audit.service', () => ({ auditLog }));
+vi.mock('@/modules/audit/backend/services/audit.service', () => ({ auditLog }));
 
 import {
   listProjectDocumentChecklist,

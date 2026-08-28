@@ -34,7 +34,7 @@ vi.mock('@/lib/repositories/document-catalog.repo', () => ({
   updateDocumentCatalog: updateDocumentCatalogRepo,
 }));
 
-vi.mock('./audit.service', () => ({ auditLog }));
+vi.mock('@/modules/audit/backend/services/audit.service', () => ({ auditLog }));
 
 vi.mock('@/lib/repositories/projects.repo', () => ({ listProjects }));
 

@@ -22,7 +22,7 @@ const {
 }));
 
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
-vi.mock('@/lib/services/audit.service', () => ({ auditLog: vi.fn().mockResolvedValue(undefined) }));
+vi.mock('@/modules/audit/backend/services/audit.service', () => ({ auditLog: vi.fn().mockResolvedValue(undefined) }));
 vi.mock('@/lib/repositories/projects.repo', () => ({
   projectAccessRow,
   getProject: getProjectRepo,

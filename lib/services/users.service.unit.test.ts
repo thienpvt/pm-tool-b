@@ -43,7 +43,7 @@ vi.mock('@/lib/repositories/users.repo', () => ({
   deactivateUserRow,
   deleteSessionsForUser,
 }));
-vi.mock('@/lib/services/audit.service', () => ({ auditLog: auditLogFn }));
+vi.mock('@/modules/audit/backend/services/audit.service', () => ({ auditLog: auditLogFn }));
 vi.mock('@/lib/auth', () => ({ hashPassword: vi.fn((p: string) => `hashed:${p}`) }));
 
 import { createUser, listUsers, updateUser, lockUser, unlockUser, deactivateUser } from './users.service';

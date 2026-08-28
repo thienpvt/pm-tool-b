@@ -8,7 +8,7 @@ import {
 } from '@/lib/repositories/stakeholders.repo';
 import { findUserById } from '@/lib/repositories/users.repo';
 import { assertProjectAccess, assertProjectWriteAccess, type AccessActor } from './access';
-import { auditLog } from './audit.service';
+import { auditLog } from '@/modules/audit/backend/services/audit.service';
 import { NotFoundError, ValidationError } from './errors';
 
 type StakeholderRow = {

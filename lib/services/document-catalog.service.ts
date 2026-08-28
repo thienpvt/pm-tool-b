@@ -8,7 +8,7 @@ import { insertChecklistRowIfMissing } from '@/lib/repositories/project-document
 import { listProjects } from '@/lib/repositories/projects.repo';
 import type { AccessActor } from './access';
 import { assertCompanyWrite, hasRole } from './access';
-import { auditLog } from './audit.service';
+import { auditLog } from '@/modules/audit/backend/services/audit.service';
 import { ForbiddenError, NotFoundError, ValidationError } from './errors';
 
 const VALID_STAGES = new Set(['L0', 'L1', 'L2', 'L3', 'L4', 'L5', 'ALL']);

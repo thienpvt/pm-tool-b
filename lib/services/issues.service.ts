@@ -8,7 +8,7 @@ import {
 } from '@/lib/repositories/issues.repo';
 import { appendDueDateHistory } from '@/lib/repositories/raid-due-date-history.repo';
 import { assertProjectAccess, assertProjectWriteAccess, type AccessActor } from './access';
-import { auditLog } from './audit.service';
+import { auditLog } from '@/modules/audit/backend/services/audit.service';
 import { ConflictError, NotFoundError } from './errors';
 
 type IssueRow = {

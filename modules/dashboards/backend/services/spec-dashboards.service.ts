@@ -23,7 +23,7 @@ import {
 } from '@/lib/services/raid-masters.service';
 import { isWeeklyReportOverdue } from '@/lib/services/weekly-reports.service';
 import { assertCompanyWrite, hasRole, type AccessActor } from '@/lib/services/access';
-import { auditLog } from '@/lib/services/audit.service';
+import { auditLog } from '@/modules/audit/backend/services/audit.service';
 import { ForbiddenError } from '@/lib/services/errors';
 
 export type PortfolioDashboardListRow = {
