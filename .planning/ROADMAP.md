@@ -57,7 +57,7 @@ Phase artifacts: [.planning/milestones/v2.0-phases/](milestones/v2.0-phases/)
 - [x] **Phase 20: API Contract & Leftover Routes** - JSON 401, Jira hygiene, wrapper CI gate, ops/admin/config through services (completed 2026-08-28)
 - [x] **Phase 21: Portfolio & PM Dashboard Pages** - CPMO and assigned-PM dashboards in module UI, with the fiscal-KPI call (completed 2026-08-28)
 - [x] **Phase 22: Weekly Workflow Surfaces** - Periods, PM submit/correct, CPMO tracking/export; tracking grid virtualized (completed 2026-08-28)
-- [ ] **Phase 23: Document Checklist & Audit Viewer** - Catalog, Confluence checklist, compliance, company-scoped audit UI
+- [x] **Phase 23: Document Checklist & Audit Viewer** - Catalog, Confluence checklist, compliance, company-scoped audit UI (completed 2026-08-28)
 - [ ] **Phase 24: Repo-wide Module Split** - Every remaining feature area in `modules/<feature>/{backend,ui}` with thin `app/` re-exports
 - [ ] **Phase 25: Kysely Repositories** - Repositories query through Kysely on the existing pool
 - [ ] **Phase 26: RSC Chrome & Cold Start** - Server Component chrome on v2 pages; measured post-migrate cold-start budget
@@ -192,7 +192,7 @@ Plans:
   3. CPMO can view document compliance in the UI
   4. CPMO can view the company-scoped audit log in the UI with filters and before/after snapshots
 
-**Plans:** 5/5 plans executed
+**Plans:** 5/5 plans complete
 **UI hint**: yes
 
 Plans:
@@ -274,7 +274,7 @@ v1.0 Phases 1–8 and v2.0 Phases 9–18 are complete (see milestone archives ab
 | 20. API Contract & Leftover Routes | 7/7 | Complete    | 2026-08-28 |
 | 21. Portfolio & PM Dashboard Pages | 4/4 | Complete    | 2026-08-28 |
 | 22. Weekly Workflow Surfaces | 5/5 | Complete    | 2026-08-28 |
-| 23. Document Checklist & Audit Viewer | 5/5 | In Progress|  |
+| 23. Document Checklist & Audit Viewer | 5/5 | Complete    | 2026-08-28 |
 | 24. Repo-wide Module Split | 0/TBD | Not started | - |
 | 25. Kysely Repositories | 0/TBD | Not started | - |
 | 26. RSC Chrome & Cold Start | 0/TBD | Not started | - |

@@ -2,17 +2,17 @@
 gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: Hardening & Deferred Debt
-current_phase: 23
-current_phase_name: Document Checklist & Audit Viewer
-status: verifying
-stopped_at: Completed 23-05-PLAN.md
-last_updated: "2026-08-28T11:38:19.425Z"
+current_phase: 24
+current_phase_name: Repo-wide Module Split
+status: planning
+stopped_at: Phase 23 complete, ready to plan Phase 24
+last_updated: "2026-08-28T11:55:08.209Z"
 last_activity: 2026-08-28
-last_activity_desc: Phase 23 execution started
-state_head: 77e8105272137f3203dab0174626a5c6b06115e7
+last_activity_desc: Phase 23 complete, transitioned to Phase 24
+state_head: 1b0a5e19357d426d5eb383519251f28270fc6dd0
 progress:
   total_phases: 9
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 25
   completed_plans: 25
 ---
@@ -24,14 +24,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-28)
 
 **Core value:** One source of truth for projects, milestones, RAID, and weekly reports — role- and project-scoped — so CPMO and PMs act on highlights, nearest milestones, open risks/issues, and items that need leadership support.
-**Current focus:** Phase 23 — Document Checklist & Audit Viewer
+**Current focus:** Phase 24 — Repo-wide Module Split
 
 ## Current Position
 
-Phase: 23 (Document Checklist & Audit Viewer) — EXECUTING
-Plan: 5 of 5
-Status: Phase complete — ready for verification
-Last activity: 2026-08-28 — Phase 23 execution started
+Phase: 24 — Repo-wide Module Split
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-08-28 — Phase 23 complete, transitioned to Phase 24
 
 Progress: [██░░░░░░░░] 25%
 
@@ -267,7 +267,7 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-08-28T11:38:18.807Z
-Stopped at: Completed 23-05-PLAN.md
+Stopped at: Phase 23 complete, ready to plan Phase 24
 Resume file: None
 
 ## Operator Next Steps
