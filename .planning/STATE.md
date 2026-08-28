@@ -4,17 +4,17 @@ milestone: v2.1
 milestone_name: Hardening & Deferred Debt
 current_phase: 21
 current_phase_name: Portfolio & PM Dashboard Pages
-status: planning
-stopped_at: Phase 20 complete, ready to plan Phase 21
-last_updated: "2026-08-28T07:59:44.548Z"
+status: executing
+stopped_at: Completed 21-01-PLAN.md
+last_updated: "2026-08-28T08:40:37.847Z"
 last_activity: 2026-08-28
-last_activity_desc: Phase 20 complete, transitioned to Phase 21
-state_head: 06265e43cf9ae473fdb4af7636c06b2a1753df5c
+last_activity_desc: Phase 21 execution started
+state_head: 2187e0e1ea0a995cb6ec1eecab1876a05ff279a5
 progress:
   total_phases: 9
   completed_phases: 2
-  total_plans: 11
-  completed_plans: 11
+  total_plans: 15
+  completed_plans: 12
 ---
 
 # Project State
@@ -28,10 +28,10 @@ See: .planning/PROJECT.md (updated 2026-08-28)
 
 ## Current Position
 
-Phase: 21 — Portfolio & PM Dashboard Pages
-Plan: Not started
-Status: Ready to plan
-Last activity: 2026-08-28 — Phase 20 complete, transitioned to Phase 21
+Phase: 21 (Portfolio & PM Dashboard Pages) — EXECUTING
+Plan: 2 of 4
+Status: Ready to execute
+Last activity: 2026-08-28 — Phase 21 execution started
 
 Progress: [██░░░░░░░░] 25%
 
@@ -106,6 +106,7 @@ Progress: [██░░░░░░░░] 25%
 | Phase 20 P06 | 5min | 3 tasks | 8 files |
 | Phase 20-api-contract-leftover-routes P07 | 5min | 3 tasks | 8 files |
 | Phase 20-api-contract-leftover-routes P05 | 3min | 3 tasks | 9 files |
+| Phase 21-portfolio-pm-dashboard-pages P01 | 8min | 3 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -205,6 +206,7 @@ Recent decisions affecting current work:
 - [Phase 20]: D-05 split: settings/jira-config/rag-config as separate domain services (20-07)
 - [Phase 20]: D-06 verify-only: import-mapping family already service-backed — no rewrite (20-07)
 - [Phase 20]: D-23 preserved on nested operations routes: getSessionFromRequest in route; service *ForSystem helpers; no withCpmo
+- [Phase 21]: Phase 21 tracer uses modules/dashboards/ui with thin app re-export; v1 / and /dashboard unchanged
 
 ### Pending Todos
 
@@ -228,8 +230,8 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-08-28T07:38:19.733Z
-Stopped at: Phase 20 complete, ready to plan Phase 21
+Last session: 2026-08-28T08:40:37.550Z
+Stopped at: Completed 21-01-PLAN.md
 Resume file: None
 
 ## Operator Next Steps

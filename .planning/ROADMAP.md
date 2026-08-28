@@ -132,13 +132,13 @@ Plans:
   2. An assigned PM can open a PM dashboard page with weekly, milestone, and RAID action queues and deep links
   3. Fiscal KPIs appear on the portfolio dashboard only if they belong in the spec KPI set; otherwise they stay omitted with that decision recorded
 
-**Plans:** 4 plans
+**Plans:** 1/4 plans executed
 **UI hint**: yes
 
 Plans:
 **Wave 1**
 
-- [ ] 21-01-PLAN.md — Vitest glob, tracer Spec dashboard KPIs, Sidebar NAV, NIT-04 omission
+- [x] 21-01-PLAN.md — Vitest glob, tracer Spec dashboard KPIs, Sidebar NAV, NIT-04 omission
 
 **Wave 2** *(blocked on Wave 1)*
 
@@ -244,7 +244,7 @@ v1.0 Phases 1–8 and v2.0 Phases 9–18 are complete (see milestone archives ab
 |-------|----------------|--------|-----------|
 | 19. Data Layer Cutover | 4/4 | Complete    | 2026-08-28 |
 | 20. API Contract & Leftover Routes | 7/7 | Complete    | 2026-08-28 |
-| 21. Portfolio & PM Dashboard Pages | 0/4 | Not started | - |
+| 21. Portfolio & PM Dashboard Pages | 1/4 | In Progress|  |
 | 22. Weekly Workflow Surfaces | 0/TBD | Not started | - |
 | 23. Document Checklist & Audit Viewer | 0/TBD | Not started | - |
 | 24. Repo-wide Module Split | 0/TBD | Not started | - |
