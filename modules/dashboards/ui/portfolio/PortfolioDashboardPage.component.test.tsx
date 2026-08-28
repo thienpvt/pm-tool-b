@@ -576,4 +576,47 @@ describe('PortfolioDashboardPage', () => {
     });
     expect(screen.queryByTestId('spec-kpi-row')).not.toBeInTheDocument();
   });
+
+  it('shows load failed copy when fetch rejects (network error)', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) => {
+        if (url === '/api/dashboards/portfolio') {
+          return Promise.reject(new Error('network'));
+        }
+        return Promise.reject(new Error(`unexpected fetch: ${url}`));
+      }) as unknown as typeof fetch,
+    );
+
+    render(<PortfolioDashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Couldn't load the dashboard. Try again.")).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId('spec-kpi-row')).not.toBeInTheDocument();
+  });
+
+  it('shows filter summary subtitle with project count', async () => {
+    render(<PortfolioDashboardPage />);
+    resolvePortfolio!(portfolioFixture);
+
+    await waitFor(() => {
+      expect(screen.getByText('1 project matching filters')).toBeInTheDocument();
+    });
+  });
+
+  it('shows export error toast when export fetch rejects', async () => {
+    setupFetchWithExport(() => Promise.reject(new Error('network')));
+
+    render(<PortfolioDashboardPage />);
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Export Excel' })).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Export Excel' }));
+
+    await waitFor(() => {
+      expect(toastError).toHaveBeenCalledWith('Export failed — try again.');
+    });
+    expect(downloadBlobMock).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Export Excel' })).not.toBeDisabled();
+  });
 });

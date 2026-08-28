@@ -370,6 +370,25 @@ describe('PmDashboardPage', () => {
     });
   });
 
+  it('shows load failed copy when fetch rejects (network error)', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) => {
+        if (url === '/api/dashboards/pm') {
+          return Promise.reject(new Error('network'));
+        }
+        return Promise.reject(new Error(`unexpected fetch: ${url}`));
+      }) as unknown as typeof fetch,
+    );
+
+    render(<PmDashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Couldn't load the dashboard. Try again.")).toBeInTheDocument();
+    });
+    expect(screen.queryByText('Weekly reports')).not.toBeInTheDocument();
+  });
+
   it('renders mixed weekly statuses with status badges', async () => {
     render(<PmDashboardPage />);
     resolvePm!(pmFixture);

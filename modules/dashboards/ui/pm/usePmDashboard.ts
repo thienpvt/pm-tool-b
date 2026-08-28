@@ -38,6 +38,9 @@ export function usePmDashboard() {
       }
       setData(await res.json());
       setError(null);
+    } catch {
+      setError('load_failed');
+      setData(null);
     } finally {
       if (isRefresh) {
         setRefreshing(false);

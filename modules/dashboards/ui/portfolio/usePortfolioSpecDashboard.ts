@@ -41,6 +41,9 @@ export function usePortfolioSpecDashboard() {
       }
       setData(await res.json());
       setError(null);
+    } catch {
+      setError('load_failed');
+      setData(null);
     } finally {
       if (isRefresh) {
         setRefreshing(false);
@@ -97,6 +100,8 @@ export function usePortfolioSpecDashboard() {
       const blob = await res.blob();
       downloadBlob(blob, PORTFOLIO_EXPORT_FILENAME[format]);
       toast.success('Export downloaded');
+    } catch {
+      toast.error('Export failed — try again.');
     } finally {
       setExporting(false);
     }
