@@ -38,7 +38,7 @@ vi.mock('@/lib/repositories/projects.repo', () => ({
   getProject: getProjectRepo,
 }));
 vi.mock('@/lib/repositories/pm-assignments.repo', () => ({ hasActivePmAssignment }));
-vi.mock('@/lib/repositories/weekly-reports.repo', () => ({
+vi.mock('@/modules/weekly/backend/repositories/weekly-reports.repo', () => ({
   listProjectWeeklyHistoryRepo,
   getWeeklyReportFullRow,
   getWeeklyReportWithPeriod,
@@ -52,10 +52,10 @@ vi.mock('@/lib/repositories/weekly-reports.repo', () => ({
 }));
 
 import { getSessionFromRequest } from '@/lib/auth';
-import { GET } from './route';
-import { PATCH } from './[reportId]/route';
-import { POST as submitPost } from './[reportId]/submit/route';
-import { POST as correctPost } from './[reportId]/correct/route';
+import { GET } from '@/app/api/projects/[id]/weekly-reports/route';
+import { PATCH } from '@/app/api/projects/[id]/weekly-reports/[reportId]/route';
+import { POST as submitPost } from '@/app/api/projects/[id]/weekly-reports/[reportId]/submit/route';
+import { POST as correctPost } from '@/app/api/projects/[id]/weekly-reports/[reportId]/correct/route';
 
 const baseShell = {
   id: 10,

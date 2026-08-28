@@ -1,12 +1,7 @@
-import { NextResponse } from 'next/server';
 import { withProjectAccess } from '@/lib/http/with-project-access';
-import { submitWeeklyReport } from '@/modules/weekly/backend/services/weekly-reports.service';
+import { submitWeeklyReportHandler } from '@/modules/weekly/backend/routes/projects/[id]/weekly-reports/[reportId]/submit/handlers';
 
-export const POST = withProjectAccess<{ id: string; reportId: string }>(
-  async (_req, { params, actor }) =>
-    NextResponse.json(
-      await submitWeeklyReport(params.id, params.reportId, actor),
-      { status: 201 },
-    ),
+export const POST = withProjectAccess(
+  submitWeeklyReportHandler,
   { rawBody: true },
 );

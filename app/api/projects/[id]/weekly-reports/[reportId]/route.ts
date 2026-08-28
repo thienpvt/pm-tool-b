@@ -1,27 +1,13 @@
-import { NextResponse } from 'next/server';
 import { withProjectAccess } from '@/lib/http/with-project-access';
 import {
-  getWeeklyReportShell,
-  saveWeeklyReportDraft,
-} from '@/modules/weekly/backend/services/weekly-reports.service';
-import { weeklyReportDraftSchema } from './schema';
+  getWeeklyReportHandler,
+  patchWeeklyReportHandler,
+} from '@/modules/weekly/backend/routes/projects/[id]/weekly-reports/[reportId]/handlers';
+import { weeklyReportDraftSchema } from '@/modules/weekly/backend/routes/projects/[id]/weekly-reports/[reportId]/schema';
 
-export const GET = withProjectAccess<{ id: string; reportId: string }>(
-  async (_req, { params, actor }) =>
-    NextResponse.json(
-      await getWeeklyReportShell(params.id, actor, params.reportId),
-    ),
-);
+export const GET = withProjectAccess(getWeeklyReportHandler);
 
-export const PATCH = withProjectAccess<{ id: string; reportId: string }>(
-  async (_req, { params, actor, body }) =>
-    NextResponse.json(
-      await saveWeeklyReportDraft(
-        params.id,
-        params.reportId,
-        actor,
-        body as Record<string, unknown>,
-      ),
-    ),
+export const PATCH = withProjectAccess(
+  patchWeeklyReportHandler,
   { schema: weeklyReportDraftSchema },
 );

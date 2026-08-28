@@ -24,7 +24,7 @@ const {
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
 vi.mock('@/lib/repositories/projects.repo', () => ({ projectAccessRow }));
 vi.mock('@/lib/repositories/pm-assignments.repo', () => ({ hasActivePmAssignment }));
-vi.mock('@/lib/repositories/weekly-reports.repo', () => ({
+vi.mock('@/modules/weekly/backend/repositories/weekly-reports.repo', () => ({
   getWeeklyReportFullRow,
   getLatestVersionSnapshot,
   openCorrectionOnShell,
@@ -34,7 +34,7 @@ vi.mock('@/lib/repositories/weekly-reports.repo', () => ({
 }));
 
 import { getSessionFromRequest } from '@/lib/auth';
-import { POST } from './route';
+import { POST } from '@/app/api/projects/[id]/weekly-reports/[reportId]/correct/route';
 
 describe('POST /api/projects/[id]/weekly-reports/[reportId]/correct', () => {
   beforeEach(() => {

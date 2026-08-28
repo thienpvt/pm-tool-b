@@ -1,17 +1,8 @@
-import { NextResponse } from 'next/server';
 import { withProjectAccess } from '@/lib/http/with-project-access';
-import { openWeeklyReportCorrection } from '@/modules/weekly/backend/services/weekly-reports.service';
-import { weeklyReportCorrectionSchema } from '../schema';
+import { correctWeeklyReportHandler } from '@/modules/weekly/backend/routes/projects/[id]/weekly-reports/[reportId]/correct/handlers';
+import { weeklyReportCorrectionSchema } from '@/modules/weekly/backend/routes/projects/[id]/weekly-reports/[reportId]/schema';
 
-export const POST = withProjectAccess<{ id: string; reportId: string }>(
-  async (_req, { params, actor, body }) =>
-    NextResponse.json(
-      await openWeeklyReportCorrection(
-        params.id,
-        params.reportId,
-        actor,
-        (body ?? {}) as Record<string, unknown>,
-      ),
-    ),
+export const POST = withProjectAccess(
+  correctWeeklyReportHandler,
   { schema: weeklyReportCorrectionSchema },
 );

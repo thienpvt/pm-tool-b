@@ -28,7 +28,7 @@ vi.mock('@/lib/repositories/projects.repo', () => ({
   getProject: getProjectRepo,
 }));
 vi.mock('@/lib/repositories/pm-assignments.repo', () => ({ hasActivePmAssignment }));
-vi.mock('@/lib/repositories/weekly-reports.repo', () => ({
+vi.mock('@/modules/weekly/backend/repositories/weekly-reports.repo', () => ({
   getWeeklyReportWithPeriod,
   getWeeklyReportFullRow,
   updateWeeklyReportDraft,
@@ -38,7 +38,7 @@ vi.mock('@/lib/repositories/weekly-reports.repo', () => ({
 }));
 
 import { getSessionFromRequest } from '@/lib/auth';
-import { GET, PATCH } from './route';
+import { GET, PATCH } from '@/app/api/projects/[id]/weekly-reports/[reportId]/route';
 
 describe('GET/PATCH /api/projects/[id]/weekly-reports/[reportId]', () => {
   beforeEach(() => {

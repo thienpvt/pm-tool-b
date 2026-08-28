@@ -33,7 +33,7 @@ vi.mock('@/lib/repositories/risks.repo', () => ({ getRisk: getRiskRepo }));
 vi.mock('@/lib/db', () => ({
   runInTransaction: async (fn: (client: unknown) => Promise<unknown>) => fn({}),
 }));
-vi.mock('@/lib/repositories/weekly-reports.repo', () => ({
+vi.mock('@/modules/weekly/backend/repositories/weekly-reports.repo', () => ({
   getWeeklyReportWithPeriod,
   insertWeeklyReportVersion,
   lockWeeklyReportShell,
@@ -43,7 +43,7 @@ vi.mock('@/lib/repositories/weekly-reports.repo', () => ({
 }));
 
 import { getSessionFromRequest } from '@/lib/auth';
-import { POST } from './route';
+import { POST } from '@/app/api/projects/[id]/weekly-reports/[reportId]/submit/route';
 
 describe('POST /api/projects/[id]/weekly-reports/[reportId]/submit', () => {
   beforeEach(() => {

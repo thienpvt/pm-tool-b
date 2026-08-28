@@ -9,7 +9,7 @@ vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
 vi.mock('@/lib/repositories/projects.repo', () => ({ projectAccessRow }));
 
 import { getSessionFromRequest } from '@/lib/auth';
-import { POST } from './route';
+import { POST } from '@/app/api/export/weekly-report/[id]/route';
 
 describe('POST /api/export/weekly-report/[id]', () => {
   beforeEach(() => {

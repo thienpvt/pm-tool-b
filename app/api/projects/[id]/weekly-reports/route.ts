@@ -1,7 +1,4 @@
-import { NextResponse } from 'next/server';
 import { withProjectAccess } from '@/lib/http/with-project-access';
-import { listProjectWeeklyHistory } from '@/modules/weekly/backend/services/weekly-reports.service';
+import { getProjectWeeklyReportsHandler } from '@/modules/weekly/backend/routes/projects/[id]/weekly-reports/handlers';
 
-export const GET = withProjectAccess(async (_req, { params, actor }) =>
-  NextResponse.json(await listProjectWeeklyHistory(params.id, actor)),
-);
+export const GET = withProjectAccess(getProjectWeeklyReportsHandler);

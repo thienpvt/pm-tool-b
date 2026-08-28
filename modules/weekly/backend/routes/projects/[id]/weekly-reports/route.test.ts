@@ -14,12 +14,12 @@ const {
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
 vi.mock('@/lib/repositories/projects.repo', () => ({ projectAccessRow }));
 vi.mock('@/lib/repositories/pm-assignments.repo', () => ({ hasActivePmAssignment }));
-vi.mock('@/lib/repositories/weekly-reports.repo', () => ({
+vi.mock('@/modules/weekly/backend/repositories/weekly-reports.repo', () => ({
   listProjectWeeklyHistoryRepo,
 }));
 
 import { getSessionFromRequest } from '@/lib/auth';
-import { GET } from './route';
+import { GET } from '@/app/api/projects/[id]/weekly-reports/route';
 
 describe('GET /api/projects/[id]/weekly-reports', () => {
   beforeEach(() => {
