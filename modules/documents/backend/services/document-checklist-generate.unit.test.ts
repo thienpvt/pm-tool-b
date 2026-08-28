@@ -12,11 +12,11 @@ const {
   insertChecklistRowIfMissing: vi.fn(),
 }));
 
-vi.mock('@/lib/repositories/document-catalog.repo', () => ({
+vi.mock('@/modules/documents/backend/repositories/document-catalog.repo', () => ({
   listActiveCatalogForStage,
 }));
 
-vi.mock('@/lib/repositories/project-document-checklist.repo', () => ({
+vi.mock('@/modules/documents/backend/repositories/project-document-checklist.repo', () => ({
   listChecklistCatalogIds,
   insertChecklistRowIfMissing,
 }));

@@ -6,7 +6,7 @@ import {
   listProjects as listProjectsRepo,
   updateProject as updateProjectRepo,
 } from '@/lib/repositories/projects.repo';
-import { listChecklistByProject } from '@/lib/repositories/project-document-checklist.repo';
+import { listChecklistByProject } from '@/modules/documents/backend/repositories/project-document-checklist.repo';
 import { getProgram } from '@/lib/repositories/programs.repo';
 import {
   assertProjectAccess,
@@ -16,7 +16,7 @@ import {
   type AccessActor,
 } from './access';
 import { auditLog } from '@/modules/audit/backend/services/audit.service';
-import { generateProjectChecklist } from './document-checklist-generate';
+import { generateProjectChecklist } from '@/modules/documents/backend/services/document-checklist-generate';
 import {
   ConflictError,
   ForbiddenError,

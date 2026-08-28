@@ -16,12 +16,12 @@ const {
   auditLog: vi.fn(),
 }));
 
-vi.mock('./access', () => ({
+vi.mock('@/lib/services/access', () => ({
   assertProjectAccess,
   assertProjectWriteAccess,
 }));
 
-vi.mock('@/lib/repositories/project-document-checklist.repo', () => ({
+vi.mock('@/modules/documents/backend/repositories/project-document-checklist.repo', () => ({
   listChecklistByProject,
   getChecklistItem: getChecklistItemRepo,
   updateChecklistItem: updateChecklistItemRepo,
@@ -34,7 +34,7 @@ import {
   getChecklistItem,
   patchChecklistItem,
 } from './project-document-checklist.service';
-import { ForbiddenError, NotFoundError, ValidationError } from './errors';
+import { ForbiddenError, NotFoundError, ValidationError } from '@/lib/services/errors';
 
 beforeEach(() => vi.clearAllMocks());
 

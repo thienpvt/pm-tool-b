@@ -4,10 +4,10 @@ import {
   type DashboardFilters,
   type FilterableProjectRow,
 } from '@/lib/dashboards/filters';
-import { listChecklistByProject } from '@/lib/repositories/project-document-checklist.repo';
+import { listChecklistByProject } from '@/modules/documents/backend/repositories/project-document-checklist.repo';
 import { listProjects } from '@/lib/repositories/projects.repo';
-import { assertCompanyWrite, type AccessActor } from './access';
-import { ValidationError } from './errors';
+import { assertCompanyWrite, type AccessActor } from '@/lib/services/access';
+import { ValidationError } from '@/lib/services/errors';
 
 export const COMPLIANCE_FILTER_KEYS = ['stage', 'status', 'rag', 'program'] as const;
 export type ComplianceFilterKey = (typeof COMPLIANCE_FILTER_KEYS)[number];

@@ -12,7 +12,7 @@ vi.mock('@/lib/services/access', () => ({
 vi.mock('@/lib/repositories/projects.repo', () => ({
   listProjects: listProjectsRepoFn,
 }));
-vi.mock('@/lib/repositories/project-document-checklist.repo', () => ({
+vi.mock('@/modules/documents/backend/repositories/project-document-checklist.repo', () => ({
   listChecklistByProject: listChecklistByProjectFn,
 }));
 

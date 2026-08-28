@@ -19,7 +19,7 @@ vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
 vi.mock('@/modules/audit/backend/services/audit.service', () => ({ auditLog: vi.fn().mockResolvedValue(undefined) }));
 vi.mock('@/lib/repositories/projects.repo', () => ({ projectAccessRow }));
 vi.mock('@/lib/repositories/pm-assignments.repo', () => ({ hasActivePmAssignment }));
-vi.mock('@/lib/repositories/project-document-checklist.repo', () => ({
+vi.mock('@/modules/documents/backend/repositories/project-document-checklist.repo', () => ({
   getChecklistItem: getChecklistItemRepo,
   updateChecklistItem: updateChecklistItemRepo,
   listChecklistByProject,

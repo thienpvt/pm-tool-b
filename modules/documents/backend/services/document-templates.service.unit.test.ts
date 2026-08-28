@@ -22,16 +22,16 @@ const {
   auditLog: vi.fn(),
 }));
 
-vi.mock('./access', () => ({
+vi.mock('@/lib/services/access', () => ({
   assertCompanyWrite,
   hasRole: (actor: { roles: string[] }, role: string) => actor.roles.includes(role),
 }));
 
-vi.mock('@/lib/repositories/document-catalog.repo', () => ({
+vi.mock('@/modules/documents/backend/repositories/document-catalog.repo', () => ({
   getDocumentCatalog,
 }));
 
-vi.mock('@/lib/repositories/document-templates.repo', () => ({
+vi.mock('@/modules/documents/backend/repositories/document-templates.repo', () => ({
   retireCurrentTemplate,
   insertDocumentTemplate,
   getDocumentTemplate,
@@ -48,7 +48,7 @@ import {
   listEffectiveTemplates,
   retireTemplate,
 } from './document-templates.service';
-import { ForbiddenError, NotFoundError } from './errors';
+import { ForbiddenError, NotFoundError } from '@/lib/services/errors';
 
 beforeEach(() => vi.clearAllMocks());
 

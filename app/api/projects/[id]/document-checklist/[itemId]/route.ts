@@ -4,7 +4,7 @@ import { withProjectAccess } from '@/lib/http/with-project-access';
 import {
   getChecklistItem,
   patchChecklistItem,
-} from '@/lib/services/project-document-checklist.service';
+} from '@/modules/documents/backend/services/project-document-checklist.service';
 
 const checklistPatchSchema = z
   .object({

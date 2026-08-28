@@ -14,7 +14,7 @@ const {
 }));
 
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
-vi.mock('@/lib/services/document-templates.service', () => ({
+vi.mock('@/modules/documents/backend/services/document-templates.service', () => ({
   createTemplateVersion,
   listEffectiveTemplates,
   getTemplate,

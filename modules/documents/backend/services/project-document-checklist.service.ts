@@ -8,11 +8,11 @@ import {
   getChecklistItem as getChecklistItemRepo,
   listChecklistByProject,
   updateChecklistItem as updateChecklistItemRepo,
-} from '@/lib/repositories/project-document-checklist.repo';
-import type { AccessActor } from './access';
-import { assertProjectAccess, assertProjectWriteAccess } from './access';
+} from '@/modules/documents/backend/repositories/project-document-checklist.repo';
+import type { AccessActor } from '@/lib/services/access';
+import { assertProjectAccess, assertProjectWriteAccess } from '@/lib/services/access';
 import { auditLog } from '@/modules/audit/backend/services/audit.service';
-import { NotFoundError } from './errors';
+import { NotFoundError } from '@/lib/services/errors';
 
 function buildUpdateFields(
   body: Record<string, unknown>,

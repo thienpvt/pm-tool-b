@@ -7,7 +7,7 @@ const { getDocumentCatalogItem, updateDocumentCatalogItem } = vi.hoisted(() => (
 }));
 
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
-vi.mock('@/lib/services/document-catalog.service', () => ({
+vi.mock('@/modules/documents/backend/services/document-catalog.service', () => ({
   getDocumentCatalogItem,
   updateDocumentCatalogItem,
 }));

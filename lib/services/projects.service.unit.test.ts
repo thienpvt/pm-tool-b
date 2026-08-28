@@ -48,10 +48,10 @@ vi.mock('@/lib/repositories/programs.repo', () => ({
 vi.mock('@/modules/audit/backend/services/audit.service', () => ({
   auditLog: auditLogFn,
 }));
-vi.mock('@/lib/services/document-checklist-generate', () => ({
+vi.mock('@/modules/documents/backend/services/document-checklist-generate', () => ({
   generateProjectChecklist: generateProjectChecklistFn,
 }));
-vi.mock('@/lib/repositories/project-document-checklist.repo', () => ({
+vi.mock('@/modules/documents/backend/repositories/project-document-checklist.repo', () => ({
   listChecklistByProject: listChecklistByProjectFn,
 }));
 

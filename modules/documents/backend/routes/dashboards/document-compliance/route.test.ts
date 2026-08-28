@@ -6,7 +6,7 @@ const { getDocumentComplianceFn } = vi.hoisted(() => ({
 }));
 
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
-vi.mock('@/lib/services/document-compliance.service', () => ({
+vi.mock('@/modules/documents/backend/services/document-compliance.service', () => ({
   getDocumentCompliance: getDocumentComplianceFn,
 }));
 

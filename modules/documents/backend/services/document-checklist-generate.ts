@@ -1,8 +1,8 @@
-import { listActiveCatalogForStage } from '@/lib/repositories/document-catalog.repo';
+import { listActiveCatalogForStage } from '@/modules/documents/backend/repositories/document-catalog.repo';
 import {
   insertChecklistRowIfMissing,
   listChecklistCatalogIds,
-} from '@/lib/repositories/project-document-checklist.repo';
+} from '@/modules/documents/backend/repositories/project-document-checklist.repo';
 
 export async function generateProjectChecklist(
   projectId: number,

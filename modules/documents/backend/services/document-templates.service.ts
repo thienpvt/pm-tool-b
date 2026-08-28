@@ -1,4 +1,4 @@
-import { getDocumentCatalog } from '@/lib/repositories/document-catalog.repo';
+import { getDocumentCatalog } from '@/modules/documents/backend/repositories/document-catalog.repo';
 import {
   getDocumentTemplate,
   getMaxVersion,
@@ -6,13 +6,13 @@ import {
   listEffectiveTemplates as listEffectiveTemplatesRepo,
   retireCurrentTemplate,
   retireTemplateById,
-} from '@/lib/repositories/document-templates.repo';
+} from '@/modules/documents/backend/repositories/document-templates.repo';
 import { parseHttpsUrl } from '@/lib/documents/https-url';
 import { parseIsoDate } from '@/lib/fiscal/iso-date';
-import type { AccessActor } from './access';
-import { assertCompanyWrite, hasRole } from './access';
+import type { AccessActor } from '@/lib/services/access';
+import { assertCompanyWrite, hasRole } from '@/lib/services/access';
 import { auditLog } from '@/modules/audit/backend/services/audit.service';
-import { ForbiddenError, NotFoundError, ValidationError } from './errors';
+import { ForbiddenError, NotFoundError, ValidationError } from '@/lib/services/errors';
 
 function assertTemplateRead(actor: AccessActor): void {
   if (actor.company_id === null) throw new ForbiddenError();
