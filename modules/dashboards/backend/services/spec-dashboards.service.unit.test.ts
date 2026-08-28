@@ -49,8 +49,8 @@ vi.mock('@/lib/services/raid-masters.service', () => ({
   listUpcomingMilestones,
 }));
 vi.mock('@/modules/audit/backend/services/audit.service', () => ({ auditLog: auditLogFn }));
-vi.mock('@/lib/repositories/weekly-periods.repo', () => ({ listWeeklyPeriods }));
-vi.mock('@/lib/repositories/weekly-reports.repo', () => ({ listPeriodShellsRepo }));
+vi.mock('@/modules/weekly/backend/repositories/weekly-periods.repo', () => ({ listWeeklyPeriods }));
+vi.mock('@/modules/weekly/backend/repositories/weekly-reports.repo', () => ({ listPeriodShellsRepo }));
 vi.mock('@/modules/weekly/backend/services/weekly-reports.service', () => ({ isWeeklyReportOverdue }));
 vi.mock('@/lib/export/dashboard-portfolio', () => ({
   generatePortfolioDashboardXlsx: vi.fn(async () => Buffer.from('xlsx')),

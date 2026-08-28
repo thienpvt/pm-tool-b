@@ -3,18 +3,18 @@ import {
   getWeeklyPeriodByCompany,
   listPeriodShellsRepo,
   type PeriodShellListRow,
-} from '@/lib/repositories/weekly-reports.repo';
+} from '@/modules/weekly/backend/repositories/weekly-reports.repo';
 import { listTechnologyCouncilIssues } from '@/lib/repositories/issues.repo';
-import { assertCompanyWrite, type AccessActor } from './access';
-import { isWeeklyReportOverdue } from './weekly-reports.service';
-import { ForbiddenError, NotFoundError, SubmitValidationError } from './errors';
+import { assertCompanyWrite, type AccessActor } from '@/lib/services/access';
+import { isWeeklyReportOverdue } from '@/modules/weekly/backend/services/weekly-reports.service';
+import { ForbiddenError, NotFoundError, SubmitValidationError } from '@/lib/services/errors';
 import {
   generateConsolidatedWeekly,
   sanitizeConsolidatedFilename,
   CONTENT_TYPE_BY_FORMAT,
   type ConsolidatedExportFormat,
 } from '@/lib/export/consolidated-weekly';
-import { insertWeeklyExportLog } from '@/lib/repositories/weekly-export.repo';
+import { insertWeeklyExportLog } from '@/modules/weekly/backend/repositories/weekly-export.repo';
 import { auditLog } from '@/modules/audit/backend/services/audit.service';
 
 export type PeriodTrackingFilters = {

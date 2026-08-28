@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { resolveCurrentPeriod, isDueInUpcomingOrOverdue } from './period-resolver';
-import type { WeeklyPeriodRow } from '@/lib/repositories/weekly-periods.repo';
+import type { WeeklyPeriodRow } from '@/modules/weekly/backend/repositories/weekly-periods.repo';
 
 function period(
   id: number,

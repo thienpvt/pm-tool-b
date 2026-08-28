@@ -6,7 +6,7 @@ const { previewConsolidatedExport } = vi.hoisted(() => ({
 }));
 
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
-vi.mock('@/lib/services/weekly-tracking.service', () => ({ previewConsolidatedExport }));
+vi.mock('@/modules/weekly/backend/services/weekly-tracking.service', () => ({ previewConsolidatedExport }));
 
 import { getSessionFromRequest } from '@/lib/auth';
 import { POST } from './route';

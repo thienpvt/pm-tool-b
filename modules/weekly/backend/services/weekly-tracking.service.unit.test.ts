@@ -23,7 +23,7 @@ const {
 vi.mock('./access', () => ({
   assertCompanyWrite,
 }));
-vi.mock('@/lib/repositories/weekly-reports.repo', () => ({
+vi.mock('@/modules/weekly/backend/repositories/weekly-reports.repo', () => ({
   getWeeklyPeriodByCompany: getWeeklyPeriodByCompanyRepo,
   listPeriodShellsRepo,
   getLatestVersionSnapshot: getLatestVersionSnapshotRepo,
@@ -40,7 +40,7 @@ vi.mock('@/lib/export/consolidated-weekly', () => ({
     pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
   },
 }));
-vi.mock('@/lib/repositories/weekly-export.repo', () => ({
+vi.mock('@/modules/weekly/backend/repositories/weekly-export.repo', () => ({
   insertWeeklyExportLog: insertWeeklyExportLogRepo,
 }));
 vi.mock('@/modules/audit/backend/services/audit.service', () => ({
@@ -54,8 +54,8 @@ import {
   getPeriodTracking,
   previewConsolidatedExport,
 } from './weekly-tracking.service';
-import { ForbiddenError, NotFoundError, SubmitValidationError } from './errors';
-import type { AccessActor } from './access';
+import { ForbiddenError, NotFoundError, SubmitValidationError } from '@/lib/services/errors';
+import type { AccessActor } from '@/lib/services/access';
 
 const cpmoActor: AccessActor = {
   company_id: 5,

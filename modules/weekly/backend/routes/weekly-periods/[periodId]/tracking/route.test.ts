@@ -6,7 +6,7 @@ const { getPeriodTracking } = vi.hoisted(() => ({
 }));
 
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
-vi.mock('@/lib/services/weekly-tracking.service', () => ({ getPeriodTracking }));
+vi.mock('@/modules/weekly/backend/services/weekly-tracking.service', () => ({ getPeriodTracking }));
 
 import { getSessionFromRequest } from '@/lib/auth';
 import { GET } from './route';

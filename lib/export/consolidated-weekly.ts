@@ -14,7 +14,7 @@ import {
   ShadingType,
 } from 'docx';
 import PptxGenJS from 'pptxgenjs';
-import type { ExportPreviewSection } from '@/lib/services/weekly-tracking.service';
+import type { ExportPreviewSection } from '@/modules/weekly/backend/services/weekly-tracking.service';
 
 export type ConsolidatedWeeklyPayload = {
   period: {

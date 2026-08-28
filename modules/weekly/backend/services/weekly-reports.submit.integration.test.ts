@@ -19,8 +19,8 @@ vi.mock('@/lib/services/access', () => ({
 
 vi.mock('@/modules/audit/backend/services/audit.service', () => ({ auditLog: vi.fn() }));
 
-vi.mock('@/lib/repositories/weekly-reports.repo', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/lib/repositories/weekly-reports.repo')>();
+vi.mock('@/modules/weekly/backend/repositories/weekly-reports.repo', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/modules/weekly/backend/repositories/weekly-reports.repo')>();
   return {
     ...actual,
     insertWeeklyReportVersion: vi.fn(async () => {

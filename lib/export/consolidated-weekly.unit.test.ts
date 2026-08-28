@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import ExcelJS from 'exceljs';
 import JSZip from 'jszip';
 import { describe, expect, it } from 'vitest';
-import type { ExportPreviewSection } from '@/lib/services/weekly-tracking.service';
+import type { ExportPreviewSection } from '@/modules/weekly/backend/services/weekly-tracking.service';
 import {
   generateConsolidatedDocx,
   generateConsolidatedPptx,

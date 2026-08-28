@@ -19,7 +19,7 @@ import {
   updatePrevWeekRag,
   updateWeeklyReportDraft,
   type DraftUpdateFields,
-} from '@/lib/repositories/weekly-reports.repo';
+} from '@/modules/weekly/backend/repositories/weekly-reports.repo';
 import { getProject, updateProject } from '@/lib/repositories/projects.repo';
 import { getMilestone } from '@/lib/repositories/milestones.repo';
 import { getRisk } from '@/lib/repositories/risks.repo';

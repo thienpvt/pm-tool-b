@@ -78,7 +78,7 @@ vi.mock('@/modules/weekly/backend/repositories/weekly-periods.repo', () => ({
   createPeriodWithShells: createPeriodWithShellsRepo,
   listWeeklyPeriods: listWeeklyPeriodsRepo,
 }));
-vi.mock('@/lib/repositories/weekly-reports.repo', () => ({
+vi.mock('@/modules/weekly/backend/repositories/weekly-reports.repo', () => ({
   getWeeklyReportFullRow,
   getWeeklyReportWithPeriod,
   updateWeeklyReportDraft,

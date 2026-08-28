@@ -1,4 +1,4 @@
-import type { WeeklyPeriodRow } from '@/lib/repositories/weekly-periods.repo';
+import type { WeeklyPeriodRow } from '@/modules/weekly/backend/repositories/weekly-periods.repo';
 
 function addUtcDays(isoDate: string, days: number): string {
   const d = new Date(`${isoDate}T00:00:00Z`);

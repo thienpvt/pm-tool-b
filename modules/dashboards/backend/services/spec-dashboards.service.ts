@@ -13,8 +13,8 @@ import {
   upsertDashboardFilters,
 } from '@/modules/dashboards/backend/repositories/dashboard-filter-state.repo';
 import { listProjects } from '@/lib/repositories/projects.repo';
-import { listWeeklyPeriods } from '@/lib/repositories/weekly-periods.repo';
-import { listPeriodShellsRepo } from '@/lib/repositories/weekly-reports.repo';
+import { listWeeklyPeriods } from '@/modules/weekly/backend/repositories/weekly-periods.repo';
+import { listPeriodShellsRepo } from '@/modules/weekly/backend/repositories/weekly-reports.repo';
 import {
   listHighOpenRaid,
   listOverdueMilestones,
