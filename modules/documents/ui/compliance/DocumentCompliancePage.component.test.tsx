@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { complianceFixture } from '../shared/documents.fixture';
 import DocumentCompliancePage from './DocumentCompliancePage';
@@ -93,5 +93,69 @@ describe('DocumentCompliancePage', () => {
       expect(screen.getByText("You don't have access to this page.")).toBeInTheDocument();
     });
     expect(screen.queryByRole('heading', { name: 'Document compliance' })).not.toBeInTheDocument();
+  });
+
+  it('Apply filters GETs stage=L2 without portfolio_year', async () => {
+    render(<DocumentCompliancePage />);
+    resolveCompliance!({ filters: {}, projects: complianceFixture.projects });
+
+    await waitFor(() => expect(screen.getByLabelText('Stage')).toBeInTheDocument());
+
+    fireEvent.change(screen.getByLabelText('Stage'), { target: { value: 'L2' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Apply filters' }));
+
+    await waitFor(() => {
+      const applyCall = fetchMock.mock.calls.find(
+        ([url]) =>
+          typeof url === 'string' &&
+          url.startsWith('/api/dashboards/document-compliance') &&
+          url.includes('stage=L2'),
+      );
+      expect(applyCall).toBeTruthy();
+      expect(String(applyCall![0])).not.toContain('portfolio_year');
+    });
+  });
+
+  it('shows filter error toast on 400 apply', async () => {
+    render(<DocumentCompliancePage />);
+    resolveCompliance!({ filters: {}, projects: complianceFixture.projects });
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Apply filters' })).toBeInTheDocument());
+
+    fetchMock.mockImplementation((url: string) => {
+      if (typeof url === 'string' && url.startsWith('/api/dashboards/document-compliance')) {
+        if (url.includes('stage=L2')) {
+          return Promise.resolve({ ok: false, status: 400, json: () => Promise.resolve({ error: 'bad' }) });
+        }
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({ filters: {}, projects: complianceFixture.projects }),
+        });
+      }
+      if (url === '/api/programs') {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) });
+      }
+      return Promise.reject(new Error(`unexpected fetch: ${url}`));
+    });
+
+    fireEvent.change(screen.getByLabelText('Stage'), { target: { value: 'L2' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Apply filters' }));
+
+    await waitFor(() => {
+      expect(toastError).toHaveBeenCalledWith('Invalid filter — check your selections.');
+    });
+  });
+
+  it('shows empty compliance copy when projects array is empty', async () => {
+    render(<DocumentCompliancePage />);
+    resolveCompliance!({ filters: {}, projects: [] });
+
+    await waitFor(() => {
+      expect(screen.getByText('No projects match these filters')).toBeInTheDocument();
+    });
+    expect(
+      screen.getByText('Clear filters or adjust criteria to see compliance status.'),
+    ).toBeInTheDocument();
   });
 });
