@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import type { ComplianceFilters, CompliancePayload } from '@/modules/documents/ui/shared/types';
 
@@ -23,8 +23,10 @@ export function useDocumentCompliance() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<DocumentComplianceError | null>(null);
+  const loadSeqRef = useRef(0);
 
   const load = useCallback(async (filters: ComplianceFilters = {}, isRefresh = false) => {
+    const requestId = ++loadSeqRef.current;
     if (isRefresh) {
       setRefreshing(true);
     } else {
@@ -32,6 +34,7 @@ export function useDocumentCompliance() {
     }
     try {
       const res = await fetch(`/api/dashboards/document-compliance${buildComplianceQuery(filters)}`);
+      if (requestId !== loadSeqRef.current) return { ok: false as const, status: 0 };
       if (res.status === 401) {
         setError('unauthorized');
         setData(null);
@@ -51,18 +54,23 @@ export function useDocumentCompliance() {
         setData(null);
         return { ok: false as const, status: res.status };
       }
-      setData(await res.json());
+      const payload = (await res.json()) as CompliancePayload;
+      if (requestId !== loadSeqRef.current) return { ok: false as const, status: 0 };
+      setData(payload);
       setError(null);
       return { ok: true as const, status: 200 };
     } catch {
+      if (requestId !== loadSeqRef.current) return { ok: false as const, status: 0 };
       setError('load_failed');
       setData(null);
       return { ok: false as const, status: 0 };
     } finally {
-      if (isRefresh) {
-        setRefreshing(false);
-      } else {
-        setLoading(false);
+      if (requestId === loadSeqRef.current) {
+        if (isRefresh) {
+          setRefreshing(false);
+        } else {
+          setLoading(false);
+        }
       }
     }
   }, []);
