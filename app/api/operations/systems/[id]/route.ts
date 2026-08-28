@@ -45,6 +45,7 @@ export async function DELETE(req: NextRequest, { params }: Params) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { id } = await params;
-  await deleteOperationsSystemForUser(user, id);
+  const deleted = await deleteOperationsSystemForUser(user, id);
+  if (!deleted) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   return NextResponse.json({ ok: true });
 }

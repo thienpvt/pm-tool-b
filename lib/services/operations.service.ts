@@ -64,7 +64,10 @@ export async function updateOperationsSystemForUser(
 }
 
 export async function deleteOperationsSystemForUser(user: SessionUser, id: number | string) {
-  return deleteOperationsSystemRepo(id, user.company_id, Boolean(user.is_admin));
+  const existing = await findOperationsSystemForUser(user, id);
+  if (!existing) return false;
+  const result = await deleteOperationsSystemRepo(id, user.company_id, Boolean(user.is_admin));
+  return (result.changes ?? 0) > 0;
 }
 
 export async function listBudgetItemsForSystem(user: SessionUser, id: number | string) {

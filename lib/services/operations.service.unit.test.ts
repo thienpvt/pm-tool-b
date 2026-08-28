@@ -53,6 +53,7 @@ import {
   deleteBudgetItemForSystem,
   deleteExpenseForSystem,
   deleteIncidentForSystem,
+  deleteOperationsSystemForUser,
   getOperationsSystemDetail,
   listBudgetItemsForSystem,
   listOperationsSystems,
@@ -126,5 +127,25 @@ describe('operations.service nested deletes (CR-01)', () => {
   it('deleteIncidentForSystem returns false when incident row not deleted', async () => {
     deleteOperationsIncidentRepo.mockResolvedValue({ changes: 0 });
     await expect(deleteIncidentForSystem(user, 42, 999)).resolves.toBe(false);
+  });
+});
+
+describe('operations.service system delete (CR-02)', () => {
+  it('deleteOperationsSystemForUser returns false when system missing', async () => {
+    findOperationsSystemRepo.mockResolvedValue(undefined);
+    await expect(deleteOperationsSystemForUser(user, 99)).resolves.toBe(false);
+    expect(deleteOperationsSystemRepo).not.toHaveBeenCalled();
+  });
+
+  it('deleteOperationsSystemForUser returns false when delete affects zero rows', async () => {
+    findOperationsSystemRepo.mockResolvedValue({ id: 42 });
+    deleteOperationsSystemRepo.mockResolvedValue({ changes: 0 });
+    await expect(deleteOperationsSystemForUser(user, 42)).resolves.toBe(false);
+  });
+
+  it('deleteOperationsSystemForUser returns true when delete succeeds', async () => {
+    findOperationsSystemRepo.mockResolvedValue({ id: 42 });
+    deleteOperationsSystemRepo.mockResolvedValue({ changes: 1 });
+    await expect(deleteOperationsSystemForUser(user, 42)).resolves.toBe(true);
   });
 });

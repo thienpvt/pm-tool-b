@@ -16,7 +16,7 @@ vi.mock('@/lib/services/operations.service', () => ({
 }));
 
 import { getSessionFromRequest } from '@/lib/auth';
-import { GET } from './route';
+import { DELETE, GET } from './route';
 
 const session = {
   id: 1,
@@ -72,5 +72,30 @@ describe('GET /api/operations/systems/[id]', () => {
     const res = await GET(jsonReq('GET'), ctx);
     expect(res.status).toBe(404);
     await expect(res.json()).resolves.toEqual({ error: 'Not found' });
+  });
+});
+
+describe('DELETE /api/operations/systems/[id] (CR-02)', () => {
+  it('returns 401 without session and does not call service', async () => {
+    vi.mocked(getSessionFromRequest).mockResolvedValue(null);
+    const res = await DELETE(jsonReq('DELETE'), ctx);
+    expect(res.status).toBe(401);
+    expect(deleteOperationsSystemForUser).not.toHaveBeenCalled();
+  });
+
+  it('returns 404 when delete returns false', async () => {
+    vi.mocked(getSessionFromRequest).mockResolvedValue(session as never);
+    deleteOperationsSystemForUser.mockResolvedValue(false);
+    const res = await DELETE(jsonReq('DELETE'), ctx);
+    expect(res.status).toBe(404);
+    await expect(res.json()).resolves.toEqual({ error: 'Not found' });
+  });
+
+  it('returns 200 ok when delete succeeds', async () => {
+    vi.mocked(getSessionFromRequest).mockResolvedValue(session as never);
+    deleteOperationsSystemForUser.mockResolvedValue(true);
+    const res = await DELETE(jsonReq('DELETE'), ctx);
+    expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toEqual({ ok: true });
   });
 });
