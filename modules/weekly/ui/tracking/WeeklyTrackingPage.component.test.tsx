@@ -229,4 +229,76 @@ describe('WeeklyTrackingPage', () => {
 
     expect(replaceMock).toHaveBeenCalledWith('/weekly/tracking?periodId=1');
   });
+
+  describe('counts and filters', () => {
+    async function renderLoaded() {
+      render(<WeeklyTrackingPage />);
+      resolvePeriods!(periodsFixture);
+      await waitFor(() => {
+        expect(resolveTracking).toBeTypeOf('function');
+      });
+      resolveTracking!(trackingPayload);
+      await waitFor(() => {
+        expect(screen.getByTestId('tracking-counts-bar')).toBeInTheDocument();
+      });
+    }
+
+    it('shows six count chips including zeros from fixture', async () => {
+      await renderLoaded();
+
+      const bar = screen.getByTestId('tracking-counts-bar');
+      expect(bar).toHaveTextContent('Obligated');
+      expect(bar).toHaveTextContent('Submitted');
+      expect(bar).toHaveTextContent('Draft');
+      expect(bar).toHaveTextContent('Not submitted');
+      expect(bar).toHaveTextContent('Overdue');
+      expect(bar).toHaveTextContent('Late');
+      expect(bar).toHaveTextContent('3');
+      expect(bar).toHaveTextContent('1');
+      expect(bar).toHaveTextContent('0');
+    });
+
+    it('Apply filters refetches GET with selected query keys only', async () => {
+      const fetchMock = vi.fn((url: string) => {
+        if (url === '/api/weekly-periods') {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: () => Promise.resolve(periodsFixture),
+          });
+        }
+        if (url.startsWith('/api/weekly-periods/2/tracking')) {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: () => Promise.resolve(trackingPayload),
+          });
+        }
+        return Promise.reject(new Error(`unexpected fetch: ${url}`));
+      });
+      vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch);
+
+      render(<WeeklyTrackingPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('tracking-filter-bar')).toBeInTheDocument();
+      });
+
+      fireEvent.change(screen.getByLabelText('Status'), { target: { value: 'overdue' } });
+      fireEvent.click(screen.getByLabelText('Technology council'));
+      fireEvent.click(screen.getByRole('button', { name: 'Apply filters' }));
+
+      await waitFor(() => {
+        const trackingCalls = fetchMock.mock.calls
+          .map(([u]) => String(u))
+          .filter((u) => u.includes('/tracking'));
+        const filteredCall = trackingCalls.find(
+          (u) => u.includes('status=overdue') && u.includes('technology_council=true'),
+        );
+        expect(filteredCall).toBeTruthy();
+        expect(filteredCall).not.toMatch(/lateness=/);
+        expect(filteredCall).not.toMatch(/pm_user_id=/);
+      });
+    });
+  });
 });
