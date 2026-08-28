@@ -65,4 +65,78 @@ describe('operations module split contract (24-10)', () => {
   it('MOD-01 closeout: modules/operations/backend exists', () => {
     expect(existsSync(resolve(root, 'modules/operations/backend'))).toBe(true);
   });
+
+  const expectedAllowlist = [
+    'app/api/health/route.ts',
+    'app/api/admin/companies/route.ts',
+    'app/api/operations/systems/route.ts',
+    'app/api/operations/systems/[id]/route.ts',
+    'app/api/operations/systems/[id]/budget-items/route.ts',
+    'app/api/operations/systems/[id]/budget-items/[itemId]/route.ts',
+    'app/api/operations/systems/[id]/expenses/route.ts',
+    'app/api/operations/systems/[id]/expenses/[expId]/route.ts',
+    'app/api/operations/systems/[id]/incidents/route.ts',
+    'app/api/operations/systems/[id]/incidents/[incId]/route.ts',
+  ] as const;
+
+  it('D-08: eslint allowlist JSON contents unchanged (health, companies, operations paths)', () => {
+    const allowlist = JSON.parse(readUtf8('eslint/route-wrapper-allowlist.json')) as string[];
+    expect(allowlist).toEqual([...expectedAllowlist]);
+  });
+
+  it('D-07 regression: admin companies module route does not import @/lib/http/with-role', () => {
+    const source = readUtf8('modules/admin/backend/routes/admin/companies/route.ts');
+    expect(source).not.toContain('@/lib/http/with-role');
+    expect(source).not.toContain('withCpmo');
+  });
+
+  const nestedOperationsRoutes = [
+    {
+      shell: 'app/api/operations/systems/[id]/route.ts',
+      module: 'modules/operations/backend/routes/operations/systems/[id]/route.ts',
+      target: '@/modules/operations/backend/routes/operations/systems/[id]/route',
+    },
+    {
+      shell: 'app/api/operations/systems/[id]/budget-items/route.ts',
+      module: 'modules/operations/backend/routes/operations/systems/[id]/budget-items/route.ts',
+      target: '@/modules/operations/backend/routes/operations/systems/[id]/budget-items/route',
+    },
+    {
+      shell: 'app/api/operations/systems/[id]/budget-items/[itemId]/route.ts',
+      module: 'modules/operations/backend/routes/operations/systems/[id]/budget-items/[itemId]/route.ts',
+      target: '@/modules/operations/backend/routes/operations/systems/[id]/budget-items/[itemId]/route',
+    },
+    {
+      shell: 'app/api/operations/systems/[id]/expenses/route.ts',
+      module: 'modules/operations/backend/routes/operations/systems/[id]/expenses/route.ts',
+      target: '@/modules/operations/backend/routes/operations/systems/[id]/expenses/route',
+    },
+    {
+      shell: 'app/api/operations/systems/[id]/expenses/[expId]/route.ts',
+      module: 'modules/operations/backend/routes/operations/systems/[id]/expenses/[expId]/route.ts',
+      target: '@/modules/operations/backend/routes/operations/systems/[id]/expenses/[expId]/route',
+    },
+    {
+      shell: 'app/api/operations/systems/[id]/incidents/route.ts',
+      module: 'modules/operations/backend/routes/operations/systems/[id]/incidents/route.ts',
+      target: '@/modules/operations/backend/routes/operations/systems/[id]/incidents/route',
+    },
+    {
+      shell: 'app/api/operations/systems/[id]/incidents/[incId]/route.ts',
+      module: 'modules/operations/backend/routes/operations/systems/[id]/incidents/[incId]/route.ts',
+      target: '@/modules/operations/backend/routes/operations/systems/[id]/incidents/[incId]/route',
+    },
+  ] as const;
+
+  it.each(nestedOperationsRoutes)('P4: $shell re-exports from module route', ({ shell, target }) => {
+    const source = readUtf8(shell);
+    expect(source).toContain(target);
+  });
+
+  it.each(nestedOperationsRoutes)('D-07: $module uses getSessionFromRequest and omits with-role', ({ module: modulePath }) => {
+    const source = readUtf8(modulePath);
+    expect(source).toContain('getSessionFromRequest');
+    expect(source).not.toContain('@/lib/http/with-role');
+    expect(source).not.toContain('withCpmo');
+  });
 });
