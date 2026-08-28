@@ -105,7 +105,7 @@ Plans:
   3. CI fails when a project-scoped `route.ts` exports a handler not wrapped by a sanctioned helper (`withAuth` / `withProjectAccess` / `withProgramAccess` / `withCpmo` / `withRole`); D-23 exemptions are an explicit list
   4. Ops, admin, config, and import-mapping routes call services rather than repositories; D-23 session+tenant vs platform break-glass semantics stay
 
-**Plans:** 6/7 plans executed
+**Plans:** 7/7 plans executed
 
 Plans:
 **Wave 1**
@@ -119,7 +119,7 @@ Plans:
 
 **Wave 2** *(blocked on 20-04)*
 
-- [ ] 20-05-PLAN.md — Nested operations budget/expense/incident routes through service
+- [x] 20-05-PLAN.md — Nested operations budget/expense/incident routes through service
 
 ### Phase 21: Portfolio & PM Dashboard Pages
 
@@ -229,7 +229,7 @@ v1.0 Phases 1–8 and v2.0 Phases 9–18 are complete (see milestone archives ab
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 19. Data Layer Cutover | 4/4 | Complete    | 2026-08-28 |
-| 20. API Contract & Leftover Routes | 6/7 | In Progress|  |
+| 20. API Contract & Leftover Routes | 7/7 | In Progress|  |
 | 21. Portfolio & PM Dashboard Pages | 0/TBD | Not started | - |
 | 22. Weekly Workflow Surfaces | 0/TBD | Not started | - |
 | 23. Document Checklist & Audit Viewer | 0/TBD | Not started | - |

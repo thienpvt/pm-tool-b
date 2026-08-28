@@ -4,17 +4,17 @@ milestone: v2.1
 milestone_name: Hardening & Deferred Debt
 current_phase: 20
 current_phase_name: API Contract & Leftover Routes
-status: executing
-stopped_at: Completed 20-07-PLAN.md
-last_updated: "2026-08-28T07:35:28.385Z"
+status: verifying
+stopped_at: Completed 20-05-PLAN.md
+last_updated: "2026-08-28T07:38:19.855Z"
 last_activity: 2026-08-28
 last_activity_desc: Phase 20 execution started
-state_head: 553b4010966708f54a3c5cb638ebb1e0c5bf8490
+state_head: be8fcb1cc6eb5d62298cb5d2f72ab9d061906986
 progress:
   total_phases: 9
   completed_phases: 1
   total_plans: 11
-  completed_plans: 10
+  completed_plans: 11
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-08-28)
 
 Phase: 20 (API Contract & Leftover Routes) — EXECUTING
 Plan: 7 of 7
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-08-28 — Phase 20 execution started
 
 Progress: [██░░░░░░░░] 25%
@@ -105,6 +105,7 @@ Progress: [██░░░░░░░░] 25%
 | Phase 20-api-contract-leftover-routes P04 | 5min | 3 tasks | 6 files |
 | Phase 20 P06 | 5min | 3 tasks | 8 files |
 | Phase 20-api-contract-leftover-routes P07 | 5min | 3 tasks | 8 files |
+| Phase 20-api-contract-leftover-routes P05 | 3min | 3 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -203,6 +204,7 @@ Recent decisions affecting current work:
 - [Phase 20]: D-24 preserved: assertCompanyWrite stays in resource-audit POST route
 - [Phase 20]: D-05 split: settings/jira-config/rag-config as separate domain services (20-07)
 - [Phase 20]: D-06 verify-only: import-mapping family already service-backed — no rewrite (20-07)
+- [Phase 20]: D-23 preserved on nested operations routes: getSessionFromRequest in route; service *ForSystem helpers; no withCpmo
 
 ### Pending Todos
 
@@ -226,8 +228,8 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-08-28T07:35:28.283Z
-Stopped at: Completed 20-07-PLAN.md
+Last session: 2026-08-28T07:38:19.733Z
+Stopped at: Completed 20-05-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
