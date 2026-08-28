@@ -287,7 +287,7 @@ describe('WeeklyReportEditorPage', () => {
       expect(onPatch).not.toHaveBeenCalled();
     });
 
-    it('toasts submitted message on PATCH 409', async () => {
+    it('toasts submitted message on PATCH 409 and reverts optimistic edit', async () => {
       setupDraftFetch({ patchStatus: 409 });
       render(<WeeklyReportEditorPage />);
 
@@ -295,19 +295,23 @@ describe('WeeklyReportEditorPage', () => {
         expect(screen.getByLabelText('Highlights')).toBeInTheDocument();
       });
 
+      const originalHighlights = reportShellFixture.highlights ?? '';
       fireEvent.change(screen.getByLabelText('Highlights'), {
         target: { value: 'Blocked edit' },
       });
+      expect(screen.getByLabelText('Highlights')).toHaveValue('Blocked edit');
+
       await vi.advanceTimersByTimeAsync(300);
 
       await waitFor(() => {
         expect(toastError).toHaveBeenCalledWith(
           'Report is submitted — open a correction to edit.',
         );
+        expect(screen.getByLabelText('Highlights')).toHaveValue(originalHighlights);
       });
     });
 
-    it("toasts draft save error on PATCH 500", async () => {
+    it("toasts draft save error on PATCH 500 and reverts optimistic edit", async () => {
       setupDraftFetch({ patchStatus: 500 });
       render(<WeeklyReportEditorPage />);
 
@@ -315,13 +319,16 @@ describe('WeeklyReportEditorPage', () => {
         expect(screen.getByLabelText('Highlights')).toBeInTheDocument();
       });
 
+      const originalHighlights = reportShellFixture.highlights ?? '';
       fireEvent.change(screen.getByLabelText('Highlights'), {
         target: { value: 'Fail save' },
       });
+
       await vi.advanceTimersByTimeAsync(300);
 
       await waitFor(() => {
         expect(toastError).toHaveBeenCalledWith("Couldn't save draft — try again.");
+        expect(screen.getByLabelText('Highlights')).toHaveValue(originalHighlights);
       });
     });
 
@@ -522,6 +529,37 @@ describe('WeeklyReportEditorPage', () => {
         expect(toastError).toHaveBeenCalledWith('Fix validation errors before submitting.');
         expect(screen.getByText('Required before submit')).toBeInTheDocument();
       });
+    });
+
+    it('hides Open correction when correction is already open', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn((url: string, init?: RequestInit) => {
+          if (url === '/api/projects/7/weekly-reports/10' && (!init || init.method === undefined)) {
+            return Promise.resolve({
+              ok: true,
+              status: 200,
+              json: () =>
+                Promise.resolve({ ...submittedShell, correction_open: true }),
+            });
+          }
+          if (url === '/api/projects/7' && (!init || init.method === undefined)) {
+            return Promise.resolve({
+              ok: true,
+              status: 200,
+              json: () => Promise.resolve({ name: 'Alpha' }),
+            });
+          }
+          return Promise.reject(new Error(`unexpected fetch: ${url} ${init?.method ?? 'GET'}`));
+        }) as unknown as typeof fetch,
+      );
+
+      render(<WeeklyReportEditorPage />);
+
+      await waitFor(() => {
+        expect(screen.getByLabelText('Highlights')).not.toBeDisabled();
+      });
+      expect(screen.queryByRole('button', { name: 'Open correction' })).not.toBeInTheDocument();
     });
 
     it('shows Open correction for submitted and enables fields after correct', async () => {

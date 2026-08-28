@@ -167,7 +167,7 @@ export default function WeeklyReportEditorPage() {
                 Submit report
               </Button>
             )}
-            {shell.status === 'submitted' && (
+            {shell.status === 'submitted' && !shell.correction_open && (
               <Button
                 size="sm"
                 disabled={correcting}
