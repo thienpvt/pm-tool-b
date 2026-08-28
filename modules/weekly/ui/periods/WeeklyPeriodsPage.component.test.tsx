@@ -248,4 +248,98 @@ describe('WeeklyPeriodsPage', () => {
       });
     });
   });
+
+  describe('create period', () => {
+    const newPeriod = {
+      id: 3,
+      company_id: 1,
+      iso_week: '2026-W40',
+      start_date: '2026-09-29',
+      end_date: '2026-10-05',
+      due_at: '2026-10-03T18:00:00.000Z',
+      display_name: 'Week 40, 2026',
+      config_snapshot: configFixture,
+      created_by: 10,
+      created_at: '2026-08-28T12:00:00.000Z',
+    };
+
+    it('POSTs iso_week and toasts Period created on 201', async () => {
+      const fetchMock = vi.fn((url: string, init?: RequestInit) => {
+        if (url === '/api/weekly-periods' && init?.method === 'POST') {
+          const body = JSON.parse(String(init.body));
+          expect(body).toEqual({ iso_week: '2026-W40' });
+          return Promise.resolve({
+            ok: true,
+            status: 201,
+            json: () => Promise.resolve(newPeriod),
+          });
+        }
+        if (url === '/api/weekly-periods' && (!init || init.method === undefined)) {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: () => Promise.resolve(periodsFixture),
+          });
+        }
+        if (url === '/api/weekly-periods/config' && (!init || init.method === undefined)) {
+          return Promise.resolve(configOkResponse());
+        }
+        return Promise.reject(new Error(`unexpected fetch: ${url} ${init?.method ?? 'GET'}`));
+      });
+      vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch);
+
+      render(<WeeklyPeriodsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('weekly-create-form')).toBeInTheDocument();
+      });
+
+      fireEvent.change(screen.getByLabelText('ISO week'), { target: { value: '2026-W40' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Create period' }));
+
+      await waitFor(() => {
+        expect(fetchMock).toHaveBeenCalledWith(
+          '/api/weekly-periods',
+          expect.objectContaining({ method: 'POST' }),
+        );
+        expect(toastSuccess).toHaveBeenCalledWith('Period created');
+        expect(screen.getByText('Week 40, 2026')).toBeInTheDocument();
+      });
+    });
+
+    it('toasts conflict message on 409', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn((url: string, init?: RequestInit) => {
+          if (url === '/api/weekly-periods' && init?.method === 'POST') {
+            return Promise.resolve({ ok: false, status: 409, json: () => Promise.resolve({}) });
+          }
+          if (url === '/api/weekly-periods' && (!init || init.method === undefined)) {
+            return Promise.resolve({
+              ok: true,
+              status: 200,
+              json: () => Promise.resolve(periodsFixture),
+            });
+          }
+          if (url === '/api/weekly-periods/config' && (!init || init.method === undefined)) {
+            return Promise.resolve(configOkResponse());
+          }
+          return Promise.reject(new Error(`unexpected fetch: ${url}`));
+        }) as unknown as typeof fetch,
+      );
+
+      render(<WeeklyPeriodsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('weekly-create-form')).toBeInTheDocument();
+      });
+
+      fireEvent.change(screen.getByLabelText('ISO week'), { target: { value: '2026-W40' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Create period' }));
+
+      await waitFor(() => {
+        expect(toastError).toHaveBeenCalledWith('Period already exists for this week');
+      });
+    });
+  });
 });
