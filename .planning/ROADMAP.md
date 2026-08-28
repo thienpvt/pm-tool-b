@@ -53,7 +53,7 @@ Phase artifacts: [.planning/milestones/v2.0-phases/](milestones/v2.0-phases/)
 
 </details>
 
-- [ ] **Phase 19: Data Layer Cutover** - External versioned SQL migrate; app start connects and seeds only
+- [x] **Phase 19: Data Layer Cutover** - External versioned SQL migrate; app start connects and seeds only (completed 2026-08-28)
 - [ ] **Phase 20: API Contract & Leftover Routes** - JSON 401, Jira hygiene, wrapper CI gate, ops/admin/config through services
 - [ ] **Phase 21: Portfolio & PM Dashboard Pages** - CPMO and assigned-PM dashboards in module UI, with the fiscal-KPI call
 - [ ] **Phase 22: Weekly Workflow Surfaces** - Periods, PM submit/correct, CPMO tracking/export; tracking grid virtualized
@@ -77,7 +77,7 @@ Phase artifacts: [.planning/milestones/v2.0-phases/](milestones/v2.0-phases/)
   3. Data-fix `UPDATE`s that used to run as boot-time migrations live as one-off scripts under `scripts/data-fixes/` and are not re-run on every process start
   4. A brownfield database can be stamped onto the ledger without dropping v2.0 tables — the origin `gsd/quick-260826-ded-data-layer-migrations` branch is a runner/ledger pattern only and is never merged as-is
 
-**Plans:** 4/4 plans executed
+**Plans:** 4/4 plans complete
 
 Plans:
 **Wave 1**
@@ -214,7 +214,7 @@ v1.0 Phases 1–8 and v2.0 Phases 9–18 are complete (see milestone archives ab
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 19. Data Layer Cutover | 4/4 | In Progress|  |
+| 19. Data Layer Cutover | 4/4 | Complete    | 2026-08-28 |
 | 20. API Contract & Leftover Routes | 0/TBD | Not started | - |
 | 21. Portfolio & PM Dashboard Pages | 0/TBD | Not started | - |
 | 22. Weekly Workflow Surfaces | 0/TBD | Not started | - |

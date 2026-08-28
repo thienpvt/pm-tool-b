@@ -2,17 +2,17 @@
 gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: Hardening & Deferred Debt
-current_phase: 19
-current_phase_name: Data Layer Cutover
-status: verifying
-stopped_at: Completed 19-04-PLAN.md
-last_updated: "2026-08-28T06:02:21.639Z"
+current_phase: 20
+current_phase_name: API Contract & Leftover Routes
+status: planning
+stopped_at: Phase 19 complete, ready to plan Phase 20
+last_updated: "2026-08-28T06:19:52.223Z"
 last_activity: 2026-08-28
-last_activity_desc: v2.1 roadmap written (Phases 19–27)
-state_head: 5fa97c656e6d5932e5946deb738f7c8ccfd134df
+last_activity_desc: Phase 19 complete, transitioned to Phase 20
+state_head: a35f1dd379a612e6361db02c536ab5a49fb1bdfd
 progress:
   total_phases: 9
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 4
   completed_plans: 4
 ---
@@ -28,10 +28,10 @@ See: .planning/PROJECT.md (updated 2026-08-28)
 
 ## Current Position
 
-Phase: 19 (Data Layer Cutover) — IN PROGRESS
-Plan: 4 of 4 complete (19-01 done)
-Status: Phase complete — ready for verification
-Last activity: 2026-08-28 — Completed 19-01 migrate engine plan
+Phase: 20 — API Contract & Leftover Routes
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-08-28 — Phase 19 complete, transitioned to Phase 20
 
 Progress: [██░░░░░░░░] 25%
 
@@ -211,7 +211,7 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-08-28T06:02:21.627Z
-Stopped at: Completed 19-04-PLAN.md
+Stopped at: Phase 19 complete, ready to plan Phase 20
 Resume file: None
 
 ## Operator Next Steps
