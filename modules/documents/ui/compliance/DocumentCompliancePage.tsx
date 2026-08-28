@@ -2,6 +2,7 @@
 
 import { AlertTriangle } from 'lucide-react';
 import Sidebar from '@/components/layout/Sidebar';
+import { ComplianceFiltersBar } from './ComplianceFiltersBar';
 import { useDocumentCompliance } from './useDocumentCompliance';
 
 const ERROR_COPY = {
@@ -11,7 +12,7 @@ const ERROR_COPY = {
 } as const;
 
 export default function DocumentCompliancePage() {
-  const { data, loading, error } = useDocumentCompliance();
+  const { data, loading, refreshing, error, load } = useDocumentCompliance();
 
   if (loading) {
     return (
@@ -55,10 +56,25 @@ export default function DocumentCompliancePage() {
             {count} project{count === 1 ? '' : 's'} matching filters
           </p>
         </div>
+        <ComplianceFiltersBar
+          filters={data.filters}
+          refreshing={refreshing}
+          onApply={(filters) => load(filters, true)}
+          onClear={() => load({}, true)}
+        />
         <div data-testid="compliance-project-list">
-          {data.projects.map((project) => (
-            <div key={project.project_id}>{project.name}</div>
-          ))}
+          {data.projects.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="font-semibold text-slate-600">No projects match these filters</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Clear filters or adjust criteria to see compliance status.
+              </p>
+            </div>
+          ) : (
+            data.projects.map((project) => (
+              <div key={project.project_id}>{project.name}</div>
+            ))
+          )}
         </div>
       </main>
     </div>
