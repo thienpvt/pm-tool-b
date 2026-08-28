@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { complianceFixture } from '../shared/documents.fixture';
+import { complianceFixture, complianceProjects150 } from '../shared/documents.fixture';
 import DocumentCompliancePage from './DocumentCompliancePage';
 
 vi.mock('next/navigation', () => ({ usePathname: () => '/documents/compliance' }));
@@ -157,5 +157,29 @@ describe('DocumentCompliancePage', () => {
     expect(
       screen.getByText('Clear filters or adjust criteria to see compliance status.'),
     ).toBeInTheDocument();
+  });
+
+  it('renders compliance badges and checklist links for fixture rows', async () => {
+    render(<DocumentCompliancePage />);
+    resolveCompliance!(complianceFixture);
+
+    await waitFor(() => expect(screen.getByText('Alpha Project')).toBeInTheDocument());
+
+    expect(screen.getByRole('link', { name: 'Alpha Project' })).toHaveAttribute(
+      'href',
+      '/projects/1/document-checklist',
+    );
+    expect(screen.getByText('compliant')).toBeInTheDocument();
+    expect(screen.getByText('not_compliant')).toBeInTheDocument();
+  });
+
+  it('virtualizes 150 projects to at most 30 compliance-row nodes', async () => {
+    render(<DocumentCompliancePage />);
+    resolveCompliance!({ filters: {}, projects: complianceProjects150 });
+
+    await waitFor(() => expect(screen.getByTestId('compliance-grid')).toBeInTheDocument());
+
+    expect(complianceProjects150.length).toBe(150);
+    expect(screen.getAllByTestId('compliance-row').length).toBeLessThanOrEqual(30);
   });
 });
