@@ -161,7 +161,23 @@ Plans:
   3. CPMO can track period submissions and export the consolidated pack from the UI
   4. Large grids (CPMO weekly tracking, and other long lists in this surface) virtualize rows so the page stays usable past ~100 rows
 
-**Plans**: TBD
+**Plans:** 5 plans
+
+Plans:
+**Wave 1**
+
+- [ ] 22-01-PLAN.md — Tracer: VirtualRows, Sidebar weekly links, periods list shell
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 22-02-PLAN.md — Period create and company weekly config
+- [ ] 22-03-PLAN.md — Tracking grid, filters, counts, period query
+- [ ] 22-05-PLAN.md — PM editor plus Phase 16 path re-export
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 22-04-PLAN.md — Export pack toolbar and blob download
+
 **UI hint**: yes
 
 ### Phase 23: Document Checklist & Audit Viewer
