@@ -4,6 +4,18 @@
 **Files analyzed:** 26 new/modified files
 **Analogs found:** 24 / 26
 
+## UI-SPEC overrides analog copy
+
+Copy structure (hooks, fetch guards, Sidebar `cn()`, Card density) from analogs. **Do not copy analog strings or enums** — `22-UI-SPEC.md` and PLAN.md win:
+
+| Analog (do not copy) | Locked (use this) |
+|----------------------|-------------------|
+| `You don't have access to this dashboard.` / `Couldn't load the dashboard.` | `You don't have access to this page.` / `Couldn't load this page. Try again.` |
+| `due_weekday` 1–7 | `due_weekday` **0–6** (API + UI-SPEC) |
+| `Export Excel` | **Export pack** (format menu / xlsx·docx·pptx) |
+| `Submitted report cannot be edited — use Correct first.` | `Report is submitted — open a correction to edit.` |
+| lucide `Calendar` / `ClipboardList` | `CalendarDays` / `ListChecks` |
+
 ## File Classification
 
 | New/Modified File | Role | Data Flow | Closest Analog | Match Quality |
@@ -78,8 +90,8 @@ import { useWeeklyPeriods } from './useWeeklyPeriods';
 
 const ERROR_COPY = {
   unauthorized: 'Session expired — refresh the page and sign in again.',
-  forbidden: "You don't have access to this dashboard.",
-  load_failed: "Couldn't load the dashboard. Try again.",
+  forbidden: "You don't have access to this page.",
+  load_failed: "Couldn't load this page. Try again.",
 } as const;
 
 export default function WeeklyPeriodsPage() {
@@ -171,7 +183,7 @@ const selectClass =
   'h-8 text-sm border border-input rounded-md px-2 bg-white min-w-[100px] max-w-[200px] truncate';
 ```
 
-Fields: `due_weekday` (1–7 select), `due_time_utc` (time input). Apply button calls `onSave` prop; disable while saving.
+Fields: `due_weekday` (0–6 select, UI-SPEC/API), `due_time_utc` (time input). Apply button calls `onSave` prop; disable while saving.
 
 ---
 
@@ -316,7 +328,7 @@ Render count chips from `counts`: obligated, not_submitted, draft, submitted, ov
 
 ```typescript
 <Button size="sm" className="bg-blue-600 text-white hover:bg-blue-700" disabled={exporting || selectedIds.length === 0} onClick={() => onExport('xlsx')}>
-  {exporting ? 'Exporting…' : 'Export Excel'}
+  {exporting ? 'Exporting…' : 'Export pack'}
 </Button>
 ```
 
@@ -354,7 +366,7 @@ await fetch(`/api/projects/${projectId}/weekly-reports/${reportId}`, {
   body: JSON.stringify({ highlights, completed_work, /* ... */, this_week_rag }),
 });
 if (res.status === 409) {
-  toast.error('Submitted report cannot be edited — use Correct first.');
+  toast.error('Report is submitted — open a correction to edit.');
   return;
 }
 ```
@@ -494,11 +506,11 @@ vi.mock('@/modules/dashboards/ui/shared/downloadBlob', () => ({ downloadBlob: vi
 {me?.roles?.includes('cpmo') ? (
   <>
     <Link href="/weekly/periods" /* same cn() active pattern */>
-      <Calendar className="h-4 w-4 shrink-0" />
+      <CalendarDays className="h-4 w-4 shrink-0" />
       Weekly periods
     </Link>
     <Link href="/weekly/tracking" /* pathname === '/weekly/tracking' */>
-      <ClipboardList className="h-4 w-4 shrink-0" />
+      <ListChecks className="h-4 w-4 shrink-0" />
       Weekly tracking
     </Link>
   </>
