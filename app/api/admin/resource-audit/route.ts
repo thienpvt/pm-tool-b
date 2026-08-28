@@ -11,6 +11,10 @@ export async function GET(req: NextRequest) {
   const user = await getSessionFromRequest(req);
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+  if (user.company_id === null) {
+    return NextResponse.json({ error: 'Company context required' }, { status: 400 });
+  }
+
   const cid = user.company_id;
   const { company, inPortfolioNotInTeams, inTeamsNotInPortfolio } = await getResourceAudit(cid);
 
