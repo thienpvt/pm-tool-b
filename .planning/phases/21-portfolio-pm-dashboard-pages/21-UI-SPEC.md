@@ -56,9 +56,9 @@ Declared values (multiples of 4):
 | Body | 14px (`text-sm`) | 400 | 1.5 | Table cells, filter labels, queue rows |
 | Label | 12px (`text-xs`) | 600 (`font-semibold`) | 1.4 | Filter field labels, KPI subtitles, section eyebrows |
 | Heading | 16px (`text-base`) | 600 | 1.2 | Page title, Card titles, drill-down panel titles |
-| Display | 28px (`text-3xl`) | 700 (`font-bold`) | 1.1 | KPI tile primary number |
+| Display | 28px (`text-3xl`) | 600 (`font-semibold`) | 1.1 | KPI tile primary number |
 
-**Weights used:** 400 (body), 600 (labels/headings), 700 (KPI numbers only).
+**Weights used:** 400 (body), 600 (labels, headings, KPI numbers). Max two weights.
 
 **Language:** English labels throughout (match Sidebar NAV: `Portfolio`, `Project Dashboard`, etc.). No bilingual Vietnamese in this phase.
 
@@ -117,6 +117,8 @@ Insert NAV links in `Sidebar.tsx` `NAV` array **after** `Portfolio Report`, befo
 5. **Project list** — compact table of filtered projects
 6. **Drill-down panel** — conditional table when a drill-down KPI tile is active
 
+**Focal point / hierarchy:** Primary = KPI row (Display numbers). Secondary = filter bar. Tertiary = project list, then charts, then drill-down. PM page: primary = three action queues; secondary = assigned project list.
+
 ### PM page zones
 
 1. **Header** — title "My dashboard", assigned project count
@@ -140,7 +142,7 @@ Six tiles bound to `kpis` from GET `/api/dashboards/portfolio`:
 | High open RAID | `high_open_raid_count` | `high_raid` | Yes |
 | Technology council | `technology_council_count` | `technology_council` | Yes |
 
-**Tile anatomy:** Label (`text-xs font-semibold text-slate-600`), number (`text-3xl font-bold`), optional subtitle. Clickable tiles: `cursor-pointer`, `ring-2 ring-blue-600` when selected, `hover:bg-slate-50`.
+**Tile anatomy:** Label (`text-xs font-semibold text-slate-600`), number (`text-3xl font-semibold`), optional subtitle. Clickable tiles: `cursor-pointer`, `ring-2 ring-blue-600` when selected, `hover:bg-slate-50`.
 
 **Layout:** `grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4`.
 
@@ -158,7 +160,7 @@ AND keys (21-CONTEXT D-06): `portfolio_year`, `program`, `unit`, `pm_user_id`, `
 
 | Control | Pattern |
 |---------|---------|
-| Layout | `flex flex-wrap gap-3 items-end` inside white Card or bordered bar |
+| Layout | `flex flex-wrap gap-2 items-end` inside white Card or bordered bar |
 | Fields | shadcn `Select` or native `<select>` styled compact; boolean as Select Yes/No/All |
 | Actions | **Apply filters** (primary) refetches GET; **Clear** POST clear then refetch; **Reset defaults** POST defaults |
 | Persist | PUT `/api/dashboards/{portfolio\|pm}/filters` on apply; load from GET filters on mount |
@@ -216,7 +218,9 @@ Two outline/primary buttons in header: **Export Excel**, **Export PDF**.
 | Filter apply | Apply filters |
 | Filter clear | Clear filters |
 | Filter reset | Reset defaults |
-| Queue action link | Open |
+| Queue action link (weekly) | Open report |
+| Queue action link (milestones) | View milestone |
+| Queue action link (RAID) | View RAID |
 | Empty state heading (portfolio list) | No projects match these filters |
 | Empty state body (portfolio list) | Adjust or clear filters to see projects in the portfolio. |
 | Empty state heading (drill-down) | No items in this drill-down |
