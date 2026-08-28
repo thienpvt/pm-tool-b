@@ -1,18 +1,35 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { emptyPeriodsFixture, periodsFixture } from '../shared/weekly.fixture';
+import { configFixture, emptyPeriodsFixture, periodsFixture } from '../shared/weekly.fixture';
 import WeeklyPeriodsPage from './WeeklyPeriodsPage';
 
 vi.mock('next/navigation', () => ({ usePathname: () => '/weekly/periods' }));
 vi.mock('@/components/layout/Sidebar', () => ({ default: () => <nav data-testid="sidebar" /> }));
 
+const toastError = vi.fn();
+const toastSuccess = vi.fn();
+vi.mock('sonner', () => ({
+  toast: {
+    error: (...args: unknown[]) => toastError(...args),
+    success: (...args: unknown[]) => toastSuccess(...args),
+  },
+}));
+
 let resolvePeriods: ((value: unknown) => void) | null = null;
+
+function configOkResponse() {
+  return {
+    ok: true,
+    status: 200,
+    json: () => Promise.resolve(configFixture),
+  };
+}
 
 function setupDeferredFetch() {
   vi.stubGlobal(
     'fetch',
-    vi.fn((url: string) => {
-      if (url === '/api/weekly-periods') {
+    vi.fn((url: string, init?: RequestInit) => {
+      if (url === '/api/weekly-periods' && (!init || init.method === undefined)) {
         return new Promise((resolve) => {
           resolvePeriods = (value) =>
             resolve({
@@ -22,7 +39,10 @@ function setupDeferredFetch() {
             });
         });
       }
-      return Promise.reject(new Error(`unexpected fetch: ${url}`));
+      if (url === '/api/weekly-periods/config' && (!init || init.method === undefined)) {
+        return Promise.resolve(configOkResponse());
+      }
+      return Promise.reject(new Error(`unexpected fetch: ${url} ${init?.method ?? 'GET'}`));
     }) as unknown as typeof fetch,
   );
 }
@@ -30,21 +50,26 @@ function setupDeferredFetch() {
 function setupStatusFetch(status: number, body: unknown = []) {
   vi.stubGlobal(
     'fetch',
-    vi.fn((url: string) => {
-      if (url === '/api/weekly-periods') {
+    vi.fn((url: string, init?: RequestInit) => {
+      if (url === '/api/weekly-periods' && (!init || init.method === undefined)) {
         return Promise.resolve({
           ok: status >= 200 && status < 300,
           status,
           json: () => Promise.resolve(body),
         });
       }
-      return Promise.reject(new Error(`unexpected fetch: ${url}`));
+      if (url === '/api/weekly-periods/config' && (!init || init.method === undefined)) {
+        return Promise.resolve(configOkResponse());
+      }
+      return Promise.reject(new Error(`unexpected fetch: ${url} ${init?.method ?? 'GET'}`));
     }) as unknown as typeof fetch,
   );
 }
 
 beforeEach(() => {
   resolvePeriods = null;
+  toastError.mockClear();
+  toastSuccess.mockClear();
   setupDeferredFetch();
 });
 
@@ -134,5 +159,94 @@ describe('WeeklyPeriodsPage', () => {
     });
     const list = screen.getByTestId('weekly-period-list');
     expect(list.querySelector('.overflow-x-auto')).toBeTruthy();
+  });
+
+  describe('company weekly config', () => {
+    it('pre-fills weekday and time from GET config', async () => {
+      setupStatusFetch(200, periodsFixture);
+      render(<WeeklyPeriodsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('weekly-config-form')).toBeInTheDocument();
+      });
+
+      expect(screen.getByLabelText('Due weekday')).toHaveTextContent('Friday');
+      expect(screen.getByLabelText('Due time (UTC)')).toHaveValue('18:00');
+    });
+
+    it('PUTs config and toasts Schedule saved on success', async () => {
+      const fetchMock = vi.fn((url: string, init?: RequestInit) => {
+        if (url === '/api/weekly-periods' && (!init || init.method === undefined)) {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: () => Promise.resolve(periodsFixture),
+          });
+        }
+        if (url === '/api/weekly-periods/config' && init?.method === 'PUT') {
+          const body = JSON.parse(String(init.body));
+          expect(body.due_weekday).toBeGreaterThanOrEqual(0);
+          expect(body.due_weekday).toBeLessThanOrEqual(6);
+          expect(typeof body.due_time_utc).toBe('string');
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ ok: true }) });
+        }
+        if (url === '/api/weekly-periods/config' && (!init || init.method === undefined)) {
+          return Promise.resolve(configOkResponse());
+        }
+        return Promise.reject(new Error(`unexpected fetch: ${url}`));
+      });
+      vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch);
+
+      setupStatusFetch(200, periodsFixture);
+      render(<WeeklyPeriodsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('weekly-config-form')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: 'Save schedule' }));
+
+      await waitFor(() => {
+        expect(fetchMock).toHaveBeenCalledWith(
+          '/api/weekly-periods/config',
+          expect.objectContaining({ method: 'PUT' }),
+        );
+        expect(toastSuccess).toHaveBeenCalledWith('Schedule saved');
+      });
+    });
+
+    it('toasts config save error when PUT fails', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn((url: string, init?: RequestInit) => {
+          if (url === '/api/weekly-periods' && (!init || init.method === undefined)) {
+            return Promise.resolve({
+              ok: true,
+              status: 200,
+              json: () => Promise.resolve(periodsFixture),
+            });
+          }
+          if (url === '/api/weekly-periods/config' && init?.method === 'PUT') {
+            return Promise.resolve({ ok: false, status: 500, json: () => Promise.resolve({}) });
+          }
+          if (url === '/api/weekly-periods/config' && (!init || init.method === undefined)) {
+            return Promise.resolve(configOkResponse());
+          }
+          return Promise.reject(new Error(`unexpected fetch: ${url}`));
+        }) as unknown as typeof fetch,
+      );
+
+      render(<WeeklyPeriodsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('weekly-config-form')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: 'Save schedule' }));
+
+      await waitFor(() => {
+        expect(toastError).toHaveBeenCalledWith("Couldn't save schedule — try again.");
+      });
+    });
   });
 });
