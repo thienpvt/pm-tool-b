@@ -1,7 +1,4 @@
-import { NextResponse } from 'next/server';
 import { withProjectAccess } from '@/lib/http/with-project-access';
-import { listProjectDocumentChecklist } from '@/modules/documents/backend/services/project-document-checklist.service';
+import { getProjectDocumentChecklistHandler } from '@/modules/documents/backend/routes/projects/[id]/document-checklist/handlers';
 
-export const GET = withProjectAccess<{ id: string }>(async (_req, { params, actor }) =>
-  NextResponse.json(await listProjectDocumentChecklist(params.id, actor)),
-);
+export const GET = withProjectAccess(getProjectDocumentChecklistHandler);

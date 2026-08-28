@@ -26,8 +26,8 @@ vi.mock('@/modules/documents/backend/repositories/project-document-checklist.rep
 }));
 
 import { getSessionFromRequest } from '@/lib/auth';
-import { GET as listGET, POST as listPOST } from '../route';
-import { GET, PATCH } from './route';
+import { GET as listGET, POST as listPOST } from '@/app/api/projects/[id]/document-checklist/route';
+import { GET, PATCH } from '@/app/api/projects/[id]/document-checklist/[itemId]/route';
 
 describe('GET/PATCH /api/projects/[id]/document-checklist/[itemId]', () => {
   beforeEach(() => {
