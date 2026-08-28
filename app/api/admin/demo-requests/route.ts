@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionFromRequest, forbidden, unauthorized } from '@/lib/auth';
-import { deleteDemoRequest, listDemoRequests, updateDemoRequest } from '@/lib/repositories/admin.repo';
+import {
+  deleteDemoRequestPlatform,
+  listDemoRequestsPlatform,
+  updateDemoRequestPlatform,
+} from '@/lib/services/admin-platform.service';
 import { updateDemoRequestSchema } from './schema';
 
 async function requireAdmin(req: NextRequest) {
@@ -12,7 +16,7 @@ async function requireAdmin(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   const err = await requireAdmin(req); if (err) return err;
-  const rows = await listDemoRequests();
+  const rows = await listDemoRequestsPlatform();
   return NextResponse.json(rows);
 }
 
@@ -21,7 +25,7 @@ export async function PUT(req: NextRequest) {
   const parsed = updateDemoRequestSchema.safeParse(await req.json());
   if (!parsed.success) return NextResponse.json({ error: 'id required' }, { status: 400 });
   const { id, status, notes } = parsed.data;
-  await updateDemoRequest(id, status ?? null, notes ?? null);
+  await updateDemoRequestPlatform(id, status ?? null, notes ?? null);
   return NextResponse.json({ ok: true });
 }
 
@@ -30,6 +34,6 @@ export async function DELETE(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const id = searchParams.get('id');
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
-  await deleteDemoRequest(Number(id));
+  await deleteDemoRequestPlatform(Number(id));
   return NextResponse.json({ ok: true });
 }
