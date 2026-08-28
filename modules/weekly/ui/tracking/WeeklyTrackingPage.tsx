@@ -5,7 +5,9 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AlertTriangle } from 'lucide-react';
 import Sidebar from '@/components/layout/Sidebar';
-import type { WeeklyPeriodListItem } from '../shared/types';
+import type { PeriodTrackingFilters, WeeklyPeriodListItem } from '../shared/types';
+import { TrackingCountsBar } from './TrackingCountsBar';
+import { TrackingFiltersBar } from './TrackingFiltersBar';
 import { usePeriodTracking } from './usePeriodTracking';
 
 const ERROR_COPY = {
@@ -39,6 +41,7 @@ function WeeklyTrackingContent() {
   >(null);
 
   const { data, loading: trackingLoading, error: trackingError, load } = usePeriodTracking();
+  const [filters, setFilters] = useState<PeriodTrackingFilters>({});
 
   const selectedPeriodId = useMemo(() => {
     if (!periods) return null;
@@ -80,12 +83,17 @@ function WeeklyTrackingContent() {
 
   useEffect(() => {
     if (selectedPeriodId !== null) {
-      load(selectedPeriodId);
+      load(selectedPeriodId, filters);
     }
-  }, [selectedPeriodId, load]);
+  }, [selectedPeriodId, load, filters]);
 
   const handlePeriodChange = (value: string) => {
+    setFilters({});
     router.replace(`/weekly/tracking?periodId=${value}`);
+  };
+
+  const handleApplyFilters = (next: PeriodTrackingFilters) => {
+    setFilters(next);
   };
 
   const error = periodsError ?? trackingError;
@@ -159,6 +167,17 @@ function WeeklyTrackingContent() {
             ))}
           </select>
         </div>
+
+        {data && (
+          <>
+            <TrackingCountsBar counts={data.counts} />
+            <TrackingFiltersBar
+              rows={data.rows}
+              disabled={trackingLoading}
+              onApply={handleApplyFilters}
+            />
+          </>
+        )}
       </main>
     </div>
   );
