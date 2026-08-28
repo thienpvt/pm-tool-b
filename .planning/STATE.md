@@ -4,17 +4,17 @@ milestone: v2.1
 milestone_name: Hardening & Deferred Debt
 current_phase: 20
 current_phase_name: API Contract & Leftover Routes
-status: planning
-stopped_at: Phase 19 complete, ready to plan Phase 20
-last_updated: "2026-08-28T06:19:52.223Z"
+status: executing
+stopped_at: Completed 20-01-PLAN.md
+last_updated: "2026-08-28T07:17:38.279Z"
 last_activity: 2026-08-28
-last_activity_desc: Phase 19 complete, transitioned to Phase 20
-state_head: a35f1dd379a612e6361db02c536ab5a49fb1bdfd
+last_activity_desc: Phase 20 execution started
+state_head: 7706235e83da6fbf744c4a09aa1f9c2504135669
 progress:
   total_phases: 9
   completed_phases: 1
-  total_plans: 4
-  completed_plans: 4
+  total_plans: 11
+  completed_plans: 5
 ---
 
 # Project State
@@ -24,14 +24,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-28)
 
 **Core value:** One source of truth for projects, milestones, RAID, and weekly reports — role- and project-scoped — so CPMO and PMs act on highlights, nearest milestones, open risks/issues, and items that need leadership support.
-**Current focus:** Phase 19 Data Layer Cutover (v2.1)
+**Current focus:** Phase 20 — API Contract & Leftover Routes
 
 ## Current Position
 
-Phase: 20 — API Contract & Leftover Routes
-Plan: Not started
-Status: Ready to plan
-Last activity: 2026-08-28 — Phase 19 complete, transitioned to Phase 20
+Phase: 20 (API Contract & Leftover Routes) — EXECUTING
+Plan: 2 of 7
+Status: Ready to execute
+Last activity: 2026-08-28 — Phase 20 execution started
 
 Progress: [██░░░░░░░░] 25%
 
@@ -99,6 +99,7 @@ Progress: [██░░░░░░░░] 25%
 | Phase 19-data-layer-cutover P02 | 10min | 3 tasks | 6 files |
 | Phase 19 P03 | 5 | 3 tasks | 13 files |
 | Phase 19-data-layer-cutover P04 | 8min | 3 tasks | 12 files |
+| Phase 20-api-contract-leftover-routes P01 | 2min | 3 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -187,6 +188,8 @@ Recent decisions affecting current work:
 - [Phase 19]: v2 backfills delegate to existing lib/db-*.ts helpers with settings flags
 - [Phase 19]: Removed boot schema functions from lib/db.ts; external migrate is sole DDL writer
 - [Phase 19]: Runner copies node_modules from deps so nextjs user runs npx tsx migrate before server
+- [Phase 20]: D-01: proxy API detection uses pathname /api/ prefix not Accept header
+- [Phase 20]: D-02: proxy unauthenticated API returns { error: Unauthorized } matching withAuth
 
 ### Pending Todos
 
@@ -210,8 +213,8 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-08-28T06:02:21.627Z
-Stopped at: Phase 19 complete, ready to plan Phase 20
+Last session: 2026-08-28T07:17:38.158Z
+Stopped at: Completed 20-01-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
