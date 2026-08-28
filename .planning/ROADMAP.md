@@ -111,7 +111,7 @@ Plans:
 **Wave 1**
 
 - [x] 20-01-PLAN.md — Proxy JSON 401 for unauthenticated `/api/*`
-- [ ] 20-02-PLAN.md — Jira search hygiene (Invalid JSON 400, no field dump)
+- [x] 20-02-PLAN.md — Jira search hygiene (Invalid JSON 400, no field dump)
 - [ ] 20-03-PLAN.md — ESLint wrapper gate, allowlist, CI `npm run lint`
 - [ ] 20-04-PLAN.md — Operations systems collection/`[id]` through service
 - [ ] 20-06-PLAN.md — Admin-platform service (companies, demo-requests, resource-audit)
