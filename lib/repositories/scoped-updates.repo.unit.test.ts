@@ -17,7 +17,7 @@ import { updateEscalation } from './escalations.repo';
 import { updateIssue } from './issues.repo';
 import { updateMeeting } from './meetings.repo';
 import { updateMilestone } from './milestones.repo';
-import { updateOperationsBudgetItem, updateOperationsIncident } from './operations.repo';
+import { updateOperationsBudgetItem, updateOperationsIncident } from '@/modules/operations/backend/repositories/operations.repo';
 import {
   updatePortfolioBudgetAllocation,
   updatePortfolioBudgetCategory,

@@ -1,15 +1,15 @@
 import { NextRequest } from 'next/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { listExpensesForSystem, createExpenseForSystem } = vi.hoisted(() => ({
-  listExpensesForSystem: vi.fn(),
-  createExpenseForSystem: vi.fn(),
+const { listBudgetItemsForSystem, createBudgetItemForSystem } = vi.hoisted(() => ({
+  listBudgetItemsForSystem: vi.fn(),
+  createBudgetItemForSystem: vi.fn(),
 }));
 
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
-vi.mock('@/lib/services/operations.service', () => ({
-  listExpensesForSystem,
-  createExpenseForSystem,
+vi.mock('@/modules/operations/backend/services/operations.service', () => ({
+  listBudgetItemsForSystem,
+  createBudgetItemForSystem,
 }));
 
 import { getSessionFromRequest } from '@/lib/auth';
@@ -29,7 +29,7 @@ const session = {
 };
 
 function jsonReq(method: string, body?: unknown) {
-  return new NextRequest('http://localhost/api/operations/systems/42/expenses', {
+  return new NextRequest('http://localhost/api/operations/systems/42/budget-items', {
     method,
     body: body === undefined ? undefined : JSON.stringify(body),
     headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
@@ -40,29 +40,38 @@ const ctx = { params: Promise.resolve({ id: '42' }) };
 
 beforeEach(() => vi.clearAllMocks());
 
-describe('GET /api/operations/systems/[id]/expenses', () => {
+describe('GET /api/operations/systems/[id]/budget-items', () => {
   it('returns 401 without session and does not call service', async () => {
     vi.mocked(getSessionFromRequest).mockResolvedValue(null);
     const res = await GET(jsonReq('GET'), ctx);
     expect(res.status).toBe(401);
-    expect(listExpensesForSystem).not.toHaveBeenCalled();
+    expect(listBudgetItemsForSystem).not.toHaveBeenCalled();
   });
 
   it('returns 404 when service returns null', async () => {
     vi.mocked(getSessionFromRequest).mockResolvedValue(session as never);
-    listExpensesForSystem.mockResolvedValue(null);
+    listBudgetItemsForSystem.mockResolvedValue(null);
     const res = await GET(jsonReq('GET'), ctx);
     expect(res.status).toBe(404);
     await expect(res.json()).resolves.toEqual({ error: 'Not found' });
-    expect(listExpensesForSystem).toHaveBeenCalledWith(session, '42');
+    expect(listBudgetItemsForSystem).toHaveBeenCalledWith(session, '42');
+  });
+
+  it('returns 200 and calls listBudgetItemsForSystem with session user', async () => {
+    vi.mocked(getSessionFromRequest).mockResolvedValue(session as never);
+    listBudgetItemsForSystem.mockResolvedValue([{ id: 1, name: 'Item' }]);
+    const res = await GET(jsonReq('GET'), ctx);
+    expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toEqual([{ id: 1, name: 'Item' }]);
+    expect(listBudgetItemsForSystem).toHaveBeenCalledWith(session, '42');
   });
 });
 
-describe('POST /api/operations/systems/[id]/expenses', () => {
+describe('POST /api/operations/systems/[id]/budget-items', () => {
   it('returns 401 without session and does not call service', async () => {
     vi.mocked(getSessionFromRequest).mockResolvedValue(null);
-    const res = await POST(jsonReq('POST', { amount: 100 }), ctx);
+    const res = await POST(jsonReq('POST', { name: 'New Item' }), ctx);
     expect(res.status).toBe(401);
-    expect(createExpenseForSystem).not.toHaveBeenCalled();
+    expect(createBudgetItemForSystem).not.toHaveBeenCalled();
   });
 });

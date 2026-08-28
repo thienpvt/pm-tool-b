@@ -1,15 +1,15 @@
 import { NextRequest } from 'next/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { listIncidentsForSystem, createIncidentForSystem } = vi.hoisted(() => ({
-  listIncidentsForSystem: vi.fn(),
-  createIncidentForSystem: vi.fn(),
+const { listExpensesForSystem, createExpenseForSystem } = vi.hoisted(() => ({
+  listExpensesForSystem: vi.fn(),
+  createExpenseForSystem: vi.fn(),
 }));
 
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
-vi.mock('@/lib/services/operations.service', () => ({
-  listIncidentsForSystem,
-  createIncidentForSystem,
+vi.mock('@/modules/operations/backend/services/operations.service', () => ({
+  listExpensesForSystem,
+  createExpenseForSystem,
 }));
 
 import { getSessionFromRequest } from '@/lib/auth';
@@ -29,7 +29,7 @@ const session = {
 };
 
 function jsonReq(method: string, body?: unknown) {
-  return new NextRequest('http://localhost/api/operations/systems/42/incidents', {
+  return new NextRequest('http://localhost/api/operations/systems/42/expenses', {
     method,
     body: body === undefined ? undefined : JSON.stringify(body),
     headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
@@ -40,29 +40,29 @@ const ctx = { params: Promise.resolve({ id: '42' }) };
 
 beforeEach(() => vi.clearAllMocks());
 
-describe('GET /api/operations/systems/[id]/incidents', () => {
+describe('GET /api/operations/systems/[id]/expenses', () => {
   it('returns 401 without session and does not call service', async () => {
     vi.mocked(getSessionFromRequest).mockResolvedValue(null);
     const res = await GET(jsonReq('GET'), ctx);
     expect(res.status).toBe(401);
-    expect(listIncidentsForSystem).not.toHaveBeenCalled();
+    expect(listExpensesForSystem).not.toHaveBeenCalled();
   });
 
   it('returns 404 when service returns null', async () => {
     vi.mocked(getSessionFromRequest).mockResolvedValue(session as never);
-    listIncidentsForSystem.mockResolvedValue(null);
+    listExpensesForSystem.mockResolvedValue(null);
     const res = await GET(jsonReq('GET'), ctx);
     expect(res.status).toBe(404);
     await expect(res.json()).resolves.toEqual({ error: 'Not found' });
-    expect(listIncidentsForSystem).toHaveBeenCalledWith(session, '42');
+    expect(listExpensesForSystem).toHaveBeenCalledWith(session, '42');
   });
 });
 
-describe('POST /api/operations/systems/[id]/incidents', () => {
+describe('POST /api/operations/systems/[id]/expenses', () => {
   it('returns 401 without session and does not call service', async () => {
     vi.mocked(getSessionFromRequest).mockResolvedValue(null);
-    const res = await POST(jsonReq('POST', { title: 'Outage' }), ctx);
+    const res = await POST(jsonReq('POST', { amount: 100 }), ctx);
     expect(res.status).toBe(401);
-    expect(createIncidentForSystem).not.toHaveBeenCalled();
+    expect(createExpenseForSystem).not.toHaveBeenCalled();
   });
 });

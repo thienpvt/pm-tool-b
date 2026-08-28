@@ -9,7 +9,7 @@ const { getOperationsSystemDetail, updateOperationsSystemForUser, deleteOperatio
   }));
 
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
-vi.mock('@/lib/services/operations.service', () => ({
+vi.mock('@/modules/operations/backend/services/operations.service', () => ({
   getOperationsSystemDetail,
   updateOperationsSystemForUser,
   deleteOperationsSystemForUser,
