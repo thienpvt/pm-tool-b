@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionFromRequest, unauthorized, forbidden } from '@/lib/auth';
 import { parseRequestJson } from '@/lib/http/parse-request-json';
+import { parsePositiveIntRouteParam } from '@/lib/http/parse-route-param';
 import { DEFAULT_RAG_CONFIG, RagConfig } from '@/lib/rag';
 import {
   getCompanyRagConfigOrDefault,
@@ -22,7 +23,11 @@ export async function GET(req: NextRequest, { params }: Params) {
   if (err) return err;
 
   const { companyId } = await params;
-  const row = await getCompanyRagConfigOrDefault(Number(companyId));
+  const companyIdNum = parsePositiveIntRouteParam(companyId);
+  if (companyIdNum === null) {
+    return NextResponse.json({ error: 'Invalid company id' }, { status: 400 });
+  }
+  const row = await getCompanyRagConfigOrDefault(companyIdNum);
   return NextResponse.json(row);
 }
 
@@ -31,9 +36,13 @@ export async function POST(req: NextRequest, { params }: Params) {
   if (err) return err;
 
   const { companyId } = await params;
-  const body = await parseRequestJson(req);
-  if (!body.ok) return body.response;
-  const raw = body.data;
+  const companyIdNum = parsePositiveIntRouteParam(companyId);
+  if (companyIdNum === null) {
+    return NextResponse.json({ error: 'Invalid company id' }, { status: 400 });
+  }
+  const json = await parseRequestJson(req);
+  if (!json.ok) return json.response;
+  const raw = json.data;
   // Passthrough shape guard only — see schema.ts for why coercion stays here.
   const parsed = ragConfigSchema.safeParse(raw);
   const body = (parsed.success ? parsed.data : raw) as Partial<RagConfig>;
@@ -49,6 +58,6 @@ export async function POST(req: NextRequest, { params }: Params) {
     low_progress_amber:  Number(body.low_progress_amber  ?? DEFAULT_RAG_CONFIG.low_progress_amber),
   };
 
-  await setCompanyRagConfigValues(Number(companyId), cfg);
+  await setCompanyRagConfigValues(companyIdNum, cfg);
   return NextResponse.json({ ok: true });
 }

@@ -2,9 +2,10 @@ import { NextRequest } from 'next/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_RAG_CONFIG } from '@/lib/rag';
 
-const { getCompanyRagConfigOrDefault, getSessionFromRequest } = vi.hoisted(() => ({
+const { getCompanyRagConfigOrDefault, getSessionFromRequest, setCompanyRagConfigValues } = vi.hoisted(() => ({
   getCompanyRagConfigOrDefault: vi.fn(),
   getSessionFromRequest: vi.fn(),
+  setCompanyRagConfigValues: vi.fn(),
 }));
 
 vi.mock('@/lib/auth', () => ({
@@ -14,7 +15,7 @@ vi.mock('@/lib/auth', () => ({
 }));
 vi.mock('@/lib/services/rag-config.service', () => ({
   getCompanyRagConfigOrDefault,
-  setCompanyRagConfigValues: vi.fn(),
+  setCompanyRagConfigValues,
 }));
 
 import { GET } from './route';
@@ -55,5 +56,22 @@ describe('GET /api/admin/rag-config/[companyId]', () => {
 
     expect(body).toEqual(DEFAULT_RAG_CONFIG);
     expect(Object.keys(body).sort()).toEqual(configKeys);
+  });
+});
+
+describe('GET /api/admin/rag-config/[companyId] invalid companyId (WR-03)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getSessionFromRequest.mockResolvedValue({ is_admin: 1 });
+  });
+
+  it('returns 400 for non-numeric companyId', async () => {
+    const res = await GET(
+      new NextRequest('http://localhost/api/admin/rag-config/abc'),
+      { params: Promise.resolve({ companyId: 'abc' }) },
+    );
+    expect(res.status).toBe(400);
+    await expect(res.json()).resolves.toEqual({ error: 'Invalid company id' });
+    expect(getCompanyRagConfigOrDefault).not.toHaveBeenCalled();
   });
 });

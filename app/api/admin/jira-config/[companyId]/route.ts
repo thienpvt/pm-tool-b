@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionFromRequest, unauthorized, forbidden } from '@/lib/auth';
 import { parseRequestJson } from '@/lib/http/parse-request-json';
+import { parsePositiveIntRouteParam } from '@/lib/http/parse-route-param';
 import {
   getCompanyJiraConfigOrEmpty,
   setCompanyJiraConfigVars,
@@ -21,7 +22,11 @@ export async function GET(req: NextRequest, { params }: Params) {
   if (err) return err;
 
   const { companyId } = await params;
-  const row = await getCompanyJiraConfigOrEmpty(Number(companyId));
+  const companyIdNum = parsePositiveIntRouteParam(companyId);
+  if (companyIdNum === null) {
+    return NextResponse.json({ error: 'Invalid company id' }, { status: 400 });
+  }
+  const row = await getCompanyJiraConfigOrEmpty(companyIdNum);
   return NextResponse.json(row);
 }
 
@@ -30,6 +35,10 @@ export async function POST(req: NextRequest, { params }: Params) {
   if (err) return err;
 
   const { companyId } = await params;
+  const companyIdNum = parsePositiveIntRouteParam(companyId);
+  if (companyIdNum === null) {
+    return NextResponse.json({ error: 'Invalid company id' }, { status: 400 });
+  }
   const body = await parseRequestJson(req);
   if (!body.ok) return body.response;
   const raw = body.data;
@@ -38,7 +47,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     base_url_var: string; email_var: string; token_var: string;
   };
 
-  await setCompanyJiraConfigVars(Number(companyId), {
+  await setCompanyJiraConfigVars(companyIdNum, {
     base_url_var: base_url_var ?? '', email_var: email_var ?? '', token_var: token_var ?? '',
   });
   return NextResponse.json({ ok: true });
