@@ -4,17 +4,17 @@ milestone: v2.1
 milestone_name: Hardening & Deferred Debt
 current_phase: 24
 current_phase_name: Repo-wide Module Split
-status: executing
-stopped_at: Completed 24-09-PLAN.md
-last_updated: "2026-08-28T14:09:16.724Z"
+status: verifying
+stopped_at: Completed 24-10-PLAN.md
+last_updated: "2026-08-28T14:15:02.567Z"
 last_activity: 2026-08-28
 last_activity_desc: Phase 24 execution started
-state_head: 58817644bf775fb4b4a7aee95c7b2e126fe60c65
+state_head: fce20251fcf31aac5f622dec344b97ce8785c5b6
 progress:
   total_phases: 9
   completed_phases: 5
   total_plans: 35
-  completed_plans: 34
+  completed_plans: 35
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-08-28)
 
 Phase: 24 (Repo-wide Module Split) — EXECUTING
 Plan: 10 of 10
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-08-28 — Phase 24 execution started
 
 Progress: [██░░░░░░░░] 25%
@@ -129,6 +129,7 @@ Progress: [██░░░░░░░░] 25%
 | Phase 24-repo-wide-module-split P07 | 45 | 3 tasks | 77 files |
 | Phase 24 P08 | 7 | 3 tasks | 40 files |
 | Phase 24 P09 | 5 | 2 tasks | 56 files |
+| Phase 24 P10 | 8 | 2 tasks | 22 files |
 
 ## Accumulated Context
 
@@ -268,6 +269,8 @@ Recent decisions affecting current work:
 - [Phase 24]: P3 resource-plan withProjectAccess stays in app/api shell
 - [Phase 24]: AdminPage sourced from HEAD to avoid unrelated working-tree edits
 - [Phase 24]: Cross-module importers retargeted to modules/admin/backend for moved repos
+- [Phase 24]: Operations handlers keep getSessionFromRequest — no withCpmo (D-07)
+- [Phase 24]: MOD-01 closeout: all ten feature modules have backend/ and ui/
 
 ### Pending Todos
 
@@ -291,8 +294,8 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-08-28T14:09:16.287Z
-Stopped at: Completed 24-09-PLAN.md
+Last session: 2026-08-28T14:15:02.141Z
+Stopped at: Completed 24-10-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
