@@ -539,5 +539,104 @@ describe('WeeklyTrackingPage', () => {
         expect(screen.getByRole('button', { name: 'Export pack' })).not.toBeDisabled();
       });
     });
+
+    it('POSTs format docx when docx is selected', async () => {
+      const fetchMock = setupFetchWithExport(() =>
+        Promise.resolve({
+          ok: true,
+          status: 200,
+          headers: new Headers({
+            'Content-Disposition': 'attachment; filename="weekly-pack.docx"',
+          }),
+          blob: () =>
+            Promise.resolve(
+              new Blob(['docx'], {
+                type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+              }),
+            ),
+        } as Response),
+      );
+
+      render(<WeeklyTrackingPage />);
+      await waitFor(() => {
+        expect(screen.getByTestId('tracking-grid')).toBeInTheDocument();
+      });
+
+      fireEvent.change(screen.getByLabelText('Export format'), { target: { value: 'docx' } });
+      fireEvent.click(screen.getByLabelText('Select First Submitted'));
+      fireEvent.click(screen.getByRole('button', { name: 'Export pack' }));
+
+      await waitFor(() => {
+        const exportCall = fetchMock.mock.calls.find(
+          ([u, i]) => u === '/api/weekly-periods/2/export' && (i as RequestInit)?.method === 'POST',
+        );
+        expect(JSON.parse((exportCall![1] as RequestInit).body as string).format).toBe('docx');
+      });
+    });
+
+    it('POSTs format pptx when pptx is selected', async () => {
+      const fetchMock = setupFetchWithExport(() =>
+        Promise.resolve({
+          ok: true,
+          status: 200,
+          headers: new Headers({
+            'Content-Disposition': 'attachment; filename="weekly-pack.pptx"',
+          }),
+          blob: () =>
+            Promise.resolve(
+              new Blob(['pptx'], {
+                type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+              }),
+            ),
+        } as Response),
+      );
+
+      render(<WeeklyTrackingPage />);
+      await waitFor(() => {
+        expect(screen.getByTestId('tracking-grid')).toBeInTheDocument();
+      });
+
+      fireEvent.change(screen.getByLabelText('Export format'), { target: { value: 'pptx' } });
+      fireEvent.click(screen.getByLabelText('Select First Submitted'));
+      fireEvent.click(screen.getByRole('button', { name: 'Export pack' }));
+
+      await waitFor(() => {
+        const exportCall = fetchMock.mock.calls.find(
+          ([u, i]) => u === '/api/weekly-periods/2/export' && (i as RequestInit)?.method === 'POST',
+        );
+        expect(JSON.parse((exportCall![1] as RequestInit).body as string).format).toBe('pptx');
+      });
+    });
+
+    it('sends unique project_ids when select-all follows partial selection', async () => {
+      const fetchMock = setupFetchWithExport(() =>
+        Promise.resolve({
+          ok: true,
+          status: 200,
+          headers: new Headers({
+            'Content-Disposition': 'attachment; filename="weekly-pack.xlsx"',
+          }),
+          blob: () => Promise.resolve(new Blob(['xlsx'])),
+        } as Response),
+      );
+
+      render(<WeeklyTrackingPage />);
+      await waitFor(() => {
+        expect(screen.getByTestId('tracking-grid')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByLabelText('Select First Submitted'));
+      fireEvent.click(screen.getByLabelText('Select all submitted'));
+      fireEvent.click(screen.getByRole('button', { name: 'Export pack' }));
+
+      await waitFor(() => {
+        const exportCall = fetchMock.mock.calls.find(
+          ([u, i]) => u === '/api/weekly-periods/2/export' && (i as RequestInit)?.method === 'POST',
+        );
+        const body = JSON.parse((exportCall![1] as RequestInit).body as string);
+        expect(body.project_ids).toEqual([201, 202]);
+        expect(body.project_ids.length).toBe(new Set(body.project_ids).size);
+      });
+    });
   });
 });
