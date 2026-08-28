@@ -526,6 +526,67 @@ describe('DocumentCatalogPage', () => {
       });
     });
 
+    it('ignores stale template GET when catalog selection changes quickly', async () => {
+      const charterTemplates = templatesFixture;
+      const sowTemplates = [
+        {
+          ...templatesFixture[0],
+          id: 99,
+          catalog_id: 2,
+          name: 'SoW template v1',
+          template_url: 'https://example.com/templates/sow',
+        },
+      ];
+
+      const pending: Record<number, (value: unknown) => void> = {};
+      vi.stubGlobal(
+        'fetch',
+        vi.fn((url: string, init?: RequestInit) => {
+          if (url.startsWith('/api/document-templates?catalog_id=')) {
+            const catalogId = Number(url.split('=')[1]);
+            return new Promise((resolve) => {
+              pending[catalogId] = (value) =>
+                resolve({
+                  ok: true,
+                  status: 200,
+                  json: () => Promise.resolve(value),
+                });
+            });
+          }
+          if (url === '/api/document-catalog' && (!init || init.method === undefined)) {
+            return Promise.resolve({
+              ok: true,
+              status: 200,
+              json: () => Promise.resolve(catalogFixture),
+            });
+          }
+          return Promise.reject(new Error(`unexpected fetch: ${url}`));
+        }) as unknown as typeof fetch,
+      );
+
+      render(<DocumentCatalogPage />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Charter')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText('Charter'));
+      fireEvent.click(screen.getByText('SoW'));
+
+      pending[2]!(sowTemplates);
+
+      await waitFor(() => {
+        expect(screen.getByRole('link', { name: /sow template v1/i })).toBeInTheDocument();
+      });
+
+      pending[1]!(charterTemplates);
+
+      await waitFor(() => {
+        expect(screen.queryByRole('link', { name: /charter template v1/i })).not.toBeInTheDocument();
+      });
+      expect(screen.getByRole('link', { name: /sow template v1/i })).toBeInTheDocument();
+    });
+
     it('shows populated template list with external HTTPS link', async () => {
       setupCatalogWithTemplates(templatesFixture);
       render(<DocumentCatalogPage />);

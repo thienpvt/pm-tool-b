@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import type { CatalogRow, TemplateRow } from '../shared/types';
 import type { CatalogFormValues } from './CatalogForm';
@@ -20,6 +20,7 @@ export function useDocumentCatalog() {
   const [templatesLoading, setTemplatesLoading] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [retiringTemplateId, setRetiringTemplateId] = useState<number | null>(null);
+  const templatesSeqRef = useRef(0);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -54,19 +55,23 @@ export function useDocumentCatalog() {
   }, []);
 
   const loadTemplates = useCallback(async (catalogId: number) => {
+    const requestId = ++templatesSeqRef.current;
     setTemplatesLoading(true);
     try {
       const res = await fetch(`/api/document-templates?catalog_id=${catalogId}`);
+      if (requestId !== templatesSeqRef.current) return;
       if (!res.ok) {
         setTemplates([]);
         return;
       }
       const rows = (await res.json()) as TemplateRow[];
+      if (requestId !== templatesSeqRef.current) return;
       setTemplates(rows);
     } catch {
+      if (requestId !== templatesSeqRef.current) return;
       setTemplates([]);
     } finally {
-      setTemplatesLoading(false);
+      if (requestId === templatesSeqRef.current) setTemplatesLoading(false);
     }
   }, []);
 
