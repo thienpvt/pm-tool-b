@@ -38,7 +38,7 @@ export function ExportToolbar({ selectedIds, exporting, onExport }: Props) {
       </div>
       <button
         type="button"
-        className="h-8 px-3 text-sm font-medium rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+        className="h-8 px-3 text-sm rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
         disabled={disabled}
         onClick={() => onExport(format)}
       >
