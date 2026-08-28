@@ -3,7 +3,7 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { CalendarX2, Plus, Trash2, Eye, Copy, FolderPlus } from 'lucide-react';
-import ImportMappingDialog from '@/components/timeline/ImportMappingDialog';
+import ImportMappingDialog from '@/modules/jira/ui/timeline-import/ImportMappingDialog';
 import JiraSyncDialog from '@/modules/jira/ui/JiraSyncDialog';
 import type { Activity, TeamMember, Holiday, ContextMenuState } from '../types';
 import { ActivityDetail } from './ActivityDetail';

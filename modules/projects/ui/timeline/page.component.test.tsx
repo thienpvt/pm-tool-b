@@ -4,8 +4,8 @@ import TimelinePage from './page';
 
 vi.mock('next/navigation', () => ({ useParams: () => ({ id: '1' }) }));
 vi.mock('@/components/layout/Sidebar', () => ({ default: () => <nav data-testid="sidebar" /> }));
-vi.mock('@/components/timeline/ImportMappingDialog', () => ({ default: () => null }));
-vi.mock('@/components/jira/JiraSyncDialog', () => ({ default: () => null }));
+vi.mock('@/modules/jira/ui/timeline-import/ImportMappingDialog', () => ({ default: () => null }));
+vi.mock('@/modules/jira/ui/JiraSyncDialog', () => ({ default: () => null }));
 
 const projectFixture = {
   id: 1,
