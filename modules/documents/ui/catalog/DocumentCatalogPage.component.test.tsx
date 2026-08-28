@@ -345,14 +345,16 @@ describe('DocumentCatalogPage', () => {
         expect(screen.getByTestId('catalog-list')).toBeInTheDocument();
       });
 
-      fireEvent.click(screen.getByRole('button', { name: 'Edit catalog item' }));
+      fireEvent.click(screen.getAllByRole('button', { name: 'Edit catalog item' })[0]);
 
       await waitFor(() => {
         expect(screen.getByTestId('catalog-edit-form')).toBeInTheDocument();
-        expect(screen.getByLabelText('Name')).toHaveValue('Charter');
       });
 
-      fireEvent.change(screen.getByLabelText('Name'), {
+      const editForm = screen.getByTestId('catalog-edit-form');
+      expect(editForm.querySelector('input[aria-label="Name"]')).toHaveValue('Charter');
+
+      fireEvent.change(editForm.querySelector('input[aria-label="Name"]')!, {
         target: { value: 'Charter Updated' },
       });
       fireEvent.click(screen.getByRole('button', { name: 'Save catalog item' }));

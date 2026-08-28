@@ -1,7 +1,17 @@
 'use client';
 
+import { useState } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import Sidebar from '@/components/layout/Sidebar';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { CatalogForm } from './CatalogForm';
 import { CatalogList } from './CatalogList';
 import { useDocumentCatalog } from './useDocumentCatalog';
@@ -13,7 +23,23 @@ const ERROR_COPY = {
 } as const;
 
 export default function DocumentCatalogPage() {
-  const { data, loading, error, creating, createCatalog } = useDocumentCatalog();
+  const {
+    data,
+    loading,
+    error,
+    creating,
+    saving,
+    retiring,
+    createCatalog,
+    updateCatalog,
+    retireCatalog,
+    selectedId,
+    setSelectedId,
+    editingId,
+    setEditingId,
+  } = useDocumentCatalog();
+
+  const [retireTargetId, setRetireTargetId] = useState<number | null>(null);
 
   if (loading) {
     return (
@@ -46,6 +72,13 @@ export default function DocumentCatalogPage() {
   if (!data) return null;
 
   const activeCount = data.filter((row) => row.active).length;
+  const editingRow = editingId !== null ? data.find((row) => row.id === editingId) : null;
+
+  const handleConfirmRetire = async () => {
+    if (retireTargetId === null) return;
+    await retireCatalog(retireTargetId);
+    setRetireTargetId(null);
+  };
 
   return (
     <div className="flex flex-col lg:flex-row min-h-screen bg-slate-50">
@@ -60,11 +93,51 @@ export default function DocumentCatalogPage() {
 
         <CatalogForm mode="create" saving={creating} onSubmit={createCatalog} />
 
-        <CatalogList rows={data} />
+        {editingRow ? (
+          <CatalogForm
+            mode="edit"
+            initial={editingRow}
+            saving={saving || retiring}
+            onSubmit={(values) => updateCatalog(editingRow.id, values)}
+            onRetire={() => setRetireTargetId(editingRow.id)}
+            onCancel={() => setEditingId(null)}
+          />
+        ) : null}
+
+        <CatalogList
+          rows={data}
+          selectedId={selectedId}
+          onSelectRow={setSelectedId}
+          onEditRow={setEditingId}
+          onRetireRow={setRetireTargetId}
+        />
 
         <p className="text-sm text-muted-foreground mt-6">
           Select a catalog item to manage templates.
         </p>
+
+        <Dialog open={retireTargetId !== null} onOpenChange={(open) => !open && setRetireTargetId(null)}>
+          <DialogContent className="max-w-sm" showCloseButton={false}>
+            <DialogHeader>
+              <DialogTitle>Retire this catalog item?</DialogTitle>
+              <DialogDescription>
+                Existing checklist rows remain; new projects won&apos;t receive this item.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setRetireTargetId(null)}>
+                Cancel
+              </Button>
+              <Button
+                className="bg-red-600 text-white hover:bg-red-700"
+                disabled={retiring}
+                onClick={() => void handleConfirmRetire()}
+              >
+                Retire item
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </main>
     </div>
   );
