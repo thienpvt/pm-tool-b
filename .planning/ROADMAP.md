@@ -217,13 +217,13 @@ Plans:
   1. Each feature area in the repo (portfolio, projects, admin, operations, reports, Jira/import, dashboards, weekly, documents, audit) has backend (routes, services, repos) and UI (pages, hooks, components) in separate directories under that module
   2. Existing page and `/api/*` URLs keep working after the split via thin `app/` re-exports
 
-**Plans:** 0/10 plans executed
+**Plans:** 1/10 plans executed
 **UI hint**: yes
 
 Plans:
 **Wave 1**
 
-- [ ] 24-01-PLAN.md — Dashboards backend tracer (P1/P2/P6/S1/S2)
+- [x] 24-01-PLAN.md — Dashboards backend tracer (P1/P2/P6/S1/S2)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -320,7 +320,7 @@ v1.0 Phases 1–8 and v2.0 Phases 9–18 are complete (see milestone archives ab
 | 21. Portfolio & PM Dashboard Pages | 4/4 | Complete    | 2026-08-28 |
 | 22. Weekly Workflow Surfaces | 5/5 | Complete    | 2026-08-28 |
 | 23. Document Checklist & Audit Viewer | 5/5 | Complete    | 2026-08-28 |
-| 24. Repo-wide Module Split | 0/10 | Planned    |  |
+| 24. Repo-wide Module Split | 1/10 | In Progress|  |
 | 25. Kysely Repositories | 0/TBD | Not started | - |
 | 26. RSC Chrome & Cold Start | 0/TBD | Not started | - |
 | 27. Nits, Validation & Operator Gate | 0/TBD | Not started | - |
