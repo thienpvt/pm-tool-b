@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionFromRequest } from '@/lib/auth';
-import { addMissingTeamMembersToPortfolio, resourceAudit } from '@/lib/repositories/admin.repo';
+import {
+  addMissingTeamMembersToPortfolioForCompany,
+  getResourceAudit,
+} from '@/lib/services/admin-platform.service';
 import { assertCompanyWrite, toAccessActor } from '@/lib/services/access';
 import { serviceErrorResponse } from '@/lib/api-errors';
 
@@ -9,7 +12,7 @@ export async function GET(req: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const cid = user.company_id;
-  const { company, inPortfolioNotInTeams, inTeamsNotInPortfolio } = await resourceAudit(cid);
+  const { company, inPortfolioNotInTeams, inTeamsNotInPortfolio } = await getResourceAudit(cid);
 
   return NextResponse.json({
     company,
@@ -30,7 +33,7 @@ export async function POST(req: NextRequest) {
   try {
     const actor = toAccessActor(user);
     assertCompanyWrite(actor);
-    const missing = await addMissingTeamMembersToPortfolio(actor.company_id);
+    const missing = await addMissingTeamMembersToPortfolioForCompany(actor.company_id);
     return NextResponse.json({ added: missing.length, members: missing });
   } catch (e) {
     return serviceErrorResponse(e);
