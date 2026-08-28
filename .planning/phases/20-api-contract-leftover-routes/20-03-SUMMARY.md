@@ -105,7 +105,7 @@ Each task was committed atomically:
 3. **Task 2: CI lint step and eslint.config registration** - `4f6e84b` (feat)
 4. **Fix: declare @typescript-eslint/utils in package.json** - `9182e4d` (fix)
 
-**Plan metadata:** pending (docs commit)
+**Plan metadata:** `0080ae8` (docs: complete plan)
 
 ## Files Created/Modified
 
