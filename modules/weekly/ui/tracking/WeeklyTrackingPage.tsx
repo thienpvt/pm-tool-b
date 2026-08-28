@@ -8,6 +8,7 @@ import Sidebar from '@/components/layout/Sidebar';
 import type { PeriodTrackingFilters, WeeklyPeriodListItem } from '../shared/types';
 import { TrackingCountsBar } from './TrackingCountsBar';
 import { TrackingFiltersBar } from './TrackingFiltersBar';
+import { TrackingGrid } from './TrackingGrid';
 import { usePeriodTracking } from './usePeriodTracking';
 
 const ERROR_COPY = {
@@ -42,6 +43,7 @@ function WeeklyTrackingContent() {
 
   const { data, loading: trackingLoading, error: trackingError, load } = usePeriodTracking();
   const [filters, setFilters] = useState<PeriodTrackingFilters>({});
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
 
   const selectedPeriodId = useMemo(() => {
     if (!periods) return null;
@@ -86,6 +88,10 @@ function WeeklyTrackingContent() {
       load(selectedPeriodId, filters);
     }
   }, [selectedPeriodId, load, filters]);
+
+  useEffect(() => {
+    setSelectedIds([]);
+  }, [selectedPeriodId, filters]);
 
   const handlePeriodChange = (value: string) => {
     setFilters({});
@@ -176,6 +182,14 @@ function WeeklyTrackingContent() {
               disabled={trackingLoading}
               onApply={handleApplyFilters}
             />
+            <TrackingGrid
+              rows={data.rows}
+              selectedIds={selectedIds}
+              onSelectionChange={setSelectedIds}
+            />
+            <span data-testid="tracking-selected-ids" className="sr-only">
+              {JSON.stringify(selectedIds)}
+            </span>
           </>
         )}
       </main>

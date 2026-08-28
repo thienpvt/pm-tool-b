@@ -359,22 +359,16 @@ describe('WeeklyTrackingPage', () => {
     it('records checkbox selection order as project_ids', async () => {
       await renderWithPayload(twoSubmittedPayload);
 
-      const checkboxes = screen.getAllByRole('checkbox').filter(
-        (el) => el.getAttribute('aria-label') !== 'Select all submitted',
-      );
-      const submittedBoxes = checkboxes.filter((el) => !el.hasAttribute('disabled'));
-      expect(submittedBoxes.length).toBeGreaterThanOrEqual(2);
-
-      fireEvent.click(submittedBoxes[0]);
-      fireEvent.click(submittedBoxes[1]);
+      fireEvent.click(screen.getByLabelText('Select First Submitted'));
+      fireEvent.click(screen.getByLabelText('Select Second Submitted'));
 
       expect(screen.getByTestId('tracking-selected-ids')).toHaveTextContent('[201,202]');
     });
 
     it('Open report link uses /projects/{id}/weekly-reports/{reportId}', async () => {
       await renderWithPayload(trackingPayload);
-      const link = screen.getByRole('link', { name: 'Open report' });
-      expect(link).toHaveAttribute('href', '/projects/101/weekly-reports/501');
+      const links = screen.getAllByRole('link', { name: 'Open report' });
+      expect(links[0]).toHaveAttribute('href', '/projects/101/weekly-reports/501');
     });
   });
 });
