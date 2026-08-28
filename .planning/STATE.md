@@ -4,17 +4,17 @@ milestone: v2.1
 milestone_name: Hardening & Deferred Debt
 current_phase: 19
 current_phase_name: Data Layer Cutover
-status: executing
-stopped_at: Completed 19-03-PLAN.md
-last_updated: "2026-08-28T05:56:29.347Z"
+status: verifying
+stopped_at: Completed 19-04-PLAN.md
+last_updated: "2026-08-28T06:02:21.639Z"
 last_activity: 2026-08-28
 last_activity_desc: v2.1 roadmap written (Phases 19–27)
-state_head: 99fcede800cf58a946d7d416372661703541c90e
+state_head: 5fa97c656e6d5932e5946deb738f7c8ccfd134df
 progress:
   total_phases: 9
   completed_phases: 0
   total_plans: 4
-  completed_plans: 3
+  completed_plans: 4
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-08-28)
 
 Phase: 19 (Data Layer Cutover) — IN PROGRESS
 Plan: 4 of 4 complete (19-01 done)
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-08-28 — Completed 19-01 migrate engine plan
 
 Progress: [██░░░░░░░░] 25%
@@ -98,6 +98,7 @@ Progress: [██░░░░░░░░] 25%
 | Phase 19 P01 | 5 | 3 tasks | 11 files |
 | Phase 19-data-layer-cutover P02 | 10min | 3 tasks | 6 files |
 | Phase 19 P03 | 5 | 3 tasks | 13 files |
+| Phase 19-data-layer-cutover P04 | 8min | 3 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -184,6 +185,8 @@ Recent decisions affecting current work:
 - [Phase 19]: MAPPING_TENANT_DDL excludes CROSS JOIN backfill — operator scripts in 19-03
 - [Phase 19]: Export backfillRaidMasters for operator script reuse without DDL/index side effects
 - [Phase 19]: v2 backfills delegate to existing lib/db-*.ts helpers with settings flags
+- [Phase 19]: Removed boot schema functions from lib/db.ts; external migrate is sole DDL writer
+- [Phase 19]: Runner copies node_modules from deps so nextjs user runs npx tsx migrate before server
 
 ### Pending Todos
 
@@ -207,8 +210,8 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-08-28T05:56:29.337Z
-Stopped at: Completed 19-03-PLAN.md
+Last session: 2026-08-28T06:02:21.627Z
+Stopped at: Completed 19-04-PLAN.md
 Resume file: None
 
 ## Operator Next Steps

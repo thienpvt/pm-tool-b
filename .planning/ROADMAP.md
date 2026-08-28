@@ -77,7 +77,7 @@ Phase artifacts: [.planning/milestones/v2.0-phases/](milestones/v2.0-phases/)
   3. Data-fix `UPDATE`s that used to run as boot-time migrations live as one-off scripts under `scripts/data-fixes/` and are not re-run on every process start
   4. A brownfield database can be stamped onto the ledger without dropping v2.0 tables — the origin `gsd/quick-260826-ded-data-layer-migrations` branch is a runner/ledger pattern only and is never merged as-is
 
-**Plans:** 3/4 plans executed
+**Plans:** 4/4 plans executed
 
 Plans:
 **Wave 1**
@@ -91,7 +91,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 19-04-PLAN.md — Slim getDb; Docker/CI/Railway migrate before start
+- [x] 19-04-PLAN.md — Slim getDb; Docker/CI/Railway migrate before start
 
 ### Phase 20: API Contract & Leftover Routes
 
@@ -214,7 +214,7 @@ v1.0 Phases 1–8 and v2.0 Phases 9–18 are complete (see milestone archives ab
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 19. Data Layer Cutover | 3/4 | In Progress|  |
+| 19. Data Layer Cutover | 4/4 | In Progress|  |
 | 20. API Contract & Leftover Routes | 0/TBD | Not started | - |
 | 21. Portfolio & PM Dashboard Pages | 0/TBD | Not started | - |
 | 22. Weekly Workflow Surfaces | 0/TBD | Not started | - |
