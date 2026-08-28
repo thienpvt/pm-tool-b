@@ -51,7 +51,7 @@ DATA-01..03 is **one migration task** (replay origin `gsd/quick-260826-ded-data-
 ### v2 UI — documents
 
 - [x] **DOC-07**: CPMO can manage the document catalog and URL-only templates in the UI
-- [ ] **DOC-08**: A PM can complete a project's Confluence checklist in the UI (HTTPS link; Approved or Not applicable)
+- [x] **DOC-08**: A PM can complete a project's Confluence checklist in the UI (HTTPS link; Approved or Not applicable)
 - [ ] **DOC-09**: CPMO can view document compliance in the UI
 
 ### v2 UI — audit
@@ -109,7 +109,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CPMO-05 | Phase 22 | Complete |
 | PERF-01 | Phase 22 | Complete |
 | DOC-07 | Phase 23 | Complete |
-| DOC-08 | Phase 23 | Pending |
+| DOC-08 | Phase 23 | Complete |
 | DOC-09 | Phase 23 | Pending |
 | AUDIT-02 | Phase 23 | Pending |
 | MOD-01 | Phase 24 | Pending |

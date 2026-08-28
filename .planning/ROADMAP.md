@@ -192,7 +192,7 @@ Plans:
   3. CPMO can view document compliance in the UI
   4. CPMO can view the company-scoped audit log in the UI with filters and before/after snapshots
 
-**Plans:** 2/5 plans executed
+**Plans:** 3/5 plans executed
 **UI hint**: yes
 
 Plans:
@@ -203,7 +203,7 @@ Plans:
 **Wave 2** *(blocked on Wave 1 completion)*
 
 - [x] 23-02-PLAN.md — Catalog create/edit/retire plus URL-only templates panel
-- [ ] 23-03-PLAN.md — PM Confluence checklist plus project hub card
+- [x] 23-03-PLAN.md — PM Confluence checklist plus project hub card
 - [ ] 23-04-PLAN.md — CPMO document compliance page
 - [ ] 23-05-PLAN.md — CPMO audit viewer plus VirtualRows
 
@@ -274,7 +274,7 @@ v1.0 Phases 1–8 and v2.0 Phases 9–18 are complete (see milestone archives ab
 | 20. API Contract & Leftover Routes | 7/7 | Complete    | 2026-08-28 |
 | 21. Portfolio & PM Dashboard Pages | 4/4 | Complete    | 2026-08-28 |
 | 22. Weekly Workflow Surfaces | 5/5 | Complete    | 2026-08-28 |
-| 23. Document Checklist & Audit Viewer | 2/5 | In Progress|  |
+| 23. Document Checklist & Audit Viewer | 3/5 | In Progress|  |
 | 24. Repo-wide Module Split | 0/TBD | Not started | - |
 | 25. Kysely Repositories | 0/TBD | Not started | - |
 | 26. RSC Chrome & Cold Start | 0/TBD | Not started | - |
