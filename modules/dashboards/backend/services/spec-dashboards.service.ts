@@ -11,7 +11,7 @@ import { getActivePrimaryAssignment } from '@/lib/repositories/pm-assignments.re
 import {
   getDashboardFilters,
   upsertDashboardFilters,
-} from '@/lib/repositories/dashboard-filter-state.repo';
+} from '@/modules/dashboards/backend/repositories/dashboard-filter-state.repo';
 import { listProjects } from '@/lib/repositories/projects.repo';
 import { listWeeklyPeriods } from '@/lib/repositories/weekly-periods.repo';
 import { listPeriodShellsRepo } from '@/lib/repositories/weekly-reports.repo';
@@ -22,9 +22,9 @@ import {
   listUpcomingMilestones,
 } from '@/lib/services/raid-masters.service';
 import { isWeeklyReportOverdue } from '@/lib/services/weekly-reports.service';
-import { assertCompanyWrite, hasRole, type AccessActor } from './access';
-import { auditLog } from './audit.service';
-import { ForbiddenError } from './errors';
+import { assertCompanyWrite, hasRole, type AccessActor } from '@/lib/services/access';
+import { auditLog } from '@/lib/services/audit.service';
+import { ForbiddenError } from '@/lib/services/errors';
 
 export type PortfolioDashboardListRow = {
   id: number;

@@ -6,7 +6,7 @@ const { getPortfolioDashboard } = vi.hoisted(() => ({
 }));
 
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
-vi.mock('@/lib/services/spec-dashboards.service', () => ({ getPortfolioDashboard }));
+vi.mock('@/modules/dashboards/backend/services/spec-dashboards.service', () => ({ getPortfolioDashboard }));
 
 import { getSessionFromRequest } from '@/lib/auth';
 import { GET } from './route';

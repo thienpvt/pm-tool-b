@@ -37,7 +37,7 @@ vi.mock('@/lib/services/access', async (importOriginal) => {
   return { ...actual, assertCompanyWrite };
 });
 vi.mock('@/lib/repositories/projects.repo', () => ({ listProjects }));
-vi.mock('@/lib/repositories/dashboard-filter-state.repo', () => ({
+vi.mock('@/modules/dashboards/backend/repositories/dashboard-filter-state.repo', () => ({
   getDashboardFilters,
   upsertDashboardFilters,
 }));
@@ -51,7 +51,7 @@ vi.mock('@/lib/services/raid-masters.service', () => ({
 vi.mock('@/lib/services/audit.service', () => ({ auditLog: auditLogFn }));
 vi.mock('@/lib/repositories/weekly-periods.repo', () => ({ listWeeklyPeriods }));
 vi.mock('@/lib/repositories/weekly-reports.repo', () => ({ listPeriodShellsRepo }));
-vi.mock('./weekly-reports.service', () => ({ isWeeklyReportOverdue }));
+vi.mock('@/lib/services/weekly-reports.service', () => ({ isWeeklyReportOverdue }));
 vi.mock('@/lib/export/dashboard-portfolio', () => ({
   generatePortfolioDashboardXlsx: vi.fn(async () => Buffer.from('xlsx')),
   generatePortfolioDashboardPdf: vi.fn(async () => Buffer.from('%PDF')),
@@ -65,7 +65,7 @@ vi.mock('@/lib/export/dashboard-portfolio', () => ({
   },
 }));
 
-import { ForbiddenError, ValidationError } from './errors';
+import { ForbiddenError, ValidationError } from '@/lib/services/errors';
 import {
   clearPmDashboardFilters,
   clearPortfolioDashboardFilters,
