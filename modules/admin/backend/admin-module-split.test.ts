@@ -39,4 +39,42 @@ describe('admin module split contract (24-09)', () => {
     const allowlist = readUtf8('eslint/route-wrapper-allowlist.json');
     expect(allowlist).toContain('app/api/admin/companies/route.ts');
   });
+
+  it('S1: users.service lives under modules/admin/backend/services', async () => {
+    const mod = await import('@/modules/admin/backend/services/users.service');
+    expect(typeof mod.listUsers).toBe('function');
+  });
+
+  const p2AdminRoutes = [
+    {
+      shell: 'app/api/admin/users/route.ts',
+      target: '@/modules/admin/backend/routes/admin/users/route',
+      methods: 'GET, POST, PUT, DELETE',
+    },
+    {
+      shell: 'app/api/admin/jira-config/[companyId]/route.ts',
+      target: '@/modules/admin/backend/routes/admin/jira-config/[companyId]/route',
+      methods: 'GET, POST',
+    },
+    {
+      shell: 'app/api/admin/rag-config/[companyId]/route.ts',
+      target: '@/modules/admin/backend/routes/admin/rag-config/[companyId]/route',
+      methods: 'GET, POST',
+    },
+    {
+      shell: 'app/api/admin/resource-audit/route.ts',
+      target: '@/modules/admin/backend/routes/admin/resource-audit/route',
+      methods: 'GET, POST',
+    },
+    {
+      shell: 'app/api/admin/demo-requests/route.ts',
+      target: '@/modules/admin/backend/routes/admin/demo-requests/route',
+      methods: 'GET, PUT, DELETE',
+    },
+  ] as const;
+
+  it.each(p2AdminRoutes)('P2: $shell re-exports from module route', ({ shell, target }) => {
+    const source = readUtf8(shell);
+    expect(source).toContain(target);
+  });
 });
