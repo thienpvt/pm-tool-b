@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionFromRequest } from '@/lib/auth';
 import {
-  deleteOperationsIncident,
-  findOperationsSystem,
-  updateOperationsIncident,
-} from '@/lib/repositories/operations.repo';
+  deleteIncidentForSystem,
+  updateIncidentForSystem,
+} from '@/lib/services/operations.service';
 
 type Params = { params: Promise<{ id: string; incId: string }> };
 
@@ -13,13 +12,10 @@ export async function PUT(req: NextRequest, { params }: Params) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { id, incId } = await params;
-  const sys = await findOperationsSystem(id, user.company_id, Boolean(user.is_admin));
-  if (!sys) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-
   const body = await req.json();
   const { title, severity, description, reported_at, resolved_at, cost_impact, status } = body;
 
-  const updated = await updateOperationsIncident(id, incId, {
+  const updated = await updateIncidentForSystem(user, id, incId, {
     title, severity, description, reported_at, resolved_at, cost_impact, status,
   });
   if (!updated) return NextResponse.json({ error: 'Not found' }, { status: 404 });
@@ -31,9 +27,8 @@ export async function DELETE(req: NextRequest, { params }: Params) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { id, incId } = await params;
-  const sys = await findOperationsSystem(id, user.company_id, Boolean(user.is_admin));
-  if (!sys) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  const deleted = await deleteIncidentForSystem(user, id, incId);
+  if (!deleted) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  await deleteOperationsIncident(id, incId);
   return NextResponse.json({ ok: true });
 }
