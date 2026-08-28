@@ -162,6 +162,59 @@ describe('ProjectChecklistPage GET shell', () => {
     });
     expect(screen.queryByRole('heading', { name: 'Document checklist' })).not.toBeInTheDocument();
   });
+
+  it('ignores stale checklist GET when projectId changes quickly', async () => {
+    const project42Items = checklistFixture;
+    const project99Items = [
+      { ...checklistFixture[0], id: 99, catalog_name: 'Project 99 Doc' },
+    ];
+
+    const pending: Record<string, (value: unknown) => void> = {};
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) => {
+        const checklistMatch = url.match(/^\/api\/projects\/(\d+)\/document-checklist$/);
+        if (checklistMatch) {
+          const pid = checklistMatch[1];
+          return new Promise((resolve) => {
+            pending[pid] = (value) =>
+              resolve({
+                ok: true,
+                status: 200,
+                json: () => Promise.resolve(value),
+              });
+          });
+        }
+        if (url.match(/^\/api\/projects\/\d+$/)) {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: () => Promise.resolve({ name: 'Test Project' }),
+          });
+        }
+        return Promise.reject(new Error(`unexpected fetch: ${url}`));
+      }) as unknown as typeof fetch,
+    );
+
+    mockParams.id = '42';
+    const { rerender } = render(<ProjectChecklistPage />);
+
+    mockParams.id = '99';
+    rerender(<ProjectChecklistPage />);
+
+    pending['99']!(project99Items);
+
+    await waitFor(() => {
+      expect(screen.getByText('Project 99 Doc')).toBeInTheDocument();
+    });
+
+    pending['42']!(project42Items);
+
+    await waitFor(() => {
+      expect(screen.queryByText('Charter')).not.toBeInTheDocument();
+    });
+    expect(screen.getByText('Project 99 Doc')).toBeInTheDocument();
+  });
 });
 
 describe('ProjectChecklistPage PATCH editor', () => {

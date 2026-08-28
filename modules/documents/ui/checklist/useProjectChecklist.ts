@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import type { ChecklistItem } from '../shared/types';
 
@@ -16,12 +16,15 @@ export function useProjectChecklist(projectId: string) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<ChecklistLoadError | null>(null);
   const [savingId, setSavingId] = useState<number | null>(null);
+  const loadSeqRef = useRef(0);
 
   const load = useCallback(async () => {
+    const requestId = ++loadSeqRef.current;
     setLoading(true);
     try {
       const res = await fetch(`/api/projects/${projectId}/document-checklist`);
 
+      if (requestId !== loadSeqRef.current) return;
       if (res.status === 401) {
         setError('unauthorized');
         setItems(null);
@@ -44,19 +47,23 @@ export function useProjectChecklist(projectId: string) {
       }
 
       const loaded = (await res.json()) as ChecklistItem[];
+      if (requestId !== loadSeqRef.current) return;
       setItems(loaded);
       setError(null);
 
       const projectRes = await fetch(`/api/projects/${projectId}`);
+      if (requestId !== loadSeqRef.current) return;
       if (projectRes.ok) {
         const project = (await projectRes.json()) as { name?: string };
+        if (requestId !== loadSeqRef.current) return;
         setProjectName(project.name ?? null);
       }
     } catch {
+      if (requestId !== loadSeqRef.current) return;
       setError('load_failed');
       setItems(null);
     } finally {
-      setLoading(false);
+      if (requestId === loadSeqRef.current) setLoading(false);
     }
   }, [projectId]);
 
