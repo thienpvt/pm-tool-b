@@ -1,10 +1,11 @@
 ---
 phase: 21
 slug: portfolio-pm-dashboard-pages
-status: draft
+status: approved
 shadcn_initialized: true
 preset: b2fA (base-nova, neutral, geist, lucide)
 created: 2026-08-28
+reviewed_at: 2026-08-28
 ---
 
 # Phase 21 — UI Design Contract
@@ -162,7 +163,7 @@ AND keys (21-CONTEXT D-06): `portfolio_year`, `program`, `unit`, `pm_user_id`, `
 |---------|---------|
 | Layout | `flex flex-wrap gap-2 items-end` inside white Card or bordered bar |
 | Fields | shadcn `Select` or native `<select>` styled compact; boolean as Select Yes/No/All |
-| Actions | **Apply filters** (primary) refetches GET; **Clear** POST clear then refetch; **Reset defaults** POST defaults |
+| Actions | **Apply filters** (primary) refetches GET; **Clear filters** POST clear then refetch; **Reset defaults** POST defaults |
 | Persist | PUT `/api/dashboards/{portfolio\|pm}/filters` on apply; load from GET filters on mount |
 | Density | Label `text-xs`, control height 32px (`h-8`) |
 
@@ -190,7 +191,7 @@ Use shadcn `Table` with existing compact classes:
 | Milestones | Project, Milestone, Plan end, Kind (upcoming/overdue Badge), Action link |
 | RAID | Project, Code, Type, Due, Tech council flag, Action link |
 
-Action link: `<Link href={row.href}>` label **Open** (`text-blue-600 text-sm`).
+Action link: `<Link href={row.href}>` with Copywriting labels **Open report** / **View milestone** / **View RAID** (`text-blue-600 text-sm`).
 
 ### Export (portfolio only)
 
@@ -271,7 +272,7 @@ Applicable state considerations resolved: **42 covered, 4 backstop, 0 unresolved
 | populated | portfolio-project-list | ✅ covered | Typical volume (10–50 rows) in compact table without virtualization (PERF-01 deferred Phase 22) |
 | populated | portfolio-drilldown-panel | ✅ covered | Selected tile shows titled panel + table with deep links on id/href columns |
 | populated | portfolio-charts | ✅ covered | Bars proportional to `charts.by_stage` / `charts.by_rag` counts |
-| populated | pm-action-queues | ✅ covered | Three sections each list server rows with Open links using `row.href` verbatim |
+| populated | pm-action-queues | ✅ covered | Three sections each list server rows with Open report / View milestone / View RAID using `row.href` verbatim |
 | partial | portfolio-filter-bar | ✅ covered | Partial filter set allowed — omitted keys mean no constraint; UI shows only set fields as active |
 | partial | pm-filter-bar | ✅ covered | Same partial-filter semantics as portfolio |
 | partial | pm-weekly-queue | ✅ covered | Rows may mix draft, not_submitted, overdue flag — each row still renders with status Badge |
