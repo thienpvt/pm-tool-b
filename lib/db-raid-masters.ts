@@ -91,7 +91,11 @@ async function dedupeRaidCodes(
   }
 }
 
-async function backfillRaidMasters(pool: Pool): Promise<void> {
+/**
+ * Backfill milestone plan_end, risk/issue codes, and dedupe legacy duplicates.
+ * Idempotent via settings flag raid_masters_backfill_v1.
+ */
+export async function backfillRaidMasters(pool: Pool): Promise<void> {
   if (await settingsFlagExists(pool, RAID_MASTERS_BACKFILL_FLAG)) return;
 
   await pool.query(`
