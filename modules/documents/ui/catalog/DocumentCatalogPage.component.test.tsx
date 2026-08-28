@@ -1,6 +1,11 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { catalogFixture, emptyCatalogFixture } from '../shared/documents.fixture';
+import {
+  catalogFixture,
+  emptyCatalogFixture,
+  emptyTemplatesFixture,
+  templatesFixture,
+} from '../shared/documents.fixture';
 import DocumentCatalogPage from './DocumentCatalogPage';
 
 vi.mock('next/navigation', () => ({
@@ -423,6 +428,205 @@ describe('DocumentCatalogPage', () => {
       await waitFor(() => {
         expect(patched).toBe(true);
         expect(toastSuccess).toHaveBeenCalledWith('Catalog item retired');
+      });
+    });
+  });
+
+  describe('templates panel', () => {
+    function setupCatalogWithTemplates(templates: typeof templatesFixture) {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn((url: string, init?: RequestInit) => {
+          if (url.startsWith('/api/document-templates?catalog_id=1')) {
+            return Promise.resolve({
+              ok: true,
+              status: 200,
+              json: () => Promise.resolve(templates),
+            });
+          }
+          if (url === '/api/document-templates' && init?.method === 'POST') {
+            const body = JSON.parse(String(init.body));
+            if (!body.template_url?.startsWith('https://')) {
+              return Promise.resolve({
+                ok: false,
+                status: 400,
+                json: () =>
+                  Promise.resolve({
+                    error: 'Template URL must be HTTPS',
+                    field: 'template_url',
+                  }),
+              });
+            }
+            return Promise.resolve({
+              ok: true,
+              status: 201,
+              json: () =>
+                Promise.resolve({
+                  ...templatesFixture[0],
+                  name: body.name,
+                  template_url: body.template_url,
+                }),
+            });
+          }
+          if (url === '/api/document-templates/1' && init?.method === 'PATCH') {
+            const body = JSON.parse(String(init.body));
+            expect(body).toEqual({ retire: true });
+            return Promise.resolve({
+              ok: true,
+              status: 200,
+              json: () => Promise.resolve({ ...templatesFixture[0], retired_at: '2026-08-28' }),
+            });
+          }
+          if (url === '/api/document-catalog' && (!init || init.method === undefined)) {
+            return Promise.resolve({
+              ok: true,
+              status: 200,
+              json: () => Promise.resolve(catalogFixture),
+            });
+          }
+          return Promise.reject(new Error(`unexpected fetch: ${url} ${init?.method ?? 'GET'}`));
+        }) as unknown as typeof fetch,
+      );
+    }
+
+    it('GETs templates when a catalog row is selected', async () => {
+      const fetchMock = vi.fn((url: string, init?: RequestInit) => {
+        if (url.startsWith('/api/document-templates?catalog_id=1')) {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: () => Promise.resolve(emptyTemplatesFixture()),
+          });
+        }
+        if (url === '/api/document-catalog' && (!init || init.method === undefined)) {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: () => Promise.resolve(catalogFixture),
+          });
+        }
+        return Promise.reject(new Error(`unexpected fetch: ${url}`));
+      });
+      vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch);
+
+      render(<DocumentCatalogPage />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Charter')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText('Charter'));
+
+      await waitFor(() => {
+        expect(fetchMock).toHaveBeenCalledWith('/api/document-templates?catalog_id=1');
+        expect(screen.getByText('No templates for this item')).toBeInTheDocument();
+        expect(
+          screen.getByText('Publish a template URL to give PMs a starting link.'),
+        ).toBeInTheDocument();
+      });
+    });
+
+    it('shows populated template list with external HTTPS link', async () => {
+      setupCatalogWithTemplates(templatesFixture);
+      render(<DocumentCatalogPage />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Charter')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText('Charter'));
+
+      await waitFor(() => {
+        expect(screen.getByText('Charter template v1')).toBeInTheDocument();
+        const link = screen.getByRole('link', { name: /charter template v1/i });
+        expect(link).toHaveAttribute('href', 'https://example.com/templates/charter');
+        expect(link).toHaveAttribute('target', '_blank');
+        expect(link.getAttribute('rel')).toMatch(/noopener/);
+      });
+    });
+
+    it('shows inline error for invalid template URL', async () => {
+      setupCatalogWithTemplates(emptyTemplatesFixture());
+      render(<DocumentCatalogPage />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Charter')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText('Charter'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('templates-panel')).toBeInTheDocument();
+      });
+
+      fireEvent.change(screen.getByLabelText('Template URL'), {
+        target: { value: 'http://not-secure.example.com/doc' },
+      });
+      fireEvent.change(screen.getByLabelText('Name'), {
+        target: { value: 'New template' },
+      });
+      fireEvent.change(screen.getByLabelText('Document type'), {
+        target: { value: 'charter' },
+      });
+      fireEvent.change(screen.getByLabelText('Effective date'), {
+        target: { value: '2026-08-28' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Publish template' }));
+
+      await waitFor(() => {
+        expect(screen.getByText('Template URL must use HTTPS')).toBeInTheDocument();
+      });
+    });
+
+    it('POSTs template and toasts Template published', async () => {
+      setupCatalogWithTemplates(emptyTemplatesFixture());
+      render(<DocumentCatalogPage />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Charter')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText('Charter'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('templates-panel')).toBeInTheDocument();
+      });
+
+      fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'New template' } });
+      fireEvent.change(screen.getByLabelText('Document type'), {
+        target: { value: 'charter' },
+      });
+      fireEvent.change(screen.getByLabelText('Effective date'), {
+        target: { value: '2026-08-28' },
+      });
+      fireEvent.change(screen.getByLabelText('Template URL'), {
+        target: { value: 'https://example.com/new-template' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Publish template' }));
+
+      await waitFor(() => {
+        expect(toastSuccess).toHaveBeenCalledWith('Template published');
+      });
+    });
+
+    it('PATCHes retire true when retiring a template', async () => {
+      setupCatalogWithTemplates(templatesFixture);
+      render(<DocumentCatalogPage />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Charter')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText('Charter'));
+
+      await waitFor(() => {
+        expect(screen.getByText('Charter template v1')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: 'Retire template' }));
+
+      await waitFor(() => {
+        expect(toastSuccess).toHaveBeenCalledWith('Template retired');
       });
     });
   });
