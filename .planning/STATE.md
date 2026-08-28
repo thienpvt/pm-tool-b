@@ -4,17 +4,17 @@ milestone: v2.1
 milestone_name: Hardening & Deferred Debt
 current_phase: 22
 current_phase_name: Weekly Workflow Surfaces
-status: executing
-stopped_at: Completed 22-05-PLAN.md
-last_updated: "2026-08-28T10:16:14.937Z"
+status: verifying
+stopped_at: Completed 22-04-PLAN.md
+last_updated: "2026-08-28T10:20:09.619Z"
 last_activity: 2026-08-28
 last_activity_desc: Phase 22 execution started
-state_head: 63396594ec3423b650518f05855ab5b5d15c704b
+state_head: 6665f711a93f6291d33d10c760d0f05bc2c4a27d
 progress:
   total_phases: 9
   completed_phases: 3
   total_plans: 20
-  completed_plans: 19
+  completed_plans: 20
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-08-28)
 
 Phase: 22 (Weekly Workflow Surfaces) — EXECUTING
 Plan: 5 of 5
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-08-28 — Phase 22 execution started
 
 Progress: [██░░░░░░░░] 25%
@@ -114,6 +114,7 @@ Progress: [██░░░░░░░░] 25%
 | Phase 22 P02 | 4min | 3 tasks | 4 files |
 | Phase 22 P03 | 12min | 3 tasks | 7 files |
 | Phase 22 P05 | 18 | 3 tasks | 6 files |
+| Phase 22 P04 | 12 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -227,6 +228,7 @@ Recent decisions affecting current work:
 - [Phase 22]: Selection clears on period or filter change only, not on every data refetch
 - [Phase 22]: Submit POST uses no JSON body to match rawBody route
 - [Phase 22]: Sticky bottom Card for Submit report and Open correction CTAs
+- [Phase 22]: Single ExportToolbar in tracking header; dedupe project_ids by first-seen order before POST
 
 ### Pending Todos
 
@@ -250,8 +252,8 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-08-28T10:16:14.514Z
-Stopped at: Completed 22-05-PLAN.md
+Last session: 2026-08-28T10:20:09.201Z
+Stopped at: Completed 22-04-PLAN.md
 Resume file: None
 
 ## Operator Next Steps

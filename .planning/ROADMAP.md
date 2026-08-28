@@ -161,7 +161,7 @@ Plans:
   3. CPMO can track period submissions and export the consolidated pack from the UI
   4. Large grids (CPMO weekly tracking, and other long lists in this surface) virtualize rows so the page stays usable past ~100 rows
 
-**Plans:** 4/5 plans executed
+**Plans:** 5/5 plans executed
 
 Plans:
 **Wave 1**
@@ -176,7 +176,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 22-04-PLAN.md — Export pack toolbar and blob download
+- [x] 22-04-PLAN.md — Export pack toolbar and blob download
 
 **UI hint**: yes
 
@@ -261,7 +261,7 @@ v1.0 Phases 1–8 and v2.0 Phases 9–18 are complete (see milestone archives ab
 | 19. Data Layer Cutover | 4/4 | Complete    | 2026-08-28 |
 | 20. API Contract & Leftover Routes | 7/7 | Complete    | 2026-08-28 |
 | 21. Portfolio & PM Dashboard Pages | 4/4 | Complete    | 2026-08-28 |
-| 22. Weekly Workflow Surfaces | 4/5 | In Progress|  |
+| 22. Weekly Workflow Surfaces | 5/5 | In Progress|  |
 | 23. Document Checklist & Audit Viewer | 0/TBD | Not started | - |
 | 24. Repo-wide Module Split | 0/TBD | Not started | - |
 | 25. Kysely Repositories | 0/TBD | Not started | - |
