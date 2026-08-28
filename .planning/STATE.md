@@ -2,17 +2,17 @@
 gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: Hardening & Deferred Debt
-current_phase: 22
-current_phase_name: Weekly Workflow Surfaces
-status: verifying
-stopped_at: Completed 22-04-PLAN.md
-last_updated: "2026-08-28T10:20:09.619Z"
+current_phase: 23
+current_phase_name: Document Checklist & Audit Viewer
+status: planning
+stopped_at: Phase 22 complete, ready to plan Phase 23
+last_updated: "2026-08-28T10:37:55.847Z"
 last_activity: 2026-08-28
-last_activity_desc: Phase 22 execution started
-state_head: 6665f711a93f6291d33d10c760d0f05bc2c4a27d
+last_activity_desc: Phase 22 complete, transitioned to Phase 23
+state_head: f8d27976b650e94eeab67c275cfdf03603b91148
 progress:
   total_phases: 9
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 20
   completed_plans: 20
 ---
@@ -24,14 +24,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-28)
 
 **Core value:** One source of truth for projects, milestones, RAID, and weekly reports — role- and project-scoped — so CPMO and PMs act on highlights, nearest milestones, open risks/issues, and items that need leadership support.
-**Current focus:** Phase 22 — Weekly Workflow Surfaces
+**Current focus:** Phase 23 — Document Checklist & Audit Viewer
 
 ## Current Position
 
-Phase: 22 (Weekly Workflow Surfaces) — EXECUTING
-Plan: 5 of 5
-Status: Phase complete — ready for verification
-Last activity: 2026-08-28 — Phase 22 execution started
+Phase: 23 — Document Checklist & Audit Viewer
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-08-28 — Phase 22 complete, transitioned to Phase 23
 
 Progress: [██░░░░░░░░] 25%
 
@@ -253,7 +253,7 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-08-28T10:20:09.201Z
-Stopped at: Completed 22-04-PLAN.md
+Stopped at: Phase 22 complete, ready to plan Phase 23
 Resume file: None
 
 ## Operator Next Steps

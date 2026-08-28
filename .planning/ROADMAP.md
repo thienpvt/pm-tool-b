@@ -56,7 +56,7 @@ Phase artifacts: [.planning/milestones/v2.0-phases/](milestones/v2.0-phases/)
 - [x] **Phase 19: Data Layer Cutover** - External versioned SQL migrate; app start connects and seeds only (completed 2026-08-28)
 - [x] **Phase 20: API Contract & Leftover Routes** - JSON 401, Jira hygiene, wrapper CI gate, ops/admin/config through services (completed 2026-08-28)
 - [x] **Phase 21: Portfolio & PM Dashboard Pages** - CPMO and assigned-PM dashboards in module UI, with the fiscal-KPI call (completed 2026-08-28)
-- [ ] **Phase 22: Weekly Workflow Surfaces** - Periods, PM submit/correct, CPMO tracking/export; tracking grid virtualized
+- [x] **Phase 22: Weekly Workflow Surfaces** - Periods, PM submit/correct, CPMO tracking/export; tracking grid virtualized (completed 2026-08-28)
 - [ ] **Phase 23: Document Checklist & Audit Viewer** - Catalog, Confluence checklist, compliance, company-scoped audit UI
 - [ ] **Phase 24: Repo-wide Module Split** - Every remaining feature area in `modules/<feature>/{backend,ui}` with thin `app/` re-exports
 - [ ] **Phase 25: Kysely Repositories** - Repositories query through Kysely on the existing pool
@@ -161,7 +161,7 @@ Plans:
   3. CPMO can track period submissions and export the consolidated pack from the UI
   4. Large grids (CPMO weekly tracking, and other long lists in this surface) virtualize rows so the page stays usable past ~100 rows
 
-**Plans:** 5/5 plans executed
+**Plans:** 5/5 plans complete
 
 Plans:
 **Wave 1**
@@ -261,7 +261,7 @@ v1.0 Phases 1–8 and v2.0 Phases 9–18 are complete (see milestone archives ab
 | 19. Data Layer Cutover | 4/4 | Complete    | 2026-08-28 |
 | 20. API Contract & Leftover Routes | 7/7 | Complete    | 2026-08-28 |
 | 21. Portfolio & PM Dashboard Pages | 4/4 | Complete    | 2026-08-28 |
-| 22. Weekly Workflow Surfaces | 5/5 | In Progress|  |
+| 22. Weekly Workflow Surfaces | 5/5 | Complete    | 2026-08-28 |
 | 23. Document Checklist & Audit Viewer | 0/TBD | Not started | - |
 | 24. Repo-wide Module Split | 0/TBD | Not started | - |
 | 25. Kysely Repositories | 0/TBD | Not started | - |
