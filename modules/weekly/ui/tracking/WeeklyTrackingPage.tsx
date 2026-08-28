@@ -7,6 +7,7 @@ import { AlertTriangle } from 'lucide-react';
 import Sidebar from '@/components/layout/Sidebar';
 import type { PeriodTrackingFilters, WeeklyPeriodListItem } from '../shared/types';
 import { TrackingCountsBar } from './TrackingCountsBar';
+import { ExportToolbar } from './ExportToolbar';
 import { TrackingFiltersBar } from './TrackingFiltersBar';
 import { TrackingGrid } from './TrackingGrid';
 import { usePeriodTracking } from './usePeriodTracking';
@@ -41,7 +42,8 @@ function WeeklyTrackingContent() {
     'unauthorized' | 'forbidden' | 'load_failed' | null
   >(null);
 
-  const { data, loading: trackingLoading, error: trackingError, load } = usePeriodTracking();
+  const { data, loading: trackingLoading, exporting, error: trackingError, load, exportPack } =
+    usePeriodTracking();
   const [filters, setFilters] = useState<PeriodTrackingFilters>({});
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
 
@@ -100,6 +102,11 @@ function WeeklyTrackingContent() {
 
   const handleApplyFilters = (next: PeriodTrackingFilters) => {
     setFilters(next);
+  };
+
+  const handleExport = (format: 'xlsx' | 'docx' | 'pptx') => {
+    if (selectedPeriodId === null) return;
+    exportPack(selectedPeriodId, selectedIds, format);
   };
 
   const error = periodsError ?? trackingError;
@@ -172,6 +179,11 @@ function WeeklyTrackingContent() {
               </option>
             ))}
           </select>
+          <ExportToolbar
+            selectedIds={selectedIds}
+            exporting={exporting}
+            onExport={handleExport}
+          />
         </div>
 
         {data && (
@@ -187,9 +199,6 @@ function WeeklyTrackingContent() {
               selectedIds={selectedIds}
               onSelectionChange={setSelectedIds}
             />
-            <span data-testid="tracking-selected-ids" className="sr-only">
-              {JSON.stringify(selectedIds)}
-            </span>
           </>
         )}
       </main>
