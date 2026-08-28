@@ -2,17 +2,17 @@
 gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: Hardening & Deferred Debt
-current_phase: 24
-current_phase_name: Repo-wide Module Split
-status: verifying
-stopped_at: Completed 24-10-PLAN.md
-last_updated: "2026-08-28T14:15:02.567Z"
+current_phase: 25
+current_phase_name: Kysely Repositories
+status: planning
+stopped_at: Phase 24 complete, ready to plan Phase 25
+last_updated: "2026-08-28T14:37:25.198Z"
 last_activity: 2026-08-28
-last_activity_desc: Phase 24 execution started
-state_head: fce20251fcf31aac5f622dec344b97ce8785c5b6
+last_activity_desc: Phase 24 complete, transitioned to Phase 25
+state_head: 95087ce1d5edec1a45b278ed6e12508477762d3f
 progress:
   total_phases: 9
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 35
   completed_plans: 35
 ---
@@ -28,10 +28,10 @@ See: .planning/PROJECT.md (updated 2026-08-28)
 
 ## Current Position
 
-Phase: 24 (Repo-wide Module Split) — EXECUTING
-Plan: 10 of 10
-Status: Phase complete — ready for verification
-Last activity: 2026-08-28 — Phase 24 execution started
+Phase: 25 — Kysely Repositories
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-08-28 — Phase 24 complete, transitioned to Phase 25
 
 Progress: [██░░░░░░░░] 25%
 
@@ -295,7 +295,7 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-08-28T14:15:02.141Z
-Stopped at: Completed 24-10-PLAN.md
+Stopped at: Phase 24 complete, ready to plan Phase 25
 Resume file: None
 
 ## Operator Next Steps

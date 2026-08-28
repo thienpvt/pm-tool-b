@@ -67,7 +67,7 @@ v2.0 remainder (no React consumers of v2 APIs, no repo-wide module split, Kysely
 
 ### Active
 
-- [ ] MOD-01 — Every feature module in the repo has backend (routes, services, repos) and UI (pages, hooks, components) in separate directories; existing areas included, not only new v2 screens
+- ✓ MOD-01 / MOD-02 — Feature modules under `modules/<feature>/{backend,ui}/`; thin `app/` re-exports keep URLs — Phase 24
 - ✓ DATA-01..03 — External versioned SQL migrate + checksum ledger; `getDb()` connects, asserts ledger, seeds only; data-fixes under `scripts/data-fixes/` — Phase 19
 - ✓ PROXY-01 — Unauthenticated `/api/*` JSON 401 `{ error: 'Unauthorized' }`; pages still redirect to login — Phase 20
 - ✓ JIRA-01 — Jira search drops field dump; malformed JSON → 400 `{ error: 'Invalid JSON' }` — Phase 20
@@ -99,9 +99,9 @@ v2.0 remainder (no React consumers of v2 APIs, no repo-wide module split, Kysely
 
 **Shipped:** v2.0 Portfolio One View (2026-08-26) — Phases 9–18, 40 plans. Archive: `.planning/milestones/`. Audit: `tech_debt` (79/79 requirements, UI deferred).
 
-**Now:** v2.1 Hardening & Deferred Debt — Phase 24 Repo-wide Module Split.
+**Now:** v2.1 Hardening & Deferred Debt — Phase 25 Kysely Repositories.
 
-CPMO/PM/Viewer is enforced on spec APIs. Weekly, fiscal, dashboards, Confluence checklist, and company-scoped append-only audit are server-gated. Schema evolution is an external `npm run migrate` job; `getDb()` connects, asserts the ledger, and seeds only. Ops/admin/config/import-mapping routes go through services. Spec portfolio, PM dashboards, weekly workflow, document catalog/checklist/compliance, and audit viewer have React consumers in `modules/dashboards/ui/`, `modules/weekly/ui/`, `modules/documents/ui/`, and `modules/audit/ui/`. Feature code is not yet split backend-vs-UI per module across the repo.
+CPMO/PM/Viewer is enforced on spec APIs. Weekly, fiscal, dashboards, Confluence checklist, and company-scoped append-only audit are server-gated. Schema evolution is an external `npm run migrate` job; `getDb()` connects, asserts the ledger, and seeds only. Ops/admin/config/import-mapping routes go through services. Spec portfolio, PM dashboards, weekly workflow, document catalog/checklist/compliance, and audit viewer have React consumers. Feature areas live under `modules/<feature>/{backend,ui}/` with thin `app/` re-exports. Repositories still issue string SQL through `DbClient` — Phase 25 adopts Kysely on the existing `pg.Pool`.
 
 ## Next Milestone Goals
 

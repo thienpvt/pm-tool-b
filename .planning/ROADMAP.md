@@ -58,7 +58,7 @@ Phase artifacts: [.planning/milestones/v2.0-phases/](milestones/v2.0-phases/)
 - [x] **Phase 21: Portfolio & PM Dashboard Pages** - CPMO and assigned-PM dashboards in module UI, with the fiscal-KPI call (completed 2026-08-28)
 - [x] **Phase 22: Weekly Workflow Surfaces** - Periods, PM submit/correct, CPMO tracking/export; tracking grid virtualized (completed 2026-08-28)
 - [x] **Phase 23: Document Checklist & Audit Viewer** - Catalog, Confluence checklist, compliance, company-scoped audit UI (completed 2026-08-28)
-- [ ] **Phase 24: Repo-wide Module Split** - Every remaining feature area in `modules/<feature>/{backend,ui}` with thin `app/` re-exports
+- [x] **Phase 24: Repo-wide Module Split** - Every remaining feature area in `modules/<feature>/{backend,ui}` with thin `app/` re-exports (completed 2026-08-28)
 - [ ] **Phase 25: Kysely Repositories** - Repositories query through Kysely on the existing pool
 - [ ] **Phase 26: RSC Chrome & Cold Start** - Server Component chrome on v2 pages; measured post-migrate cold-start budget
 - [ ] **Phase 27: Nits, Validation & Operator Gate** - Orphan exports, audit noise, budget coexistence, Nyquist closeout, HYG-02 confirm
@@ -217,7 +217,7 @@ Plans:
   1. Each feature area in the repo (portfolio, projects, admin, operations, reports, Jira/import, dashboards, weekly, documents, audit) has backend (routes, services, repos) and UI (pages, hooks, components) in separate directories under that module
   2. Existing page and `/api/*` URLs keep working after the split via thin `app/` re-exports
 
-**Plans:** 10/10 plans executed
+**Plans:** 10/10 plans complete
 **UI hint**: yes
 
 Plans:
@@ -320,7 +320,7 @@ v1.0 Phases 1–8 and v2.0 Phases 9–18 are complete (see milestone archives ab
 | 21. Portfolio & PM Dashboard Pages | 4/4 | Complete    | 2026-08-28 |
 | 22. Weekly Workflow Surfaces | 5/5 | Complete    | 2026-08-28 |
 | 23. Document Checklist & Audit Viewer | 5/5 | Complete    | 2026-08-28 |
-| 24. Repo-wide Module Split | 10/10 | In Progress|  |
+| 24. Repo-wide Module Split | 10/10 | Complete    | 2026-08-28 |
 | 25. Kysely Repositories | 0/TBD | Not started | - |
 | 26. RSC Chrome & Cold Start | 0/TBD | Not started | - |
 | 27. Nits, Validation & Operator Gate | 0/TBD | Not started | - |
