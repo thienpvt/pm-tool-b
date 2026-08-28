@@ -3,10 +3,10 @@ gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: Hardening & Deferred Debt
 status: planning
-last_updated: "2026-08-28T04:04:32.747Z"
+last_updated: "2026-08-28T04:25:00.000Z"
 last_activity: 2026-08-28
 progress:
-  total_phases: 0
+  total_phases: 9
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -17,31 +17,33 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-08-26)
+See: .planning/PROJECT.md (updated 2026-08-28)
 
 **Core value:** One source of truth for projects, milestones, RAID, and weekly reports — role- and project-scoped — so CPMO and PMs act on highlights, nearest milestones, open risks/issues, and items that need leadership support.
-**Current focus:** Planning next milestone
+**Current focus:** Phase 19 Data Layer Cutover (v2.1)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 19 of 27 (Data Layer Cutover) — 1 of 9 in v2.1
 Plan: —
-Status: Defining requirements
-Last activity: 2026-08-28 — Milestone v2.1 started
+Status: Ready to plan
+Last activity: 2026-08-28 — v2.1 roadmap written (Phases 19–27)
+
+Progress: [░░░░░░░░░░] 0%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 38 (35 v1.0 + 3 Phase 9)
+- Total plans completed: 75 (35 v1.0 + 40 v2.0)
 - Average duration: - min
 - Total execution time: - hours
 
-**By Phase:** v1.0 Phases 1–8 complete (35 plans). v2.0 Phase 9 complete (3 plans).
+**By Phase:** v1.0 Phases 1–8 complete (35 plans). v2.0 Phases 9–18 complete (40 plans). v2.1 Phases 19–27 not started.
 
 **Recent Trend:**
 
-- Last 5 plans: v1.0 closeout
+- Last 5 plans: v2.0 Phase 18 closeout
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -57,7 +59,7 @@ Last activity: 2026-08-28 — Milestone v2.1 started
 | Phase 10-users-roles-server-authorization P03 | 8min | 3 tasks | 9 files |
 | Phase 10-users-roles-server-authorization P05 | 12min | 3 tasks | 13 files |
 | Phase 10-users-roles-server-authorization P04 | 3min | 3 tasks | 8 files |
-| Phase 10-users-roles-server-authorization P06 | 4min | 2 tasks | 8 files |
+| Phase 10-users-roles-server-authorization P06 | 4min | 3 tasks | 8 files |
 | Phase 10-users-roles-server-authorization P07 | 5min | 2 tasks | 8 files |
 | Phase 10-users-roles-server-authorization P08 | 12min | 2 tasks | 12 files |
 | Phase 10-users-roles-server-authorization P09 | 25 | 3 tasks | 27 files |
@@ -97,6 +99,11 @@ Last activity: 2026-08-28 — Milestone v2.1 started
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
+- v2.1 numbering continues from Phase 18; starts at Phase 19 (do not reset to Phase 1)
+- DATA-01..03 live in one phase (19); replay origin `gsd/quick-260826-ded-data-layer-migrations` as a pattern; regenerate `migrations/0001` from current v2.0 schema; never merge that branch as-is
+- MOD-01 is repo-wide; v2 UI (21–23) lands in `modules/<feature>/ui/` first; Phase 24 completes remaining feature areas + MOD-02 thin `app/` re-exports
+- NYQ-01 maps to Phase 27 closeout only; earlier v2.1 phases may still write VALIDATION.md as hygiene
+- HYG-02 is operator confirm in Phase 27, not a rewrite
 - v2.0 numbering continues from Phase 8; do not reset to Phase 1
 - Spec (GuiIT Portfolio One View) is source of truth; keep Jira / AI / Excel-PPT-Word export
 - Weekly reports are a parallel product surface, not an enhancement of activity-weighted report pages
@@ -172,23 +179,26 @@ None yet.
 
 ### Blockers/Concerns
 
-- HYG-02 Anthropic 502 vs old 500 still needs operator confirm (not v2.0 scope)
-- Leftover v1.0 ops-route thinning and proxy JSON 401 remain deferred
+- HYG-02 Anthropic 502 vs old 500 still needs operator confirm — scheduled Phase 27 (not a rewrite unless rejected)
+- Leftover v1.0 ops-route thinning and proxy JSON 401 — scheduled Phase 20
+- DATA-01..03 brownfield ledger stamp (Railway, K8s, local) and Docker/tsx migrate wiring — plan during Phase 19; do not merge origin DATA branch as-is
 
 ## Deferred Items
 
 | Category | Item | Status | Deferred At | Milestone |
 |----------|------|--------|-------------|-----------|
-| Data Layer | DATA-01, DATA-02, DATA-03 | later (not v2.0) | 2026-08-07 | v1.0 |
-| Enforcement | ENF-01, ENF-02 | later (not v2.0) | 2026-08-07 | v1.0 |
-| Performance | PERF-01, PERF-02, PERF-03 | later (not v2.0) | 2026-08-07 | v1.0 |
+| Data Layer | DATA-01, DATA-02, DATA-03 | scheduled — v2.1 Phase 19 | 2026-08-07 | v1.0 → v2.1 |
+| Enforcement | ENF-01 | scheduled — v2.1 Phase 20 | 2026-08-07 | v1.0 → v2.1 |
+| Enforcement | ENF-02 | scheduled — v2.1 Phase 25 | 2026-08-07 | v1.0 → v2.1 |
+| Performance | PERF-01 | scheduled — v2.1 Phase 22 | 2026-08-07 | v1.0 → v2.1 |
+| Performance | PERF-02, PERF-03 | scheduled — v2.1 Phase 26 | 2026-08-07 | v1.0 → v2.1 |
 
 ## Session Continuity
 
-Last session: 2026-08-26T15:42:18.218Z
-Stopped at: Phase 18 complete — all phases complete
+Last session: 2026-08-28T04:25:00.000Z
+Stopped at: v2.1 roadmap created (Phases 19–27), awaiting approval then `/gsd-plan-phase 19`
 Resume file: None
 
 ## Operator Next Steps
 
-- Start the next milestone with /gsd-new-milestone
+- Review `.planning/ROADMAP.md` and approve, then `/gsd-plan-phase 19`

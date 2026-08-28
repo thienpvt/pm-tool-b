@@ -94,40 +94,40 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| MOD-01 | — | Pending |
-| MOD-02 | — | Pending |
-| DATA-01 | — | Pending |
-| DATA-02 | — | Pending |
-| DATA-03 | — | Pending |
-| ENF-01 | — | Pending |
-| ENF-02 | — | Pending |
-| PERF-01 | — | Pending |
-| PERF-02 | — | Pending |
-| PERF-03 | — | Pending |
-| THIN-01 | — | Pending |
-| PROXY-01 | — | Pending |
-| JIRA-01 | — | Pending |
-| PDSH-07 | — | Pending |
-| MDSH-06 | — | Pending |
-| PERD-04 | — | Pending |
-| WKRP-07 | — | Pending |
-| CPMO-05 | — | Pending |
-| DOC-07 | — | Pending |
-| DOC-08 | — | Pending |
-| DOC-09 | — | Pending |
-| AUDIT-02 | — | Pending |
-| NIT-01 | — | Pending |
-| NIT-02 | — | Pending |
-| NIT-03 | — | Pending |
-| NIT-04 | — | Pending |
-| NYQ-01 | — | Pending |
-| HYG-02 | — | Pending |
+| DATA-01 | Phase 19 | Pending |
+| DATA-02 | Phase 19 | Pending |
+| DATA-03 | Phase 19 | Pending |
+| PROXY-01 | Phase 20 | Pending |
+| JIRA-01 | Phase 20 | Pending |
+| ENF-01 | Phase 20 | Pending |
+| THIN-01 | Phase 20 | Pending |
+| PDSH-07 | Phase 21 | Pending |
+| MDSH-06 | Phase 21 | Pending |
+| NIT-04 | Phase 21 | Pending |
+| PERD-04 | Phase 22 | Pending |
+| WKRP-07 | Phase 22 | Pending |
+| CPMO-05 | Phase 22 | Pending |
+| PERF-01 | Phase 22 | Pending |
+| DOC-07 | Phase 23 | Pending |
+| DOC-08 | Phase 23 | Pending |
+| DOC-09 | Phase 23 | Pending |
+| AUDIT-02 | Phase 23 | Pending |
+| MOD-01 | Phase 24 | Pending |
+| MOD-02 | Phase 24 | Pending |
+| ENF-02 | Phase 25 | Pending |
+| PERF-02 | Phase 26 | Pending |
+| PERF-03 | Phase 26 | Pending |
+| NIT-01 | Phase 27 | Pending |
+| NIT-02 | Phase 27 | Pending |
+| NIT-03 | Phase 27 | Pending |
+| NYQ-01 | Phase 27 | Pending |
+| HYG-02 | Phase 27 | Pending |
 
 **Coverage:**
 - v2.1 requirements: 28 total
-- Mapped to phases: 0
-- Unmapped: 28 (roadmap next)
+- Mapped to phases: 28
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-08-28*
-*Last updated: 2026-08-28 after initial definition*
+*Last updated: 2026-08-28 after roadmap (Phases 19–27)*
