@@ -1,0 +1,133 @@
+# Requirements: PM Tool B — Hardening & Deferred Debt (v2.1)
+
+**Defined:** 2026-08-28
+**Core Value:** One source of truth for projects, milestones, RAID, and weekly reports — role- and project-scoped — so CPMO and PMs act on highlights, nearest milestones, open risks/issues, and items that need leadership support.
+
+## v2.1 Requirements
+
+Requirements for this milestone. Each maps to roadmap phases. v2.0 spec APIs (PR-01..PR-15, AUDIT-01) stay shipped — they are not restated unless this milestone adds a UI consumer or a hardening gate.
+
+DATA-01..03 is **one migration task** (replay origin `gsd/quick-260826-ded-data-layer-migrations` as a pattern; regenerate baseline from current schema; do not merge that branch as-is).
+
+### Repo structure
+
+- [ ] **MOD-01**: Each feature area in the repo (portfolio, projects, admin, operations, reports, Jira/import, dashboards, weekly, documents, audit — not only new v2 screens) has backend (routes, services, repos) and UI (pages, hooks, components) in separate directories under that module
+- [ ] **MOD-02**: Existing page and `/api/*` URLs keep working after the split via thin `app/` re-exports
+
+### Data layer (single task)
+
+- [ ] **DATA-01**: App start connects, guards, and seeds only — schema init and the migrate loop are not in `getDb()`
+- [ ] **DATA-02**: Schema changes ship as versioned SQL files applied by `npm run migrate` with a checksum ledger; `migrations/0001` is regenerated from current v2.0 schema (weekly, fiscal, roles, RAID master, dashboard, checklist, audit tables included)
+- [ ] **DATA-03**: Data-fix `UPDATE`s that currently run as boot-time migrations move to one-off scripts under `scripts/data-fixes/`
+
+### Enforcement
+
+- [ ] **ENF-01**: CI fails when a project-scoped `route.ts` exports a handler not wrapped by a sanctioned helper (`withAuth` / `withProjectAccess` / `withProgramAccess` / `withCpmo` / `withRole`); D-23 exemptions are an explicit list
+- [ ] **ENF-02**: Repository queries go through Kysely on the existing `pg.Pool` so invalid columns fail at compile time; runtime mass-assignment tests stay
+
+### Performance
+
+- [ ] **PERF-01**: Large grids (CPMO weekly tracking, long lists, audit) virtualize rows so the page stays usable past ~100 rows
+- [ ] **PERF-02**: Static chrome (layout, nav, KPI shells) on v2 pages renders as Server Components
+- [ ] **PERF-03**: Cold-start connect time is measured and has a recorded budget after the migrate cutover
+
+### Leftover route debt
+
+- [ ] **THIN-01**: Ops, admin, config, and import-mapping routes call services rather than repositories; D-23 session+tenant vs platform break-glass semantics stay
+- [ ] **PROXY-01**: An unauthenticated request to `/api/*` receives JSON `{ error: 'Unauthorized' }` with status 401; an unauthenticated page request still redirects to login
+- [ ] **JIRA-01**: Jira search does not log issue custom fields and returns 400 for a malformed JSON body
+
+### v2 UI — dashboards
+
+- [ ] **PDSH-07**: CPMO can open a portfolio dashboard page with spec KPIs, AND filters, drill-downs, and export
+- [ ] **MDSH-06**: An assigned PM can open a PM dashboard page with weekly, milestone, and RAID action queues and deep links
+
+### v2 UI — weekly
+
+- [ ] **PERD-04**: CPMO can create and manage weekly periods in the UI
+- [ ] **WKRP-07**: A PM with write access can draft, submit, and correct a weekly report in the UI
+- [ ] **CPMO-05**: CPMO can track period submissions and export the consolidated pack from the UI
+
+### v2 UI — documents
+
+- [ ] **DOC-07**: CPMO can manage the document catalog and URL-only templates in the UI
+- [ ] **DOC-08**: A PM can complete a project's Confluence checklist in the UI (HTTPS link; Approved or Not applicable)
+- [ ] **DOC-09**: CPMO can view document compliance in the UI
+
+### v2 UI — audit
+
+- [ ] **AUDIT-02**: CPMO can view the company-scoped audit log in the UI with filters and before/after snapshots
+
+### Audit nits
+
+- [ ] **NIT-01**: `listPeriodShells` and `listOpenProjectDependencies` are either consumed by a dashboard/service or removed
+- [ ] **NIT-02**: A no-op milestone PATCH (before equals after) does not append an audit row
+- [ ] **NIT-03**: v1 `budget_items` vs fiscal ledger coexistence is documented, or the UI routes budget screens to the fiscal API
+- [ ] **NIT-04**: Fiscal KPIs appear on the portfolio dashboard only if they belong in the spec KPI set; otherwise they stay omitted with that decision recorded
+- [ ] **NYQ-01**: Each v2.1 phase ends with a reconciled (non-draft) `VALIDATION.md` for that phase
+
+### Operator checkpoint
+
+- [ ] **HYG-02**: Operator confirms Anthropic malformed-output 502 (vs the old 500) is acceptable for the three report routes; no code change unless the confirm is rejected
+
+## Future Requirements
+
+None. This milestone closes the deferred pack from v1.0/v2.0. New product spec IDs belong in a later milestone.
+
+## Out of Scope
+
+| Feature | Reason |
+|---------|--------|
+| Merging `origin/gsd/quick-260826-ded-data-layer-migrations` as-is | v1.0-era baseline would drop v2.0 tables; replay runner pattern and regenerate SQL |
+| Replacing Jira import, AI reports, or Excel/PPT/Word export | Keep shipped differentiators |
+| In-app upload of project document binaries | Spec stores Confluence links only |
+| Replacing Next.js / React / PostgreSQL | Stack is validated |
+| Second ORM (Prisma / Drizzle) or a second connection pool | ENF-02 is Kysely on the existing `pg.Pool` |
+| CASL / casbin | Three fixed roles; extend existing wrappers |
+| New PR-01..PR-15 product behavior | Already shipped at the API gate in v2.0 |
+| Committing the GuiIT Word spec | Local reference only |
+| Rewriting archived v1.0/v2.0 VALIDATION.md files | NYQ-01 covers new v2.1 phases (19+) only |
+
+## Traceability
+
+Which phases cover which requirements. Updated during roadmap creation.
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| MOD-01 | — | Pending |
+| MOD-02 | — | Pending |
+| DATA-01 | — | Pending |
+| DATA-02 | — | Pending |
+| DATA-03 | — | Pending |
+| ENF-01 | — | Pending |
+| ENF-02 | — | Pending |
+| PERF-01 | — | Pending |
+| PERF-02 | — | Pending |
+| PERF-03 | — | Pending |
+| THIN-01 | — | Pending |
+| PROXY-01 | — | Pending |
+| JIRA-01 | — | Pending |
+| PDSH-07 | — | Pending |
+| MDSH-06 | — | Pending |
+| PERD-04 | — | Pending |
+| WKRP-07 | — | Pending |
+| CPMO-05 | — | Pending |
+| DOC-07 | — | Pending |
+| DOC-08 | — | Pending |
+| DOC-09 | — | Pending |
+| AUDIT-02 | — | Pending |
+| NIT-01 | — | Pending |
+| NIT-02 | — | Pending |
+| NIT-03 | — | Pending |
+| NIT-04 | — | Pending |
+| NYQ-01 | — | Pending |
+| HYG-02 | — | Pending |
+
+**Coverage:**
+- v2.1 requirements: 28 total
+- Mapped to phases: 0
+- Unmapped: 28 (roadmap next)
+
+---
+*Requirements defined: 2026-08-28*
+*Last updated: 2026-08-28 after initial definition*
