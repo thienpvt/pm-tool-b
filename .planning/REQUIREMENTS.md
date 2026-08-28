@@ -11,8 +11,8 @@ DATA-01..03 is **one migration task** (replay origin `gsd/quick-260826-ded-data-
 
 ### Repo structure
 
-- [ ] **MOD-01**: Each feature area in the repo (portfolio, projects, admin, operations, reports, Jira/import, dashboards, weekly, documents, audit — not only new v2 screens) has backend (routes, services, repos) and UI (pages, hooks, components) in separate directories under that module
-- [ ] **MOD-02**: Existing page and `/api/*` URLs keep working after the split via thin `app/` re-exports
+- [x] **MOD-01**: Each feature area in the repo (portfolio, projects, admin, operations, reports, Jira/import, dashboards, weekly, documents, audit — not only new v2 screens) has backend (routes, services, repos) and UI (pages, hooks, components) in separate directories under that module
+- [x] **MOD-02**: Existing page and `/api/*` URLs keep working after the split via thin `app/` re-exports
 
 ### Data layer (single task)
 
@@ -112,8 +112,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DOC-08 | Phase 23 | Complete |
 | DOC-09 | Phase 23 | Complete |
 | AUDIT-02 | Phase 23 | Complete |
-| MOD-01 | Phase 24 | Pending |
-| MOD-02 | Phase 24 | Pending |
+| MOD-01 | Phase 24 | Complete |
+| MOD-02 | Phase 24 | Complete |
 | ENF-02 | Phase 25 | Pending |
 | PERF-02 | Phase 26 | Pending |
 | PERF-03 | Phase 26 | Pending |
