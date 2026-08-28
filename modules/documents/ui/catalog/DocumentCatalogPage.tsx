@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { AlertTriangle } from 'lucide-react';
 import Sidebar from '@/components/layout/Sidebar';
 import { Button } from '@/components/ui/button';
@@ -14,6 +15,7 @@ import {
 } from '@/components/ui/dialog';
 import { CatalogForm } from './CatalogForm';
 import { CatalogList } from './CatalogList';
+import { TemplatePanel } from './TemplatePanel';
 import { useDocumentCatalog } from './useDocumentCatalog';
 
 const ERROR_COPY = {
@@ -23,6 +25,7 @@ const ERROR_COPY = {
 } as const;
 
 export default function DocumentCatalogPage() {
+  const searchParams = useSearchParams();
   const {
     data,
     loading,
@@ -37,9 +40,25 @@ export default function DocumentCatalogPage() {
     setSelectedId,
     editingId,
     setEditingId,
+    templates,
+    templatesLoading,
+    publishing,
+    retiringTemplateId,
+    publishTemplate,
+    retireTemplate,
   } = useDocumentCatalog();
 
   const [retireTargetId, setRetireTargetId] = useState<number | null>(null);
+
+  useEffect(() => {
+    const catalogIdParam = searchParams.get('catalogId');
+    if (catalogIdParam) {
+      const id = Number(catalogIdParam);
+      if (!Number.isNaN(id)) {
+        setSelectedId(id);
+      }
+    }
+  }, [searchParams, setSelectedId]);
 
   if (loading) {
     return (
@@ -112,9 +131,21 @@ export default function DocumentCatalogPage() {
           onRetireRow={setRetireTargetId}
         />
 
-        <p className="text-sm text-muted-foreground mt-6">
-          Select a catalog item to manage templates.
-        </p>
+        {selectedId !== null ? (
+          <TemplatePanel
+            catalogId={selectedId}
+            templates={templates ?? []}
+            loading={templatesLoading}
+            publishing={publishing}
+            retiringTemplateId={retiringTemplateId}
+            onPublish={publishTemplate}
+            onRetireTemplate={retireTemplate}
+          />
+        ) : (
+          <p className="text-sm text-muted-foreground mt-6">
+            Select a catalog item to manage templates.
+          </p>
+        )}
 
         <Dialog open={retireTargetId !== null} onOpenChange={(open) => !open && setRetireTargetId(null)}>
           <DialogContent className="max-w-sm" showCloseButton={false}>

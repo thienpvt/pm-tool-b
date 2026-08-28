@@ -537,7 +537,6 @@ describe('DocumentCatalogPage', () => {
       fireEvent.click(screen.getByText('Charter'));
 
       await waitFor(() => {
-        expect(screen.getByText('Charter template v1')).toBeInTheDocument();
         const link = screen.getByRole('link', { name: /charter template v1/i });
         expect(link).toHaveAttribute('href', 'https://example.com/templates/charter');
         expect(link).toHaveAttribute('target', '_blank');
@@ -559,16 +558,18 @@ describe('DocumentCatalogPage', () => {
         expect(screen.getByTestId('templates-panel')).toBeInTheDocument();
       });
 
-      fireEvent.change(screen.getByLabelText('Template URL'), {
+      const panel = screen.getByTestId('templates-panel');
+
+      fireEvent.change(panel.querySelector('input[aria-label="Template URL"]')!, {
         target: { value: 'http://not-secure.example.com/doc' },
       });
-      fireEvent.change(screen.getByLabelText('Name'), {
+      fireEvent.change(panel.querySelector('input[aria-label="Name"]')!, {
         target: { value: 'New template' },
       });
-      fireEvent.change(screen.getByLabelText('Document type'), {
+      fireEvent.change(panel.querySelector('input[aria-label="Document type"]')!, {
         target: { value: 'charter' },
       });
-      fireEvent.change(screen.getByLabelText('Effective date'), {
+      fireEvent.change(panel.querySelector('input[aria-label="Effective date"]')!, {
         target: { value: '2026-08-28' },
       });
       fireEvent.click(screen.getByRole('button', { name: 'Publish template' }));
@@ -592,14 +593,18 @@ describe('DocumentCatalogPage', () => {
         expect(screen.getByTestId('templates-panel')).toBeInTheDocument();
       });
 
-      fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'New template' } });
-      fireEvent.change(screen.getByLabelText('Document type'), {
+      const panel = screen.getByTestId('templates-panel');
+
+      fireEvent.change(panel.querySelector('input[aria-label="Name"]')!, {
+        target: { value: 'New template' },
+      });
+      fireEvent.change(panel.querySelector('input[aria-label="Document type"]')!, {
         target: { value: 'charter' },
       });
-      fireEvent.change(screen.getByLabelText('Effective date'), {
+      fireEvent.change(panel.querySelector('input[aria-label="Effective date"]')!, {
         target: { value: '2026-08-28' },
       });
-      fireEvent.change(screen.getByLabelText('Template URL'), {
+      fireEvent.change(panel.querySelector('input[aria-label="Template URL"]')!, {
         target: { value: 'https://example.com/new-template' },
       });
       fireEvent.click(screen.getByRole('button', { name: 'Publish template' }));
@@ -620,7 +625,7 @@ describe('DocumentCatalogPage', () => {
       fireEvent.click(screen.getByText('Charter'));
 
       await waitFor(() => {
-        expect(screen.getByText('Charter template v1')).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: /charter template v1/i })).toBeInTheDocument();
       });
 
       fireEvent.click(screen.getByRole('button', { name: 'Retire template' }));
