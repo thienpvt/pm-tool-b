@@ -1,11 +1,11 @@
 ---
 phase: 22
 slug: weekly-workflow-surfaces
-status: draft
+status: approved
 shadcn_initialized: true
 preset: b2fA (base-nova, neutral, geist, lucide)
 created: 2026-08-28
-reviewed_at: null
+reviewed_at: 2026-08-28T16:21:00+07:00
 ---
 
 # Phase 22 — UI Design Contract

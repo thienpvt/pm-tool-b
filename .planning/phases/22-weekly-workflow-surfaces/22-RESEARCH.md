@@ -483,15 +483,11 @@ const res = await fetch(`/api/weekly-periods/${periodId}/tracking?${qs}`);
 
 ## Open Questions
 
-1. **Preview before export**
-   - What we know: `POST /api/weekly-periods/[periodId]/export/preview` exists [VERIFIED: preview/route.ts:12-28]
-   - What's unclear: CONTEXT mentions export but not preview UI
-   - Recommendation: Optional preview panel in Claude's discretion; export toolbar is minimum for CPMO-05
+RESOLVED (autonomous defaults, CONTEXT D-10..D-14):
 
-2. **Row reorder for export**
-   - What we know: Phase 14 D-06 — reorder = `project_ids` array order; no persisted order
-   - What's unclear: Drag-and-drop vs selection order
-   - Recommendation: Checkbox selection + "Export selected" uses DOM selection order; skip DnD unless planner adds UX task
+1. **Preview before export** — **RESOLVED:** no preview UI this phase (D-11). Export toolbar only.
+2. **Row reorder for export** — **RESOLVED:** checkbox selection order via `project_ids` (D-12). No drag-and-drop.
+3. **Tracking period selection** — **RESOLVED:** `?periodId=` query with fallback to latest `iso_week` (D-10).
 
 ## Environment Availability
 

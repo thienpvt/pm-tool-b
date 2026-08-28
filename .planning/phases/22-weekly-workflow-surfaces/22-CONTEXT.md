@@ -48,10 +48,15 @@ CPMO and PMs run the weekly cadence in the UI, and the tracking grid stays usabl
 - **D-08:** Do **not** add an npm package. Implement a small in-repo windowed table (`VirtualRows`) with fixed row height + overflow container. Apply to CPMO tracking grid first; reuse on any other list on these pages that can exceed ~100 rows.
 - **D-09:** Prove with a component test that renders 150 mocked rows without mounting all 150 DOM rows (query row count in the window).
 
+### Locked research defaults (autonomous)
+- **D-10:** Tracking period selection uses shareable `?periodId=` query. Invalid or missing query falls back to the latest period by `iso_week`.
+- **D-11:** Export is a toolbar (existing POST pack formats). No export preview UI this phase.
+- **D-12:** Export row order is checkbox selection order (`project_ids` array). No drag-and-drop.
+- **D-13:** `app/projects/[id]/weekly-reports/[reportId]/page.tsx` is a required thin re-export of the module editor so Phase 16 PM dashboard hrefs keep working. `/weekly/reports/[projectId]/[reportId]` is an optional extra alias only if it is a one-file re-export.
+- **D-14:** PM editor layout is single-column stacked sections (highlights, work, goals, milestone, RAID fields, RAG). Empty/loading/error copy is English and matches Phase 21 density.
+
 ### Claude's Discretion
-- Exact field layout of the PM editor (sections vs single column).
-- Whether `/projects/:id/weekly-reports/:id` is an additional re-export alias of the module editor (required if Phase 16 hrefs point there).
-- Empty/loading copy (English, match Phase 21).
+- Remaining visual spacing within the UI-SPEC 8-point scale.
 </decisions>
 
 <canonical_refs>
