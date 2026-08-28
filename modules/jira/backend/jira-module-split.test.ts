@@ -30,4 +30,9 @@ describe('jira module split contract (24-08)', () => {
     const source = readUtf8('app/api/import/resource-plan/[id]/route.ts');
     expect(source).toContain('withProjectAccess(');
   });
+
+  it('D-06: ImportMappingDialog is importable from modules/jira/ui/timeline-import', async () => {
+    const mod = await import('@/modules/jira/ui/timeline-import/ImportMappingDialog');
+    expect(typeof mod.default).toBe('function');
+  });
 });
