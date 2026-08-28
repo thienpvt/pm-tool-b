@@ -145,7 +145,7 @@ describe('portfolio module split contract (24-05)', () => {
     expect(reportSource).not.toContain('@/lib/repositories/portfolio.repo');
     expect(reportSource).not.toContain('@/lib/repositories/programs.repo');
 
-    const exportSource = readUtf8('app/api/export/portfolio/members/route.ts');
+    const exportSource = readUtf8('modules/reports/backend/routes/export/portfolio/members/route.ts');
     expect(exportSource).toContain('@/modules/portfolio/backend/repositories/portfolio.repo');
     expect(exportSource).not.toContain('@/lib/repositories/portfolio.repo');
   });
