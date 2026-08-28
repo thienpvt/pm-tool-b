@@ -16,6 +16,15 @@ const BOOT_UPDATE_SCRIPTS = [
   '04-activities-jira-parent-repair.ts',
 ] as const;
 
+/** v2.0 backfill operator scripts — sql template or exported helper/flag reference. */
+const BACKFILL_SCRIPTS: { file: string; marker: RegExp }[] = [
+  { file: 'backfill-weighted-completion.ts', marker: /completion_pct_weighted_v1/ },
+  { file: 'backfill-user-roles.ts', marker: /backfillUserRoles/ },
+  { file: 'backfill-pm-assignments.ts', marker: /backfillPmAssignments/ },
+  { file: 'backfill-raid-masters.ts', marker: /backfillRaidMasters/ },
+  { file: 'backfill-mapping-tenant.ts', marker: /migrateMappingTableTenancy/ },
+];
+
 function readScript(filename: string): string {
   return readFileSync(path.join(DATA_FIXES_DIR, filename), 'utf8');
 }
@@ -41,6 +50,18 @@ describe('scripts/data-fixes (DATA-03, D-02)', () => {
       expect(match, `${file} missing sql template`).not.toBeNull();
       const trimmed = match![1].trim();
       expect(trimmed, `${file} sql must start with UPDATE`).toMatch(/^UPDATE/i);
+    }
+  });
+
+  it('each v2.0 backfill script exists with sql template or helper/flag marker', () => {
+    for (const { file, marker } of BACKFILL_SCRIPTS) {
+      const src = readScript(file);
+      const match = src.match(SQL_TEMPLATE);
+      if (match) {
+        expect(match[1].trim(), `${file} sql template`).toMatch(SQL_START);
+      } else {
+        expect(src, `${file} helper/flag marker`).toMatch(marker);
+      }
     }
   });
 
