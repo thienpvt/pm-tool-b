@@ -345,4 +345,90 @@ describe('WeeklyPeriodsPage', () => {
       });
     });
   });
+
+  describe('page zone order and in-flight buttons', () => {
+    it('renders config form, create form, then period list in order', async () => {
+      setupStatusFetch(200, periodsFixture);
+      render(<WeeklyPeriodsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('weekly-config-form')).toBeInTheDocument();
+      });
+
+      const config = screen.getByTestId('weekly-config-form');
+      const create = screen.getByTestId('weekly-create-form');
+      const list = screen.getByTestId('weekly-period-list');
+
+      expect(
+        config.compareDocumentPosition(create) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+      expect(create.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
+    it('disables Save schedule and Create period while mutations are in flight', async () => {
+      let resolvePut: ((value: unknown) => void) | null = null;
+      let resolvePost: ((value: unknown) => void) | null = null;
+
+      vi.stubGlobal(
+        'fetch',
+        vi.fn((url: string, init?: RequestInit) => {
+          if (url === '/api/weekly-periods' && init?.method === 'POST') {
+            return new Promise((resolve) => {
+              resolvePost = (value) =>
+                resolve({
+                  ok: true,
+                  status: 201,
+                  json: () => Promise.resolve(value),
+                });
+            });
+          }
+          if (url === '/api/weekly-periods/config' && init?.method === 'PUT') {
+            return new Promise((resolve) => {
+              resolvePut = (value) =>
+                resolve({
+                  ok: true,
+                  status: 200,
+                  json: () => Promise.resolve(value),
+                });
+            });
+          }
+          if (url === '/api/weekly-periods' && (!init || init.method === undefined)) {
+            return Promise.resolve({
+              ok: true,
+              status: 200,
+              json: () => Promise.resolve(periodsFixture),
+            });
+          }
+          if (url === '/api/weekly-periods/config' && (!init || init.method === undefined)) {
+            return Promise.resolve(configOkResponse());
+          }
+          return Promise.reject(new Error(`unexpected fetch: ${url}`));
+        }) as unknown as typeof fetch,
+      );
+
+      render(<WeeklyPeriodsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('weekly-create-form')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: 'Save schedule' }));
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Save schedule' })).toBeDisabled();
+      });
+
+      resolvePut!({ ok: true });
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Save schedule' })).not.toBeDisabled();
+      });
+
+      fireEvent.change(screen.getByLabelText('ISO week'), { target: { value: '2026-W40' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Create period' }));
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Create period' })).toBeDisabled();
+      });
+
+      resolvePost!({ id: 3 });
+    });
+  });
 });
