@@ -302,4 +302,234 @@ describe('WeeklyReportEditorPage', () => {
       });
     });
   });
+
+  describe('submit and correct', () => {
+    function setupSubmitFetch(opts?: {
+      submitStatus?: number;
+      submitBody?: unknown;
+      afterCorrectShell?: typeof reportShellFixture;
+    }) {
+      let correctionOpened = false;
+      vi.stubGlobal(
+        'fetch',
+        vi.fn((url: string, init?: RequestInit) => {
+          if (url === '/api/projects/7/weekly-reports/10/submit' && init?.method === 'POST') {
+            const status = opts?.submitStatus ?? 201;
+            return Promise.resolve({
+              ok: status >= 200 && status < 300,
+              status,
+              json: () =>
+                Promise.resolve(
+                  opts?.submitBody ?? (status === 201 ? reportShellFixture : { error: 'fail' }),
+                ),
+            });
+          }
+          if (url === '/api/projects/7/weekly-reports/10/correct' && init?.method === 'POST') {
+            correctionOpened = true;
+            return Promise.resolve({
+              ok: true,
+              status: 200,
+              json: () => Promise.resolve({ ok: true }),
+            });
+          }
+          if (url === '/api/projects/7/weekly-reports/10' && (!init || init.method === undefined)) {
+            const shell = correctionOpened
+              ? (opts?.afterCorrectShell ?? {
+                  ...submittedShell,
+                  correction_open: true,
+                })
+              : reportShellFixture;
+            return Promise.resolve({
+              ok: true,
+              status: 200,
+              json: () => Promise.resolve(shell),
+            });
+          }
+          if (url === '/api/projects/7/weekly-reports/10' && init?.method === 'PATCH') {
+            return Promise.resolve({
+              ok: true,
+              status: 200,
+              json: () => Promise.resolve(reportShellFixture),
+            });
+          }
+          if (url === '/api/projects/7' && (!init || init.method === undefined)) {
+            return Promise.resolve({
+              ok: true,
+              status: 200,
+              json: () => Promise.resolve({ name: 'Alpha' }),
+            });
+          }
+          return Promise.reject(new Error(`unexpected fetch: ${url} ${init?.method ?? 'GET'}`));
+        }) as unknown as typeof fetch,
+      );
+    }
+
+    function setupSubmittedWithCorrect() {
+      let callCount = 0;
+      vi.stubGlobal(
+        'fetch',
+        vi.fn((url: string, init?: RequestInit) => {
+          if (url === '/api/projects/7/weekly-reports/10/correct' && init?.method === 'POST') {
+            return Promise.resolve({
+              ok: true,
+              status: 200,
+              json: () => Promise.resolve({ ok: true }),
+            });
+          }
+          if (url === '/api/projects/7/weekly-reports/10' && (!init || init.method === undefined)) {
+            callCount += 1;
+            const shell =
+              callCount > 1
+                ? { ...submittedShell, correction_open: true }
+                : submittedShell;
+            return Promise.resolve({
+              ok: true,
+              status: 200,
+              json: () => Promise.resolve(shell),
+            });
+          }
+          if (url === '/api/projects/7' && (!init || init.method === undefined)) {
+            return Promise.resolve({
+              ok: true,
+              status: 200,
+              json: () => Promise.resolve({ name: 'Alpha' }),
+            });
+          }
+          return Promise.reject(new Error(`unexpected fetch: ${url} ${init?.method ?? 'GET'}`));
+        }) as unknown as typeof fetch,
+      );
+    }
+
+    it('shows Submit report for draft and toasts on 201', async () => {
+      const fetchMock = vi.fn((url: string, init?: RequestInit) => {
+        if (url === '/api/projects/7/weekly-reports/10/submit' && init?.method === 'POST') {
+          expect(init.body).toBeUndefined();
+          return Promise.resolve({
+            ok: true,
+            status: 201,
+            json: () => Promise.resolve(reportShellFixture),
+          });
+        }
+        if (url === '/api/projects/7/weekly-reports/10' && (!init || init.method === undefined)) {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: () => Promise.resolve(reportShellFixture),
+          });
+        }
+        if (url === '/api/projects/7' && (!init || init.method === undefined)) {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: () => Promise.resolve({ name: 'Alpha' }),
+          });
+        }
+        return Promise.reject(new Error(`unexpected fetch: ${url}`));
+      });
+      vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch);
+
+      render(<WeeklyReportEditorPage />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Submit report' })).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: 'Submit report' }));
+
+      await waitFor(() => {
+        expect(fetchMock).toHaveBeenCalledWith(
+          '/api/projects/7/weekly-reports/10/submit',
+          expect.objectContaining({ method: 'POST' }),
+        );
+        expect(toastSuccess).toHaveBeenCalledWith('Report submitted');
+      });
+    });
+
+    it('shows inline raid_dependency error and validation toast on 400', async () => {
+      setupSubmitFetch({
+        submitStatus: 400,
+        submitBody: { error: 'Validation failed', fields: ['raid_dependency'] },
+      });
+      render(<WeeklyReportEditorPage />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Submit report' })).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: 'Submit report' }));
+
+      await waitFor(() => {
+        expect(toastError).toHaveBeenCalledWith('Fix validation errors before submitting.');
+        expect(screen.getByText('Required before submit')).toBeInTheDocument();
+      });
+    });
+
+    it('shows Open correction for submitted and enables fields after correct', async () => {
+      setupSubmittedWithCorrect();
+      render(<WeeklyReportEditorPage />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Open correction' })).toBeInTheDocument();
+      });
+      expect(screen.queryByRole('button', { name: 'Submit report' })).not.toBeInTheDocument();
+      expect(screen.getByLabelText('Highlights')).toBeDisabled();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Open correction' }));
+
+      await waitFor(() => {
+        expect(toastSuccess).toHaveBeenCalledWith(
+          'Correction opened — you can edit the report.',
+        );
+        expect(screen.getByLabelText('Highlights')).not.toBeDisabled();
+      });
+    });
+
+    it('disables Submit report while POST is in flight', async () => {
+      let resolveSubmit: ((value: unknown) => void) | null = null;
+      vi.stubGlobal(
+        'fetch',
+        vi.fn((url: string, init?: RequestInit) => {
+          if (url === '/api/projects/7/weekly-reports/10/submit' && init?.method === 'POST') {
+            return new Promise((resolve) => {
+              resolveSubmit = (value) =>
+                resolve({
+                  ok: true,
+                  status: 201,
+                  json: () => Promise.resolve(value),
+                });
+            });
+          }
+          if (url === '/api/projects/7/weekly-reports/10' && (!init || init.method === undefined)) {
+            return Promise.resolve({
+              ok: true,
+              status: 200,
+              json: () => Promise.resolve(reportShellFixture),
+            });
+          }
+          if (url === '/api/projects/7' && (!init || init.method === undefined)) {
+            return Promise.resolve({
+              ok: true,
+              status: 200,
+              json: () => Promise.resolve({ name: 'Alpha' }),
+            });
+          }
+          return Promise.reject(new Error(`unexpected fetch: ${url}`));
+        }) as unknown as typeof fetch,
+      );
+
+      render(<WeeklyReportEditorPage />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Submit report' })).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: 'Submit report' }));
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Submit report' })).toBeDisabled();
+      });
+
+      resolveSubmit!(reportShellFixture);
+    });
+  });
 });
