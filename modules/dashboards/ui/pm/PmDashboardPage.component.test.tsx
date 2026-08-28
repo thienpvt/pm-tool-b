@@ -1,9 +1,17 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import PmDashboardPage from './PmDashboardPage';
 
 vi.mock('next/navigation', () => ({ usePathname: () => '/dashboards/pm' }));
 vi.mock('@/components/layout/Sidebar', () => ({ default: () => <nav data-testid="sidebar" /> }));
+
+const toastError = vi.fn();
+vi.mock('sonner', () => ({
+  toast: {
+    error: (...args: unknown[]) => toastError(...args),
+    success: vi.fn(),
+  },
+}));
 
 const projectRow = {
   id: 10,
@@ -113,6 +121,7 @@ function setupDefaultFetch() {
 
 beforeEach(() => {
   resolvePm = null;
+  toastError.mockClear();
   setupDefaultFetch();
 });
 
@@ -202,5 +211,107 @@ describe('PmDashboardPage', () => {
 
     await waitFor(() => expect(screen.getByTitle(pmFixture.actions.milestones[0].name)).toBeInTheDocument());
     expect(screen.getByTitle(pmFixture.actions.raid[0].code)).toBeInTheDocument();
+  });
+
+  it('Apply filters PUTs to pm filters then refetches GET', async () => {
+    let getCount = 0;
+    fetchMock = vi.fn((url: string, init?: RequestInit) => {
+      if (url === '/api/dashboards/pm' && (!init || !init.method || init.method === 'GET')) {
+        getCount += 1;
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(pmFixture),
+        });
+      }
+      if (url === '/api/dashboards/pm/filters' && init?.method === 'PUT') {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ ok: true }) });
+      }
+      return Promise.reject(new Error(`unexpected fetch: ${url} ${init?.method ?? 'GET'}`));
+    }) as unknown as typeof fetch;
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<PmDashboardPage />);
+    await waitFor(() => expect(screen.getByLabelText('Stage')).toBeInTheDocument());
+
+    fireEvent.change(screen.getByLabelText('Stage'), { target: { value: 'L2' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Apply filters' }));
+
+    await waitFor(() => {
+      const putCall = fetchMock.mock.calls.find(
+        ([u, i]) => u === '/api/dashboards/pm/filters' && (i as RequestInit)?.method === 'PUT',
+      );
+      expect(putCall).toBeTruthy();
+      expect(JSON.parse((putCall![1] as RequestInit).body as string)).toMatchObject({ stage: 'L2' });
+      expect(getCount).toBeGreaterThanOrEqual(2);
+    });
+  });
+
+  it('Clear filters POSTs action clear then refetches GET', async () => {
+    render(<PmDashboardPage />);
+    resolvePm!(pmFixture);
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Clear filters' })).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear filters' }));
+
+    await waitFor(() => {
+      const postCall = fetchMock.mock.calls.find(
+        ([u, i]) => u === '/api/dashboards/pm/filters' && (i as RequestInit)?.method === 'POST',
+      );
+      expect(postCall).toBeTruthy();
+      expect(JSON.parse((postCall![1] as RequestInit).body as string)).toEqual({ action: 'clear' });
+    });
+  });
+
+  it('shows toast.error when PUT filters fails', async () => {
+    fetchMock = vi.fn((url: string, init?: RequestInit) => {
+      if (url === '/api/dashboards/pm' && (!init || !init.method || init.method === 'GET')) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(pmFixture),
+        });
+      }
+      if (url === '/api/dashboards/pm/filters' && init?.method === 'PUT') {
+        return Promise.resolve({ ok: false, status: 500, json: () => Promise.resolve({}) });
+      }
+      return Promise.reject(new Error(`unexpected fetch: ${url}`));
+    }) as unknown as typeof fetch;
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<PmDashboardPage />);
+    await waitFor(() => expect(screen.getByLabelText('Stage')).toBeInTheDocument());
+
+    fireEvent.change(screen.getByLabelText('Stage'), { target: { value: 'L3' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Apply filters' }));
+
+    await waitFor(() => {
+      expect(toastError).toHaveBeenCalledWith("Couldn't save filters — try again.");
+    });
+  });
+
+  it('refetches GET when document becomes visible', async () => {
+    let getCount = 0;
+    fetchMock = vi.fn((url: string, init?: RequestInit) => {
+      if (url === '/api/dashboards/pm' && (!init || !init.method || init.method === 'GET')) {
+        getCount += 1;
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(pmFixture),
+        });
+      }
+      return Promise.reject(new Error(`unexpected fetch: ${url}`));
+    }) as unknown as typeof fetch;
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<PmDashboardPage />);
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'My dashboard' })).toBeInTheDocument());
+    expect(getCount).toBe(1);
+
+    Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true });
+    fireEvent(document, new Event('visibilitychange'));
+
+    await waitFor(() => expect(getCount).toBeGreaterThanOrEqual(2));
   });
 });

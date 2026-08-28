@@ -3,6 +3,7 @@
 import { AlertTriangle } from 'lucide-react';
 import Sidebar from '@/components/layout/Sidebar';
 import { PmActionQueues } from './PmActionQueues';
+import { PmFiltersBar } from './PmFiltersBar';
 import { usePmDashboard } from './usePmDashboard';
 
 const ERROR_COPY = {
@@ -12,7 +13,7 @@ const ERROR_COPY = {
 } as const;
 
 export default function PmDashboardPage() {
-  const { data, loading, error } = usePmDashboard();
+  const { data, loading, refreshing, error, saveFilters, clearFilters } = usePmDashboard();
 
   if (loading) {
     return (
@@ -48,7 +49,18 @@ export default function PmDashboardPage() {
     <div className="flex flex-col lg:flex-row min-h-screen bg-slate-50">
       <Sidebar />
       <main className="flex-1 p-4 lg:p-6 lg:p-8 overflow-auto">
-        <h1 className="text-base font-semibold mb-4">My dashboard</h1>
+        <h1 className="text-base font-semibold mb-1">My dashboard</h1>
+        <p className="text-sm text-muted-foreground mb-4">
+          {data.projects.length} assigned project{data.projects.length === 1 ? '' : 's'}
+        </p>
+        <PmFiltersBar
+          filters={data.filters}
+          list={data.projects}
+          refreshing={refreshing}
+          onApply={saveFilters}
+          onClear={() => clearFilters('clear')}
+          onReset={() => clearFilters('defaults')}
+        />
         <PmActionQueues projects={data.projects} actions={data.actions} />
       </main>
     </div>
