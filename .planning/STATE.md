@@ -5,16 +5,16 @@ milestone_name: Hardening & Deferred Debt
 current_phase: 24
 current_phase_name: Repo-wide Module Split
 status: executing
-stopped_at: Completed 24-05-PLAN.md
-last_updated: "2026-08-28T13:30:14.599Z"
+stopped_at: Completed 24-06-PLAN.md
+last_updated: "2026-08-28T13:42:05.593Z"
 last_activity: 2026-08-28
 last_activity_desc: Phase 24 execution started
-state_head: ebca3bee63d50f1caa15a8b48af96511fd2c1767
+state_head: a586df453b463316953be611f0f82a8c03995323
 progress:
   total_phases: 9
   completed_phases: 5
   total_plans: 35
-  completed_plans: 30
+  completed_plans: 31
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-08-28)
 ## Current Position
 
 Phase: 24 (Repo-wide Module Split) — EXECUTING
-Plan: 6 of 10
+Plan: 7 of 10
 Status: Ready to execute
 Last activity: 2026-08-28 — Phase 24 execution started
 
@@ -125,6 +125,7 @@ Progress: [██░░░░░░░░] 25%
 | Phase 24 P03 | 45 | 3 tasks | 35 files |
 | Phase 24 P04 | 12 | 3 tasks | 35 files |
 | Phase 24 P05 | 75 | 3 tasks | 120 files |
+| Phase 24 P06 | 45 | 3 tasks | 120 files |
 
 ## Accumulated Context
 
@@ -256,6 +257,8 @@ Recent decisions affecting current work:
 - [Phase 24]: document-compliance dashboard API owned by documents backend, not dashboards
 - [Phase 24]: Portfolio v1 split complete; /portfolio/report deferred to Wave 7 (D-11)
 - [Phase 24]: P3 withProgramAccess stays in app/api for programs/[id] (ENF-01)
+- [Phase 24]: P3 withProjectAccess stays in app/api for projects/[id]/** (ENF-01)
+- [Phase 24]: Weekly/checklist/report URLs excluded from projects module (D-06, D-11)
 
 ### Pending Todos
 
@@ -279,8 +282,8 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-08-28T13:30:13.749Z
-Stopped at: Completed 24-05-PLAN.md
+Last session: 2026-08-28T13:42:05.050Z
+Stopped at: Completed 24-06-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
