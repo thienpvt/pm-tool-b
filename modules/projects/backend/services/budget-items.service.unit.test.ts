@@ -40,7 +40,7 @@ import {
   listExpenses,
   updateBudgetItem,
 } from './budget-items.service';
-import { ForbiddenError, NotFoundError, ValidationError } from './errors';
+import { ForbiddenError, NotFoundError, ValidationError } from '@/lib/services/errors';
 
 beforeEach(() => {
   vi.clearAllMocks();

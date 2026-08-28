@@ -1,14 +1,7 @@
-import { NextResponse } from 'next/server';
 import { withProjectAccess } from '@/lib/http/with-project-access';
-import { createMilestone, listMilestones } from '@/modules/projects/backend/services/milestones.service';
-import { milestoneInputSchema } from './schema';
+import { getMilestonesHandler, postMilestonesHandler } from '@/modules/projects/backend/routes/projects/[id]/milestones/handlers';
+import { milestoneInputSchema } from '@/modules/projects/backend/routes/projects/[id]/milestones/schema';
 
-export const GET = withProjectAccess(async (_req, { params, actor }) =>
-  NextResponse.json(await listMilestones(params.id, actor)),
-);
+export const GET = withProjectAccess(getMilestonesHandler);
 
-export const POST = withProjectAccess(
-  async (_req, { params, actor, body }) =>
-    NextResponse.json(await createMilestone(params.id, actor, body as Record<string, unknown>), { status: 201 }),
-  { schema: milestoneInputSchema },
-);
+export const POST = withProjectAccess(postMilestonesHandler, { schema: milestoneInputSchema });

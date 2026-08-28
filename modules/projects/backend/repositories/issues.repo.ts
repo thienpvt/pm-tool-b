@@ -1,5 +1,5 @@
 import { getDb } from '@/lib/db';
-import { buildUpdate } from './_helpers';
+import { buildUpdate } from '@/lib/repositories/_helpers';
 
 /**
  * Updatable columns for `issues`. `priority`, `impact` and `affected_activity_id` are

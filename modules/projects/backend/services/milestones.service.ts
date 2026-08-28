@@ -8,9 +8,9 @@ import {
   unlinkEpic as unlinkEpicRepo,
   updateMilestone as updateMilestoneRepo,
 } from '@/modules/projects/backend/repositories/milestones.repo';
-import { assertProjectAccess, assertProjectWriteAccess, type AccessActor } from './access';
+import { assertProjectAccess, assertProjectWriteAccess, type AccessActor } from '@/lib/services/access';
 import { auditLog } from '@/modules/audit/backend/services/audit.service';
-import { NotFoundError } from './errors';
+import { NotFoundError } from '@/lib/services/errors';
 
 function auditSnapshot(row: Record<string, unknown> | null | undefined) {
   if (!row) return null;

@@ -25,7 +25,7 @@ vi.mock('@/modules/projects/backend/repositories/budget.repo', () => ({
 }));
 
 import { createBudgetItem, getBudgetOverview } from './budget.service';
-import { ForbiddenError, ValidationError } from './errors';
+import { ForbiddenError, ValidationError } from '@/lib/services/errors';
 
 beforeEach(() => {
   vi.clearAllMocks();

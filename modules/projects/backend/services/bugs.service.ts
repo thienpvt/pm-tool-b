@@ -5,8 +5,8 @@ import {
   listSnapshotDates as listSnapshotDatesRepo,
   replaceSnapshot as replaceSnapshotRepo,
 } from '@/modules/projects/backend/repositories/bugs.repo';
-import { assertProjectAccess, assertProjectWriteAccess, type AccessActor } from './access';
-import { ValidationError } from './errors';
+import { assertProjectAccess, assertProjectWriteAccess, type AccessActor } from '@/lib/services/access';
+import { ValidationError } from '@/lib/services/errors';
 
 export async function listSnapshotDates(projectId: number | string, actor: AccessActor) {
   await assertProjectAccess(projectId, actor);

@@ -4,8 +4,8 @@ import {
   findHolidayByDate,
   listHolidays as listHolidaysRepo,
 } from '@/modules/projects/backend/repositories/holidays.repo';
-import { assertProjectAccess, assertProjectWriteAccess, type AccessActor } from './access';
-import { ConflictError, NotFoundError, ValidationError } from './errors';
+import { assertProjectAccess, assertProjectWriteAccess, type AccessActor } from '@/lib/services/access';
+import { ConflictError, NotFoundError, ValidationError } from '@/lib/services/errors';
 
 export async function listHolidays(projectId: number | string, actor: AccessActor) {
   await assertProjectAccess(projectId, actor);

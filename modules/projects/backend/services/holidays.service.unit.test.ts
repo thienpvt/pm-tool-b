@@ -25,7 +25,7 @@ vi.mock('@/modules/projects/backend/repositories/holidays.repo', () => ({
 }));
 
 import { createHoliday, deleteHoliday, listHolidays } from './holidays.service';
-import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors';
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '@/lib/services/errors';
 
 beforeEach(() => {
   vi.clearAllMocks();

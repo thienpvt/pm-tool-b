@@ -1,33 +1,11 @@
-import { NextResponse } from 'next/server';
 import { withProjectAccess } from '@/lib/http/with-project-access';
-import {
-  createTeamMember,
-  deleteTeamMember,
-  listTeam,
-  updateTeamMember,
-} from '@/modules/projects/backend/services/team.service';
-import { teamInputSchema, teamUpdateSchema } from './schema';
+import { getTeamHandler, postTeamHandler, putTeamHandler, deleteTeamHandler } from '@/modules/projects/backend/routes/projects/[id]/team/handlers';
+import { teamInputSchema, teamUpdateSchema } from '@/modules/projects/backend/routes/projects/[id]/team/schema';
 
-export const GET = withProjectAccess(async (_req, { params, actor }) =>
-  NextResponse.json(await listTeam(params.id, actor)),
-);
+export const GET = withProjectAccess(getTeamHandler);
 
-export const POST = withProjectAccess(
-  async (_req, { params, actor, body }) =>
-    NextResponse.json(await createTeamMember(params.id, actor, body as Record<string, unknown>), { status: 201 }),
-  { schema: teamInputSchema },
-);
+export const POST = withProjectAccess(postTeamHandler, { schema: teamInputSchema });
 
-export const PUT = withProjectAccess(
-  async (_req, { params, actor, body }) => {
-    const { id: rowId, ...fields } = body as Record<string, unknown>;
-    return NextResponse.json(await updateTeamMember(params.id, actor, rowId as string | number, fields));
-  },
-  { schema: teamUpdateSchema },
-);
+export const PUT = withProjectAccess(putTeamHandler, { schema: teamUpdateSchema });
 
-export const DELETE = withProjectAccess(async (req, { params, actor }) => {
-  const rowId = new URL(req.url).searchParams.get('rowId') ?? '';
-  await deleteTeamMember(params.id, actor, rowId);
-  return NextResponse.json({ ok: true });
-});
+export const DELETE = withProjectAccess(deleteTeamHandler);

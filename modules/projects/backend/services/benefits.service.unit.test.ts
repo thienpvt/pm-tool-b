@@ -44,8 +44,8 @@ vi.mock('@/modules/projects/backend/repositories/nonfinancial-benefits.repo', ()
 vi.mock('@/modules/audit/backend/services/audit.service', () => ({ auditLog: auditLogFn }));
 
 import { createProjectBenefit, listProjectBenefits, patchProjectBenefit } from './benefits.service';
-import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors';
-import type { AccessActor } from './access';
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '@/lib/services/errors';
+import type { AccessActor } from '@/lib/services/access';
 
 beforeEach(() => {
   vi.clearAllMocks();

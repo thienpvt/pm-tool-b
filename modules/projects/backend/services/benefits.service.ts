@@ -14,9 +14,9 @@ import {
   type NonfinancialBenefitRow,
 } from '@/modules/projects/backend/repositories/nonfinancial-benefits.repo';
 import { parseFiscalYear, parseNonNegativeVnd } from '@/lib/fiscal/vnd';
-import { assertProjectAccess, assertProjectWriteAccess, type AccessActor } from './access';
+import { assertProjectAccess, assertProjectWriteAccess, type AccessActor } from '@/lib/services/access';
 import { auditLog } from '@/modules/audit/backend/services/audit.service';
-import { ConflictError, NotFoundError, ValidationError } from './errors';
+import { ConflictError, NotFoundError, ValidationError } from '@/lib/services/errors';
 
 function isUniqueViolation(err: unknown): boolean {
   return (

@@ -14,7 +14,7 @@ vi.mock('@/modules/projects/backend/repositories/escalations.repo', () => ({
 }));
 
 import { listEscalations, updateEscalation } from './escalations.service';
-import { ForbiddenError, NotFoundError } from './errors';
+import { ForbiddenError, NotFoundError } from '@/lib/services/errors';
 
 beforeEach(() => {
   vi.clearAllMocks();

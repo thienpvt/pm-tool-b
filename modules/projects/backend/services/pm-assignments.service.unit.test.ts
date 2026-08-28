@@ -57,8 +57,8 @@ import {
   endPmAssignment,
   listPmAssignments,
 } from './pm-assignments.service';
-import { ForbiddenError, ValidationError } from './errors';
-import type { AccessActor } from './access';
+import { ForbiddenError, ValidationError } from '@/lib/services/errors';
+import type { AccessActor } from '@/lib/services/access';
 
 const cpmoActor: AccessActor = {
   company_id: 5,

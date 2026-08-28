@@ -1,5 +1,5 @@
 import { getDb } from '@/lib/db';
-import { buildUpdate } from './_helpers';
+import { buildUpdate } from '@/lib/repositories/_helpers';
 
 /**
  * Updatable columns for `escalation_levels`. No migration-added columns.

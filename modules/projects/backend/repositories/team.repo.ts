@@ -1,5 +1,5 @@
 import { getDb } from '@/lib/db';
-import { buildUpdate } from './_helpers';
+import { buildUpdate } from '@/lib/repositories/_helpers';
 
 /** Updatable columns for `team_members`. `email` is migration-added — see ALLOWLIST-DIFF.md. */
 export const TEAM_COLUMNS = [

@@ -1,22 +1,9 @@
-import { NextResponse } from 'next/server';
 import { withProjectAccess } from '@/lib/http/with-project-access';
-import { createHoliday, deleteHoliday, listHolidays } from '@/modules/projects/backend/services/holidays.service';
-import { holidayInputSchema } from './schema';
+import { getHolidaysHandler, postHolidaysHandler, deleteHolidaysHandler } from '@/modules/projects/backend/routes/projects/[id]/holidays/handlers';
+import { holidayInputSchema } from '@/modules/projects/backend/routes/projects/[id]/holidays/schema';
 
-export const GET = withProjectAccess(async (_req, { params, actor }) =>
-  NextResponse.json(await listHolidays(params.id, actor)),
-);
+export const GET = withProjectAccess(getHolidaysHandler);
 
-export const POST = withProjectAccess(
-  async (_req, { params, actor, body }) => {
-    const { date, name } = body as { date: string; name: string };
-    return NextResponse.json(await createHoliday(params.id, actor, date, name), { status: 201 });
-  },
-  { schema: holidayInputSchema },
-);
+export const POST = withProjectAccess(postHolidaysHandler);
 
-export const DELETE = withProjectAccess(async (req, { params, actor }) => {
-  const hid = new URL(req.url).searchParams.get('hid');
-  await deleteHoliday(params.id, actor, hid);
-  return NextResponse.json({ ok: true });
-});
+export const DELETE = withProjectAccess(deleteHolidaysHandler);

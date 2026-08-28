@@ -1,10 +1,4 @@
-import { NextResponse } from 'next/server';
 import { withProjectAccess } from '@/lib/http/with-project-access';
-import { deleteExpense } from '@/lib/services/budget-items.service';
+import { deleteBudgetItemIdExpensesExpIdHandler } from '@/modules/projects/backend/routes/projects/[id]/budget/[itemId]/expenses/[expId]/handlers';
 
-type Params = { id: string; itemId: string; expId: string };
-
-export const DELETE = withProjectAccess<Params>(async (_req, { params, actor }) => {
-  await deleteExpense(params.id, params.itemId, params.expId, actor);
-  return NextResponse.json({ ok: true });
-});
+export const DELETE = withProjectAccess(deleteBudgetItemIdExpensesExpIdHandler);

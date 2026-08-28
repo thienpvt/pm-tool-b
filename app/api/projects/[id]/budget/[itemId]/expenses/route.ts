@@ -1,19 +1,7 @@
-import { NextResponse } from 'next/server';
 import { withProjectAccess } from '@/lib/http/with-project-access';
-import { createExpense, listExpenses, type ExpenseBody } from '@/modules/projects/backend/services/budget-items.service';
-import { expenseInputSchema } from './schema';
+import { getBudgetItemIdExpensesHandler, postBudgetItemIdExpensesHandler } from '@/modules/projects/backend/routes/projects/[id]/budget/[itemId]/expenses/handlers';
+import { expenseInputSchema } from '@/modules/projects/backend/routes/projects/[id]/budget/[itemId]/expenses/schema';
 
-type Params = { id: string; itemId: string };
+export const GET = withProjectAccess(getBudgetItemIdExpensesHandler);
 
-export const GET = withProjectAccess<Params>(async (_req, { params, actor }) =>
-  NextResponse.json(await listExpenses(params.id, params.itemId, actor)),
-);
-
-export const POST = withProjectAccess<Params>(
-  async (_req, { params, actor, body }) =>
-    NextResponse.json(
-      await createExpense(params.id, params.itemId, actor, body as ExpenseBody),
-      { status: 201 },
-    ),
-  { schema: expenseInputSchema },
-);
+export const POST = withProjectAccess(postBudgetItemIdExpensesHandler, { schema: expenseInputSchema });

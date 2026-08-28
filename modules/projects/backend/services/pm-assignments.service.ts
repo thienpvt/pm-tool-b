@@ -17,9 +17,9 @@ import {
   assertCompanyWrite,
   assertProjectAccess,
   type AccessActor,
-} from './access';
+} from '@/lib/services/access';
 import { auditLog } from '@/modules/audit/backend/services/audit.service';
-import { NotFoundError, ValidationError } from './errors';
+import { NotFoundError, ValidationError } from '@/lib/services/errors';
 
 function auditSnapshot(row: PmAssignmentRow | null | undefined) {
   if (!row) return null;

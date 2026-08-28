@@ -1,16 +1,7 @@
-import { NextResponse } from 'next/server';
 import { withProjectAccess } from '@/lib/http/with-project-access';
-import { listEscalations, updateEscalation } from '@/modules/projects/backend/services/escalations.service';
-import { escalationUpdateSchema } from './schema';
+import { getEscalationsHandler, putEscalationsHandler } from '@/modules/projects/backend/routes/projects/[id]/escalations/handlers';
+import { escalationUpdateSchema } from '@/modules/projects/backend/routes/projects/[id]/escalations/schema';
 
-export const GET = withProjectAccess(async (_req, { params, actor }) =>
-  NextResponse.json(await listEscalations(params.id, actor)),
-);
+export const GET = withProjectAccess(getEscalationsHandler);
 
-export const PUT = withProjectAccess(
-  async (_req, { params, actor, body }) => {
-    const { id: rowId, ...fields } = body as Record<string, unknown>;
-    return NextResponse.json(await updateEscalation(params.id, actor, rowId as string | number, fields));
-  },
-  { schema: escalationUpdateSchema },
-);
+export const PUT = withProjectAccess(putEscalationsHandler);

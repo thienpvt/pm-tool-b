@@ -6,23 +6,28 @@ import { benefitCreateSchema, benefitPatchSchema } from './schema';
 
 export async function getBenefitsHandler(
   _req: NextRequest,
-  { _req, { params, actor } }: HandlerContext<{ id: string }>,
-) { return NextResponse.json(await listProjectBenefits(params.id, actor)),; }
+  { params, actor }: HandlerContext<{ id: string }>,
+) { return NextResponse.json(await listProjectBenefits(params.id, actor)); }
 
 export async function postBenefitsHandler(
   _req: NextRequest,
-  { _req, { params, actor, body } }: HandlerContext<{ id: string }>,
+  { params, actor, body }: HandlerContext<{ id: string }>,
 ) { return NextResponse.json(
       await createProjectBenefit(params.id, actor, body as Record<string, unknown>),
       { status: 201 },
-    ),
-  { schema: benefitCreateSchema },; }
+    ); }
 
 export async function patchBenefitsHandler(
   _req: NextRequest,
-  { _req, { params, actor, body } }: HandlerContext<{ id: string }>,
+  { params, actor, body }: HandlerContext<{ id: string }>,
 ) {
     const payload = body as Record<string, unknown>;
     const benefitId = payload.id;
     if (benefitId === undefined || benefitId === null || benefitId === '') {
-      return NextResponse.json({ error: 'id is required' }, { status: 400 }
+      return NextResponse.json({ error: 'id is required' }, { status: 400 });
+    }
+    return NextResponse.json(
+      await patchProjectBenefit(params.id, actor, benefitId, payload),
+    );
+  },
+  { schema: benefitPatchSchema },

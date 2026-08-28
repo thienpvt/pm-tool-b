@@ -4,8 +4,8 @@ import {
   listTeam as listTeamRepo,
   updateTeamMember as updateTeamMemberRepo,
 } from '@/modules/projects/backend/repositories/team.repo';
-import { assertProjectAccess, assertProjectWriteAccess, type AccessActor } from './access';
-import { NotFoundError } from './errors';
+import { assertProjectAccess, assertProjectWriteAccess, type AccessActor } from '@/lib/services/access';
+import { NotFoundError } from '@/lib/services/errors';
 
 export async function listTeam(projectId: number | string, actor: AccessActor) {
   await assertProjectAccess(projectId, actor);

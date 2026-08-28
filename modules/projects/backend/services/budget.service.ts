@@ -4,8 +4,8 @@ import {
   listBudgetItems,
   listExpenses,
 } from '@/modules/projects/backend/repositories/budget.repo';
-import { assertProjectAccess, assertProjectWriteAccess, type AccessActor } from './access';
-import { ValidationError } from './errors';
+import { assertProjectAccess, assertProjectWriteAccess, type AccessActor } from '@/lib/services/access';
+import { ValidationError } from '@/lib/services/errors';
 
 /**
  * GET composition: items + expenses grouped by budget_item_id + rounded avg completion.

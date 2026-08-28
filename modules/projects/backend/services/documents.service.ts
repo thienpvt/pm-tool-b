@@ -7,8 +7,8 @@ import {
   listDocuments as listDocumentsRepo,
   updateDocumentContent,
 } from '@/modules/projects/backend/repositories/documents.repo';
-import { assertProjectAccess, assertProjectWriteAccess, type AccessActor } from './access';
-import { NotFoundError, ValidationError } from './errors';
+import { assertProjectAccess, assertProjectWriteAccess, type AccessActor } from '@/lib/services/access';
+import { NotFoundError, ValidationError } from '@/lib/services/errors';
 
 export async function listDocuments(projectId: number | string, actor: AccessActor) {
   await assertProjectAccess(projectId, actor);

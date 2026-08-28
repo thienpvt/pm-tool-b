@@ -47,7 +47,7 @@ import {
   listActivityJiraKeys,
   updateActivity,
 } from './activities.service';
-import { ForbiddenError, NotFoundError } from './errors';
+import { ForbiddenError, NotFoundError } from '@/lib/services/errors';
 
 beforeEach(() => {
   vi.clearAllMocks();

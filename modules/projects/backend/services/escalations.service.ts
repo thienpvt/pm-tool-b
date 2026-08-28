@@ -2,8 +2,8 @@ import {
   listEscalations as listEscalationsRepo,
   updateEscalation as updateEscalationRepo,
 } from '@/modules/projects/backend/repositories/escalations.repo';
-import { assertProjectAccess, assertProjectWriteAccess, type AccessActor } from './access';
-import { NotFoundError } from './errors';
+import { assertProjectAccess, assertProjectWriteAccess, type AccessActor } from '@/lib/services/access';
+import { NotFoundError } from '@/lib/services/errors';
 
 export async function listEscalations(projectId: number | string, actor: AccessActor) {
   await assertProjectAccess(projectId, actor);

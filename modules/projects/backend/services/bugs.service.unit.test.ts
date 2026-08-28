@@ -28,7 +28,7 @@ vi.mock('@/modules/projects/backend/repositories/bugs.repo', () => ({
 }));
 
 import { deleteBugs, listBugs, listSnapshotDates, replaceSnapshot } from './bugs.service';
-import { ForbiddenError, ValidationError } from './errors';
+import { ForbiddenError, ValidationError } from '@/lib/services/errors';
 
 beforeEach(() => {
   vi.clearAllMocks();

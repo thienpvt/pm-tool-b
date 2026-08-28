@@ -35,8 +35,8 @@ import {
   endProjectDependency,
   listProjectDependenciesForProject,
 } from './project-dependencies.service';
-import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors';
-import type { AccessActor } from './access';
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '@/lib/services/errors';
+import type { AccessActor } from '@/lib/services/access';
 
 const pmActor: AccessActor = {
   company_id: 5,

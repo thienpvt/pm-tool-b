@@ -8,9 +8,9 @@ import {
   type ProjectDependencyRow,
 } from '@/modules/projects/backend/repositories/project-dependencies.repo';
 import { parseIsoDate } from '@/lib/fiscal/iso-date';
-import { assertProjectAccess, assertProjectWriteAccess, type AccessActor } from './access';
+import { assertProjectAccess, assertProjectWriteAccess, type AccessActor } from '@/lib/services/access';
 import { auditLog } from '@/modules/audit/backend/services/audit.service';
-import { ConflictError, NotFoundError, ValidationError } from './errors';
+import { ConflictError, NotFoundError, ValidationError } from '@/lib/services/errors';
 
 const DEPENDENCY_TYPES: DependencyType[] = [
   'FINISH_TO_START',

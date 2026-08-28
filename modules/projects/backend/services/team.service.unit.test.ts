@@ -25,7 +25,7 @@ vi.mock('@/modules/projects/backend/repositories/team.repo', () => ({
 }));
 
 import { createTeamMember, deleteTeamMember, listTeam, updateTeamMember } from './team.service';
-import { ForbiddenError, NotFoundError } from './errors';
+import { ForbiddenError, NotFoundError } from '@/lib/services/errors';
 
 beforeEach(() => {
   vi.clearAllMocks();

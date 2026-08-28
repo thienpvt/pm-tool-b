@@ -38,8 +38,8 @@ import {
   endProjectStakeholder,
   listProjectStakeholders,
 } from './stakeholders.service';
-import { ForbiddenError, ValidationError } from './errors';
-import type { AccessActor } from './access';
+import { ForbiddenError, ValidationError } from '@/lib/services/errors';
+import type { AccessActor } from '@/lib/services/access';
 
 beforeEach(() => {
   vi.clearAllMocks();

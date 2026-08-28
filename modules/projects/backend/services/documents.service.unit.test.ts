@@ -34,7 +34,7 @@ vi.mock('@/modules/projects/backend/repositories/documents.repo', () => ({
 }));
 
 import { deleteDocument, listDocuments, updateDocument, upsertDocument } from './documents.service';
-import { ForbiddenError, NotFoundError, ValidationError } from './errors';
+import { ForbiddenError, NotFoundError, ValidationError } from '@/lib/services/errors';
 
 beforeEach(() => {
   vi.clearAllMocks();

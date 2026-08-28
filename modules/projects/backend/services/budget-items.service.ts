@@ -7,8 +7,8 @@ import {
   listExpensesByItem,
   updateBudgetItem as updateBudgetItemRepo,
 } from '@/modules/projects/backend/repositories/budget.repo';
-import { assertProjectAccess, assertProjectWriteAccess, type AccessActor } from './access';
-import { NotFoundError, ValidationError } from './errors';
+import { assertProjectAccess, assertProjectWriteAccess, type AccessActor } from '@/lib/services/access';
+import { NotFoundError, ValidationError } from '@/lib/services/errors';
 
 /**
  * Nested budget-item + expense operations for the three routes under

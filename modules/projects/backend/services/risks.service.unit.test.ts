@@ -39,7 +39,7 @@ vi.mock('@/modules/projects/backend/repositories/raid-due-date-history.repo', ()
 }));
 
 import { createRisk, deactivateRisk, listRisks, updateRisk } from './risks.service';
-import { ConflictError, ForbiddenError, NotFoundError } from './errors';
+import { ConflictError, ForbiddenError, NotFoundError } from '@/lib/services/errors';
 
 beforeEach(() => {
   vi.clearAllMocks();

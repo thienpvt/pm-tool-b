@@ -48,7 +48,7 @@ import {
   unlinkEpic,
   updateMilestone,
 } from './milestones.service';
-import { ForbiddenError, NotFoundError } from './errors';
+import { ForbiddenError, NotFoundError } from '@/lib/services/errors';
 
 beforeEach(() => {
   vi.clearAllMocks();

@@ -1,5 +1,5 @@
 import { getDb } from '@/lib/db';
-import { buildUpdate } from './_helpers';
+import { buildUpdate } from '@/lib/repositories/_helpers';
 
 /** Updatable columns for `meetings`. No migration-added columns — see ALLOWLIST-DIFF.md. */
 export const MEETING_COLUMNS = [

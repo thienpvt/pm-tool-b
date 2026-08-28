@@ -1,33 +1,11 @@
-import { NextResponse } from 'next/server';
 import { withProjectAccess } from '@/lib/http/with-project-access';
-import {
-  createMeeting,
-  deleteMeeting,
-  listMeetings,
-  updateMeeting,
-} from '@/modules/projects/backend/services/meetings.service';
-import { meetingInputSchema, meetingUpdateSchema } from './schema';
+import { getMeetingsHandler, postMeetingsHandler, putMeetingsHandler, deleteMeetingsHandler } from '@/modules/projects/backend/routes/projects/[id]/meetings/handlers';
+import { meetingInputSchema, meetingUpdateSchema } from '@/modules/projects/backend/routes/projects/[id]/meetings/schema';
 
-export const GET = withProjectAccess(async (_req, { params, actor }) =>
-  NextResponse.json(await listMeetings(params.id, actor)),
-);
+export const GET = withProjectAccess(getMeetingsHandler);
 
-export const POST = withProjectAccess(
-  async (_req, { params, actor, body }) =>
-    NextResponse.json(await createMeeting(params.id, actor, body as Record<string, unknown>), { status: 201 }),
-  { schema: meetingInputSchema },
-);
+export const POST = withProjectAccess(postMeetingsHandler, { schema: meetingInputSchema });
 
-export const PUT = withProjectAccess(
-  async (_req, { params, actor, body }) => {
-    const { id: rowId, ...fields } = body as Record<string, unknown>;
-    return NextResponse.json(await updateMeeting(params.id, actor, rowId as string | number, fields));
-  },
-  { schema: meetingUpdateSchema },
-);
+export const PUT = withProjectAccess(putMeetingsHandler, { schema: meetingUpdateSchema });
 
-export const DELETE = withProjectAccess(async (req, { params, actor }) => {
-  const rowId = new URL(req.url).searchParams.get('rowId') ?? '';
-  await deleteMeeting(params.id, actor, rowId);
-  return NextResponse.json({ ok: true });
-});
+export const DELETE = withProjectAccess(deleteMeetingsHandler);

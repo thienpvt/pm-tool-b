@@ -4,7 +4,7 @@ import { seedProject, setupRepoTables, testDb } from '../../test/repo-db';
 
 vi.mock('@/lib/db', () => ({ getDb: vi.fn(async () => testDb()) }));
 
-import { UnknownColumnError } from './_helpers';
+import { UnknownColumnError } from '@/lib/repositories/_helpers';
 import { ESCALATION_COLUMNS, listEscalations, updateEscalation } from './escalations.repo';
 
 /**

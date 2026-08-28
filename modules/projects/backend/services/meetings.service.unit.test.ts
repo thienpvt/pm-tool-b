@@ -25,7 +25,7 @@ vi.mock('@/modules/projects/backend/repositories/meetings.repo', () => ({
 }));
 
 import { createMeeting, deleteMeeting, listMeetings, updateMeeting } from './meetings.service';
-import { ForbiddenError, NotFoundError } from './errors';
+import { ForbiddenError, NotFoundError } from '@/lib/services/errors';
 
 beforeEach(() => {
   vi.clearAllMocks();

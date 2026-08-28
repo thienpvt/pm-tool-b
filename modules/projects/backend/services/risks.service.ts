@@ -7,9 +7,9 @@ import {
   updateRisk as updateRiskRepo,
 } from '@/modules/projects/backend/repositories/risks.repo';
 import { appendDueDateHistory } from '@/modules/projects/backend/repositories/raid-due-date-history.repo';
-import { assertProjectAccess, assertProjectWriteAccess, type AccessActor } from './access';
+import { assertProjectAccess, assertProjectWriteAccess, type AccessActor } from '@/lib/services/access';
 import { auditLog } from '@/modules/audit/backend/services/audit.service';
-import { ConflictError, NotFoundError } from './errors';
+import { ConflictError, NotFoundError } from '@/lib/services/errors';
 
 type RiskRow = {
   id: number;

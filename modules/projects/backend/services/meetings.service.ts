@@ -4,8 +4,8 @@ import {
   listMeetings as listMeetingsRepo,
   updateMeeting as updateMeetingRepo,
 } from '@/modules/projects/backend/repositories/meetings.repo';
-import { assertProjectAccess, assertProjectWriteAccess, type AccessActor } from './access';
-import { NotFoundError } from './errors';
+import { assertProjectAccess, assertProjectWriteAccess, type AccessActor } from '@/lib/services/access';
+import { NotFoundError } from '@/lib/services/errors';
 
 export async function listMeetings(projectId: number | string, actor: AccessActor) {
   await assertProjectAccess(projectId, actor);
