@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
@@ -6,6 +6,18 @@ const root = resolve(__dirname, '../../..');
 
 function readUtf8(relativePath: string): string {
   return readFileSync(resolve(root, relativePath), 'utf8');
+}
+
+function listHandlerFiles(dir: string, acc: string[] = []): string[] {
+  for (const entry of readdirSync(dir)) {
+    const full = resolve(dir, entry);
+    if (statSync(full).isDirectory()) {
+      listHandlerFiles(full, acc);
+    } else if (entry === 'handlers.ts') {
+      acc.push(full);
+    }
+  }
+  return acc;
 }
 
 describe('projects module split contract (24-06)', () => {
@@ -148,5 +160,41 @@ describe('projects module split contract (24-06)', () => {
     const source = readUtf8('modules/dashboards/backend/services/spec-dashboards.service.ts');
     expect(source).toContain('@/modules/projects/backend/services/raid-masters.service');
     expect(source).toContain('@/modules/projects/backend/repositories/projects.repo');
+  });
+
+  const wave6BrokenHandlers = [
+    'modules/projects/backend/routes/projects/[id]/bugs/handlers.ts',
+    'modules/projects/backend/routes/projects/[id]/team/handlers.ts',
+    'modules/projects/backend/routes/projects/[id]/stakeholders/handlers.ts',
+    'modules/projects/backend/routes/projects/[id]/meetings/handlers.ts',
+    'modules/projects/backend/routes/projects/[id]/dependencies/handlers.ts',
+    'modules/projects/backend/routes/projects/[id]/documents/handlers.ts',
+    'modules/projects/backend/routes/projects/[id]/benefits/handlers.ts',
+    'modules/projects/backend/routes/projects/[id]/activities/handlers.ts',
+    'modules/projects/backend/routes/projects/[id]/budget/[itemId]/handlers.ts',
+    'modules/projects/backend/routes/projects/[id]/issues/handlers.ts',
+    'modules/projects/backend/routes/projects/[id]/risks/handlers.ts',
+    'modules/projects/backend/routes/projects/[id]/holidays/handlers.ts',
+    'modules/projects/backend/routes/projects/[id]/escalations/handlers.ts',
+    'modules/projects/backend/routes/projects/[id]/milestones/[milestoneId]/epics/handlers.ts',
+  ] as const;
+
+  it.each(wave6BrokenHandlers)('P3 Wave 6: %s has clean handler extraction', (handlerPath) => {
+    const source = readUtf8(handlerPath);
+    expect(source).not.toMatch(/import \{\s*\nimport/);
+    expect(source).not.toMatch(/\},\s*\n\s*\{ schema:/);
+    expect(source).not.toMatch(/(^|[^_])req\.url/);
+  });
+
+  it('P3 Wave 6: all project handlers.ts files pass extraction smoke checks', () => {
+    const handlersRoot = resolve(root, 'modules/projects/backend/routes/projects/[id]');
+    const handlerFiles = listHandlerFiles(handlersRoot);
+    expect(handlerFiles.length).toBeGreaterThan(0);
+    for (const absPath of handlerFiles) {
+      const source = readFileSync(absPath, 'utf8');
+      expect(source).not.toMatch(/import \{\s*\nimport/);
+      expect(source).not.toMatch(/\},\s*\n\s*\{ schema:/);
+      expect(source).not.toMatch(/(^|[^_])req\.url/);
+    }
   });
 });
