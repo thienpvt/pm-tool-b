@@ -46,7 +46,7 @@ DATA-01..03 is **one migration task** (replay origin `gsd/quick-260826-ded-data-
 
 - [x] **PERD-04**: CPMO can create and manage weekly periods in the UI
 - [ ] **WKRP-07**: A PM with write access can draft, submit, and correct a weekly report in the UI
-- [ ] **CPMO-05**: CPMO can track period submissions and export the consolidated pack from the UI
+- [x] **CPMO-05**: CPMO can track period submissions and export the consolidated pack from the UI
 
 ### v2 UI — documents
 
@@ -106,7 +106,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | NIT-04 | Phase 21 | Complete |
 | PERD-04 | Phase 22 | Complete |
 | WKRP-07 | Phase 22 | Pending |
-| CPMO-05 | Phase 22 | Pending |
+| CPMO-05 | Phase 22 | Complete |
 | PERF-01 | Phase 22 | Complete |
 | DOC-07 | Phase 23 | Pending |
 | DOC-08 | Phase 23 | Pending |

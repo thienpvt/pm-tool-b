@@ -5,16 +5,16 @@ milestone_name: Hardening & Deferred Debt
 current_phase: 22
 current_phase_name: Weekly Workflow Surfaces
 status: executing
-stopped_at: Completed 22-02-PLAN.md
-last_updated: "2026-08-28T10:04:19.207Z"
+stopped_at: Completed 22-03-PLAN.md
+last_updated: "2026-08-28T10:10:32.355Z"
 last_activity: 2026-08-28
 last_activity_desc: Phase 22 execution started
-state_head: e1507de5b64746a22e0d1fcd1b6e6ecc4fe83c57
+state_head: 85934d06ab3054659925cf462457725d697721c9
 progress:
   total_phases: 9
   completed_phases: 3
   total_plans: 20
-  completed_plans: 17
+  completed_plans: 18
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-08-28)
 ## Current Position
 
 Phase: 22 (Weekly Workflow Surfaces) — EXECUTING
-Plan: 3 of 5
+Plan: 4 of 5
 Status: Ready to execute
 Last activity: 2026-08-28 — Phase 22 execution started
 
@@ -112,6 +112,7 @@ Progress: [██░░░░░░░░] 25%
 | Phase 21-portfolio-pm-dashboard-pages P03 | 12min | 3 tasks | 11 files |
 | Phase 22 P01 | 8 | 3 tasks | 13 files |
 | Phase 22 P02 | 4min | 3 tasks | 4 files |
+| Phase 22 P03 | 12min | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -221,6 +222,8 @@ Recent decisions affecting current work:
 - [Phase 22]: CalendarDays and ListChecks icons for CPMO weekly NAV
 - [Phase 22]: SelectValue renders explicit weekday label for jsdom test compatibility
 - [Phase 22]: createPeriod reloads via load() after 201; 409 is toast-only not page error
+- [Phase 22]: Native HTML checkbox for technology_council filter — shadcn Checkbox not installed
+- [Phase 22]: Selection clears on period or filter change only, not on every data refetch
 
 ### Pending Todos
 
@@ -244,8 +247,8 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-08-28T10:04:18.755Z
-Stopped at: Completed 22-02-PLAN.md
+Last session: 2026-08-28T10:10:31.909Z
+Stopped at: Completed 22-03-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
