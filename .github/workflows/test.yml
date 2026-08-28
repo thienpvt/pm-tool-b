@@ -28,6 +28,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - run: npm run lint
       - run: npm run migrate
         env:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/pm_tool_test
