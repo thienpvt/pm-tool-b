@@ -77,4 +77,80 @@ describe('portfolio module split contract (24-05)', () => {
       /export\s*\{\s*default\s*\}\s*from\s*['"]@\/modules\/reports\/ui/,
     );
   });
+
+  it('P2: app/api/programs/route.ts re-exports GET and POST from module route', () => {
+    const source = readUtf8('app/api/programs/route.ts');
+    expect(source).toMatch(
+      /export\s*\{\s*GET\s*,\s*POST\s*\}\s*from\s*['"]@\/modules\/portfolio\/backend\/routes\/programs\/route['"]/,
+    );
+  });
+
+  it('P2: app/api/resources/route.ts re-exports GET from module route', () => {
+    const source = readUtf8('app/api/resources/route.ts');
+    expect(source).toMatch(
+      /export\s*\{\s*GET\s*\}\s*from\s*['"]@\/modules\/portfolio\/backend\/routes\/resources\/route['"]/,
+    );
+  });
+
+  it('D-11: app/api/portfolio/report/route.ts is not yet a modules/reports re-export', () => {
+    const source = readUtf8('app/api/portfolio/report/route.ts');
+    expect(source).not.toMatch(
+      /export\s*\{\s*GET\s*\}\s*from\s*['"]@\/modules\/reports\/backend/,
+    );
+  });
+
+  const p3ProgramRoutes = [
+    'app/api/programs/[id]/route.ts',
+    'app/api/programs/[id]/project-allocations/route.ts',
+  ] as const;
+
+  it.each(p3ProgramRoutes)(
+    'P3 ENF-01: %s contains withProgramAccess( and module handler import',
+    (routePath) => {
+      const source = readUtf8(routePath);
+      expect(source).toContain('withProgramAccess(');
+      expect(source).toContain('modules/portfolio/backend/routes');
+    },
+  );
+
+  it('D-03: fiscal-budget project routes import fiscal-budget.service from module path', () => {
+    for (const routePath of [
+      'app/api/projects/[id]/fiscal-budget/route.ts',
+      'app/api/projects/[id]/fiscal-budget/[budgetId]/adjustments/route.ts',
+    ]) {
+      const source = readUtf8(routePath);
+      expect(source).toContain('@/modules/portfolio/backend/services/fiscal-budget.service');
+      expect(source).not.toContain('@/lib/services/fiscal-budget.service');
+    }
+  });
+
+  it('D-03: lib/services/roi.service.ts imports fiscal-budget.repo from module path', () => {
+    const source = readUtf8('lib/services/roi.service.ts');
+    expect(source).toContain('@/modules/portfolio/backend/repositories/fiscal-budget.repo');
+    expect(source).not.toContain('@/lib/repositories/fiscal-budget.repo');
+  });
+
+  it('D-03: lib/services/projects.service.ts imports programs.repo from module path', () => {
+    const source = readUtf8('lib/services/projects.service.ts');
+    expect(source).toContain('@/modules/portfolio/backend/repositories/programs.repo');
+    expect(source).not.toContain('@/lib/repositories/programs.repo');
+  });
+
+  it('D-03: portfolio-report.service and export/portfolio/members use module repo paths', () => {
+    const reportSource = readUtf8('lib/services/portfolio-report.service.ts');
+    expect(reportSource).toContain('@/modules/portfolio/backend/repositories/portfolio.repo');
+    expect(reportSource).toContain('@/modules/portfolio/backend/repositories/programs.repo');
+    expect(reportSource).not.toContain('@/lib/repositories/portfolio.repo');
+    expect(reportSource).not.toContain('@/lib/repositories/programs.repo');
+
+    const exportSource = readUtf8('app/api/export/portfolio/members/route.ts');
+    expect(exportSource).toContain('@/modules/portfolio/backend/repositories/portfolio.repo');
+    expect(exportSource).not.toContain('@/lib/repositories/portfolio.repo');
+  });
+
+  it('D-03: lib/http/with-program-access.ts imports programs.service from module path', () => {
+    const source = readUtf8('lib/http/with-program-access.ts');
+    expect(source).toContain('@/modules/portfolio/backend/services/programs.service');
+    expect(source).not.toContain('@/lib/services/programs.service');
+  });
 });
