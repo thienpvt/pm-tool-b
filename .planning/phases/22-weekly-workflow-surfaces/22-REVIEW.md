@@ -1,6 +1,7 @@
 ---
 phase: 22-weekly-workflow-surfaces
 reviewed: 2026-08-28T10:22:00Z
+re_reviewed: 2026-08-28T10:30:00Z
 depth: deep
 files_reviewed: 25
 files_reviewed_list:
@@ -30,124 +31,104 @@ files_reviewed_list:
   - app/projects/[id]/weekly-reports/[reportId]/page.tsx
   - components/layout/Sidebar.tsx
 findings:
-  critical: 2
-  warning: 4
+  critical: 0
+  warning: 0
   info: 0
-  total: 6
-status: issues_found
+  total: 0
+status: clean
+fix_iteration: 1
+fix_report: 22-REVIEW-FIX.md
 ---
 
 # Phase 22: Code Review Report
 
 **Reviewed:** 2026-08-28T10:22:00Z  
+**Re-reviewed:** 2026-08-28T10:30:00Z (post-fix)  
 **Depth:** deep  
 **Files Reviewed:** 25  
-**Status:** issues_found
+**Status:** clean
 
 ## Summary
 
-Deep review of Phase 22 weekly workflow surfaces (CPMO periods/tracking, PM report editor, thin app re-exports, Sidebar NAV). The implementation aligns well with Phase 21 patterns: fetch/JSON failures map to `load_failed`, 401/403 render in-page panels (no redirects), PATCH allowlist omits `prev_week_rag`, 409 shows the specified toast, export preserves checkbox order, VirtualRows windows correctly, and no preview route or new npm packages were added.
+Initial deep review found two blockers (BL-01, BL-02) and four warnings (WR-01 through WR-04). Fix iteration 1 (`22-REVIEW-FIX.md`) resolved all six in-scope findings. Re-review verified each fix in source; component tests pass (39 tests across report editor and tracking page suites). No regressions from the fixes.
 
-Two **BLOCKER** race conditions remain — debounced PATCH can target the wrong report after param change, and tracking GET responses are not sequenced — plus four **WARNING**-level UX/contract gaps (typography weight, stale filter draft, redundant correction CTA, optimistic PATCH rollback).
+| Finding | Status | Verification |
+|---------|--------|--------------|
+| BL-01 | Fixed | `useEffect` on `[projectId, reportId]` clears debounce timer and `pendingPatchRef`; `patchGenRef` guards `flushPatch` stale responses (`useWeeklyReportEditor.ts:79-86, 92-104`) |
+| BL-02 | Fixed | `loadSeqRef` sequence token in `load()` ignores stale GET responses (`usePeriodTracking.ts:46-77`) |
+| WR-01 | Fixed | `font-medium` removed from Export pack button (`ExportToolbar.tsx:41`) |
+| WR-02 | Fixed | `key={selectedPeriodId}` remounts `TrackingFiltersBar` on period change (`WeeklyTrackingPage.tsx:193`) |
+| WR-03 | Fixed | Open correction gated on `!shell.correction_open` (`WeeklyReportEditorPage.tsx:170`) |
+| WR-04 | Fixed | PATCH 409/500/catch paths call `await load()` to revert optimistic shell (`useWeeklyReportEditor.ts:106-122`) |
 
-## Narrative Findings (AI reviewer)
+## Resolved Issues (initial review)
 
-### Verified (no issue)
+<details>
+<summary>BL-01: Debounced PATCH can write to the wrong report after navigation — FIXED</summary>
+
+**File:** `modules/weekly/ui/report/useWeeklyReportEditor.ts:79-86, 92-104`
+
+Debounce timer and pending patch cleared on param change; `patchGenRef` incremented and checked before applying PATCH responses. Component test asserts no PATCH sent when navigating before debounce fires.
+</details>
+
+<details>
+<summary>BL-02: Stale tracking GET can overwrite the active period/filter view — FIXED</summary>
+
+**File:** `modules/weekly/ui/tracking/usePeriodTracking.ts:46-77`
+
+`loadSeqRef` request token prevents stale responses from updating `data` or `loading`. Component test resolves period 2 before period 1 and asserts UI stays on period 2 counts.
+</details>
+
+<details>
+<summary>WR-01: Export button uses font-medium — FIXED</summary>
+
+**File:** `modules/weekly/ui/tracking/ExportToolbar.tsx:41`
+
+Export pack button uses default body weight (400); no `font-medium` in weekly module.
+</details>
+
+<details>
+<summary>WR-02: Filter bar draft persists after period change — FIXED</summary>
+
+**File:** `modules/weekly/ui/tracking/WeeklyTrackingPage.tsx:193`
+
+`key={selectedPeriodId}` forces remount and draft reset when period changes. Component test verifies Status filter resets.
+</details>
+
+<details>
+<summary>WR-03: "Open correction" shown when correction is already open — FIXED</summary>
+
+**File:** `modules/weekly/ui/report/WeeklyReportEditorPage.tsx:170`
+
+Button renders only when `status === 'submitted' && !correction_open`. Component test covers `correction_open: true` case.
+</details>
+
+<details>
+<summary>WR-04: Optimistic PATCH shell not reverted on 409/500 — FIXED</summary>
+
+**File:** `modules/weekly/ui/report/useWeeklyReportEditor.ts:106-122`
+
+Failed PATCH paths call `await load()` to reload server snapshot. Component tests assert highlights revert to fixture value on 409/500.
+</details>
+
+## Verified (no issue, unchanged)
 
 | Focus area | Verdict |
 |------------|---------|
-| Fetch/JSON catch → `load_failed` | Pass — all three hooks (`useWeeklyPeriods`, `usePeriodTracking`, `useWeeklyReportEditor`) and inline `loadPeriods` set `load_failed` in `catch` and on non-OK responses |
-| 401/403 in-page | Pass — no `window.location` usage in weekly module |
-| VirtualRows window math | Pass — fixed 40px row height, overscan 5, 150-row test asserts ≤30 DOM nodes |
-| Header checkbox vs window | Pass — `toggleAll` iterates full `eligibleRows` in memory, not the virtual slice |
-| Export `project_ids` order | Pass — append-on-check preserves order; `uniqueProjectIds` dedupes without reordering |
-| No preview route | Pass — UI calls POST export only |
-| PATCH allowlist / no `prev_week_rag` | Pass — `PatchKey` union excludes `prev_week_rag`; component test asserts omission |
-| 409 toast | Pass — exact copy on PATCH 409 |
-| RAG Title Case (editor) | Pass — `RAG_OPTIONS` uses `Green`, `Amber`, `Red`, `Not applicable` |
-| No new npm | Pass — in-repo `VirtualRows` only |
-| XSS | Pass — no `dangerouslySetInnerHTML` / `innerHTML` |
-| Sidebar weekly NAV | Pass — CPMO-only links after My dashboard, before `NAV_SECONDARY` |
-
-## Critical Issues
-
-### BL-01: Debounced PATCH can write to the wrong report after navigation
-
-**File:** `modules/weekly/ui/report/useWeeklyReportEditor.ts:28-128`  
-**Issue:** `pendingPatchRef` and the debounce timer are not cleared when `projectId` or `reportId` changes. App Router reuses the same client component instance across `/projects/:id/weekly-reports/:reportId` navigations, so a pending edit from report A can flush against report B's URL after the user follows another dashboard link.
-
-**Fix:**
-```typescript
-useEffect(() => {
-  if (debounceRef.current) clearTimeout(debounceRef.current);
-  pendingPatchRef.current = {};
-  return () => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-  };
-}, [projectId, reportId]);
-```
-
-Also guard `flushPatch` with a request-generation ref and ignore responses when the generation has moved on.
-
-### BL-02: Stale tracking GET can overwrite the active period/filter view
-
-**File:** `modules/weekly/ui/tracking/usePeriodTracking.ts:47-74`, `modules/weekly/ui/tracking/WeeklyTrackingPage.tsx:88-92`  
-**Issue:** `load()` has no abort or sequence token. Rapid period switching or filter applies can resolve out-of-order: an older fetch for period 1 may complete after period 2 and replace `data`, showing the wrong grid and counts.
-
-**Fix:**
-```typescript
-const load = useCallback(async (periodId: number, filters?: PeriodTrackingFilters) => {
-  const requestId = ++loadSeqRef.current;
-  setLoading(true);
-  try {
-    const res = await fetch(buildTrackingUrl(periodId, filters));
-    if (requestId !== loadSeqRef.current) return;
-    // ... existing status handling ...
-  } finally {
-    if (requestId === loadSeqRef.current) setLoading(false);
-  }
-}, []);
-```
-
-Prefer `AbortController` tied to `selectedPeriodId` + serialized filters for cancellation.
-
-## Warnings
-
-### WR-01: Export button uses `font-medium` (third weight)
-
-**File:** `modules/weekly/ui/tracking/ExportToolbar.tsx:41`  
-**Issue:** UI-SPEC allows only 400 (body) and 600 (`font-semibold`). Export pack button uses `font-medium` (500).
-
-**Fix:** Remove `font-medium` or replace with `font-semibold` to match Phase 21 typography contract.
-
-### WR-02: Filter bar draft persists after period change
-
-**File:** `modules/weekly/ui/tracking/TrackingFiltersBar.tsx:45`, `modules/weekly/ui/tracking/WeeklyTrackingPage.tsx:98-101`  
-**Issue:** `handlePeriodChange` resets parent `filters` to `{}` and clears selection, but `TrackingFiltersBar`'s internal `draft` state is untouched. Controls still display the previous period's filter values while the grid refetches unfiltered data — misleading CPMO UX.
-
-**Fix:** Reset draft when period changes — e.g. pass `key={selectedPeriodId}` on `TrackingFiltersBar`, or lift draft state to the page and reset alongside `setFilters({})`.
-
-### WR-03: "Open correction" shown when correction is already open
-
-**File:** `modules/weekly/ui/report/WeeklyReportEditorPage.tsx:170-179`  
-**Issue:** Button renders for any `status === 'submitted'` without checking `correction_open`. When correction is already open (fields editable), the CTA remains and may POST `/correct` again.
-
-**Fix:**
-```tsx
-{shell.status === 'submitted' && !shell.correction_open && (
-  <Button ...>Open correction</Button>
-)}
-```
-
-### WR-04: Optimistic PATCH shell not reverted on 409/500
-
-**File:** `modules/weekly/ui/report/useWeeklyReportEditor.ts:115-112`  
-**Issue:** `patchField` optimistically merges into `shell` before the debounced flush. On PATCH 409 or 500, only a toast is shown; local fields retain unsaved edits that the server rejected, so the UI implies a saved draft.
-
-**Fix:** On failed PATCH, reload the report (`await load()`) or revert `shell` from the last successful server snapshot stored in a ref.
+| Fetch/JSON catch → `load_failed` | Pass |
+| 401/403 in-page | Pass |
+| VirtualRows window math | Pass |
+| Export `project_ids` order | Pass |
+| PATCH allowlist / no `prev_week_rag` | Pass |
+| 409 toast | Pass |
+| RAG Title Case (editor) | Pass |
+| No new npm | Pass |
+| XSS | Pass |
+| Sidebar weekly NAV | Pass |
 
 ---
 
 _Reviewed: 2026-08-28T10:22:00Z_  
+_Re-reviewed: 2026-08-28T10:30:00Z_  
 _Reviewer: Claude (gsd-code-reviewer)_  
 _Depth: deep_
