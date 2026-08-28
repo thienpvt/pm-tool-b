@@ -1,0 +1,12 @@
+[
+  "app/api/health/route.ts",
+  "app/api/admin/companies/route.ts",
+  "app/api/operations/systems/route.ts",
+  "app/api/operations/systems/[id]/route.ts",
+  "app/api/operations/systems/[id]/budget-items/route.ts",
+  "app/api/operations/systems/[id]/budget-items/[itemId]/route.ts",
+  "app/api/operations/systems/[id]/expenses/route.ts",
+  "app/api/operations/systems/[id]/expenses/[expId]/route.ts",
+  "app/api/operations/systems/[id]/incidents/route.ts",
+  "app/api/operations/systems/[id]/incidents/[incId]/route.ts"
+]

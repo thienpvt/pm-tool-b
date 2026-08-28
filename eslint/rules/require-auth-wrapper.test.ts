@@ -1,3 +1,4 @@
+import { describe, it } from 'vitest';
 import { RuleTester } from 'eslint';
 import tseslint from '@typescript-eslint/parser';
 import rule from './require-auth-wrapper.mjs';
@@ -15,7 +16,9 @@ const ruleTester = new RuleTester({
   },
 });
 
-ruleTester.run('require-auth-wrapper', rule, {
+describe('require-auth-wrapper', () => {
+  it('enforces sanctioned wrappers on project-scoped routes', () => {
+    ruleTester.run('require-auth-wrapper', rule, {
   valid: [
     {
       code: 'export const GET = withProjectAccess(async () => {});',
@@ -36,5 +39,7 @@ ruleTester.run('require-auth-wrapper', rule, {
       filename: projectScopedFile,
       errors: [{ messageId: 'unwrapped' }],
     },
-  ],
+    ],
+    });
+  });
 });

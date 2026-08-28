@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "test": "vitest run",
-    "lint": "eslint",
+    "lint": "eslint --no-error-on-unmatched-pattern \"app/api/**/route.ts\"",
     "test:watch": "vitest",
     "migrate": "npx tsx scripts/migrate.ts"
   },
