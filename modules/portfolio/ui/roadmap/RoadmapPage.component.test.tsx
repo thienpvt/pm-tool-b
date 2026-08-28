@@ -1,6 +1,6 @@
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import PortfolioRoadmap from './page';
+import RoadmapPage from './RoadmapPage';
 
 vi.mock('next/navigation', () => ({ useParams: () => ({}) }));
 vi.mock('@/components/layout/Sidebar', () => ({ default: () => <nav data-testid="sidebar" /> }));
@@ -99,9 +99,9 @@ beforeEach(() => {
   }) as unknown as typeof fetch);
 });
 
-describe('PortfolioRoadmap', () => {
+describe('RoadmapPage', () => {
   it('renders after load with roadmap fixture', async () => {
-    render(<PortfolioRoadmap />);
+    render(<RoadmapPage />);
     await waitFor(() => expect(screen.getByText('Portfolio Roadmap')).toBeInTheDocument());
     expect(screen.getByTestId('sidebar')).toBeInTheDocument();
     await waitFor(() => expect(screen.getAllByText('Project One').length).toBeGreaterThan(0));
@@ -110,7 +110,7 @@ describe('PortfolioRoadmap', () => {
   });
 
   it('program filter changes visible projects', async () => {
-    render(<PortfolioRoadmap />);
+    render(<RoadmapPage />);
     await waitFor(() => expect(screen.getAllByText('Project Three').length).toBeGreaterThan(0));
 
     fireEvent.change(screen.getByDisplayValue('Tất cả Program'), { target: { value: '1' } });

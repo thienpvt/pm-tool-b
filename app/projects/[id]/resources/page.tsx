@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { Plus, Trash2, Copy, ChevronLeft, ChevronRight, Download, Filter, Target } from 'lucide-react';
-import ResourceImportDialog from '@/components/resources/ResourceImportDialog';
+import ResourceImportDialog from '@/modules/projects/ui/resources/ResourceImportDialog';
 
 type TeamMember = {
   id: number; domain: string; role: string; name: string;
