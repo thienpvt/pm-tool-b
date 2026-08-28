@@ -4,6 +4,7 @@ import {
   emptyPeriodsFixture,
   periodsFixture,
   trackingPayload,
+  trackingRows150,
 } from '../shared/weekly.fixture';
 import WeeklyTrackingPage from './WeeklyTrackingPage';
 
@@ -299,6 +300,81 @@ describe('WeeklyTrackingPage', () => {
         expect(filteredCall).not.toMatch(/lateness=/);
         expect(filteredCall).not.toMatch(/pm_user_id=/);
       });
+    });
+  });
+
+  describe('tracking grid', () => {
+    const twoSubmittedPayload = {
+      ...trackingPayload,
+      rows: [
+        { ...trackingPayload.rows[0], project_id: 201, report_id: 601, name: 'First Submitted' },
+        { ...trackingPayload.rows[0], project_id: 202, report_id: 602, name: 'Second Submitted' },
+        trackingPayload.rows[1],
+        trackingPayload.rows[2],
+      ],
+    };
+
+    async function renderWithPayload(payload: typeof trackingPayload) {
+      const fetchMock = vi.fn((url: string) => {
+        if (url === '/api/weekly-periods') {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: () => Promise.resolve(periodsFixture),
+          });
+        }
+        if (url.startsWith('/api/weekly-periods/2/tracking')) {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: () => Promise.resolve(payload),
+          });
+        }
+        return Promise.reject(new Error(`unexpected fetch: ${url}`));
+      });
+      vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch);
+      render(<WeeklyTrackingPage />);
+      await waitFor(() => {
+        expect(screen.getByTestId('tracking-grid')).toBeInTheDocument();
+      });
+    }
+
+    it('virtualizes 150 rows to at most 30 DOM nodes', async () => {
+      await renderWithPayload({ ...trackingPayload, rows: trackingRows150 });
+      const rows = screen.getAllByTestId('virtual-row');
+      expect(rows.length).toBeLessThanOrEqual(30);
+      expect(rows.length).not.toBe(150);
+    });
+
+    it('shows empty grid copy when no rows', async () => {
+      await renderWithPayload({ ...trackingPayload, rows: [], counts: { ...trackingPayload.counts, obligated: 0 } });
+      expect(screen.getByText('No projects in this period')).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          'This period has no obligated weekly reports, or filters exclude all rows.',
+        ),
+      ).toBeInTheDocument();
+    });
+
+    it('records checkbox selection order as project_ids', async () => {
+      await renderWithPayload(twoSubmittedPayload);
+
+      const checkboxes = screen.getAllByRole('checkbox').filter(
+        (el) => el.getAttribute('aria-label') !== 'Select all submitted',
+      );
+      const submittedBoxes = checkboxes.filter((el) => !el.hasAttribute('disabled'));
+      expect(submittedBoxes.length).toBeGreaterThanOrEqual(2);
+
+      fireEvent.click(submittedBoxes[0]);
+      fireEvent.click(submittedBoxes[1]);
+
+      expect(screen.getByTestId('tracking-selected-ids')).toHaveTextContent('[201,202]');
+    });
+
+    it('Open report link uses /projects/{id}/weekly-reports/{reportId}', async () => {
+      await renderWithPayload(trackingPayload);
+      const link = screen.getByRole('link', { name: 'Open report' });
+      expect(link).toHaveAttribute('href', '/projects/101/weekly-reports/501');
     });
   });
 });
