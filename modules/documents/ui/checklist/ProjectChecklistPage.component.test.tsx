@@ -339,6 +339,7 @@ describe('ProjectChecklistPage PATCH editor', () => {
 
   it('does not show full-page loading spinner after PATCH save', async () => {
     let resolveReload: ((value: unknown) => void) | null = null;
+    let checklistGetCount = 0;
     const items = [checklistFixture[0]];
 
     vi.stubGlobal(
@@ -352,6 +353,14 @@ describe('ProjectChecklistPage PATCH editor', () => {
           });
         }
         if (url === '/api/projects/42/document-checklist' && (!init || init.method === undefined)) {
+          checklistGetCount += 1;
+          if (checklistGetCount === 1) {
+            return Promise.resolve({
+              ok: true,
+              status: 200,
+              json: () => Promise.resolve(items),
+            });
+          }
           return new Promise((resolve) => {
             resolveReload = (value) =>
               resolve({
