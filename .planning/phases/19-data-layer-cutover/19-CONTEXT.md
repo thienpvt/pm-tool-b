@@ -30,15 +30,21 @@ Schema evolution is an external migrate job; a running app no longer initializes
 <decisions>
 ## Implementation Decisions
 
-### Claude's Discretion
-All implementation choices are at Claude's discretion — pure infrastructure phase. Use ROADMAP phase goal, success criteria, and codebase conventions. Locked project decisions still apply:
+### Locked Decisions
 
-- DATA-01..03 live in this single phase (do not split)
-- Replay origin `gsd/quick-260826-ded-data-layer-migrations` as a runner/ledger/data-fix **pattern only**; never merge that branch as-is
-- Regenerated `migrations/0001` must include current v2.0 schema from `lib/db.ts` plus `lib/db-*.ts` helpers (weekly, fiscal, roles, RAID master, dashboard, checklist, audit)
-- Brownfield databases are stamped onto the ledger without DROP of v2.0 tables
-- After cutover, `getDb()` connects, asserts the ledger, and seeds only
-- Keep a single `pg.Pool`; do not introduce Prisma/Drizzle
+- **D-01:** DATA-01..03 live in this single phase (do not split)
+- **D-02:** Replay origin `gsd/quick-260826-ded-data-layer-migrations` as a runner/ledger/data-fix **pattern only**; never merge that branch as-is
+- **D-03:** Regenerated `migrations/0001` must include current v2.0 schema from `lib/db.ts` plus `lib/db-*.ts` helpers (weekly, fiscal, roles, RAID master, dashboard, checklist, audit)
+- **D-04:** Brownfield databases are stamped onto the ledger without DROP of v2.0 tables
+- **D-05:** After cutover, `getDb()` connects, asserts the ledger, and seeds only
+- **D-06:** Keep a single `pg.Pool`; do not introduce Prisma/Drizzle/Kysely this phase
+- **D-07:** Production migrate: Dockerfile copies `migrations/` + `scripts/`; npm run migrate before app start; CI runs migrate before tests once assertMigrated is live
+- **D-08:** Keep migrate* DDL exports in `lib/db-*.ts` (do not delete) so DDL unit tests remain source of truth for 0001 Part 3
+- **D-09:** RAID unique indexes after backfill DML inside 0001 Part 3, matching current helper order
+- **D-10:** tsx as migrate runner (pin 4.23.12 per RESEARCH.md / origin pattern)
+
+### Claude's Discretion
+Remaining implementation choices (file split, DO-block wrapping of ALTER TYPE, whether backfill scripts call exported helpers vs copy SQL) are at Claude's discretion. Use ROADMAP phase goal, success criteria, and codebase conventions.
 
 </decisions>
 

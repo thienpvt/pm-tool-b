@@ -74,7 +74,13 @@ Phase artifacts: [.planning/milestones/v2.0-phases/](milestones/v2.0-phases/)
   2. Schema changes ship as versioned SQL applied by `npm run migrate` with a checksum ledger; `migrations/0001` is regenerated from current v2.0 schema (weekly, fiscal, roles, RAID master, dashboard, checklist, and audit tables included)
   3. Data-fix `UPDATE`s that used to run as boot-time migrations live as one-off scripts under `scripts/data-fixes/` and are not re-run on every process start
   4. A brownfield database can be stamped onto the ledger without dropping v2.0 tables — the origin `gsd/quick-260826-ded-data-layer-migrations` branch is a runner/ledger pattern only and is never merged as-is
-**Plans**: TBD
+**Plans:** 4 plans
+
+Plans:
+- [ ] 19-01-PLAN.md — Checksum ledger migrate engine, assertMigrated, tsx CLI
+- [ ] 19-02-PLAN.md — Regenerated v2.0 migrations/0001 + operator README
+- [ ] 19-03-PLAN.md — Operator data-fix scripts under scripts/data-fixes/
+- [ ] 19-04-PLAN.md — Slim getDb; Docker/CI/Railway migrate before start
 
 ### Phase 20: API Contract & Leftover Routes
 **Goal**: Unauthenticated API callers get JSON, leftover ops/admin/config/import-mapping routes go through services, and project-scoped handlers cannot ship unwrapped
@@ -173,7 +179,7 @@ v1.0 Phases 1–8 and v2.0 Phases 9–18 are complete (see milestone archives ab
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 19. Data Layer Cutover | 0/TBD | Not started | - |
+| 19. Data Layer Cutover | 0/4 | Not started | - |
 | 20. API Contract & Leftover Routes | 0/TBD | Not started | - |
 | 21. Portfolio & PM Dashboard Pages | 0/TBD | Not started | - |
 | 22. Weekly Workflow Surfaces | 0/TBD | Not started | - |
