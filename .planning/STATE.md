@@ -5,16 +5,16 @@ milestone_name: Hardening & Deferred Debt
 current_phase: 22
 current_phase_name: Weekly Workflow Surfaces
 status: executing
-stopped_at: Phase 21 complete, ready to plan Phase 22
-last_updated: "2026-08-28T09:53:00.408Z"
+stopped_at: Completed 22-01-PLAN.md
+last_updated: "2026-08-28T09:57:33.947Z"
 last_activity: 2026-08-28
 last_activity_desc: Phase 22 execution started
-state_head: 133aa8d41d57900d0cb825175ad489f574d4ae4d
+state_head: 707df927b420987de8a6daf4a3a5310145493a98
 progress:
   total_phases: 9
   completed_phases: 3
   total_plans: 20
-  completed_plans: 15
+  completed_plans: 16
 ---
 
 # Project State
@@ -29,8 +29,8 @@ See: .planning/PROJECT.md (updated 2026-08-28)
 ## Current Position
 
 Phase: 22 (Weekly Workflow Surfaces) — EXECUTING
-Plan: 1 of 5
-Status: Executing Phase 22
+Plan: 2 of 5
+Status: Ready to execute
 Last activity: 2026-08-28 — Phase 22 execution started
 
 Progress: [██░░░░░░░░] 25%
@@ -110,6 +110,7 @@ Progress: [██░░░░░░░░] 25%
 | Phase 21-portfolio-pm-dashboard-pages P02 | 6min | 3 tasks | 5 files |
 | Phase 21-portfolio-pm-dashboard-pages P04 | 4 | 3 tasks | 6 files |
 | Phase 21-portfolio-pm-dashboard-pages P03 | 12min | 3 tasks | 11 files |
+| Phase 22 P01 | 8 | 3 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -215,6 +216,8 @@ Recent decisions affecting current work:
 - [Phase 21]: PmFiltersBar duplicated from portfolio with pm-filter-bar test id and /api/dashboards/pm/filters routes
 - [Phase 21]: visibilitychange visible triggers load(true) so resolved queue rows drop after deep-link return (D-11)
 - [Phase 21]: Drill-down data from initial GET only; CSS charts in modules/dashboards/ui; export via server POST blob
+- [Phase 22]: Used UI-SPEC page copy for weekly periods 403/5xx errors
+- [Phase 22]: CalendarDays and ListChecks icons for CPMO weekly NAV
 
 ### Pending Todos
 
@@ -238,8 +241,8 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-08-28T09:00:06.089Z
-Stopped at: Phase 21 complete, ready to plan Phase 22
+Last session: 2026-08-28T09:57:33.511Z
+Stopped at: Completed 22-01-PLAN.md
 Resume file: None
 
 ## Operator Next Steps

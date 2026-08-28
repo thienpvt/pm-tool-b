@@ -27,7 +27,7 @@ DATA-01..03 is **one migration task** (replay origin `gsd/quick-260826-ded-data-
 
 ### Performance
 
-- [ ] **PERF-01**: Large grids (CPMO weekly tracking, long lists, audit) virtualize rows so the page stays usable past ~100 rows
+- [x] **PERF-01**: Large grids (CPMO weekly tracking, long lists, audit) virtualize rows so the page stays usable past ~100 rows
 - [ ] **PERF-02**: Static chrome (layout, nav, KPI shells) on v2 pages renders as Server Components
 - [ ] **PERF-03**: Cold-start connect time is measured and has a recorded budget after the migrate cutover
 
@@ -44,7 +44,7 @@ DATA-01..03 is **one migration task** (replay origin `gsd/quick-260826-ded-data-
 
 ### v2 UI — weekly
 
-- [ ] **PERD-04**: CPMO can create and manage weekly periods in the UI
+- [x] **PERD-04**: CPMO can create and manage weekly periods in the UI
 - [ ] **WKRP-07**: A PM with write access can draft, submit, and correct a weekly report in the UI
 - [ ] **CPMO-05**: CPMO can track period submissions and export the consolidated pack from the UI
 
@@ -104,10 +104,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PDSH-07 | Phase 21 | Complete |
 | MDSH-06 | Phase 21 | Complete |
 | NIT-04 | Phase 21 | Complete |
-| PERD-04 | Phase 22 | Pending |
+| PERD-04 | Phase 22 | Complete |
 | WKRP-07 | Phase 22 | Pending |
 | CPMO-05 | Phase 22 | Pending |
-| PERF-01 | Phase 22 | Pending |
+| PERF-01 | Phase 22 | Complete |
 | DOC-07 | Phase 23 | Pending |
 | DOC-08 | Phase 23 | Pending |
 | DOC-09 | Phase 23 | Pending |
