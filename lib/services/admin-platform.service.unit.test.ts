@@ -32,10 +32,16 @@ describe('admin-platform.service companies', () => {
     expect(listCompaniesWithUserCounts).toHaveBeenCalledWith(null, true);
   });
 
-  it('createCompanyPlatform maps repo throw to ConflictError', async () => {
-    createCompany.mockRejectedValue(new Error('SQLITE_CONSTRAINT'));
+  it('createCompanyPlatform maps unique repo throw to ConflictError', async () => {
+    createCompany.mockRejectedValue(Object.assign(new Error('duplicate'), { code: '23505' }));
     await expect(createCompanyPlatform('Acme')).rejects.toBeInstanceOf(ConflictError);
     await expect(createCompanyPlatform('Acme')).rejects.toThrow('Company name already exists');
+  });
+
+  it('createCompanyPlatform rethrows non-unique repo errors', async () => {
+    const err = new Error('connection lost');
+    createCompany.mockRejectedValue(err);
+    await expect(createCompanyPlatform('Acme')).rejects.toBe(err);
   });
 
   it('createCompanyPlatform returns created row on success', async () => {

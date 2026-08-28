@@ -11,6 +11,15 @@ import {
 } from '@/lib/repositories/admin.repo';
 import { ConflictError } from './errors';
 
+function isUniqueViolation(err: unknown): boolean {
+  if (typeof err !== 'object' || err === null) return false;
+  const code = (err as { code?: string }).code;
+  if (code === '23505') return true;
+  if (code === 'SQLITE_CONSTRAINT' || code === 'SQLITE_CONSTRAINT_UNIQUE') return true;
+  const message = err instanceof Error ? err.message : String(err);
+  return message.includes('UNIQUE constraint failed');
+}
+
 export async function listCompaniesPlatform() {
   return listCompaniesWithUserCounts(null, true);
 }
@@ -18,8 +27,11 @@ export async function listCompaniesPlatform() {
 export async function createCompanyPlatform(name: string) {
   try {
     return await createCompany(name);
-  } catch {
-    throw new ConflictError('Company name already exists');
+  } catch (err) {
+    if (isUniqueViolation(err)) {
+      throw new ConflictError('Company name already exists');
+    }
+    throw err;
   }
 }
 
