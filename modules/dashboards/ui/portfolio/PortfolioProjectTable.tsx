@@ -53,7 +53,7 @@ export function PortfolioProjectTable({ list }: Props) {
           {list.length === 0 ? (
             <TableRow>
               <TableCell colSpan={COLUMN_COUNT} className="p-2 text-sm text-center py-12">
-                <p className="font-medium text-slate-600">No projects match these filters</p>
+                <p className="font-semibold text-slate-600">No projects match these filters</p>
                 <p className="text-sm text-muted-foreground mt-1">
                   Adjust or clear filters to see projects in the portfolio.
                 </p>
