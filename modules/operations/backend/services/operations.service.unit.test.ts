@@ -28,7 +28,7 @@ const {
   deleteOperationsIncidentRepo: vi.fn(),
 }));
 
-vi.mock('@/lib/repositories/operations.repo', () => ({
+vi.mock('@/modules/operations/backend/repositories/operations.repo', () => ({
   listOperationsSystems: listOperationsSystemsRepo,
   findOperationsSystem: findOperationsSystemRepo,
   getOperationsSystem: getOperationsSystemRepo,

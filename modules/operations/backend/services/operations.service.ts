@@ -17,7 +17,7 @@ import {
   updateOperationsBudgetItem as updateOperationsBudgetItemRepo,
   updateOperationsIncident as updateOperationsIncidentRepo,
   updateOperationsSystem as updateOperationsSystemRepo,
-} from '@/lib/repositories/operations.repo';
+} from '@/modules/operations/backend/repositories/operations.repo';
 
 export async function listOperationsSystems(user: SessionUser) {
   return listOperationsSystemsRepo(user.company_id, Boolean(user.is_admin));

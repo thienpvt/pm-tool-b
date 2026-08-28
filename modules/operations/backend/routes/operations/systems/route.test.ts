@@ -7,7 +7,7 @@ const { listOperationsSystems, createOperationsSystem } = vi.hoisted(() => ({
 }));
 
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
-vi.mock('@/lib/services/operations.service', () => ({
+vi.mock('@/modules/operations/backend/services/operations.service', () => ({
   listOperationsSystems,
   createOperationsSystem,
 }));
