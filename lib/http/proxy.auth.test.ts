@@ -21,4 +21,25 @@ describe('proxy auth contract (PROXY-01)', () => {
     expect([302, 307]).toContain(res.status);
     expect(res.headers.get('location')).toContain('/login');
   });
+
+  it('passes through PUBLIC /api/health without JSON 401 (PROXY-01)', () => {
+    const res = proxy(req('/api/health'));
+    expect(res.status).not.toBe(401);
+  });
+
+  it('passes through PUBLIC /api/auth/login without JSON 401 (PROXY-01)', () => {
+    const res = proxy(req('/api/auth/login'));
+    expect(res.status).not.toBe(401);
+  });
+
+  it('does not JSON 401 API requests with pm_session cookie (PROXY-01)', () => {
+    const res = proxy(req('/api/projects', 'any-session'));
+    expect(res.status).not.toBe(401);
+  });
+
+  it('redirects unauthenticated / to /landing (PROXY-01)', () => {
+    const res = proxy(req('/'));
+    expect([302, 307]).toContain(res.status);
+    expect(res.headers.get('location')).toContain('/landing');
+  });
 });
