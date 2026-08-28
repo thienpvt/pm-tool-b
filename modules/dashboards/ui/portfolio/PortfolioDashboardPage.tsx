@@ -5,6 +5,7 @@
 import { useState } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import Sidebar from '@/components/layout/Sidebar';
+import { PortfolioCharts } from './PortfolioCharts';
 import { PortfolioDrilldownTable } from './PortfolioDrilldownTable';
 import { PortfolioFiltersBar } from './PortfolioFiltersBar';
 import { PortfolioKpiTiles, type PortfolioDrilldownKey } from './PortfolioKpiTiles';
@@ -68,6 +69,7 @@ export default function PortfolioDashboardPage() {
           activeKey={activeKey}
           onSelect={setActiveKey}
         />
+        <PortfolioCharts charts={data.charts} />
         <PortfolioDrilldownTable activeKey={activeKey} drilldowns={data.drilldowns} />
         <p className="mt-4 text-xs text-muted-foreground">
           Budget and fiscal metrics are on Portfolio Budget (/portfolio/budget).
