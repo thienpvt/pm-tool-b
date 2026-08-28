@@ -113,4 +113,16 @@ describe('PortfolioDashboardPage', () => {
     expect(kpiRow.children).toHaveLength(6);
     expect(kpiRow).toHaveTextContent('0');
   });
+
+  it('omits fiscal patterns from spec-kpi-row (NIT-04)', async () => {
+    render(<PortfolioDashboardPage />);
+    resolvePortfolio!(portfolioFixture);
+
+    await waitFor(() => expect(screen.getByTestId('spec-kpi-row')).toBeInTheDocument());
+
+    const kpiRow = screen.getByTestId('spec-kpi-row');
+    const nit04Pattern = /budget|ROI|benefit|\$|₫|VND/i;
+    expect(kpiRow.textContent).not.toMatch(nit04Pattern);
+    expect(kpiRow.children).toHaveLength(6);
+  });
 });
