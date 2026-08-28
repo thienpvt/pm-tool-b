@@ -1,19 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v2.0
-milestone_name: Portfolio One View
-status: Awaiting next milestone
-stopped_at: Phase 18 complete — all phases complete
-last_updated: "2026-08-26T15:57:54.177Z"
-last_activity: 2026-08-26
-last_activity_desc: Milestone v2.0 completed and archived
-state_head: ac82123d9c88e8746e250e98eeb1db6e55a08e80
+milestone: v2.1
+milestone_name: Hardening & Deferred Debt
+status: planning
+last_updated: "2026-08-28T04:04:32.747Z"
+last_activity: 2026-08-28
 progress:
-  total_phases: 10
-  completed_phases: 10
-  total_plans: 40
-  completed_plans: 40
-current_phase: 18
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -27,10 +24,10 @@ See: .planning/PROJECT.md (updated 2026-08-26)
 
 ## Current Position
 
-Phase: Milestone v2.0 complete
+Phase: Not started (defining requirements)
 Plan: —
-Status: Awaiting next milestone
-Last activity: 2026-08-26 — Milestone v2.0 completed and archived
+Status: Defining requirements
+Last activity: 2026-08-28 — Milestone v2.1 started
 
 ## Performance Metrics
 
