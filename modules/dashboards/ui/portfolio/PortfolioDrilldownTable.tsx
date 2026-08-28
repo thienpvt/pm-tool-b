@@ -122,7 +122,7 @@ function TechCouncilRows({ rows }: { rows: DrilldownRow[] }) {
 export function PortfolioDrilldownTable({ activeKey, drilldowns }: Props) {
   if (!activeKey) return null;
 
-  const rows = drilldowns[activeKey] as DrilldownRow[];
+  const rows = (drilldowns[activeKey] ?? []) as DrilldownRow[];
   const title = PANEL_TITLES[activeKey];
 
   return (
@@ -130,7 +130,7 @@ export function PortfolioDrilldownTable({ activeKey, drilldowns }: Props) {
       <h2 className="text-base font-semibold mb-2">{title}</h2>
       {rows.length === 0 ? (
         <div className="text-center py-8 text-slate-500">
-          <p className="font-medium">No items in this drill-down</p>
+          <p className="font-semibold">No items in this drill-down</p>
           <p className="text-sm mt-1">
             The selected KPI has zero matching rows for the current filters.
           </p>
