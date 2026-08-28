@@ -105,14 +105,14 @@ Plans:
   3. CI fails when a project-scoped `route.ts` exports a handler not wrapped by a sanctioned helper (`withAuth` / `withProjectAccess` / `withProgramAccess` / `withCpmo` / `withRole`); D-23 exemptions are an explicit list
   4. Ops, admin, config, and import-mapping routes call services rather than repositories; D-23 session+tenant vs platform break-glass semantics stay
 
-**Plans:** 1/7 plans executed
+**Plans:** 3/7 plans executed
 
 Plans:
 **Wave 1**
 
 - [x] 20-01-PLAN.md — Proxy JSON 401 for unauthenticated `/api/*`
 - [x] 20-02-PLAN.md — Jira search hygiene (Invalid JSON 400, no field dump)
-- [ ] 20-03-PLAN.md — ESLint wrapper gate, allowlist, CI `npm run lint`
+- [x] 20-03-PLAN.md — ESLint wrapper gate, allowlist, CI `npm run lint`
 - [ ] 20-04-PLAN.md — Operations systems collection/`[id]` through service
 - [ ] 20-06-PLAN.md — Admin-platform service (companies, demo-requests, resource-audit)
 - [ ] 20-07-PLAN.md — Settings/jira-config/rag-config services + import-mapping verify
@@ -229,7 +229,7 @@ v1.0 Phases 1–8 and v2.0 Phases 9–18 are complete (see milestone archives ab
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 19. Data Layer Cutover | 4/4 | Complete    | 2026-08-28 |
-| 20. API Contract & Leftover Routes | 1/7 | In Progress|  |
+| 20. API Contract & Leftover Routes | 3/7 | In Progress|  |
 | 21. Portfolio & PM Dashboard Pages | 0/TBD | Not started | - |
 | 22. Weekly Workflow Surfaces | 0/TBD | Not started | - |
 | 23. Document Checklist & Audit Viewer | 0/TBD | Not started | - |

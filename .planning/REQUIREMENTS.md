@@ -22,7 +22,7 @@ DATA-01..03 is **one migration task** (replay origin `gsd/quick-260826-ded-data-
 
 ### Enforcement
 
-- [ ] **ENF-01**: CI fails when a project-scoped `route.ts` exports a handler not wrapped by a sanctioned helper (`withAuth` / `withProjectAccess` / `withProgramAccess` / `withCpmo` / `withRole`); D-23 exemptions are an explicit list
+- [x] **ENF-01**: CI fails when a project-scoped `route.ts` exports a handler not wrapped by a sanctioned helper (`withAuth` / `withProjectAccess` / `withProgramAccess` / `withCpmo` / `withRole`); D-23 exemptions are an explicit list
 - [ ] **ENF-02**: Repository queries go through Kysely on the existing `pg.Pool` so invalid columns fail at compile time; runtime mass-assignment tests stay
 
 ### Performance
@@ -99,7 +99,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DATA-03 | Phase 19 | Complete |
 | PROXY-01 | Phase 20 | Complete |
 | JIRA-01 | Phase 20 | Complete |
-| ENF-01 | Phase 20 | Pending |
+| ENF-01 | Phase 20 | Complete |
 | THIN-01 | Phase 20 | Pending |
 | PDSH-07 | Phase 21 | Pending |
 | MDSH-06 | Phase 21 | Pending |

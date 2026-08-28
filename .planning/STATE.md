@@ -5,16 +5,16 @@ milestone_name: Hardening & Deferred Debt
 current_phase: 20
 current_phase_name: API Contract & Leftover Routes
 status: executing
-stopped_at: Completed 20-02-PLAN.md
-last_updated: "2026-08-28T07:20:52.797Z"
+stopped_at: Completed 20-03-PLAN.md
+last_updated: "2026-08-28T07:24:54.192Z"
 last_activity: 2026-08-28
 last_activity_desc: Phase 20 execution started
-state_head: ae98758c0b1454c753529e0c7871288213d85daa
+state_head: 9182e4df36a417395260995eab1e387aff737760
 progress:
   total_phases: 9
   completed_phases: 1
   total_plans: 11
-  completed_plans: 6
+  completed_plans: 7
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-08-28)
 ## Current Position
 
 Phase: 20 (API Contract & Leftover Routes) — EXECUTING
-Plan: 3 of 7
+Plan: 4 of 7
 Status: Ready to execute
 Last activity: 2026-08-28 — Phase 20 execution started
 
@@ -101,6 +101,7 @@ Progress: [██░░░░░░░░] 25%
 | Phase 19-data-layer-cutover P04 | 8min | 3 tasks | 12 files |
 | Phase 20-api-contract-leftover-routes P01 | 2min | 3 tasks | 2 files |
 | Phase 20-api-contract-leftover-routes P02 | 5 min | 2 tasks | 3 files |
+| Phase 20-api-contract-leftover-routes P03 | 5min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -192,6 +193,7 @@ Recent decisions affecting current work:
 - [Phase 20]: D-01: proxy API detection uses pathname /api/ prefix not Accept header
 - [Phase 20]: D-02: proxy unauthenticated API returns { error: Unauthorized } matching withAuth
 - [Phase 20]: jql optional in jiraSearchSchema so empty body hits handler freeze message under Zod 4
+- [Phase 20]: Path gate uses literal /projects/[id]/ segments; allowlist JSON for D-23; lint scoped to app/api/**/route.ts
 
 ### Pending Todos
 
@@ -215,8 +217,8 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-08-28T07:20:52.695Z
-Stopped at: Completed 20-02-PLAN.md
+Last session: 2026-08-28T07:24:54.067Z
+Stopped at: Completed 20-03-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
