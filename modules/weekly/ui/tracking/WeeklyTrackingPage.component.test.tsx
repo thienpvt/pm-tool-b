@@ -344,6 +344,42 @@ describe('WeeklyTrackingPage', () => {
       expect(bar).toHaveTextContent('0');
     });
 
+    it('resets filter draft when period changes', async () => {
+      const fetchMock = vi.fn((url: string) => {
+        if (url === '/api/weekly-periods') {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: () => Promise.resolve(periodsFixture),
+          });
+        }
+        if (url.startsWith('/api/weekly-periods/') && url.endsWith('/tracking')) {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: () => Promise.resolve(trackingPayload),
+          });
+        }
+        return Promise.reject(new Error(`unexpected fetch: ${url}`));
+      });
+      vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch);
+
+      render(<WeeklyTrackingPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('tracking-filter-bar')).toBeInTheDocument();
+      });
+
+      fireEvent.change(screen.getByLabelText('Status'), { target: { value: 'overdue' } });
+      expect(screen.getByLabelText('Status')).toHaveValue('overdue');
+
+      fireEvent.change(screen.getByLabelText('Period'), { target: { value: '1' } });
+
+      await waitFor(() => {
+        expect(screen.getByLabelText('Status')).toHaveValue('');
+      });
+    });
+
     it('Apply filters refetches GET with selected query keys only', async () => {
       const fetchMock = vi.fn((url: string) => {
         if (url === '/api/weekly-periods') {

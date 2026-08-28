@@ -190,6 +190,7 @@ function WeeklyTrackingContent() {
           <>
             <TrackingCountsBar counts={data.counts} />
             <TrackingFiltersBar
+              key={selectedPeriodId}
               rows={data.rows}
               disabled={trackingLoading}
               onApply={handleApplyFilters}
