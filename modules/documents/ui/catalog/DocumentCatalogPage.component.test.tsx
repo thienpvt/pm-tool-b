@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { catalogFixture } from '../shared/documents.fixture';
+import { catalogFixture, emptyCatalogFixture } from '../shared/documents.fixture';
 import DocumentCatalogPage from './DocumentCatalogPage';
 
 vi.mock('next/navigation', () => ({ usePathname: () => '/documents/catalog' }));
@@ -75,6 +75,83 @@ describe('DocumentCatalogPage', () => {
       expect(screen.getByText("You don't have access to this page.")).toBeInTheDocument();
     });
     expect(screen.queryByRole('heading', { name: 'Document catalog' })).not.toBeInTheDocument();
+  });
+
+  it('shows 401 session expired copy in-page', async () => {
+    setupStatusFetch(401);
+    render(<DocumentCatalogPage />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText('Session expired — refresh the page and sign in again.'),
+      ).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId('catalog-list')).not.toBeInTheDocument();
+  });
+
+  it('shows empty state copy when no catalog rows', async () => {
+    setupStatusFetch(200, emptyCatalogFixture());
+    render(<DocumentCatalogPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('No catalog items yet')).toBeInTheDocument();
+    });
+    expect(
+      screen.getByText('Add the first required document type for your company above.'),
+    ).toBeInTheDocument();
+    expect(screen.getByText('0 items')).toBeInTheDocument();
+  });
+
+  it('uses singular subtitle for one active item', async () => {
+    setupStatusFetch(200, catalogFixture);
+    render(<DocumentCatalogPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('1 item')).toBeInTheDocument();
+    });
+  });
+
+  it('uses plural subtitle for two active items', async () => {
+    setupStatusFetch(200, catalogFixture.map((row) => ({ ...row, active: true })));
+    render(<DocumentCatalogPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('2 items')).toBeInTheDocument();
+    });
+  });
+
+  it('wraps catalog list in overflow-x-auto container', async () => {
+    setupStatusFetch(200, catalogFixture);
+    render(<DocumentCatalogPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('catalog-list')).toBeInTheDocument();
+    });
+    const list = screen.getByTestId('catalog-list');
+    expect(list.querySelector('.overflow-x-auto')).toBeTruthy();
+  });
+
+  it('applies line-through styling to retired catalog row name', async () => {
+    setupStatusFetch(200, catalogFixture);
+    render(<DocumentCatalogPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('SoW')).toBeInTheDocument();
+    });
+    const sow = screen.getByText('SoW');
+    expect(sow.className).toMatch(/line-through/);
+    expect(sow.className).toMatch(/text-slate-400/);
+  });
+
+  it('shows templates no-selection prompt when no row is selected', async () => {
+    setupStatusFetch(200, catalogFixture);
+    render(<DocumentCatalogPage />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText('Select a catalog item to manage templates.'),
+      ).toBeInTheDocument();
+    });
   });
 });
 
