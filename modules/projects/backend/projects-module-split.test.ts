@@ -197,4 +197,10 @@ describe('projects module split contract (24-06)', () => {
       expect(source).not.toMatch(/(^|[^_])req\.url/);
     }
   });
+
+  it('P3 MOD-02: milestones/[milestoneId]/route.ts imports schema from module path', () => {
+    const source = readUtf8('app/api/projects/[id]/milestones/[milestoneId]/route.ts');
+    expect(source).toContain('@/modules/projects/backend/routes/projects/[id]/milestones/schema');
+    expect(source).not.toMatch(/from ['"]\.\.\/schema['"]/);
+  });
 });

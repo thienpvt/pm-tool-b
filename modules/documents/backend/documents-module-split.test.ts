@@ -44,13 +44,14 @@ describe('documents module split contract (24-04)', () => {
     expect(source).toContain('modules/documents/ui/checklist/ProjectChecklistPage');
   });
 
-  it('Wave 6 guard: app/projects/[id]/documents/page.tsx is a fat page, not a module re-export', () => {
+  it('D-06: app/projects/[id]/documents/page.tsx is projects-owned thin shell, not documents module', () => {
     const source = readUtf8('app/projects/[id]/documents/page.tsx');
-    expect(source).toContain('use client');
     expect(source).not.toMatch(
       /export\s*\{\s*default\s*\}\s*from\s*['"]@\/modules\/documents/,
     );
-    expect(source.length).toBeGreaterThan(500);
+    expect(source).toMatch(
+      /export\s*\{\s*default\s*\}\s*from\s*['"]@\/modules\/projects\/ui\/documents\/ProjectDocumentsPage['"]/,
+    );
   });
 
   it('P2: app/api/document-catalog/[id]/route.ts re-exports GET and PATCH from module route', () => {
