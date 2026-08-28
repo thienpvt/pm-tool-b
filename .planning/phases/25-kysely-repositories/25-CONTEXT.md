@@ -38,7 +38,8 @@ Repository queries go through Kysely on the existing `pg.Pool` so invalid column
 - **D-05:** Convert **all** production `*.repo.ts` files (module repos + `lib/repositories/auth.repo.ts` and `settings.repo.ts`). Leave `lib/auth.ts` session SQL and migrate/seed SQL on `DbClient` unless a file is already a repository. Delete `buildUpdate` usage only when that table's repo writes are fully on Kysely.
 - **D-06:** Do not rewrite service/route logic. Do not restyle UI. Do not change ENF-01 wrappers or D-23 ops/admin companies auth.
 - **D-07:** No `as any` / `as unknown as` to silence Kysely in repos. Isolation none: sequential waves. TDD: RED then GREEN per task. No second test DB pool.
-- **D-08:** Tracer first: factory + `Database` types + one small repo (audit or dashboard-filter-state) proving (a) typed query compiles, (b) existing mass-assignment test still rejects extra fields, (c) `getDb()` still a single Pool.
+- **D-08:** Tracer first: factory + `Database` types + one small repo (audit) proving (a) typed query compiles, (b) existing mass-assignment test still rejects extra fields where applicable, (c) `getDb()` still a single Pool.
+- **D-09:** Pin `kysely@0.29.5` (runtime) and `kysely-codegen@0.20.0` (devDependency) per research. Accept npm "too-new" seam flag — recommended versions.
 
 </decisions>
 
