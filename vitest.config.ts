@@ -11,7 +11,7 @@ export default defineConfig({
         test: {
           name: 'node',
           environment: 'node',
-          include: ['{lib,app}/**/*.test.ts'],
+          include: ['{lib,app,eslint}/**/*.test.ts'],
           exclude: ['lib/log.test.ts'],
         },
       },
