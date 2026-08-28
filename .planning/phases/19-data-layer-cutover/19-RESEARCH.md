@@ -467,22 +467,16 @@ export function resolveSsl(databaseUrl: string): false | { rejectUnauthorized: b
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Production migrate execution path**
-   - What we know: Origin deferred in-container tsx; Dockerfile today lacks migrations COPY
-   - What's unclear: Compile migrate in builder vs copy tsx vs initContainer only
-   - Recommendation: Planner task — builder-stage `tsc`/esbuild of `scripts/migrate.ts` OR copy `node_modules/tsx` to runner; document Railway release command either way
+1. **Production migrate execution path** — RESOLVED (D-07, D-10; implemented in 19-04-02)
+   - Decision: tsx in the runner image. Dockerfile copies `migrations/` + `scripts/`, copies `node_modules` from the deps stage (includes pinned `tsx@4.23.12`), and CMD/Railway/compose run `npx tsx scripts/migrate.ts && node server.js`. K8s is a one-shot Job with `["npx","tsx","scripts/migrate.ts"]`. No builder-stage compile of `scripts/migrate.ts`.
 
-2. **RAID backfill ordering vs indexes in single 0001 file**
-   - What we know: Indexes must follow dedupe backfill on brownfield
-   - What's unclear: Whether dedupe DML belongs in 0001 Part 3 or mandatory pre-index data-fix script
-   - Recommendation: Keep indexes in 0001; document operator runs `backfill-raid-masters.ts` before first migrate on DBs with duplicate codes, OR split indexes to `0002` only if rehearsal finds violations
+2. **RAID backfill ordering vs indexes in single 0001 file** — RESOLVED (D-09; implemented in 19-02-02)
+   - Decision: RAID DML stays in 0001 Part 3. Order is `RAID_MASTERS_DDL`, then backfill/dedupe DML, then `RAID_MASTERS_INDEX_DDL`. Do not split indexes to `0002`. Other boot UPDATEs stay in `scripts/data-fixes/` (19-03).
 
-3. **Keep or delete `migrate*` exports from `lib/db-*.ts`**
-   - What we know: DDL constants used by unit tests and 0001 generation
-   - What's unclear: Whether migrate functions stay for reference
-   - Recommendation: Remove `getDb()` calls; keep exported `*_DDL` arrays; delete or `@deprecated` migrate functions to prevent accidental re-wiring
+3. **Keep or delete `migrate*` exports from `lib/db-*.ts`** — RESOLVED (D-08; implemented in 19-04-01)
+   - Decision: Keep `migrate*` functions and `*_DDL` exports in `lib/db-*.ts` so DDL unit tests remain the source of truth for 0001 Part 3. Remove only the `getDb()` invocations (and unused init/migrate/backfill in `lib/db.ts`).
 
 ---
 

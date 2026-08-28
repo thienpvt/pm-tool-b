@@ -56,12 +56,22 @@ Do not use `-x` in automated plan commands (Vitest 4 ignores it).
 
 ## Per-Task Verification Map
 
+12 PLAN tasks. 19-03 is Wave 2 DATA-03 (parallel with 19-02; uses pre-existing helpers). 19-04-01 is Wave 3 DATA-01 slim `getDb`.
+
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 19-01-01 | 01 | 1 | DATA-02 | T-19-01 | Checksums + ledger prevent silent SQL tampering | unit | `npx vitest run lib/migrate` | ❌ W0 | ⬜ pending |
-| 19-01-02 | 01 | 1 | DATA-01 | T-19-02 | Unmigrated DB does not auto-DDL; fails closed | unit | `npx vitest run lib/migrate/assertMigrated.test.ts` | ❌ W0 | ⬜ pending |
-| 19-02-01 | 02 | 2 | DATA-02 | T-19-01 | Baseline 0001 has v2.0 tables; no DROP of brownfield | unit | `npx vitest run lib/migrate/baseline-content.test.ts` | ❌ W0 | ⬜ pending |
-| 19-03-01 | 03 | 3 | DATA-01, DATA-03 | T-19-02 | `getDb()` connect/assert/seed only; DML not on boot | unit | `npx vitest run lib/db.test.ts lib/migrate` | ❌ W0 | ⬜ pending |
+| 19-01-01 | 01 | 1 | DATA-02 | T-19-01 | Checksums + ledger prevent silent SQL tampering | unit | `npx vitest run lib/migrate/plan.test.ts lib/migrate/runner.test.ts lib/migrate/assertMigrated.test.ts` | ❌ W0 | ⬜ pending |
+| 19-01-02 | 01 | 1 | DATA-02 | T-19-01 | Drift, duplicate versions, ROLLBACK fail loud | unit | `npx vitest run lib/migrate/plan.test.ts lib/migrate/runner.test.ts` | ❌ W0 | ⬜ pending |
+| 19-01-03 | 01 | 1 | DATA-02 | T-19-SC | tsx pin; CLI wires parseMigrationFile and runMigrations | smoke | `node -e` package.json `scripts.migrate` + `tsx` 4.23.12; `scripts/migrate.ts` contains parseMigrationFile and runMigrations | ❌ W0 | ⬜ pending |
+| 19-02-01 | 02 | 2 | DATA-02 | T-19-01 | ROLES_AUDIT_DDL and MAPPING_TENANT_DDL exported | unit | `npx vitest run lib/db-roles.ddl.unit.test.ts lib/db-weekly-reports.ddl.unit.test.ts` | ❌ W0 | ⬜ pending |
+| 19-02-02 | 02 | 2 | DATA-02 | T-19-06, T-19-07 | 0001 v2.0 tables; no DROP; RAID DML before indexes | unit | `npx vitest run lib/migrate/baseline-content.test.ts lib/migrate/plan.test.ts` | ❌ W0 | ⬜ pending |
+| 19-02-03 | 02 | 2 | DATA-02 | T-19-03 | README ledger + single-writer | smoke | `node -e` `migrations/README.md` contains npm run migrate, schema_migrations, parallel | ❌ W0 | ⬜ pending |
+| 19-03-01 | 03 | 2 | DATA-03 | T-19-08 | Four boot UPDATEs as operator scripts | unit | `npx vitest run lib/migrate/data-fixes.test.ts` | ❌ W0 | ⬜ pending |
+| 19-03-02 | 03 | 2 | DATA-03 | T-19-08 | v2.0 backfill operator scripts | unit | `npx vitest run lib/migrate/data-fixes.test.ts` | ❌ W0 | ⬜ pending |
+| 19-03-03 | 03 | 2 | DATA-03 | T-19-08 | data-fixes README command list | smoke | `node -e` `scripts/data-fixes/README.md` lists 01-users-onboarding-completed and backfill-mapping-tenant | ❌ W0 | ⬜ pending |
+| 19-04-01 | 04 | 3 | DATA-01, DATA-03 | T-19-02, T-19-09 | getDb connect/assert/seed only; no boot DDL/DML | unit | `npx vitest run lib/db.getDb.boot.unit.test.ts lib/db-documents.ddl.unit.test.ts lib/db-dashboards.ddl.unit.test.ts lib/db-fiscal-budget.ddl.unit.test.ts lib/db-weekly-reports.ddl.unit.test.ts lib/migrate/assertMigrated.test.ts` | ❌ W0 | ⬜ pending |
+| 19-04-02 | 04 | 3 | DATA-01 | T-19-10 | Docker/Railway/compose/K8s migrate-then-server with tsx | smoke | `node -e` Dockerfile/.dockerignore/railway.json/k8s-migrate-job.yaml; `docker-compose.yml` command includes tsx and scripts/migrate.ts | ❌ W0 | ⬜ pending |
+| 19-04-03 | 04 | 3 | DATA-01 | T-19-02 | CI migrate before tests | smoke | `node -e` `.github/workflows/test.yml` contains npm run migrate and pm_tool_test | ❌ W0 | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
