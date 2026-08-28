@@ -3,9 +3,9 @@ import {
   listAuditLogs as listAuditLogsRepo,
   type AuditListFilters,
   type AuditLogInput,
-} from '@/lib/repositories/audit.repo';
+} from '@/modules/audit/backend/repositories/audit.repo';
 import { parseIsoDate } from '@/lib/fiscal/iso-date';
-import { assertCompanyWrite, type AccessActor } from './access';
+import { assertCompanyWrite, type AccessActor } from '@/lib/services/access';
 
 export type { AuditLogInput, AuditListFilters };
 

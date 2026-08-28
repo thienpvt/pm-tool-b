@@ -6,8 +6,8 @@ const { listAuditLogsRepo } = vi.hoisted(() => ({
 }));
 
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
-vi.mock('@/lib/repositories/audit.repo', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/lib/repositories/audit.repo')>();
+vi.mock('@/modules/audit/backend/repositories/audit.repo', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/modules/audit/backend/repositories/audit.repo')>();
   return {
     ...actual,
     listAuditLogs: listAuditLogsRepo,

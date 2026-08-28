@@ -5,14 +5,14 @@ const { insertAuditLog, listAuditLogsRepo } = vi.hoisted(() => ({
   listAuditLogsRepo: vi.fn(),
 }));
 
-vi.mock('@/lib/repositories/audit.repo', () => ({
+vi.mock('@/modules/audit/backend/repositories/audit.repo', () => ({
   insertAuditLog,
   listAuditLogs: listAuditLogsRepo,
 }));
 
-import type { AccessActor } from './access';
+import type { AccessActor } from '@/lib/services/access';
 import { auditLog, listAuditLogs } from './audit.service';
-import { ForbiddenError, ValidationError } from './errors';
+import { ForbiddenError, ValidationError } from '@/lib/services/errors';
 
 const cpmoActor: AccessActor = {
   company_id: 5,
