@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { toast } from 'sonner';
 import {
   Calendar, Users, MessageSquare, AlertTriangle, FileText,
-  Download, Pencil, Trash2, Building2, ClipboardList, Flag,
+  Download, Pencil, Trash2, Building2, ClipboardList, ClipboardCheck, Flag,
 } from 'lucide-react';
 
 const CURRENCIES = ['VND', 'USD', 'EUR', 'JPY', 'SGD', 'GBP', 'AUD'];
@@ -79,6 +79,7 @@ const QUICK_LINKS = [
   { href: '/risks',         icon: AlertTriangle,   label: 'Risks & Issues',    desc: 'Risk register & issue log' },
   { href: '/reports',       icon: ClipboardList,   label: 'Weekly Report',     desc: 'Báo cáo tuần tự động + AI' },
   { href: '/documents',     icon: FileText,        label: 'Documents',         desc: 'Charter, SoW, Closure Report...' },
+  { href: '/document-checklist', icon: ClipboardCheck, label: 'Document checklist', desc: 'Complete Confluence evidence for this stage.' },
 ];
 
 function FieldRow({ label, children }: { label: string; children: React.ReactNode }) {
