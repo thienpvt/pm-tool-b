@@ -71,4 +71,16 @@ describe('dashboards module split contract (24-01)', () => {
       /export\s*\{\s*GET\s*\}\s*from\s*['"]@\/modules\/dashboards\/backend\/routes\/dashboards\/document-compliance\/route['"]/,
     );
   });
+
+  it('D-09: modules/dashboards/ui/shared/types.ts imports from module service path', () => {
+    const source = readUtf8('modules/dashboards/ui/shared/types.ts');
+    expect(source).toContain('@/modules/dashboards/backend/services/spec-dashboards.service');
+    expect(source).not.toContain('@/lib/services/spec-dashboards.service');
+  });
+
+  it('D-09: lib/export/dashboard-portfolio.ts imports from module service path', () => {
+    const source = readUtf8('lib/export/dashboard-portfolio.ts');
+    expect(source).toContain('@/modules/dashboards/backend/services/spec-dashboards.service');
+    expect(source).not.toContain('@/lib/services/spec-dashboards.service');
+  });
 });
