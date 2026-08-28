@@ -95,4 +95,50 @@ describe('AuditLogPage', () => {
       expect(applyCall).toBeTruthy();
     });
   });
+
+  it('shows actor_id and action for fixture rows', async () => {
+    render(<AuditLogPage />);
+    resolveAudit!(auditRowsFixture);
+
+    await waitFor(() => expect(screen.getByText('create')).toBeInTheDocument());
+    expect(screen.getByText('10')).toBeInTheDocument();
+    expect(screen.getByText('update')).toBeInTheDocument();
+  });
+
+  it('shows empty audit copy when rows array is empty', async () => {
+    render(<AuditLogPage />);
+    resolveAudit!([]);
+
+    await waitFor(() => {
+      expect(screen.getByText('No audit entries found')).toBeInTheDocument();
+    });
+    expect(
+      screen.getByText('Broaden the date range or clear entity filters.'),
+    ).toBeInTheDocument();
+  });
+
+  it('expands and collapses before/after JSON in pre elements', async () => {
+    render(<AuditLogPage />);
+    resolveAudit!(auditRowsFixture);
+
+    await waitFor(() => expect(screen.getAllByRole('button', { name: 'Show audit details' }).length).toBeGreaterThan(0));
+
+    const row = auditRowsFixture[0]!;
+    const detailsButton = screen.getAllByRole('button', { name: 'Show audit details' })[0]!;
+
+    fireEvent.click(detailsButton);
+
+    await waitFor(() => {
+      const pres = document.querySelectorAll('pre');
+      expect(pres.length).toBe(2);
+      expect(pres[0]!.textContent).toBe(JSON.stringify(row.before, null, 2));
+      expect(pres[1]!.textContent).toBe(JSON.stringify(row.after, null, 2));
+    });
+
+    fireEvent.click(detailsButton);
+
+    await waitFor(() => {
+      expect(document.querySelectorAll('pre').length).toBe(0);
+    });
+  });
 });
