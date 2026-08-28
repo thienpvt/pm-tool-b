@@ -5,11 +5,12 @@ import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Logo } from '@/components/brand/Logo';
 import {
-  LayoutDashboard, Calendar, Users,
+  LayoutDashboard, Calendar, CalendarDays, Users,
   MessageSquare, AlertTriangle, FileText, TrendingDown,
   PieChart, Building2, ClipboardList, FileBarChart2,
   LogOut, ShieldCheck, ChevronDown, KeyRound, Menu, X,
   FolderOpen, Plus, Map, DollarSign, UserCog, Flag, Bug, BarChart2,
+  ListChecks,
 } from 'lucide-react';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -188,6 +189,37 @@ function SidebarNav({
             <ClipboardList className="h-4 w-4 shrink-0" />
             My dashboard
           </Link>
+        ) : null}
+
+        {me?.roles?.includes('cpmo') ? (
+          <>
+            <Link
+              href="/weekly/periods"
+              onClick={onNavClick}
+              className={cn(
+                'flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors',
+                pathname === '/weekly/periods'
+                  ? 'bg-blue-600 text-white'
+                  : 'text-slate-300 hover:bg-slate-700 hover:text-white'
+              )}
+            >
+              <CalendarDays className="h-4 w-4 shrink-0" />
+              Weekly periods
+            </Link>
+            <Link
+              href="/weekly/tracking"
+              onClick={onNavClick}
+              className={cn(
+                'flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors',
+                pathname === '/weekly/tracking'
+                  ? 'bg-blue-600 text-white'
+                  : 'text-slate-300 hover:bg-slate-700 hover:text-white'
+              )}
+            >
+              <ListChecks className="h-4 w-4 shrink-0" />
+              Weekly tracking
+            </Link>
+          </>
         ) : null}
 
         {NAV_SECONDARY.map(({ href, icon: Icon, label }) => (
