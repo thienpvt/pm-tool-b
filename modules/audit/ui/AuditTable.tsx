@@ -4,6 +4,7 @@ import { useState, Fragment } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { AuditLogRow } from '@/modules/documents/ui/shared/types';
+import VirtualRows, { ROW_HEIGHT } from '@/modules/weekly/ui/shared/VirtualRows';
 import {
   Table,
   TableBody,
@@ -14,6 +15,8 @@ import {
 } from '@/components/ui/table';
 
 const COLUMN_COUNT = 5;
+const GRID_HEIGHT = 480;
+const VIRTUAL_THRESHOLD = 100;
 
 function JsonPanel({ value }: { value: unknown }) {
   return (
@@ -40,22 +43,39 @@ function AuditRowDetail({ row }: { row: AuditLogRow }) {
 
 type AuditTableProps = {
   rows: AuditLogRow[];
-  expandedId?: number | null;
-  onToggleExpand?: (id: number | null) => void;
 };
 
-export function AuditTable({ rows, expandedId: controlledExpandedId, onToggleExpand }: AuditTableProps) {
-  const [internalExpandedId, setInternalExpandedId] = useState<number | null>(null);
-  const expandedId = controlledExpandedId !== undefined ? controlledExpandedId : internalExpandedId;
+export function AuditTable({ rows }: AuditTableProps) {
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const useVirtual = rows.length > VIRTUAL_THRESHOLD && expandedId === null;
 
   const toggleExpand = (id: number) => {
-    const next = expandedId === id ? null : id;
-    if (onToggleExpand) {
-      onToggleExpand(next);
-    } else {
-      setInternalExpandedId(next);
-    }
+    setExpandedId((prev) => (prev === id ? null : id));
   };
+
+  const renderCollapsedCells = (row: AuditLogRow, isExpanded: boolean) => (
+    <>
+      <TableCell className="p-2 text-sm">{new Date(row.created_at).toLocaleString()}</TableCell>
+      <TableCell className="p-2 text-sm">{row.actor_id}</TableCell>
+      <TableCell className="p-2 text-sm">
+        {row.entity_type} #{row.entity_id}
+      </TableCell>
+      <TableCell className="p-2 text-xs font-mono">{row.action}</TableCell>
+      <TableCell className="p-2 text-sm">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-8 w-8 p-0"
+          aria-label="Show audit details"
+          aria-expanded={isExpanded}
+          onClick={() => toggleExpand(row.id)}
+        >
+          {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+        </Button>
+      </TableCell>
+    </>
+  );
 
   return (
     <section data-testid="audit-table" className="overflow-x-auto">
@@ -79,37 +99,29 @@ export function AuditTable({ rows, expandedId: controlledExpandedId, onToggleExp
                 </p>
               </TableCell>
             </TableRow>
+          ) : useVirtual ? (
+            <TableRow>
+              <TableCell colSpan={COLUMN_COUNT} className="p-0 border-0">
+                <VirtualRows
+                  items={rows}
+                  height={GRID_HEIGHT}
+                  rowHeight={ROW_HEIGHT}
+                  rowKey={(row) => row.id}
+                  renderRow={(row) => (
+                    <TableRow data-testid="audit-row" style={{ height: ROW_HEIGHT }}>
+                      {renderCollapsedCells(row, false)}
+                    </TableRow>
+                  )}
+                />
+              </TableCell>
+            </TableRow>
           ) : (
             rows.map((row) => {
               const isExpanded = expandedId === row.id;
               return (
                 <Fragment key={row.id}>
                   <TableRow data-testid="audit-row">
-                    <TableCell className="p-2 text-sm">
-                      {new Date(row.created_at).toLocaleString()}
-                    </TableCell>
-                    <TableCell className="p-2 text-sm">{row.actor_id}</TableCell>
-                    <TableCell className="p-2 text-sm">
-                      {row.entity_type} #{row.entity_id}
-                    </TableCell>
-                    <TableCell className="p-2 text-xs font-mono">{row.action}</TableCell>
-                    <TableCell className="p-2 text-sm">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 w-8 p-0"
-                        aria-label="Show audit details"
-                        aria-expanded={isExpanded}
-                        onClick={() => toggleExpand(row.id)}
-                      >
-                        {isExpanded ? (
-                          <ChevronDown className="h-4 w-4" />
-                        ) : (
-                          <ChevronRight className="h-4 w-4" />
-                        )}
-                      </Button>
-                    </TableCell>
+                    {renderCollapsedCells(row, isExpanded)}
                   </TableRow>
                   {isExpanded ? (
                     <TableRow>
