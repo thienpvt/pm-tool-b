@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, it } from 'vitest';
 import { parseMigrationFile } from './plan';
-import { runMigrations, type QueryableClient } from './runner';
+import { computePendingMigrations, runMigrations, type QueryableClient } from './runner';
 import { closeTestPool, hasTestDb, testPool } from '../../test/db';
 
 const BASELINE_SQL = 'CREATE TABLE companies (id SERIAL PRIMARY KEY);';
@@ -88,6 +88,28 @@ describe('runMigrations (unit, fake client)', () => {
 
     const tampered = parseMigrationFile('0001-baseline-schema.sql', `${BASELINE_SQL} -- tampered`);
     await expect(runMigrations(client, [tampered])).rejects.toThrow(/checksum drift/i);
+  });
+});
+
+describe('computePendingMigrations (unit, fake client)', () => {
+  it('treats a missing ledger as nothing applied yet (--check preview)', async () => {
+    const baseline = parseMigrationFile('0001-a.sql', 'CREATE TABLE a (id SERIAL PRIMARY KEY);');
+    const client: QueryableClient = {
+      async query(text: string) {
+        if (text.startsWith('SELECT pg_advisory_lock') || text.startsWith('SELECT pg_advisory_unlock')) {
+          return { rows: [] };
+        }
+        if (text.startsWith('SELECT version, checksum FROM')) {
+          throw new Error('relation "schema_migrations" does not exist');
+        }
+        return { rows: [] };
+      },
+    };
+
+    const { toApply, alreadyApplied, drifted } = await computePendingMigrations(client, [baseline]);
+    expect(toApply.map((f) => f.filename)).toEqual(['0001-a.sql']);
+    expect(alreadyApplied).toEqual([]);
+    expect(drifted).toEqual([]);
   });
 });
 
