@@ -5,11 +5,13 @@ import { toast } from 'sonner';
 import type { DashboardFilters } from '@/lib/dashboards/filters';
 import type { PortfolioDashboardPayload } from '@/modules/dashboards/ui/shared/types';
 
+export type PortfolioDashboardError = 'unauthorized' | 'forbidden' | 'load_failed';
+
 export function usePortfolioSpecDashboard() {
   const [data, setData] = useState<PortfolioDashboardPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<PortfolioDashboardError | null>(null);
 
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) {

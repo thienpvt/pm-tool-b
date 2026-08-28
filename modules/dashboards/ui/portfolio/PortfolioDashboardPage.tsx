@@ -2,6 +2,7 @@
 
 // NIT-04: fiscal KPIs live on /portfolio/budget, not spec tiles.
 
+import { AlertTriangle } from 'lucide-react';
 import Sidebar from '@/components/layout/Sidebar';
 import { Card } from '@/components/ui/card';
 import { PortfolioFiltersBar } from './PortfolioFiltersBar';
@@ -16,8 +17,14 @@ const KPI_TILES = [
   { label: 'Technology council', field: 'technology_council_count' as const, clickable: true },
 ];
 
+const ERROR_COPY = {
+  unauthorized: 'Session expired — refresh the page and sign in again.',
+  forbidden: "You don't have access to this dashboard.",
+  load_failed: "Couldn't load the dashboard. Try again.",
+} as const;
+
 export default function PortfolioDashboardPage() {
-  const { data, loading, refreshing, saveFilters, clearFilters } = usePortfolioSpecDashboard();
+  const { data, loading, refreshing, error, saveFilters, clearFilters } = usePortfolioSpecDashboard();
 
   if (loading) {
     return (
@@ -27,6 +34,20 @@ export default function PortfolioDashboardPage() {
           <div className="flex flex-col items-center gap-3">
             <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
             <p className="text-slate-400 text-sm">Loading dashboard…</p>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col lg:flex-row min-h-screen bg-slate-50">
+        <Sidebar />
+        <main className="flex-1 flex items-center justify-center">
+          <div className="flex flex-col items-center gap-3 text-center px-4">
+            <AlertTriangle className="h-8 w-8 text-muted-foreground" />
+            <p className="text-sm text-slate-600">{ERROR_COPY[error]}</p>
           </div>
         </main>
       </div>

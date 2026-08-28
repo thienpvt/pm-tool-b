@@ -251,4 +251,59 @@ describe('PortfolioDashboardPage', () => {
     });
     expect(screen.getByLabelText('Stage')).toHaveValue('L3');
   });
+
+  it('shows 403 forbidden copy without KPI row', async () => {
+    const forbiddenFetch = vi.fn((url: string) => {
+      if (url === '/api/dashboards/portfolio') {
+        return Promise.resolve({ ok: false, status: 403, json: () => Promise.resolve({}) });
+      }
+      return Promise.reject(new Error(`unexpected fetch: ${url}`));
+    }) as unknown as typeof fetch;
+    vi.stubGlobal('fetch', forbiddenFetch);
+
+    render(<PortfolioDashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("You don't have access to this dashboard.")).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId('spec-kpi-row')).not.toBeInTheDocument();
+    expect(forbiddenFetch).toHaveBeenCalledWith('/api/dashboards/portfolio');
+  });
+
+  it('shows 401 session expired copy without redirect', async () => {
+    const unauthorizedFetch = vi.fn((url: string) => {
+      if (url === '/api/dashboards/portfolio') {
+        return Promise.resolve({ ok: false, status: 401, json: () => Promise.resolve({}) });
+      }
+      return Promise.reject(new Error(`unexpected fetch: ${url}`));
+    }) as unknown as typeof fetch;
+    vi.stubGlobal('fetch', unauthorizedFetch);
+
+    render(<PortfolioDashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Session expired — refresh the page and sign in again.')).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId('spec-kpi-row')).not.toBeInTheDocument();
+    expect(unauthorizedFetch).toHaveBeenCalledWith('/api/dashboards/portfolio');
+  });
+
+  it('shows 500 load failed copy', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) => {
+        if (url === '/api/dashboards/portfolio') {
+          return Promise.resolve({ ok: false, status: 500, json: () => Promise.resolve({}) });
+        }
+        return Promise.reject(new Error(`unexpected fetch: ${url}`));
+      }) as unknown as typeof fetch,
+    );
+
+    render(<PortfolioDashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Couldn't load the dashboard. Try again.")).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId('spec-kpi-row')).not.toBeInTheDocument();
+  });
 });
