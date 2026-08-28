@@ -84,6 +84,7 @@ export default function WeeklyPeriodsPage() {
             <Button
               size="sm"
               disabled={creatingPeriod}
+              aria-busy={creatingPeriod}
               className="bg-blue-600 text-white hover:bg-blue-700"
               onClick={() => createPeriod(isoWeek)}
             >

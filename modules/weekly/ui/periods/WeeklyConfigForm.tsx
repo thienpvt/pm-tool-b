@@ -92,6 +92,7 @@ export function WeeklyConfigForm({ config, saving, onSave }: Props) {
         <Button
           size="sm"
           disabled={saving}
+          aria-busy={saving}
           className="bg-blue-600 text-white hover:bg-blue-700"
           onClick={() =>
             onSave({
