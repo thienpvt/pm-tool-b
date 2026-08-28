@@ -98,10 +98,10 @@ describe('projects module split contract (24-06)', () => {
     );
   });
 
-  it('Wave 7 guard: app/projects/[id]/report/page.tsx is not a modules/reports re-export', () => {
+  it('Wave 7: app/projects/[id]/report/page.tsx re-exports ProjectReportPage from modules/reports', () => {
     const source = readUtf8('app/projects/[id]/report/page.tsx');
-    expect(source).not.toMatch(
-      /export\s*\{\s*default\s*\}\s*from\s*['"]@\/modules\/reports\/ui/,
+    expect(source).toMatch(
+      /export\s*\{\s*default\s*\}\s*from\s*['"]@\/modules\/reports\/ui\/project-report\/ProjectReportPage['"]/,
     );
   });
 

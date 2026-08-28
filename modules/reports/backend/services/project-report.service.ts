@@ -18,8 +18,8 @@ import { companyRagConfig } from '@/lib/repositories/rag-config.repo';
 import { listNotClosedByPriority as risksNotClosed, listOpenRisks } from '@/modules/projects/backend/repositories/risks.repo';
 import { listForReport as teamForReport } from '@/modules/projects/backend/repositories/team.repo';
 import { calculateRAG, DEFAULT_RAG_CONFIG } from '@/lib/rag';
-import { assertProjectAccess, type AccessActor } from './access';
-import { NotFoundError } from './errors';
+import { assertProjectAccess, type AccessActor } from '@/lib/services/access';
+import { NotFoundError } from '@/lib/services/errors';
 
 // Local status weights — copied verbatim from the pre-extraction report routes
 // (those routes did not import lib/status-weights; keep byte-identical behavior).

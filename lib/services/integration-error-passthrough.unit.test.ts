@@ -63,7 +63,7 @@ vi.mock('@/modules/projects/backend/repositories/bugs.repo', () => ({
 vi.mock('@/modules/projects/backend/repositories/team.repo', () => ({ listForReport: vi.fn() }));
 vi.mock('@/lib/repositories/rag-config.repo', () => ({ companyRagConfig: vi.fn() }));
 
-import { getWeeklyProjectReport } from './project-report.service';
+import { getWeeklyProjectReport } from '@/modules/reports/backend/services/project-report.service';
 import { integrationErrorResponse } from '@/lib/api-errors';
 
 const owner = { company_id: 5 as number | null, is_admin: 0 as number | boolean };

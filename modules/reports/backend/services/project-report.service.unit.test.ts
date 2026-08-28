@@ -78,8 +78,8 @@ vi.mock('@/modules/projects/backend/repositories/team.repo', () => ({
 }));
 vi.mock('@/lib/repositories/rag-config.repo', () => ({ companyRagConfig }));
 
-import { getProjectReport, getWeeklyProjectReport } from './project-report.service';
-import { ForbiddenError } from './errors';
+import { getProjectReport, getWeeklyProjectReport } from '@/modules/reports/backend/services/project-report.service';
+import { ForbiddenError } from '@/lib/services/errors';
 
 const owner = { company_id: 5 as number | null, is_admin: 0 as number | boolean };
 const foreign = { company_id: 9 as number | null, is_admin: 0 as number | boolean };
