@@ -18,9 +18,11 @@ export function useProjectChecklist(projectId: string) {
   const [savingId, setSavingId] = useState<number | null>(null);
   const loadSeqRef = useRef(0);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (opts?: { silent?: boolean }) => {
     const requestId = ++loadSeqRef.current;
-    setLoading(true);
+    if (!opts?.silent) {
+      setLoading(true);
+    }
     try {
       const res = await fetch(`/api/projects/${projectId}/document-checklist`);
 
@@ -63,7 +65,9 @@ export function useProjectChecklist(projectId: string) {
       setError('load_failed');
       setItems(null);
     } finally {
-      if (requestId === loadSeqRef.current) setLoading(false);
+      if (requestId === loadSeqRef.current && !opts?.silent) {
+        setLoading(false);
+      }
     }
   }, [projectId]);
 
@@ -97,7 +101,7 @@ export function useProjectChecklist(projectId: string) {
         }
 
         toast.success('Checklist item saved');
-        await load();
+        await load({ silent: true });
         return { ok: true };
       } catch {
         toast.error("Couldn't save checklist item — try again.");

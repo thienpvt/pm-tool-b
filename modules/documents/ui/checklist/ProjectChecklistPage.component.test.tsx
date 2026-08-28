@@ -323,6 +323,60 @@ describe('ProjectChecklistPage PATCH editor', () => {
     });
   });
 
+  it('does not show full-page loading spinner after PATCH save', async () => {
+    let resolveReload: ((value: unknown) => void) | null = null;
+    const items = [checklistFixture[0]];
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string, init?: RequestInit) => {
+        if (url.match(/\/api\/projects\/42\/document-checklist\/\d+/) && init?.method === 'PATCH') {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: () => Promise.resolve({ ...items[0], status: 'approved' }),
+          });
+        }
+        if (url === '/api/projects/42/document-checklist' && (!init || init.method === undefined)) {
+          return new Promise((resolve) => {
+            resolveReload = (value) =>
+              resolve({
+                ok: true,
+                status: 200,
+                json: () => Promise.resolve(value),
+              });
+          });
+        }
+        if (url === '/api/projects/42' && (!init || init.method === undefined)) {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: () => Promise.resolve({ name: 'Alpha Project' }),
+          });
+        }
+        return Promise.reject(new Error(`unexpected fetch: ${url} ${init?.method ?? 'GET'}`));
+      }) as unknown as typeof fetch,
+    );
+
+    render(<ProjectChecklistPage />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Edit checklist item' })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit checklist item' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save checklist item' }));
+
+    await waitFor(() => {
+      expect(toastSuccess).toHaveBeenCalledWith('Checklist item saved');
+    });
+
+    expect(screen.queryByText('Loading checklist…')).not.toBeInTheDocument();
+    expect(screen.getByTestId('checklist-table')).toBeInTheDocument();
+
+    resolveReload!(items);
+  });
+
   it('does not render a file input', async () => {
     setupChecklistFetch({ items: [checklistFixture[0]] });
     render(<ProjectChecklistPage />);
