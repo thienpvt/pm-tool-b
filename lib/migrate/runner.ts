@@ -4,7 +4,7 @@ import { planPendingMigrations } from './plan';
 // ── Migration runner — applies versioned SQL files against a pinned session ────
 
 export interface QueryableClient {
-  query(text: string): Promise<{ rows: unknown[] }>;
+  query(text: string, values?: unknown[]): Promise<{ rows: unknown[] }>;
   release?: () => void;
 }
 
@@ -19,10 +19,28 @@ export interface RunResult {
 
 export const DEFAULT_LEDGER_TABLE = 'schema_migrations';
 
+/** Valid unquoted PostgreSQL identifier for the ledger table name. */
+const LEDGER_TABLE_PATTERN = /^[a-z_][a-z0-9_]*$/;
+
+function assertLedgerTableName(ledgerTable: string): void {
+  if (!LEDGER_TABLE_PATTERN.test(ledgerTable)) {
+    throw new Error(`Invalid ledger table name: ${ledgerTable}`);
+  }
+}
+
 /** Session advisory lock key serialising concurrent migrate runs (0x504D4D47 "PMMG"). */
 export const MIGRATION_LOCK_KEY = 1347246335;
 
+function isMissingRelation(err: unknown): boolean {
+  if (err && typeof err === 'object' && 'code' in err && (err as { code: string }).code === '42P01') {
+    return true;
+  }
+  const message = err instanceof Error ? err.message : String(err);
+  return /relation .* does not exist/i.test(message);
+}
+
 async function ensureLedgerTable(client: QueryableClient, ledgerTable: string): Promise<void> {
+  assertLedgerTableName(ledgerTable);
   await client.query(
     `CREATE TABLE IF NOT EXISTS ${ledgerTable} (
       version INTEGER PRIMARY KEY,
@@ -34,6 +52,7 @@ async function ensureLedgerTable(client: QueryableClient, ledgerTable: string): 
 }
 
 async function readApplied(client: QueryableClient, ledgerTable: string): Promise<AppliedMigration[]> {
+  assertLedgerTableName(ledgerTable);
   const res = await client.query(`SELECT version, checksum FROM ${ledgerTable}`);
   return (res.rows as Array<{ version: number; checksum: string }>).map((r) => ({
     version: Number(r.version),
@@ -62,14 +81,18 @@ export async function computePendingMigrations(
   opts?: { ledgerTable?: string },
 ): Promise<{ toApply: MigrationFile[]; alreadyApplied: string[]; drifted: string[] }> {
   const ledgerTable = opts?.ledgerTable ?? DEFAULT_LEDGER_TABLE;
+  assertLedgerTableName(ledgerTable);
   await client.query(`SELECT pg_advisory_lock(${MIGRATION_LOCK_KEY})`);
   try {
     let applied: AppliedMigration[] = [];
     try {
       applied = await readApplied(client, ledgerTable);
-    } catch {
-      // Ledger table missing — nothing has been applied yet.
-      applied = [];
+    } catch (err) {
+      if (isMissingRelation(err)) {
+        applied = [];
+      } else {
+        throw err;
+      }
     }
     return summarize(files, applied);
   } finally {
@@ -90,6 +113,7 @@ export async function runMigrations(
   opts?: { ledgerTable?: string },
 ): Promise<RunResult> {
   const ledgerTable = opts?.ledgerTable ?? DEFAULT_LEDGER_TABLE;
+  assertLedgerTableName(ledgerTable);
   const result: RunResult = { applied: [], alreadyApplied: [], drifted: [] };
 
   await client.query(`SELECT pg_advisory_lock(${MIGRATION_LOCK_KEY})`);
@@ -108,7 +132,8 @@ export async function runMigrations(
         await client.query('BEGIN');
         await client.query(file.sql);
         await client.query(
-          `INSERT INTO ${ledgerTable} (version, name, checksum) VALUES (${file.version}, '${file.filename}', '${file.checksum}')`,
+          `INSERT INTO ${ledgerTable} (version, name, checksum) VALUES ($1, $2, $3)`,
+          [file.version, file.filename, file.checksum],
         );
         await client.query('COMMIT');
         result.applied.push(file.filename);

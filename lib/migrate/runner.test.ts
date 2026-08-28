@@ -15,7 +15,7 @@ class FakeClient implements QueryableClient {
   ledger: Array<{ version: number; checksum: string }> = [];
   failOn?: string;
 
-  async query(text: string): Promise<{ rows: unknown[] }> {
+  async query(text: string, values?: unknown[]): Promise<{ rows: unknown[] }> {
     this.queries.push(text);
     if (this.failOn && text === this.failOn) throw new Error('syntax error at or near "THIS"');
     if (text.startsWith('CREATE TABLE IF NOT EXISTS')) return { rows: [] };
@@ -24,6 +24,12 @@ class FakeClient implements QueryableClient {
       return { rows: [] };
     }
     if (text === 'BEGIN' || text === 'COMMIT' || text === 'ROLLBACK') return { rows: [] };
+    const paramInsert =
+      /^INSERT INTO (\S+) \(version, name, checksum\) VALUES \(\$1, \$2, \$3\)$/.exec(text);
+    if (paramInsert && values?.length === 3) {
+      this.ledger.push({ version: Number(values[0]), checksum: String(values[2]) });
+      return { rows: [] };
+    }
     const insert = /^INSERT INTO (\S+) \(version, name, checksum\) VALUES \((\d+), '([^']+)', '([^']+)'\)$/.exec(
       text,
     );
@@ -52,8 +58,8 @@ describe('runMigrations (unit, fake client)', () => {
 
     const inserts = client.queries.filter((q) => q.startsWith('INSERT INTO schema_migrations'));
     expect(inserts).toHaveLength(1);
-    expect(inserts[0]).toContain('0001-baseline-schema.sql');
-    expect(inserts[0]).toContain(baseline.checksum);
+    expect(inserts[0]).toContain('$1');
+    expect(client.ledger).toEqual([{ version: 1, checksum: baseline.checksum }]);
   });
 
   it('is idempotent: a second run inserts zero rows and reports alreadyApplied', async () => {
@@ -110,6 +116,23 @@ describe('computePendingMigrations (unit, fake client)', () => {
     expect(toApply.map((f) => f.filename)).toEqual(['0001-a.sql']);
     expect(alreadyApplied).toEqual([]);
     expect(drifted).toEqual([]);
+  });
+
+  it('rethrows non-missing-relation ledger read errors', async () => {
+    const baseline = parseMigrationFile('0001-a.sql', 'CREATE TABLE a (id SERIAL PRIMARY KEY);');
+    const client: QueryableClient = {
+      async query(text: string) {
+        if (text.startsWith('SELECT pg_advisory_lock') || text.startsWith('SELECT pg_advisory_unlock')) {
+          return { rows: [] };
+        }
+        if (text.startsWith('SELECT version, checksum FROM')) {
+          throw new Error('connection terminated');
+        }
+        return { rows: [] };
+      },
+    };
+
+    await expect(computePendingMigrations(client, [baseline])).rejects.toThrow(/connection terminated/);
   });
 });
 
