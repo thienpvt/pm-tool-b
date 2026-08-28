@@ -77,7 +77,7 @@ Phase artifacts: [.planning/milestones/v2.0-phases/](milestones/v2.0-phases/)
   3. Data-fix `UPDATE`s that used to run as boot-time migrations live as one-off scripts under `scripts/data-fixes/` and are not re-run on every process start
   4. A brownfield database can be stamped onto the ledger without dropping v2.0 tables — the origin `gsd/quick-260826-ded-data-layer-migrations` branch is a runner/ledger pattern only and is never merged as-is
 
-**Plans:** 1/4 plans executed
+**Plans:** 2/4 plans executed
 
 Plans:
 **Wave 1**
@@ -86,7 +86,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 19-02-PLAN.md — Regenerated v2.0 migrations/0001 + operator README
+- [x] 19-02-PLAN.md — Regenerated v2.0 migrations/0001 + operator README
 - [ ] 19-03-PLAN.md — Operator data-fix scripts under scripts/data-fixes/
 
 **Wave 3** *(blocked on Wave 2 completion)*
@@ -214,7 +214,7 @@ v1.0 Phases 1–8 and v2.0 Phases 9–18 are complete (see milestone archives ab
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 19. Data Layer Cutover | 1/4 | In Progress|  |
+| 19. Data Layer Cutover | 2/4 | In Progress|  |
 | 20. API Contract & Leftover Routes | 0/TBD | Not started | - |
 | 21. Portfolio & PM Dashboard Pages | 0/TBD | Not started | - |
 | 22. Weekly Workflow Surfaces | 0/TBD | Not started | - |

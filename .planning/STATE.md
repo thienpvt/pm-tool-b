@@ -5,16 +5,16 @@ milestone_name: Hardening & Deferred Debt
 current_phase: 19
 current_phase_name: Data Layer Cutover
 status: executing
-stopped_at: Completed 19-01-PLAN.md
-last_updated: "2026-08-28T05:45:51.721Z"
+stopped_at: Completed 19-02-PLAN.md
+last_updated: "2026-08-28T05:51:54.517Z"
 last_activity: 2026-08-28
 last_activity_desc: v2.1 roadmap written (Phases 19–27)
-state_head: 6924d97b164bfe3703f0af0b980b86b4de56b6ef
+state_head: f0e1bbada512735810cd8d35dff9e4b348a4cde0
 progress:
   total_phases: 9
   completed_phases: 0
   total_plans: 4
-  completed_plans: 1
+  completed_plans: 2
 ---
 
 # Project State
@@ -29,8 +29,8 @@ See: .planning/PROJECT.md (updated 2026-08-28)
 ## Current Position
 
 Phase: 19 (Data Layer Cutover) — IN PROGRESS
-Plan: 02 of 4 complete (19-01 done)
-Status: Executing
+Plan: 3 of 4 complete (19-01 done)
+Status: Ready to execute
 Last activity: 2026-08-28 — Completed 19-01 migrate engine plan
 
 Progress: [██░░░░░░░░] 25%
@@ -96,6 +96,7 @@ Progress: [██░░░░░░░░] 25%
 | Phase 18 P02 | 3min | 2 tasks | 4 files |
 | Phase 18 P03 | 12min | 3 tasks | 6 files |
 | Phase 19 P01 | 5 | 3 tasks | 11 files |
+| Phase 19-data-layer-cutover P02 | 10min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -178,6 +179,8 @@ Recent decisions affecting current work:
 - [Phase 18]: General project updates use action update with full snapshots; code_change and stage_change_ack remain separate
 - [Phase 18]: Checklist uses action status_change when status or confluence_url differs; otherwise action update
 - [Phase 19]: Ported origin migrate runner/ledger pattern verbatim; probe SQL for Postgres test; no origin 0001 SQL (D-02)
+- [Phase 19]: Regenerated 0001 from lib/db.ts + exports; origin v1.0 SQL not copied (D-02)
+- [Phase 19]: MAPPING_TENANT_DDL excludes CROSS JOIN backfill — operator scripts in 19-03
 
 ### Pending Todos
 
@@ -201,8 +204,8 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-08-28T05:45:51.710Z
-Stopped at: Completed 19-01-PLAN.md
+Last session: 2026-08-28T05:51:54.503Z
+Stopped at: Completed 19-02-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
