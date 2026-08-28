@@ -6,6 +6,7 @@ import { AlertTriangle } from 'lucide-react';
 import Sidebar from '@/components/layout/Sidebar';
 import { Badge } from '@/components/ui/badge';
 import type { WeeklyRag } from '../shared/types';
+import { WeeklyReportForm } from './WeeklyReportForm';
 import { useWeeklyReportEditor } from './useWeeklyReportEditor';
 
 const ERROR_COPY = {
@@ -53,7 +54,8 @@ export default function WeeklyReportEditorPage() {
   const params = useParams<{ id?: string; projectId?: string; reportId: string }>();
   const projectId = params.id ?? params.projectId ?? '';
   const reportId = params.reportId;
-  const { shell, projectName, loading, error } = useWeeklyReportEditor(projectId, reportId);
+  const { shell, projectName, loading, error, editable, fieldErrors, patchField } =
+    useWeeklyReportEditor(projectId, reportId);
 
   if (loading) {
     return (
@@ -131,6 +133,13 @@ export default function WeeklyReportEditorPage() {
             <RagBadge rag={shell.prev_week_rag} />
           </div>
         </header>
+
+        <WeeklyReportForm
+          shell={shell}
+          editable={editable}
+          fieldErrors={fieldErrors}
+          onPatchField={patchField}
+        />
       </main>
     </div>
   );
