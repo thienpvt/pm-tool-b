@@ -43,4 +43,44 @@ describe('weekly module split contract (24-03)', () => {
     const source = readUtf8('app/projects/[id]/weekly-reports/[reportId]/page.tsx');
     expect(source).toContain('modules/weekly/ui/report/WeeklyReportEditorPage');
   });
+
+  it('P2: app/api/weekly-periods/config/route.ts re-exports GET and PUT from module route', () => {
+    const source = readUtf8('app/api/weekly-periods/config/route.ts');
+    expect(source).toMatch(
+      /export\s*\{\s*GET\s*,\s*PUT\s*\}\s*from\s*['"]@\/modules\/weekly\/backend\/routes\/weekly-periods\/config\/route['"]/,
+    );
+  });
+
+  it('P2: app/api/weekly-periods/[periodId]/tracking/route.ts re-exports GET from module route', () => {
+    const source = readUtf8('app/api/weekly-periods/[periodId]/tracking/route.ts');
+    expect(source).toMatch(
+      /export\s*\{\s*GET\s*\}\s*from\s*['"]@\/modules\/weekly\/backend\/routes\/weekly-periods\/\[periodId\]\/tracking\/route['"]/,
+    );
+  });
+
+  it('P2: app/api/weekly-periods/[periodId]/export/route.ts re-exports POST from module route', () => {
+    const source = readUtf8('app/api/weekly-periods/[periodId]/export/route.ts');
+    expect(source).toMatch(
+      /export\s*\{\s*POST\s*\}\s*from\s*['"]@\/modules\/weekly\/backend\/routes\/weekly-periods\/\[periodId\]\/export\/route['"]/,
+    );
+  });
+
+  it('P2: app/api/weekly-periods/[periodId]/export/preview/route.ts re-exports POST from module route', () => {
+    const source = readUtf8('app/api/weekly-periods/[periodId]/export/preview/route.ts');
+    expect(source).toMatch(
+      /export\s*\{\s*POST\s*\}\s*from\s*['"]@\/modules\/weekly\/backend\/routes\/weekly-periods\/\[periodId\]\/export\/preview\/route['"]/,
+    );
+  });
+
+  it('D-03: lib/dashboards/period-resolver.ts imports WeeklyPeriodRow from module repo', () => {
+    const source = readUtf8('lib/dashboards/period-resolver.ts');
+    expect(source).toContain('@/modules/weekly/backend/repositories/weekly-periods.repo');
+    expect(source).not.toContain('@/lib/repositories/weekly-periods.repo');
+  });
+
+  it('D-03: lib/dashboards/period-resolver.unit.test.ts imports WeeklyPeriodRow from module repo', () => {
+    const source = readUtf8('lib/dashboards/period-resolver.unit.test.ts');
+    expect(source).toContain('@/modules/weekly/backend/repositories/weekly-periods.repo');
+    expect(source).not.toContain('@/lib/repositories/weekly-periods.repo');
+  });
 });
