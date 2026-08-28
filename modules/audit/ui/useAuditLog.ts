@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { AuditFilters, AuditLogRow } from '@/modules/documents/ui/shared/types';
 
 export type AuditLogError = 'unauthorized' | 'forbidden' | 'load_failed';
@@ -25,8 +25,10 @@ export function useAuditLog() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<AuditLogError | null>(null);
+  const loadSeqRef = useRef(0);
 
   const load = useCallback(async (nextFilters: AuditFilters = { limit: DEFAULT_LIMIT }, isRefresh = false) => {
+    const requestId = ++loadSeqRef.current;
     const applied = { limit: DEFAULT_LIMIT, ...nextFilters };
     if (isRefresh) {
       setRefreshing(true);
@@ -35,6 +37,7 @@ export function useAuditLog() {
     }
     try {
       const res = await fetch(`/api/audit${buildAuditQuery(applied)}`);
+      if (requestId !== loadSeqRef.current) return { ok: false as const, status: 0 };
       if (res.status === 401) {
         setError('unauthorized');
         setData(null);
@@ -51,19 +54,23 @@ export function useAuditLog() {
         return { ok: false as const, status: res.status };
       }
       const rows = (await res.json()) as AuditLogRow[];
+      if (requestId !== loadSeqRef.current) return { ok: false as const, status: 0 };
       setData(rows);
       setFilters(applied);
       setError(null);
       return { ok: true as const, status: 200 };
     } catch {
+      if (requestId !== loadSeqRef.current) return { ok: false as const, status: 0 };
       setError('load_failed');
       setData(null);
       return { ok: false as const, status: 0 };
     } finally {
-      if (isRefresh) {
-        setRefreshing(false);
-      } else {
-        setLoading(false);
+      if (requestId === loadSeqRef.current) {
+        if (isRefresh) {
+          setRefreshing(false);
+        } else {
+          setLoading(false);
+        }
       }
     }
   }, []);

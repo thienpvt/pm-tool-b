@@ -96,6 +96,74 @@ describe('AuditLogPage', () => {
     });
   });
 
+  it('ignores stale audit GET when filters change quickly', async () => {
+    const catalogRows = auditRowsFixture.filter((r) => r.entity_type === 'document_catalog');
+    const checklistRows = auditRowsFixture.filter(
+      (r) => r.entity_type === 'project_document_checklist',
+    );
+
+    const pending: Record<string, (value: unknown) => void> = {};
+    fetchMock = vi.fn((url: string) => {
+      if (typeof url === 'string' && url.startsWith('/api/audit')) {
+        return new Promise((resolve) => {
+          pending[url] = (value) =>
+            resolve({
+              ok: true,
+              status: 200,
+              json: () => Promise.resolve(value),
+            });
+        });
+      }
+      return Promise.reject(new Error(`unexpected fetch: ${url}`));
+    }) as unknown as typeof fetch;
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<AuditLogPage />);
+
+    const initialUrl = fetchMock.mock.calls.find(
+      ([url]) => typeof url === 'string' && url.startsWith('/api/audit'),
+    )![0] as string;
+    pending[initialUrl]!(auditRowsFixture);
+
+    await waitFor(() => expect(screen.getByLabelText('Entity type')).toBeInTheDocument());
+
+    fireEvent.change(screen.getByLabelText('Entity type'), {
+      target: { value: 'document_catalog' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Apply filters' }));
+
+    fireEvent.change(screen.getByLabelText('Entity type'), {
+      target: { value: 'project_document_checklist' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Apply filters' }));
+
+    const checklistUrl = fetchMock.mock.calls.find(
+      ([url]) =>
+        typeof url === 'string' &&
+        url.includes('entity_type=project_document_checklist'),
+    )![0] as string;
+    const catalogUrl = fetchMock.mock.calls.find(
+      ([url]) =>
+        typeof url === 'string' &&
+        url.includes('entity_type=document_catalog') &&
+        url !== initialUrl,
+    )![0] as string;
+
+    pending[checklistUrl]!(checklistRows);
+
+    await waitFor(() => {
+      expect(screen.getByText('update')).toBeInTheDocument();
+      expect(screen.queryByText('create')).not.toBeInTheDocument();
+    });
+
+    pending[catalogUrl]!(catalogRows);
+
+    await waitFor(() => {
+      expect(screen.getByText('update')).toBeInTheDocument();
+      expect(screen.queryByText('create')).not.toBeInTheDocument();
+    });
+  });
+
   it('shows actor_id and action for fixture rows', async () => {
     render(<AuditLogPage />);
     resolveAudit!(auditRowsFixture);
