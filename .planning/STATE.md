@@ -4,17 +4,17 @@ milestone: v2.1
 milestone_name: Hardening & Deferred Debt
 current_phase: 21
 current_phase_name: Portfolio & PM Dashboard Pages
-status: executing
-stopped_at: Completed 21-04-PLAN.md
-last_updated: "2026-08-28T08:52:13.796Z"
+status: verifying
+stopped_at: Completed 21-03-PLAN.md
+last_updated: "2026-08-28T09:00:06.361Z"
 last_activity: 2026-08-28
 last_activity_desc: Phase 21 execution started
-state_head: e5744fee3db7ea9d85d99c0102271438ce9b3bbc
+state_head: 7a4cd40d290a12bfbe2b2923ce9a8e28451a7f92
 progress:
   total_phases: 9
   completed_phases: 2
   total_plans: 15
-  completed_plans: 14
+  completed_plans: 15
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-08-28)
 
 Phase: 21 (Portfolio & PM Dashboard Pages) — EXECUTING
 Plan: 4 of 4
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-08-28 — Phase 21 execution started
 
 Progress: [██░░░░░░░░] 25%
@@ -109,6 +109,7 @@ Progress: [██░░░░░░░░] 25%
 | Phase 21-portfolio-pm-dashboard-pages P01 | 8min | 3 tasks | 9 files |
 | Phase 21-portfolio-pm-dashboard-pages P02 | 6min | 3 tasks | 5 files |
 | Phase 21-portfolio-pm-dashboard-pages P04 | 4 | 3 tasks | 6 files |
+| Phase 21-portfolio-pm-dashboard-pages P03 | 12min | 3 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -213,6 +214,7 @@ Recent decisions affecting current work:
 - [Phase 21]: 403/401/5xx in-page Copywriting only; no client role skip before GET (D-09)
 - [Phase 21]: PmFiltersBar duplicated from portfolio with pm-filter-bar test id and /api/dashboards/pm/filters routes
 - [Phase 21]: visibilitychange visible triggers load(true) so resolved queue rows drop after deep-link return (D-11)
+- [Phase 21]: Drill-down data from initial GET only; CSS charts in modules/dashboards/ui; export via server POST blob
 
 ### Pending Todos
 
@@ -236,8 +238,8 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-08-28T08:52:13.521Z
-Stopped at: Completed 21-04-PLAN.md
+Last session: 2026-08-28T09:00:06.089Z
+Stopped at: Completed 21-03-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
