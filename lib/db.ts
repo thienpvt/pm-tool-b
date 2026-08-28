@@ -579,7 +579,7 @@ async function seedAuthData(db: DbClient) {
 // without TLS, `?sslmode=require` or omit it for managed/cloud Postgres).
 //   Fallback: if `sslmode` isn't set at all, disable TLS for railway.internal
 //   (already-deployed Railway URLs), localhost, and private LAN hosts.
-function resolveSsl(databaseUrl: string): false | { rejectUnauthorized: boolean } {
+export function resolveSsl(databaseUrl: string): false | { rejectUnauthorized: boolean } {
   const url = new URL(databaseUrl);
   const sslmode = url.searchParams.get('sslmode');
   if (sslmode) return sslmode === 'disable' ? false : { rejectUnauthorized: false };

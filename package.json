@@ -8,7 +8,8 @@
     "start": "next start",
     "test": "vitest run",
     "lint": "eslint",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "migrate": "npx tsx scripts/migrate.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.92.0",
@@ -45,6 +46,7 @@
     "eslint-config-next": "16.2.4",
     "jsdom": "30.0.1",
     "tailwindcss": "^4",
+    "tsx": "4.23.12",
     "typescript": "^5",
     "vitest": "4.1.10"
   }
