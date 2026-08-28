@@ -17,7 +17,7 @@ const KPI_TILES = [
 ];
 
 export default function PortfolioDashboardPage() {
-  const { data, loading, refreshing, saveFilters } = usePortfolioSpecDashboard();
+  const { data, loading, refreshing, saveFilters, clearFilters } = usePortfolioSpecDashboard();
 
   if (loading) {
     return (
@@ -45,6 +45,8 @@ export default function PortfolioDashboardPage() {
           list={data.list}
           refreshing={refreshing}
           onApply={saveFilters}
+          onClear={() => clearFilters('clear')}
+          onReset={() => clearFilters('defaults')}
         />
         <div
           data-testid="spec-kpi-row"

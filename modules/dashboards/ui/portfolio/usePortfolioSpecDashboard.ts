@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import type { DashboardFilters } from '@/lib/dashboards/filters';
 import type { PortfolioDashboardPayload } from '@/modules/dashboards/ui/shared/types';
 
@@ -51,7 +52,26 @@ export function usePortfolioSpecDashboard() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(filters),
       });
-      if (!res.ok) return;
+      if (!res.ok) {
+        toast.error("Couldn't save filters — try again.");
+        return;
+      }
+      await load(true);
+    },
+    [load],
+  );
+
+  const clearFilters = useCallback(
+    async (action: 'clear' | 'defaults') => {
+      const res = await fetch('/api/dashboards/portfolio/filters', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      });
+      if (!res.ok) {
+        toast.error("Couldn't save filters — try again.");
+        return;
+      }
       await load(true);
     },
     [load],
@@ -61,5 +81,5 @@ export function usePortfolioSpecDashboard() {
     load(false);
   }, [load]);
 
-  return { data, loading, refreshing, error, load, saveFilters };
+  return { data, loading, refreshing, error, load, saveFilters, clearFilters };
 }

@@ -5,6 +5,14 @@ import PortfolioDashboardPage from './PortfolioDashboardPage';
 vi.mock('next/navigation', () => ({ usePathname: () => '/dashboards/portfolio' }));
 vi.mock('@/components/layout/Sidebar', () => ({ default: () => <nav data-testid="sidebar" /> }));
 
+const toastError = vi.fn();
+vi.mock('sonner', () => ({
+  toast: {
+    error: (...args: unknown[]) => toastError(...args),
+    success: vi.fn(),
+  },
+}));
+
 const portfolioFixture = {
   filters: { stage: 'L2' },
   kpis: {
@@ -74,6 +82,9 @@ function setupDefaultFetch() {
     if (url === '/api/dashboards/portfolio/filters' && init?.method === 'PUT') {
       return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ ok: true }) });
     }
+    if (url === '/api/dashboards/portfolio/filters' && init?.method === 'POST') {
+      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ ok: true }) });
+    }
     return Promise.reject(new Error(`unexpected fetch: ${url} ${init?.method ?? 'GET'}`));
   }) as unknown as typeof fetch;
   vi.stubGlobal('fetch', fetchMock);
@@ -81,6 +92,7 @@ function setupDefaultFetch() {
 
 beforeEach(() => {
   resolvePortfolio = null;
+  toastError.mockClear();
   setupDefaultFetch();
 });
 
@@ -176,5 +188,67 @@ describe('PortfolioDashboardPage', () => {
       expect(JSON.parse((putCall![1] as RequestInit).body as string)).toMatchObject({ stage: 'L2' });
       expect(getCount).toBeGreaterThanOrEqual(2);
     });
+  });
+
+  it('Clear filters POSTs action clear then refetches GET', async () => {
+    render(<PortfolioDashboardPage />);
+    resolvePortfolio!(portfolioFixture);
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Clear filters' })).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear filters' }));
+
+    await waitFor(() => {
+      const postCall = fetchMock.mock.calls.find(
+        ([u, i]) => u === '/api/dashboards/portfolio/filters' && (i as RequestInit)?.method === 'POST',
+      );
+      expect(postCall).toBeTruthy();
+      expect(JSON.parse((postCall![1] as RequestInit).body as string)).toEqual({ action: 'clear' });
+    });
+  });
+
+  it('Reset defaults POSTs action defaults then refetches GET', async () => {
+    render(<PortfolioDashboardPage />);
+    resolvePortfolio!(portfolioFixture);
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Reset defaults' })).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reset defaults' }));
+
+    await waitFor(() => {
+      const postCall = fetchMock.mock.calls.find(
+        ([u, i]) =>
+          u === '/api/dashboards/portfolio/filters' &&
+          (i as RequestInit)?.method === 'POST' &&
+          JSON.parse((i as RequestInit).body as string).action === 'defaults',
+      );
+      expect(postCall).toBeTruthy();
+    });
+  });
+
+  it('shows toast.error and retains prior stage when PUT fails', async () => {
+    fetchMock = vi.fn((url: string, init?: RequestInit) => {
+      if (url === '/api/dashboards/portfolio' && (!init || !init.method || init.method === 'GET')) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(portfolioFixture),
+        });
+      }
+      if (url === '/api/dashboards/portfolio/filters' && init?.method === 'PUT') {
+        return Promise.resolve({ ok: false, status: 500, json: () => Promise.resolve({}) });
+      }
+      return Promise.reject(new Error(`unexpected fetch: ${url}`));
+    }) as unknown as typeof fetch;
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<PortfolioDashboardPage />);
+    await waitFor(() => expect(screen.getByLabelText('Stage')).toHaveValue('L2'));
+
+    fireEvent.change(screen.getByLabelText('Stage'), { target: { value: 'L3' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Apply filters' }));
+
+    await waitFor(() => {
+      expect(toastError).toHaveBeenCalledWith("Couldn't save filters — try again.");
+    });
+    expect(screen.getByLabelText('Stage')).toHaveValue('L3');
   });
 });

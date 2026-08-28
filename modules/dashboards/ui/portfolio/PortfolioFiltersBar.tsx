@@ -28,6 +28,8 @@ type PortfolioFiltersBarProps = {
   refreshing: boolean;
   disabled?: boolean;
   onApply: (filters: DashboardFilters) => void | Promise<void>;
+  onClear: () => void | Promise<void>;
+  onReset: () => void | Promise<void>;
 };
 
 function str(value: unknown): string {
@@ -70,6 +72,8 @@ export function PortfolioFiltersBar({
   refreshing,
   disabled,
   onApply,
+  onClear,
+  onReset,
 }: PortfolioFiltersBarProps) {
   const [draft, setDraft] = useState<DashboardFilters>(filters);
 
@@ -282,6 +286,24 @@ export function PortfolioFiltersBar({
           onClick={() => onApply(buildPayload(draft))}
         >
           Apply filters
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          className="h-8"
+          disabled={disabled || refreshing}
+          onClick={onClear}
+        >
+          Clear filters
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          className="h-8"
+          disabled={disabled || refreshing}
+          onClick={onReset}
+        >
+          Reset defaults
         </Button>
       </div>
     </Card>

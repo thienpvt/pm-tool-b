@@ -30,6 +30,8 @@ describe('PortfolioFiltersBar', () => {
         list={listFixture}
         refreshing={false}
         onApply={vi.fn()}
+        onClear={vi.fn()}
+        onReset={vi.fn()}
       />,
     );
 
@@ -43,6 +45,8 @@ describe('PortfolioFiltersBar', () => {
     expect(screen.getByLabelText('Type')).toBeInTheDocument();
     expect(screen.getByLabelText('Weekly report')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Apply filters' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Clear filters' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Reset defaults' })).toBeInTheDocument();
   });
 
   it('pre-selects Stage from filters prop on mount', () => {
@@ -52,6 +56,8 @@ describe('PortfolioFiltersBar', () => {
         list={listFixture}
         refreshing={false}
         onApply={vi.fn()}
+        onClear={vi.fn()}
+        onReset={vi.fn()}
       />,
     );
 
@@ -65,6 +71,8 @@ describe('PortfolioFiltersBar', () => {
         list={listFixture}
         refreshing
         onApply={vi.fn()}
+        onClear={vi.fn()}
+        onReset={vi.fn()}
       />,
     );
 
@@ -79,6 +87,8 @@ describe('PortfolioFiltersBar', () => {
         list={listFixture}
         refreshing={false}
         onApply={onApply}
+        onClear={vi.fn()}
+        onReset={vi.fn()}
       />,
     );
 
@@ -86,5 +96,26 @@ describe('PortfolioFiltersBar', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Apply filters' }));
 
     expect(onApply).toHaveBeenCalledWith({ stage: 'L2' });
+  });
+
+  it('calls onClear and onReset', () => {
+    const onClear = vi.fn();
+    const onReset = vi.fn();
+    render(
+      <PortfolioFiltersBar
+        filters={{}}
+        list={listFixture}
+        refreshing={false}
+        onApply={vi.fn()}
+        onClear={onClear}
+        onReset={onReset}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear filters' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Reset defaults' }));
+
+    expect(onClear).toHaveBeenCalled();
+    expect(onReset).toHaveBeenCalled();
   });
 });
