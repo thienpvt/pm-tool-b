@@ -11,7 +11,7 @@ export default defineConfig({
         test: {
           name: 'node',
           environment: 'node',
-          include: ['{lib,app,eslint}/**/*.test.ts'],
+          include: ['{lib,app,eslint,modules}/**/*.test.ts'],
           exclude: ['lib/log.test.ts'],
         },
       },
@@ -21,8 +21,8 @@ export default defineConfig({
           name: 'jsdom',
           environment: 'jsdom',
           include: [
-            '{components,app}/**/*.test.tsx',
-            '{components,app}/**/*.component.test.tsx',
+            '{components,app,modules}/**/*.test.tsx',
+            '{components,app,modules}/**/*.component.test.tsx',
           ],
           setupFiles: ['./test/setup-jsdom.ts'],
         },
