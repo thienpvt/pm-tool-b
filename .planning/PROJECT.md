@@ -74,12 +74,12 @@ v2.0 remainder (no React consumers of v2 APIs, no repo-wide module split, Kysely
 - ✓ ENF-01 — ESLint `require-auth-wrapper` + allowlist file; `npm run lint` in CI — Phase 20
 - ✓ THIN-01 — Ops/admin/config/import-mapping through services; D-23 break-glass unchanged — Phase 20
 - ✓ PDSH-07 / MDSH-06 / NIT-04 — Spec portfolio + PM dashboard pages in `modules/dashboards/ui/`; fiscal KPIs omitted (live on `/portfolio/budget`) — Phase 21
+- ✓ PERD-04 / WKRP-07 / CPMO-05 / PERF-01 — Weekly periods, PM editor, tracking/export, in-repo VirtualRows in `modules/weekly/ui/` — Phase 22
 - [ ] ENF-02 — Repositories adopt Kysely over raw `pg.Pool` so column allowlists are compile-time
-- [ ] PERF-01 — Large grids are virtualized
 - [ ] PERF-02 — Static page chrome moves to server components
 - [ ] PERF-03 — Cold-start time is measured and budgeted
 - [ ] HYG-02 — Operator confirms Anthropic malformed-output 502 vs old 500 (checkpoint, not a rewrite unless rejected)
-- [ ] UI-WEEK / UI-DOC / UI-AUDIT — React consumers for weekly reports, document checklist, audit viewer, each in that module's UI dir
+- [ ] UI-DOC / UI-AUDIT — React consumers for document checklist and audit viewer, each in that module's UI dir
 - [ ] NIT-01 — Wire or remove unused `listPeriodShells` / `listOpenProjectDependencies`
 - [ ] NIT-02 — Fiscal KPIs on portfolio dashboard if they belong; no-op milestone PATCH audit noise; v1 `budget_items` coexistence resolved or documented
 - [ ] NYQ-01 — Nyquist `validate-phase` pass on draft VALIDATION.md files
@@ -99,9 +99,9 @@ v2.0 remainder (no React consumers of v2 APIs, no repo-wide module split, Kysely
 
 **Shipped:** v2.0 Portfolio One View (2026-08-26) — Phases 9–18, 40 plans. Archive: `.planning/milestones/`. Audit: `tech_debt` (79/79 requirements, UI deferred).
 
-**Now:** v2.1 Hardening & Deferred Debt — Phase 22 Weekly Workflow Surfaces.
+**Now:** v2.1 Hardening & Deferred Debt — Phase 23 Document Checklist & Audit Viewer.
 
-CPMO/PM/Viewer is enforced on spec APIs. Weekly, fiscal, dashboards, Confluence checklist, and company-scoped append-only audit are server-gated. Schema evolution is an external `npm run migrate` job; `getDb()` connects, asserts the ledger, and seeds only. Ops/admin/config/import-mapping routes go through services. Spec portfolio and PM dashboards have React consumers in `modules/dashboards/ui/`. Feature code is not yet split backend-vs-UI per module across the repo.
+CPMO/PM/Viewer is enforced on spec APIs. Weekly, fiscal, dashboards, Confluence checklist, and company-scoped append-only audit are server-gated. Schema evolution is an external `npm run migrate` job; `getDb()` connects, asserts the ledger, and seeds only. Ops/admin/config/import-mapping routes go through services. Spec portfolio, PM dashboards, and weekly workflow have React consumers in `modules/dashboards/ui/` and `modules/weekly/ui/`. Feature code is not yet split backend-vs-UI per module across the repo.
 
 ## Next Milestone Goals
 
@@ -153,6 +153,8 @@ This milestone:
 | Kysely in v2.1 (ENF-02) | Allowlists stay; compile-time column safety. Still no Prisma / second ORM / Postgres replacement | — Pending |
 | INTG-08 evidence before deleting dead Jira helpers | Resolver live paths already matched; deletion gated on `verify-credential-cutover.ts` | Closed Phase 8 (`e0b2cea`) |
 | Spec as source of truth for v2.0 | Bank PPM requirements are the product; existing screens that already match stay, mismatches change | Shipped Phases 9–18 (PR-01..15 + AUDIT-01) |
+| Spec dashboard pages consume Phase 16 APIs only | Do not mix `/api/portfolio` or overwrite `/` and `/dashboard` | Shipped Phase 21 |
+| In-repo VirtualRows, no new npm | PERF-01 at ~100+ rows without `@tanstack/react-virtual`; Phase 16 weekly hrefs kept | Shipped Phase 22 |
 | Keep Jira / AI / Excel-PPT-Word export | Spec does not replace those integrations; they remain differentiators beside One View | Kept — not rewritten |
 | Keep existing `audit_logs` + INSERT `auditLog` | Second table would dual-write; column `company_id` already existed | Shipped Phase 18 (D-01, D-10 skip migrate) |
 | GET `/api/audit` withCpmo + `assertCompanyWrite` | Company-scoped SELECT; PM/Viewer/null-company 403; INSERT+SELECT only | Shipped Phase 18 (D-04..D-07) |
@@ -182,4 +184,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-08-28 after Phase 21*
+*Last updated: 2026-08-28 after Phase 22*

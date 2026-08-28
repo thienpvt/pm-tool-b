@@ -199,7 +199,8 @@ export function TrackingFiltersBar({ rows, disabled, onApply }: Props) {
 
         <Button
           type="button"
-          className="bg-blue-600 hover:bg-blue-700 h-8"
+          variant="outline"
+          className="h-8"
           disabled={disabled}
           onClick={() => onApply(buildFilters(draft))}
         >

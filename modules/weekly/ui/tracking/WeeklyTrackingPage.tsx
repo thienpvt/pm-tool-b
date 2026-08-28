@@ -179,11 +179,6 @@ function WeeklyTrackingContent() {
               </option>
             ))}
           </select>
-          <ExportToolbar
-            selectedIds={selectedIds}
-            exporting={exporting}
-            onExport={handleExport}
-          />
         </div>
 
         {data && (
@@ -200,6 +195,13 @@ function WeeklyTrackingContent() {
               selectedIds={selectedIds}
               onSelectionChange={setSelectedIds}
             />
+            <div className="mt-4">
+              <ExportToolbar
+                selectedIds={selectedIds}
+                exporting={exporting}
+                onExport={handleExport}
+              />
+            </div>
           </>
         )}
       </main>
