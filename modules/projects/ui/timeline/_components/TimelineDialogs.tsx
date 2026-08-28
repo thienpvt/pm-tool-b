@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { CalendarX2, Plus, Trash2, Eye, Copy, FolderPlus } from 'lucide-react';
 import ImportMappingDialog from '@/components/timeline/ImportMappingDialog';
-import JiraSyncDialog from '@/components/jira/JiraSyncDialog';
+import JiraSyncDialog from '@/modules/jira/ui/JiraSyncDialog';
 import type { Activity, TeamMember, Holiday, ContextMenuState } from '../types';
 import { ActivityDetail } from './ActivityDetail';
 

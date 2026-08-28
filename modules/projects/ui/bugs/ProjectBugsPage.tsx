@@ -10,8 +10,8 @@ import {
   Upload, Bug, Clock, RefreshCw, ChevronLeft, ChevronRight,
   FlaskConical, Sparkles, Calendar, Trash2, History, Download,
 } from 'lucide-react';
-import BugImportDialog from '@/components/bugs/BugImportDialog';
-import JiraSyncDialog from '@/components/jira/JiraSyncDialog';
+import BugImportDialog from '@/modules/jira/ui/BugImportDialog';
+import JiraSyncDialog from '@/modules/jira/ui/JiraSyncDialog';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
