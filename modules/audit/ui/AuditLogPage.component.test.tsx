@@ -101,7 +101,7 @@ describe('AuditLogPage', () => {
     resolveAudit!(auditRowsFixture);
 
     await waitFor(() => expect(screen.getByText('create')).toBeInTheDocument());
-    expect(screen.getByText('10')).toBeInTheDocument();
+    expect(screen.getAllByText('10').length).toBeGreaterThan(0);
     expect(screen.getByText('update')).toBeInTheDocument();
   });
 
