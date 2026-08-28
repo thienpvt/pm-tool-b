@@ -1,203 +1,234 @@
 # Project Research Summary
 
-**Project:** PM Tool B — Portfolio One View (v2.0)
-**Domain:** Bank PPM / enterprise portfolio management on brownfield Next.js 16
-**Researched:** 2026-08-25
+**Project:** PM Tool B — Portfolio One View (v2.1 Hardening & Deferred Debt)
+**Domain:** Brownfield Next.js 16 multi-tenant PPM — engineering debt closure, module restructure, v2 UI consumers
+**Researched:** 2026-08-28
 **Confidence:** HIGH
 
 ## Executive Summary
 
-PM Tool B v2.0 is not a greenfield build — it is a **spec-compliance pass** on a validated v1.0 stack (Next.js 16.2.4, React 19, PostgreSQL/`pg`, route→service→repository layers, Vitest 4). The GuiIT Portfolio One View spec defines a bank-grade PPM product: three fixed roles (CPMO / PM / Viewer), L0–L5 project lifecycle, a RAID register as single master with immutable weekly-report snapshots, CPMO-owned reporting periods, and Confluence-only document compliance. Enterprise PPM tools (Planview, Clarity, Smartsheet PMO templates) converge on the same shape; this spec is tighter on governance, audit, and snapshot immutability than generic PPM.
+PM Tool B v2.1 is a **brownfield hardening milestone**, not a product expansion. v2.0 shipped PR-01..PR-15 and AUDIT-01 at the API/service gate (`ui_phase: false`); v2.1 makes the repo deploy-safe, maintainable, performant, and **product-complete** by wiring React consumers to existing APIs, externalizing schema evolution, and reorganizing every feature area into `modules/<feature>/{backend,ui}` with thin `app/` re-exports.
 
-The recommended approach is **additive brownfield extension**: keep the v1.0 stack and integrations (Jira, Anthropic AI, Excel/PPT/Word export); add one runtime dependency (`date-fns` for period math); extend authorization from `is_admin + company_id` to multi-role union with project-scoped PM assignment; introduce new tables for weekly-report versions, snapshots, audit, and PM assignments; and build a **parallel weekly-report product surface** — not an enhancement of the existing activity-weighted report pages. Jira/AI/export remain differentiators alongside spec compliance, never substitutes for PR-11 structured submit.
+Experts build mature brownfield PPM apps in three parallel tracks after an API-first delivery: **operational** (decouple schema from request path via versioned SQL + external migrate job), **structural** (domain modules with backend/UI colocation while preserving App Router URL conventions), and **surface completion** (dashboard, weekly cadence, document checklist, audit viewer screens users expect). The recommended approach preserves the validated v2.0 stack (Next.js 16.2.4, React 19, PostgreSQL via `pg`, Vitest 4, layered auth) and adds only targeted dependencies: `kysely@0.29.5`, `@tanstack/react-virtual@3.14.10`, pinned `tsx@4.23.12`, `kysely-codegen@0.20.0`, and a local ESLint rule for wrapper enforcement.
 
-The highest risks are authorization migration (naive `is_admin` → CPMO swap leaks cross-tenant data), RAID/report divergence (second source of truth if snapshots are skipped), and submitted-report mutability (current document PUT overwrites history). Mitigate with route-by-route role migration, master-register + snapshot-on-submit transactions, versioned immutable submit, typed ROI (`insufficient_data` not 0%), soft-delete everywhere, and server-side authz tests per role before any UI ships.
+The **critical path is DATA-01..03 as a single Phase 19 task**: replay the migration runner/ledger pattern from `origin/gsd/quick-260826-ded-data-layer-migrations`, **regenerate** `migrations/0001-baseline-schema.sql` from current v2.0 schema (never merge the branch as-is — its baseline omits weekly, fiscal, roles, RAID master, dashboard, checklist, and audit tables), slim `getDb()` to connect + `assertMigrated` + seed only, and wire `npm run migrate` in deploy pipelines. Everything else — Kysely types, cold-start budgets, module moves, v2 UI — depends on or benefits from this cutover. Top risks: stale baseline merge (production outage on missing v2 tables), stripping boot DDL before every environment has run external migrate (empty-schema 500s), MOD-01 breaking App Router without thin `app/` shells (404s), and THIN-01 misapplying D-23 gate semantics on ops/admin routes. Mitigate with brownfield ledger stamping, mandatory re-export invariants, route gate inventory, and dual CI matrix (empty DB + brownfield fixture).
 
 ## Key Findings
 
 ### Recommended Stack
 
-v1.0 stack is fixed — do not swap frameworks, ORMs, or auth libraries. v2.0 adds **schema patterns and one npm package**, not a replatform.
+v2.0 stack is **fixed** — no framework swap. v2.1 adds compile-time repo safety, grid virtualization, and external migration CLI on top of the existing `pg.Pool` singleton.
 
 **Core technologies (unchanged):**
-- **Next.js 16.2.4 / React 19.2.4** — extend routes/services on validated App Router layers
-- **PostgreSQL + `pg` ^8.20** — relational integrity, JSONB snapshots, BIGINT VND amounts (string in TS, never `parseInt8`)
-- **Zod ^4.4.3** — extend boundary schemas for roles, email, Confluence HTTPS URLs
-- **Node `crypto` + scrypt sessions** — extend session payload with roles/status; no next-auth
-- **Vitest 4** — RBAC 403 matrix, snapshot immutability, ROI edge cases (HYG-03 gate)
+- **Next.js 16.2.4** — App Router, `proxy.ts`, RSC layouts; no middleware migration
+- **React 19.2.4** — UI host for `@tanstack/react-virtual`
+- **PostgreSQL + `pg@^8.20.0`** — single pool shared by `DbClient` and Kysely during ENF-02 rollout
+- **Vitest 4.1.10** — extended for migration runner, wrapper lint, cold-start script tests
 
-**Stack additions:**
-- **`date-fns` ^4.4.0** — CPMO weekly period bounds, ISO week IDs, fiscal-year labels; replace ad-hoc `getWeekBounds()` math
-- **PostgreSQL schema patterns** — `user_roles` multi-role union; `weekly_report_periods` / `weekly_report_submissions` / immutable JSONB snapshots; append-only `audit_logs`; `BIGINT` budget columns; `company_id` on four mapping tables (TENANT-01)
+**New runtime dependencies:**
+- **kysely@0.29.5** — type-safe query builder over existing pool; compile-time column picks replace string allowlists (ENF-02)
+- **@tanstack/react-virtual@3.14.10** — headless row virtualization for timeline, admin, audit grids (PERF-01)
 
-**Explicitly avoid:** CASL/accesscontrol/casbin (3 static roles), Prisma/Drizzle/Kysely, decimal.js (integer VND), multer/S3 (no file upload), json-diff libraries, background job queues.
+**New dev dependencies:**
+- **tsx@4.23.12** (pinned) — migration CLI + cold-start script; never bare `npx tsx` in Docker/CI
+- **kysely-codegen@0.20.0** — generate `Database` interface after migrate
+- **@typescript-eslint/utils@^8.68.0** — local ESLint rule `pm-tool/require-auth-wrapper` (ENF-01)
+
+**Migration stack:** Custom runner from origin branch (advisory lock, checksum ledger, drift detection) — **reject** `node-pg-migrate`. Regenerate baseline SQL; move boot UPDATE/backfill to `scripts/data-fixes/`.
 
 ### Expected Features
 
-**Must have (table stakes — missing or wrong shape today):**
-- **PR-01/PR-02** — CPMO/PM/Viewer multi-role union, account lifecycle (Active/Inactive/Locked), server-side authz on every route
-- **PR-03** — L0–L5 project master, status/RAG coupling, weekly-report obligation flag
-- **PR-04** — Primary PM + collaborators with history; assignment drives PM scope
-- **PR-07** — Milestone overdue/upcoming rules + snapshot immutability after report
-- **PR-09** — RAID register as master; draft buffer syncs to master on submit only
-- **PR-10/PR-11/PR-12** — CPMO period config, PM structured submit with versioned snapshots, late/on-time tracking & consolidation
-- **PR-13/PR-14** — Spec-defined portfolio KPIs and PM action queue dashboards
-- **PR-08** — Fiscal-year budget, adjustment ledger, ROI with `insufficient_data` state
-- **PR-05/PR-15** — Stakeholders with effective dates; Confluence checklist (no binary upload)
-- **TENANT-01** — `company_id` on four global mapping tables
+**Must have (table stakes — P1):**
+- **DATA-01..03** — External migrate; app connects only; versioned SQL; one-off data-fix scripts
+- **UI-DASH, UI-WEEK, UI-DOC, UI-AUDIT** — React consumers for spec APIs (product completeness)
+- **MOD-01** — Repo-wide `modules/<feature>/{backend,ui}` with thin `app/` re-exports
+- **THIN-01 + PROXY-01 + JIRA-01** — Service-layer completion, JSON 401 for API, Jira hygiene
+- **ENF-01** — Wrapper CI gate on project-scoped routes
 
-**Should have (spec-included, sequenced after foundation):**
-- **PR-06** — Cross-project dependencies (bidirectional display, validity windows)
-- **Retained differentiators** — Jira import, AI report generation, Excel/PPT/Word/PDF export (parallel to spec weekly reports, not replacement)
+**Should have (P2 — sequenced in v2.1 if capacity allows):**
+- **PERF-01** — Virtualized CPMO tracking and large grids
+- **PERF-02** — RSC static chrome on v2 pages
+- **ENF-02** — Kysely in repositories (incremental, repo-by-repo)
+- **PERF-03** — Cold-start budget after DATA cutover
+- **NIT-01 + NIT-02** — Orphan exports, audit noise, fiscal/v1 budget coexistence doc
+- **NYQ-01** — Nyquist validate-phase on v2.1 phases only (Phase 19+)
 
-**Defer (explicitly out of v2.0):**
-- DATA-01..03 migrations out of `getDb()`, ENF/PERF packs, ops-route service thinning
-- Generic custom fields, in-app document storage, activity-weighted % as official PMO progress
-- Full PPM suite replacement (ERP, agile boards)
+**Operator gate (not a feature):**
+- **HYG-02** — Operator confirms Anthropic 502 vs 500; no rewrite unless rejected
 
-**Anti-features to reject:** in-app file upload (PR-15), second editable RAID copy, in-place submitted report edits, backfilling weekly obligations retroactively, UI-only authorization.
+**Defer / anti-features:**
+- Merging DATA origin branch as-is
+- Big-bang repo restructure in one PR
+- Dual migration paths (boot DDL + external job)
+- Full Kysely rewrite in single phase
+- Second ORM (Prisma/Drizzle)
+- New PR-01..15 product behavior
 
 ### Architecture Approach
 
-Extend v1.0 layer conventions — no new top-level folders. Authorization composes on existing `withAuth` / `withProjectAccess`; new domains get dedicated `*.service.ts` + `*.repo.ts` files (weekly reports, PM assignments, audit, document templates). Three core patterns govern v2.0: **(1) master register + snapshot on submit** for RAID/milestones; **(2) role gate composition** (CPMO company-wide, PM write on assigned projects, Viewer read-only); **(3) company-scoped mapping tables** with repo-first `companyId` filter.
+Preserve **edge gate → HTTP wrappers → route → service → repository → PostgreSQL**. v2.1 adds three structural changes: (1) `modules/<feature>/{backend,ui}` as canonical feature home with `app/` as thin URL shell, (2) external versioned migrations with ledger-gated boot, (3) Kysely beside `PostgresClient` on same pool with incremental repo adoption.
 
 **Major components:**
-1. **`lib/services/access.ts` + new HTTP wrappers** — role asserts, `assertPmWriteAccess`, CPMO-only routes; single enforcement point for 28+ existing routes
-2. **`weekly-reports.service.ts` + `raid-snapshots.service.ts`** — draft/submit state machine, atomic snapshot copy on submit, immutable version reads for export
-3. **`audit.service.ts`** — append-only mutation log with before/after JSONB; wired at service layer after successful writes
-4. **Extended master repos** — `projects.repo` (L0–L5 columns), `risks`/`issues`/`milestones` (deactivate not DELETE), `import-mapping`/`jira-config` (TENANT-01 scope)
+1. **`proxy.ts`** — Cookie presence, request-id, JSON 401 for unauthenticated `/api/*`; no DB/pg at edge
+2. **`lib/http/*` wrappers** — Node-runtime source of truth for session, role, project/program access
+3. **`modules/*/backend/`** — Route handlers, services, repos per feature domain
+4. **`modules/*/ui/`** — Pages, hooks, components; client fetch to `/api/*` only
+5. **`lib/migrate/*` + `migrations/*.sql`** — Schema source of truth moves from `lib/db.ts` inline DDL
+6. **`lib/kysely.ts`** — Typed query builder on shared `_pool` (ENF-02)
+
+**Build order:** DATA → PROXY/ENF-01/JIRA → THIN-01 → MOD-01 (incremental) → ENF-02 → v2 UI consumers → PERF/nits.
 
 ### Critical Pitfalls
 
-1. **`is_admin` → roles migration breaks admin/ops paths** — Use explicit `isPlatformAdmin` vs `isCPMO(companyId)` vs `isPM(projectId)`; migrate route-by-route; never map CPMO → global `is_admin`
-2. **Weekly report becomes second RAID source of truth** — Master register edits only on risks/issues pages; submit copies snapshot; export reads snapshot never live RAID
-3. **Submitted report overwrite via PUT** — Separate `weekly_report_versions` with immutability; corrections = new version; first-submit timestamp preserved for late tracking
-4. **ROI displays 0% instead of insufficient data** — Typed `{ value, status }` in service; never `?? 0` on null benefits/cost
-5. **Physical delete of users/milestones referenced in snapshots** — Soft-delete + reference guard; denormalize display names into snapshot at submit
-6. **TENANT-01 migration without backfill/unique-key change** — Nullable → backfill → NOT NULL → `UNIQUE(company_id, name)`; never default all rows to company 1
-7. **UI-only role hiding without API enforcement** — Viewer POST → 403 tests in same plan as UI; `authorize()` at top of every mutator
-8. **PM assignment replaces company check** — Every query applies both `company_id` and assignment filters unless CPMO portfolio view
+1. **Stale DATA branch merge** — Origin branch baseline is v1.0-era; merging drops all v2.0 tables. Regenerate `0001` from current `lib/db.ts` + `lib/db-*.ts`; diff must include weekly, fiscal, roles, RAID, dashboard, doc, audit tables.
+2. **Stripping `getDb()` migrate loop without cutover plan** — Production DBs have no `schema_migrations` ledger today. Ship runner → stamp ledger on every env → only then slim `getDb()`. CI matrix: empty DB + brownfield fixture.
+3. **MOD-01 without thin `app/` shells** — Next.js only serves routes from `app/`. Every move needs one-line re-export; update Vitest globs; smoke `next build` + standalone curl after each module batch.
+4. **Kysely types drift / mass-assignment escape** — Use narrow `Pick<Updateable<'table'>, ...>` per repo; regenerate types when migrations change; keep Vitest mass-assignment tests; single pool only.
+5. **THIN-01 D-23 gate regression** — Ops/admin routes are session+tenant or platform break-glass, not full CPMO matrix. Maintain route gate inventory; structure-only refactor preserves semantics.
+6. **PROXY-01 breaking page redirects** — API without cookie → JSON 401; pages without cookie → 307 redirect. Preserve `PUBLIC` list; client fetch helpers redirect on 401.
 
 ## Implications for Roadmap
 
-v1.0 shipped Phases 1–8. v2.0 continues numbering at **Phase 9**. Critical path: **TENANT-01 → PR-01/02 → PR-03/04 → PR-07/09 → PR-10/11 → PR-12 → PR-13/14**. Audit log wires incrementally from Phase 10 onward; complete coverage by Phase 18.
+Based on research, suggested phase structure continues from Phase 18. v2.1 starts at **Phase 19**.
 
-### Phase 9: TENANT-01 — Mapping Table Tenant Isolation
-**Rationale:** Independent security closure; no product dependency on roles but needs stable `company_id` session context (deploy after or alongside Phase 10 PR-02). Closes cross-tenant IDOR on Jira/timeline import config.
-**Delivers:** `company_id` on `timeline_import_mappings`, `bug_import_mappings`, `jira_jql_presets`, `jira_sync_mappings`; backfill migration; repo/route scoping; cross-company tests.
-**Addresses:** TENANT-01
-**Avoids:** Pitfall 7 (global rows after migration), mapping table IDOR
+### Phase 19: Data Layer Cutover (DATA-01..03)
+**Rationale:** Blocker for ENF-02 types, PERF-03 meaningful baseline, and safe multi-replica deploys. Single atomic task — runner, regenerated baseline, data-fix scripts, slim `getDb()`.
+**Delivers:** `lib/migrate/*`, `scripts/migrate.ts`, `migrations/0001-baseline-schema.sql` (v2.0 complete), `scripts/data-fixes/*`, deploy migrate wiring, brownfield ledger stamp
+**Addresses:** DATA-01, DATA-02, DATA-03
+**Avoids:** Stale baseline merge (Pitfall 1), empty-schema boot (Pitfall 2), dual DDL paths
+**Uses:** `tsx@4.23.12`, custom runner from origin branch pattern
 
-### Phase 10: PR-01 + PR-02 — Users, Roles & Server Authorization
-**Rationale:** Foundation for every other PR-ID. Role union and account states are meaningless without enforcement; dashboards and weekly submit on current `is_admin` model will leak data.
-**Delivers:** `user_roles` table; Active/Inactive/Locked lifecycle; soft-delete users; `SessionUser.roles[]`; `withRole` / extended `access.ts`; login lock/inactive checks; Viewer/PM/CPMO route tests.
-**Addresses:** PR-01, PR-02
-**Avoids:** Pitfalls 1, 8, 10 (auth foundation, UI-only authz, tenant+role regression)
+### Phase 20: API Contract & Route Hygiene (PROXY-01, JIRA-01)
+**Rationale:** Low-risk, independent of module moves; fixes documented v1.0 API contract debt immediately after DATA stabilizes deploy path.
+**Delivers:** JSON 401 for unauthenticated `/api/*` in `proxy.ts`; Jira search log guard + body validation; curl matrix green
+**Addresses:** PROXY-01, JIRA-01
+**Avoids:** Proxy breaking page redirects (Pitfall 5)
 
-### Phase 11: PR-03 + PR-04 + PR-05 — Project Master, PM Assignment & Stakeholders
-**Rationale:** Data model anchor — L0–L5, RAG rules, and weekly-report flag drive obligation engine (PR-10), dashboard KPIs (PR-13), and document checklists (PR-15). PM assignment must exist before any PM-scoped write path.
-**Delivers:** L0–L5 stage/status/RAG coupling with override audit; `weekly_report_flag` + start period; primary/collaborator PM assignment + history; `assertPmWriteAccess`; stakeholder effective-date records; resolve governance field duplication with PR-03.
-**Addresses:** PR-03, PR-04, PR-05
-**Avoids:** Pitfall 9 (silent RAG override), Pitfall 10 (assignment without company check)
+### Phase 21: Auth Wrapper Enforcement (ENF-01)
+**Rationale:** Security gate before large MOD-01 diffs; use shrinking allowlist if route facades still mid-move.
+**Delivers:** Local ESLint rule `pm-tool/require-auth-wrapper`, D-23 exemption list, CI `npm run lint` gate
+**Addresses:** ENF-01
+**Avoids:** ESLint blocking MOD-01 PRs without allowlist strategy (Pitfall 13)
 
-### Phase 12: PR-07 + PR-09 — Milestones & RAID Master Register
-**Rationale:** Master registers must enforce soft-delete and field rules **before** weekly submit snapshots reference them. Highest-risk integration (PR-09 ↔ PR-11) starts here with master half only.
-**Delivers:** Milestone upcoming/overdue engine; soft-delete + "in submitted report" guard; RAID deactivate-not-delete; master CRUD rules; audit on master mutations. Snapshot tables deferred to Phase 13 but delete guards land now.
-**Addresses:** PR-07 (master rules), PR-09 (master half)
-**Avoids:** Pitfall 5 (physical delete), Pitfall 2 setup (master discipline before snapshots)
+### Phase 22: Route Thinning (THIN-01)
+**Rationale:** Closes SVC-01/ROUTE-05 remainder; natural fit for `modules/operations/backend`, `modules/admin/backend`, `modules/config/backend`.
+**Delivers:** Service layer for ops/admin/config/import-mapping routes; route → service → repo flow; gate inventory preserved
+**Addresses:** THIN-01
+**Avoids:** D-23 over/under gating (Pitfall 6)
 
-### Phase 13: PR-10 + PR-11 — Weekly Periods & PM Submit/Versioning
-**Rationale:** Core PMO cadence — parallel product surface, not enhancement of activity-weighted reports. Period config gates auto-create; submit transaction spans versions + RAID/milestone snapshots atomically.
-**Delivers:** `date-fns` period math; CPMO period CRUD with overlap validation; auto-create draft shells for obligated projects; draft/submit state machine (Chưa nộp/Nháp/Đã nộp); immutable JSONB snapshots; post-submit correction as new version; `project-report.service` split (live preview vs version read).
-**Addresses:** PR-10, PR-11, PR-09 (snapshot half), PR-07 (snapshot half)
-**Uses:** `date-fns`, JSONB snapshot tables, exceljs path prep for Phase 14
-**Avoids:** Pitfalls 2, 3 (RAID divergence, report overwrite)
+### Phase 23: Module Structure — v2 Domains (MOD-01 Wave 1)
+**Rationale:** v2 APIs already service-backed; greenfield UI lands in same modules from day one — avoids double moves.
+**Delivers:** `modules/dashboards`, `modules/weekly`, `modules/documents`, `modules/audit` with backend routes/services/repos + thin `app/` re-exports
+**Addresses:** MOD-01 (partial)
+**Implements:** Thin app shell + fat modules pattern
+**Avoids:** App Router 404s (Pitfall 4)
 
-### Phase 14: PR-12 — CPMO Submission Tracking & Consolidated Export
-**Rationale:** CPMO ops value depends on versioned submits from Phase 13; export must read snapshots only.
-**Delivers:** Submission registry (on-time vs late locked to first submit); filter grid by period/status/PM/stage/RAG; tick-select consolidation; Excel/PPT/Word export from submitted version JSONB (extend existing export clients).
-**Addresses:** PR-12
-**Avoids:** Pitfall 2/3 export variants (live RAID recompute)
+### Phase 24: Portfolio & PM Dashboards (UI-DASH)
+**Rationale:** High user value; APIs shipped Phase 16; depends on dashboards module backend from Phase 23.
+**Delivers:** Portfolio + PM dashboard pages, filters, export triggers, Sidebar nav; spec KPI rules (not v1 aggregates)
+**Addresses:** UI-DASH
+**Avoids:** UI-only authorization (Pitfall 10); dual budget confusion — defer fiscal tiles pending NIT-02 decision
 
-### Phase 15: PR-08 + PR-06 — Budget/Value/ROI & Cross-Project Dependencies
-**Rationale:** Budget ROI typed results needed before dashboard consumption; dependencies are spec-included P2 — ship after core report path but before executive dashboards finalize all KPI sources.
-**Delivers:** Fiscal-year budget rows; BIGINT VND amounts; append-only adjustment ledger; ROI `{ value, status: 'ok' | 'insufficient_data' }`; cross-project dependency entity with validation; optional portfolio dependency surfacing.
-**Addresses:** PR-08, PR-06
-**Avoids:** Pitfall 4 (ROI null → 0%)
+### Phase 25: Weekly Workflow Surfaces (UI-WEEK + PERF-01 partial)
+**Rationale:** Largest UI surface; CPMO tracking grid needs virtualization at enterprise row counts.
+**Delivers:** Period config, PM submit/correct, CPMO tracking/consolidation pages; `@tanstack/react-virtual` on tracking grid
+**Addresses:** UI-WEEK, PERF-01 (tracking grid)
+**Avoids:** Grid selection/export bugs (Pitfall 9); weekly state machine bypass (Pitfall 10)
 
-### Phase 16: PR-13 + PR-14 — Portfolio & PM Dashboards
-**Rationale:** KPIs and action cards lie if built before master data, assignments, and weekly obligation exist. Share query functions between portfolio and PM dashboards to prevent count drift.
-**Delivers:** Spec-defined active count (Status Active AND L0–L4); RAG chart summing to active count; high RAID record counts; tech-council issue tile; drill-down with inherited filters; PM action queue (pending reports, overdue milestones, open RAID) scoped to assignment; role-filtered aggregates; dashboard export.
-**Addresses:** PR-13, PR-14
-**Avoids:** Pitfall 10 (PM sees unassigned projects), wrong RAG field on dashboards
+### Phase 26: Documents & Audit UI (UI-DOC, UI-AUDIT)
+**Rationale:** Compliance and bank audit requirements; medium complexity; APIs shipped Phases 17–18.
+**Delivers:** Document catalog/templates/checklist UI; CPMO audit log viewer with filter/pagination; virtualized audit if volume high
+**Addresses:** UI-DOC, UI-AUDIT
 
-### Phase 17: PR-15 — Document Templates & Confluence Checklist
-**Rationale:** Likely conflicts with existing upload-oriented documents module — implement after core PMO path stable; requires CPMO role (Phase 10) and stage model (Phase 11).
-**Delivers:** CPMO template CRUD with versioning; stage-based mandatory checklist generation; Confluence URL + metadata only (`z.url()` validation); compliance rollup; remove/replace binary upload path for spec document types.
-**Addresses:** PR-15
-**Avoids:** Pitfall 6 (file upload creep)
+### Phase 27: Module Structure — Remaining Domains (MOD-01 Wave 2–3)
+**Rationale:** Complete repo-wide split after v2 UI proves module pattern; projects module is largest — batch nested resources.
+**Delivers:** `modules/auth`, `admin`, `operations`, `import`, `jira`, `export`, `config`, `resources`, `programs`, `portfolio`, `projects` (incremental); all `app/` shells stable
+**Addresses:** MOD-01 (completion)
+**Avoids:** Big-bang move (anti-feature); standalone trace misses (Pitfall 4)
 
-### Phase 18: Audit Log — Cross-Cutting Completion
-**Rationale:** Incrementally wire `auditLog()` from Phase 10 onward; this phase completes coverage and verifies append-only integrity across all mutation services.
-**Delivers:** `audit_logs` table; `audit.service.ts`; wiring on users, assignments, budget adjustments, RAID, submissions, master-data changes; query by company/entity/time.
-**Addresses:** Spec audit requirement (cross-cutting)
-**Avoids:** Missing actor context from trigger-only approaches
+### Phase 28: Kysely Repository Adoption (ENF-02)
+**Rationale:** Requires stable schema from Phase 19; incremental repo-by-repo alongside or after module backend moves.
+**Delivers:** `lib/kysely.ts`, `lib/db-types.ts` (codegen), v2 repos first (audit, weekly, dashboard-filter), then high-churn masters; retire `buildUpdate` per table when complete
+**Addresses:** ENF-02
+**Uses:** `kysely@0.29.5`, `kysely-codegen@0.20.0`
+**Avoids:** Kysely allowlist drift (Pitfall 3); second pool
+
+### Phase 29: Performance & RSC Chrome (PERF-02, PERF-03)
+**Rationale:** PERF-03 only meaningful post-DATA; PERF-02 on v2 pages after UI exists; split Sidebar server/client.
+**Delivers:** Server layout chrome, `SidebarShell` + `SidebarInteractive`; cold-start measurement script + budget gate; RSC boundaries audited
+**Addresses:** PERF-02, PERF-03
+**Avoids:** RSC/hook double fetch (Pitfall 8); pre-DATA false baseline (Pitfall 17)
+
+### Phase 30: Nits, Validation & Operator Gate (NIT-01, NIT-02, NYQ-01, HYG-02)
+**Rationale:** Cleanup and process hygiene; NIT-02 fiscal KPI decision before any fiscal dashboard tiles; NYQ-01 scoped to Phase 19+ only.
+**Delivers:** Wire-or-delete orphan exports; no-op milestone audit skip; fiscal/v1 budget coexistence doc; operator HYG-02 sign-off; v2.1 VALIDATION.md reconciliation
+**Addresses:** NIT-01, NIT-02, NYQ-01, HYG-02
+**Avoids:** Nyquist archive mutation (Pitfall 12); HYG-02 scope creep (Pitfall 11)
 
 ### Phase Ordering Rationale
 
-- **Phase 9 early but after session company context:** TENANT-01 is parallel-safe and low-effort security win; pitfalls research recommends stable PR-02 company context before backfill — schedule Phase 9 immediately after or concurrent with Phase 10 PR-02 landing.
-- **Auth before master before registers before weekly pipeline before dashboards:** Matches dependency graph in FEATURES.md and architecture critical path; weekly reports are a **new module**, not a refactor of existing report pages.
-- **PR-05 grouped with PR-03/04:** Stakeholder governance overlaps project master fields — resolve single source of truth in one phase to prevent duplication.
-- **PR-08/06 before dashboards, PR-15 after dashboards:** ROI typing must exist before PR-13 widgets; documents module is disruptive to existing UX and anti-upload — isolate last among product features.
-- **Audit as capstone:** Service-layer hooks start in Phase 10; Phase 18 verifies completeness rather than blocking feature delivery.
+- **DATA first (Phase 19):** Every downstream item either blocks on or confounds metrics without external migrate — Kysely codegen, cold-start budget, deploy safety.
+- **PROXY/JIRA/ENF-01 before large moves:** Low-risk debt closure; ENF-01 with allowlist strategy prevents security regression during MOD-01.
+- **THIN-01 before MOD-01 Wave 2:** Service extraction aligns with module backend directories for ops/admin.
+- **MOD-01 Wave 1 before v2 UI:** New pages land in `modules/*/ui/` from day one; avoids retrofit double-move.
+- **UI-WEEK after UI-DASH:** Weekly is highest complexity; virtualization bundled to prevent shipping unusable grids.
+- **ENF-02 after DATA + module backend stable:** Types must match migrated ledger; repos convert inside module backend dirs.
+- **PERF-03 after DATA:** Otherwise budget confounds inline DDL time.
+- **Nits last:** Depend on UI-DASH for fiscal KPI decision; NYQ-01 validates v2.1 phases without touching archived v1/v2 artifacts.
 
 ### Research Flags
 
-Phases likely needing `/gsd-plan-phase --research-phase` during planning:
-- **Phase 13 (PR-10/PR-11):** Submit transaction design, draft RAID buffer UX, version immutability edge cases — highest integration complexity
-- **Phase 11 (PR-03):** Exact L0–L5 transition matrix and RAG override rules — Word spec is local reference; field names need spec cross-check during planning
-- **Phase 17 (PR-15):** Legacy documents module migration strategy (upload vs Confluence checklist coexistence)
+Phases likely needing deeper research during planning:
+- **Phase 19 (DATA):** Brownfield ledger stamp strategy per environment (Railway, K8s, local); production cutover rehearsal on `pg_dump` scratch copy
+- **Phase 22 (THIN-01):** Route gate inventory with D-23 class labels per ops/admin/config route
+- **Phase 25 (UI-WEEK):** Weekly state machine UI mapping from Phase 13 VERIFICATION; amendment/correct flow edge cases
+- **Phase 28 (ENF-02):** Per-table narrow update type design; transaction bridge with `runInTransaction`
 
-Phases with standard patterns (lighter research):
-- **Phase 9 (TENANT-01):** Well-understood tenant column pattern; mirror existing `listProjects(companyId)` 
-- **Phase 10 (PR-01/02):** Extend existing `withAuth`/`access.ts`; Vitest 403 patterns established in v1.0
-- **Phase 14 (PR-12):** Extend existing exceljs/pptxgenjs export pipeline to read version JSONB
-- **Phase 18 (Audit):** Single INSERT helper pattern; no framework choice
+Phases with standard patterns (skip research-phase):
+- **Phase 20 (PROXY-01):** Documented in `06-PROXY-FINDING.md`; Next.js 16 proxy JSON 401 pattern verified
+- **Phase 21 (ENF-01):** Existing wrapper export patterns in codebase; local ESLint rule is established technique
+- **Phase 29 (PERF-01):** `@tanstack/react-virtual` headless row pattern well-documented
+- **Phase 30 (HYG-02):** Confirm-only checkpoint; no research needed unless operator rejects 502
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | Additive on validated v1.0; one new dep; codebase-verified auth/report flows |
-| Features | HIGH | GuiIT spec read directly; gaps mapped against live codebase |
-| Architecture | HIGH | Layer placement and build order derived from codegraph + repo reads |
-| Pitfalls | HIGH | Pitfalls verified against live services (`access.ts`, `documents.service.ts`, `import-mapping.repo.ts`) |
+| Stack | HIGH | Additive on validated v2.0 base; versions verified via npm + Context7; origin branch pattern inspected locally |
+| Features | HIGH | Scoped to PROJECT.md Active set + milestone audits; dependency graph explicit |
+| Architecture | HIGH | Grounded in live codebase + origin branch; module layout matches Next.js 16 App Router constraints |
+| Pitfalls | HIGH | Brownfield pitfalls verified against `lib/db.ts`, `proxy.ts`, D-23 docs, dual budget Phase 15 decisions |
 
 **Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- **Exact L0–L5 field names and transition rules:** Word spec is local-only; plan Phase 11 with direct spec cross-reference during `/gsd-discuss-phase`
-- **Draft RAID buffer UX:** Whether PM stages RAID changes in report draft vs edits master directly during draft period — spec says sync on submit; UI flow needs Phase 13 design decision
-- **Platform ops vs CPMO split:** Legacy admin/ops routes (`operations/*`, `config`) need explicit mapping to break-glass ops account vs company-scoped CPMO during PR-02 migration
-- **Existing documents module coexistence:** PR-15 may require schema split or feature flag — assess during Phase 17 planning, not before
+- **NIT-02 fiscal KPI product decision:** Coexist, redirect, or migrate v1 `budget_items` vs spec fiscal ledger — must be decided before UI-DASH fiscal tiles (default: coexist with source labels).
+- **Brownfield ledger stamp script:** Exact mechanism for production DBs without `schema_migrations` — plan during Phase 19 with sentinel table checks.
+- **ENF-01 vs MOD-01 timing:** If large module moves start before ESLint gate, use shrinking directory allowlist — finalize in Phase 21 plan.
+- **Docker prod image + tsx:** Whether migrate runs init container vs release command — document in Phase 19 deploy plan.
+- **`listOpenProjectDependencies` wire-or-delete:** Grep-driven decision in NIT-01 — wire to dashboard dependency tile or remove export.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- `.planning/PROJECT.md` — v2.0 requirements PR-01..PR-15, TENANT-01, constraints
-- `.planning/research/STACK.md`, `FEATURES.md`, `ARCHITECTURE.md`, `PITFALLS.md` — parallel researcher outputs (2026-08-25)
-- Live codebase: `lib/auth.ts`, `lib/http/with-auth.ts`, `lib/services/access.ts`, `lib/services/project-report.service.ts`, `lib/repositories/import-mapping.repo.ts`, `lib/services/documents.service.ts`
-- GuiIT Portfolio One View business spec Draft 1.0 (20/08/2026) — local Word reference
+- Context7 `/kysely-org/kysely` — PostgresDialect + Pool, transactions, TS strict requirement
+- Context7 `/robinblomberg/kysely-codegen` — CLI codegen from DATABASE_URL
+- Context7 `/tanstack/virtual` — `@tanstack/react-virtual` row virtualization
+- Context7 `/vercel/next.js/v16.2.9` — proxy JSON 401, RSC layout boundaries
+- Codebase: `lib/db.ts`, `proxy.ts`, `lib/http/with-*.ts`, `app/api/**/route.ts`
+- Origin branch `gsd/quick-260826-ded-data-layer-migrations` — runner/ledger pattern (baseline stale)
+- `.planning/PROJECT.md`, `v1.0-MILESTONE-AUDIT.md`, `v2.0-MILESTONE-AUDIT.md`
 
 ### Secondary (MEDIUM confidence)
-- Context7: `/brianc/node-postgres`, `/colinhacks/zod/v4.0.1`, `/date-fns/date-fns` — library behavior verification
-- Broadcom Clarity PPM access-rights model — enterprise role scoping patterns
-- Planview / PMI / Atlassian weekly status report conventions — table-stakes feature validation
+- Brownfield migration practice — external Job/CLI decoupling from app startup
+- Next.js enterprise module patterns — thin `app/`, domain modules with backend/UI split
+- Kysely brownfield fit — query builder over existing schema without second ORM
 
 ### Tertiary (LOW confidence)
-- RBAC library suitability (CASL/accesscontrol) — conclusion to skip is HIGH confidence; individual library feature claims are LOW
+- K8s init Job migrate wiring — manifests may not exist yet; validate during Phase 19 deploy planning
 
 ---
-*Research completed: 2026-08-25*
+*Research completed: 2026-08-28*
 *Ready for roadmap: yes*
+*Milestone: v2.1 Hardening & Deferred Debt (Phase 19+)*

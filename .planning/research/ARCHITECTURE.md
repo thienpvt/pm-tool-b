@@ -1,529 +1,634 @@
-# Architecture Research
+# Architecture Research — v2.1 Hardening & Deferred Debt
 
-**Domain:** v2.0 Portfolio One View — brownfield integration into existing Next.js 16 layered PPM app
-**Researched:** 2026-08-25
-**Confidence:** HIGH (layer placement, integration points, build order — derived from live codebase via codegraph + repo reads) / MEDIUM (exact spec field names — Word spec is local reference only)
+**Domain:** Brownfield Next.js 16 full-stack PPM (multi-tenant PostgreSQL)
+**Researched:** 2026-08-28
+**Confidence:** HIGH (grounded in live codebase + origin `gsd/quick-260826-ded-data-layer-migrations` branch)
 
-## Standard Architecture
+## Executive Recommendation
 
-### System Overview (v2.0 target — layers unchanged)
+Keep the **existing layer model** (edge gate → HTTP wrappers → route → service → repository → PostgreSQL). v2.1 adds three structural changes without redesign:
+
+1. **`modules/<feature>/backend/` + `modules/<feature>/ui/`** — canonical home for feature code; **`app/` stays a thin routing shell** (Next.js requires `app/**` for URLs).
+2. **External versioned migrations** — replay the origin-branch runner/ledger/`assertMigrated` pattern; regenerate `0001-baseline-schema.sql` from current v2.0 schema in `lib/db.ts` + `lib/db-*.ts` modules; remove boot-time DDL from `getDb()`.
+3. **Kysely beside `PostgresClient`** — same `_pool`, incremental repo adoption after migrations; runtime allowlists become compile-time column picks.
+
+**Build order is strict:** DATA (migrations) → route thinning + module scaffolding → incremental module moves → ENF-02 Kysely → v2 UI consumers → PERF/nits.
+
+---
+
+## Standard Architecture (Post–v2.1 Target)
+
+### System Overview
 
 ```text
-┌─────────────────────────────────────────────────────────────────────┐
-│  Browser (React 19 client pages + decomposed hooks/modules)         │
-│  app/**/page.tsx  ·  components/**  ·  app/**/_components/**       │
-├─────────────────────────────────────────────────────────────────────┤
-│  proxy.ts — pm_session cookie presence (HTML redirect only)         │
-└───────────────────────────────┬─────────────────────────────────────┘
-                                │ fetch('/api/...')
-                                ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│  ROUTE HANDLERS  app/api/**/route.ts                                 │
-│  withAuth / withProjectAccess / withProgramAccess (+ new role gates) │
-│  Zod at boundary → service call → NextResponse.json                 │
-└───────────────────────────────┬─────────────────────────────────────┘
-                                ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│  SERVICES  lib/services/*.service.ts                                 │
-│  assertProjectAccess + NEW role/PM asserts + audit hooks            │
-│  Orchestration: snapshot-on-submit, version immutability, ROI math    │
-└──────────────┬──────────────────────────────┬───────────────────────┘
-               ▼                              ▼
-┌──────────────────────────────┐  ┌───────────────────────────────────┐
-│  REPOSITORIES                │  │  INTEGRATIONS (unchanged)         │
-│  lib/repositories/*.repo.ts  │  │  lib/integrations/{jira,         │
-│  Column allowlists, scoped SQL │  │  anthropic,resend}/ + export/*   │
-└──────────────┬───────────────┘  └───────────────────────────────────┘
-               ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│  PostgreSQL via lib/db.ts (schema init + migratePostgresSchema)      │
-│  NEW tables for roles, assignments, snapshots, versions, audit      │
-└─────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  Browser — modules/*/ui/pages + components (client fetch → /api/*)          │
+│  Shared chrome: components/layout, components/ui                            │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  app/** — THIN Next.js routing shell only                                   │
+│    app/<path>/page.tsx          → export { default } from '@/modules/.../ui'│
+│    app/api/<path>/route.ts      → export { GET } from '@/modules/.../backend'│
+├─────────────────────────────────────────────────────────────────────────────┤
+│  Edge: proxy.ts — cookie presence, request-id, JSON 401 for API (PROXY-01) │
+│        NO pg, NO session DB lookup, NO tenancy decisions                    │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  Node wrappers: lib/http/with-auth|withProjectAccess|withProgramAccess|     │
+│                 withRole|withCpmo — session + actor + access (source of truth)│
+├─────────────────────────────────────────────────────────────────────────────┤
+│  modules/*/backend/                                                         │
+│    routes/*.ts (handler bodies) · services/*.service.ts · repos/*.repo.ts   │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  Cross-cutting lib/ (unchanged role, some files shrink)                     │
+│    lib/db.ts · lib/auth.ts · lib/api-errors.ts · lib/http/*                 │
+│    lib/migrate/* · lib/kysely.ts · lib/integrations/* · lib/export/*        │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  PostgreSQL                                                                 │
+│    schema_migrations ledger · versioned migrations/*.sql                    │
+│    npm run migrate (CLI) — NOT getDb() cold start                           │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-**What stays:** Next.js 16 App Router, `pg` pool in `lib/db.ts`, cookie sessions in `lib/auth.ts`, route→service→repository on project-scoped paths, Jira/Anthropic/Resend clients, Excel/PPT/Word export engines.
+### Component Responsibilities
 
-**What changes:** Authorization model expands from `is_admin + company_id` to **CPMO / PM / Viewer** with **project-scoped PM assignment**; RAID/milestones/budget become **master registers** feeding **immutable weekly-report versions**; four global mapping tables gain **company_id** (TENANT-01).
+| Component | Responsibility | v2.1 change |
+|-----------|----------------|-------------|
+| `proxy.ts` | Cookie gate, public-path bypass, request-id, API access log | **Modified:** JSON `{ error: 'Unauthorized' }` 401 for `/api/*` without cookie; pages still redirect |
+| `lib/http/*` | Session resolution, body parse, role/project/program asserts, error tail | **Unchanged** — remain Node-runtime source of truth for authz |
+| `app/api/**/route.ts` | Next.js HTTP surface | **Modified:** one-liner re-exports into `modules/*/backend/routes/` |
+| `modules/*/backend/` | Route handlers, services, repos for one feature | **New** — canonical backend home |
+| `modules/*/ui/` | Pages, hooks, `_components/` for one feature | **New** — canonical UI home |
+| `lib/db.ts` | Pool singleton, `DbClient`, domain types, `getDb()`, `runInTransaction` | **Modified:** connect + `assertMigrated` + seed only; DDL removed |
+| `lib/migrate/*` | Runner, plan, assertMigrated, checksum ledger | **New** — replay from origin branch |
+| `migrations/*.sql` | Versioned schema source of truth | **New** — `0001` regenerated for v2.0 |
+| `lib/kysely.ts` | Typed query builder on shared pool | **New** — ENF-02 |
+| `lib/integrations/*`, `lib/export/*` | External clients, Office generators | **Unchanged** location (shared infra, not per-module) |
+| `components/layout`, `components/ui` | App shell, design system | **Unchanged** — truly cross-route shared UI |
 
-## Component Responsibilities
+---
 
-| Component | v1.0 today | v2.0 responsibility |
-|-----------|------------|---------------------|
-| `lib/http/with-auth.ts` | Session, body parse, error tail | Same + expose `ctx.user.roles` when loaded |
-| `lib/http/with-project-access.ts` | `assertProjectAccess` → `ctx.project` | Compose with PM/Viewer project gate |
-| `lib/services/access.ts` | Tenant ownership via `company_id` | **Extend:** role asserts, PM-assignment assert, CPMO company scope |
-| `lib/auth.ts` | `SessionUser` with `is_admin` | **Extend:** load roles union, account status, lock check at login |
-| `lib/repositories/projects.repo.ts` | CRUD + `PROJECT_COLUMNS` allowlist | **Extend columns:** L0–L5, RAG, progress, weekly-report flag |
-| `lib/repositories/risks.repo.ts` / `issues.repo.ts` | Live CRUD master register | **Extend:** soft-delete/no physical delete; snapshot read helpers |
-| `lib/services/project-report.service.ts` | Live aggregation for report UI | **Split:** live preview stays; submit path writes version + snapshots |
-| `lib/repositories/import-mapping.repo.ts` | Global timeline/bug mappings | **Modify:** all queries scoped by `company_id` |
-| `lib/repositories/jira-config.repo.ts` | Global JQL presets + sync mappings | **Modify:** `company_id` on presets/sync; thin service wrapper |
-| `lib/services/portfolio.service.ts` | Company-scoped portfolio home | **Extend:** spec RAG/stage filters, CPMO drill-down aggregates |
-| `lib/export/*` + export routes | Live DB → Office buffers | **Extend:** read submitted weekly-report version when exporting |
+## Recommended Module Layout (Opinionated)
 
-## Recommended Project Structure
+### Convention: `modules/<feature>/{backend,ui}`
 
-No new top-level folder. Extend existing layout:
+Next.js App Router **must** keep routable files under `app/`. The opinionated pattern: **feature code lives in `modules/`; `app/` is a stable URL map of thin re-exports.**
 
+```text
+pm-tool-b/
+├── app/                              # THIN — URLs only
+│   ├── api/
+│   │   ├── dashboards/portfolio/route.ts   → re-export from modules/dashboards
+│   │   ├── weekly-periods/route.ts         → re-export from modules/weekly
+│   │   ├── audit/route.ts                  → re-export from modules/audit
+│   │   └── projects/[id]/weekly-reports/…  → re-export from modules/weekly
+│   ├── portfolio/dashboard/page.tsx        → re-export from modules/dashboards/ui
+│   ├── weekly/page.tsx                     → re-export from modules/weekly/ui
+│   └── projects/[id]/documents/page.tsx    → re-export from modules/documents/ui
+│
+├── modules/
+│   ├── dashboards/
+│   │   ├── backend/
+│   │   │   ├── routes/
+│   │   │   │   ├── portfolio.route.ts      # export const GET = withCpmo(...)
+│   │   │   │   ├── pm.route.ts
+│   │   │   │   └── document-compliance.route.ts
+│   │   │   ├── services/
+│   │   │   │   └── spec-dashboards.service.ts   # moved from lib/services/
+│   │   │   └── repositories/
+│   │   │       └── dashboard-filter-state.repo.ts
+│   │   └── ui/
+│   │       ├── pages/
+│   │       │   ├── PortfolioDashboardPage.tsx   # UI-DASH consumer
+│   │       │   └── PmDashboardPage.tsx
+│   │       ├── hooks/
+│   │       │   └── usePortfolioDashboard.ts
+│   │       └── components/
+│   │           └── KpiGrid.tsx
+│   │
+│   ├── weekly/
+│   │   ├── backend/
+│   │   │   ├── routes/
+│   │   │   │   ├── periods.route.ts
+│   │   │   │   ├── tracking.route.ts
+│   │   │   │   └── project-reports.route.ts
+│   │   │   ├── services/
+│   │   │   │   ├── weekly-reports.service.ts
+│   │   │   │   └── weekly-tracking.service.ts
+│   │   │   └── repositories/
+│   │   │       ├── weekly-reports.repo.ts
+│   │   │       └── weekly-periods.repo.ts
+│   │   └── ui/
+│   │       ├── pages/
+│   │       │   ├── CpmoWeeklyTrackingPage.tsx   # UI-WEEK
+│   │       │   └── PmWeeklyReportPage.tsx
+│   │       └── hooks/
+│   │           └── useWeeklyReportSubmit.ts
+│   │
+│   ├── projects/
+│   │   ├── backend/
+│   │   │   ├── routes/          # projects/[id]/* nested route bodies
+│   │   │   ├── services/        # projects, activities, milestones, risks, …
+│   │   │   └── repositories/
+│   │   └── ui/
+│   │       ├── pages/           # timeline, milestones, report, budget, …
+│   │       ├── hooks/           # useTimelinePage.ts, etc.
+│   │       └── components/
+│   │
+│   ├── portfolio/               # home KPIs, roadmap, report, budget, members, quota
+│   ├── programs/
+│   ├── documents/               # catalog, templates, checklist (UI-DOC)
+│   ├── audit/                   # GET /api/audit + UI-AUDIT
+│   ├── fiscal-budget/
+│   ├── operations/              # THIN-01 target
+│   ├── admin/                   # THIN-01 target
+│   ├── auth/
+│   ├── jira/
+│   ├── import/                  # import-mapping, bug-import, resource-plan, parse-headers
+│   ├── export/                  # or keep lib/export + thin app/api/export re-exports
+│   ├── config/
+│   ├── resources/
+│   └── shared/                  # optional: module-local types only; NOT a second lib/
+│
+├── lib/                         # cross-cutting only — shrinks as modules absorb domain code
+│   ├── http/                    # wrappers — STAY
+│   ├── db.ts                    # pool + DbClient + types + getDb
+│   ├── kysely.ts                # NEW — Kysely on _pool
+│   ├── db-types.ts              # NEW — Kysely Database interface
+│   ├── migrate/                 # NEW — runner, assertMigrated, plan
+│   ├── auth.ts
+│   ├── api-errors.ts
+│   ├── integrations/
+│   └── export/                  # shared generators until export module fully owns them
+│
+├── components/                  # app-wide shell + ui primitives ONLY
+│   ├── layout/Sidebar.tsx
+│   └── ui/*
+│
+├── migrations/                  # NEW — versioned SQL
+│   ├── 0001-baseline-schema.sql # regenerated from v2.0 lib/db.ts + db-*.ts
+│   └── 0002-…sql                # future deltas
+│
+├── scripts/
+│   ├── migrate.ts               # NEW — npm run migrate
+│   └── data-fixes/              # NEW — one-off fixes out of boot path
+│
+└── proxy.ts
 ```
-app/
-├── api/
-│   ├── admin/users/              # MODIFY — roles, status, no physical delete
-│   ├── auth/                     # MODIFY — lock/inactive checks
-│   ├── portfolio/
-│   │   ├── route.ts              # MODIFY — PR-13 dashboard aggregates
-│   │   ├── weekly-periods/       # NEW — PR-10 CPMO period config
-│   │   └── weekly-tracking/      # NEW — PR-12 submission tracking
-│   ├── projects/[id]/
-│   │   ├── route.ts              # MODIFY — L0–L5 master fields
-│   │   ├── pm-assignments/       # NEW — PR-04
-│   │   ├── stakeholders/         # NEW — PR-05
-│   │   ├── dependencies/         # NEW — PR-06
-│   │   ├── weekly-reports/       # NEW — PR-11 draft/submit/versions
-│   │   ├── risks/                # MODIFY — master register rules
-│   │   ├── issues/               # MODIFY — master register rules
-│   │   ├── milestones/           # MODIFY — soft delete, snapshot flags
-│   │   ├── budget/               # MODIFY — adjustment ledger + ROI
-│   │   └── documents/            # MODIFY — Confluence checklist
-│   ├── document-templates/       # NEW — PR-15 CPMO templates
-│   ├── pm-dashboard/             # NEW — PR-14
-│   ├── import-mapping/           # MODIFY — TENANT-01 scope
-│   ├── bug-import-mapping/       # MODIFY — TENANT-01 scope
-│   └── jira/jql-presets/         # MODIFY — TENANT-01 + service layer
-├── page.tsx                      # MODIFY — PR-13 portfolio dashboard
-└── pm-dashboard/page.tsx         # NEW — PR-14
 
-lib/
-├── http/
-│   ├── with-auth.ts              # MODIFY — role on context
-│   ├── with-project-access.ts    # MODIFY — PM/Viewer gate option
-│   ├── with-role-access.ts       # NEW — CPMO-only routes
-│   └── with-pm-access.ts         # NEW — PM write on assigned project
-├── services/
-│   ├── access.ts                 # MODIFY — role + assignment asserts
-│   ├── users.service.ts          # NEW — PR-01
-│   ├── pm-assignments.service.ts # NEW — PR-04
-│   ├── stakeholders.service.ts   # NEW — PR-05
-│   ├── dependencies.service.ts   # NEW — PR-06
-│   ├── weekly-report-periods.service.ts  # NEW — PR-10
-│   ├── weekly-reports.service.ts # NEW — PR-11 submit/version/snapshot
-│   ├── weekly-tracking.service.ts# NEW — PR-12 CPMO consolidate
-│   ├── raid-snapshots.service.ts # NEW — PR-09 sync on submit
-│   ├── budget-adjustments.service.ts # NEW — PR-08 ledger + ROI
-│   ├── document-templates.service.ts # NEW — PR-15
-│   ├── pm-dashboard.service.ts   # NEW — PR-14
-│   ├── audit.service.ts          # NEW — cross-cutting mutation log
-│   ├── projects.service.ts       # MODIFY — master data
-│   ├── milestones.service.ts     # MODIFY — delete guards
-│   ├── risks.service.ts          # MODIFY — no physical delete
-│   ├── issues.service.ts         # MODIFY — no physical delete
-│   ├── portfolio.service.ts      # MODIFY — PR-13
-│   └── project-report.service.ts # MODIFY — preview vs versioned submit
-└── repositories/
-    ├── users.repo.ts             # NEW (split from admin.repo user SQL)
-    ├── user-roles.repo.ts        # NEW
-    ├── pm-assignments.repo.ts    # NEW
-    ├── stakeholders.repo.ts      # NEW
-    ├── project-dependencies.repo.ts # NEW
-    ├── weekly-report-periods.repo.ts # NEW
-    ├── weekly-reports.repo.ts    # NEW — reports + immutable versions
-    ├── raid-snapshots.repo.ts    # NEW — milestone + RAID snapshot rows
-    ├── budget-adjustments.repo.ts# NEW
-    ├── document-templates.repo.ts# NEW
-    ├── audit-log.repo.ts         # NEW
-    ├── projects.repo.ts          # MODIFY — columns + list filters
-    ├── milestones.repo.ts        # MODIFY — soft delete, snapshot link
-    ├── risks.repo.ts             # MODIFY — status/deactivate not DELETE
-    ├── issues.repo.ts            # MODIFY — same
-    ├── documents.repo.ts         # MODIFY — checklist types
-    ├── import-mapping.repo.ts    # MODIFY — company_id
-    └── jira-config.repo.ts       # MODIFY — company_id
+### Thin `app/` wrapper examples
+
+**API re-export** (URL unchanged, body moves):
+
+```typescript
+// app/api/dashboards/portfolio/route.ts
+export { GET } from '@/modules/dashboards/backend/routes/portfolio.route';
 ```
+
+**Page re-export**:
+
+```typescript
+// app/weekly/page.tsx
+export { default } from '@/modules/weekly/ui/pages/CpmoWeeklyTrackingPage';
+```
+
+**Route with co-located tests** — tests stay next to the thin `app/api/.../route.ts` (Vitest already resolves `@/app/api/**`) OR move to `modules/*/backend/routes/*.test.ts`; pick one convention per module during move and update `vitest.config.ts` include globs once.
 
 ### Structure Rationale
 
-- **Follow v1.0 reorg conventions:** one `*.service.ts` per domain, one `*.repo.ts` per table cluster, thin routes with wrappers — do not re-inline SQL into routes.
-- **New domains get new files** rather than bloating `projects.service.ts` — PM assignments, weekly reports, and snapshots have distinct lifecycles and test surfaces.
-- **Auth extensions stay in `lib/http/` and `lib/services/access.ts`** — same enforcement point that 28+ routes already use via `withProjectAccess`.
-- **Integrations untouched:** Jira import, AI report generation, and export remain in `lib/integrations/*` and `lib/export/*`; v2.0 only changes *which data* they read (live master vs submitted version).
+- **`modules/<feature>/backend/` vs `ui/`:** satisfies MOD-01 ("backend and UI separate in each module/dir") without fighting App Router.
+- **`app/` stays:** Next.js 16 requires it for routing; re-exports avoid duplicate URL logic.
+- **`lib/` stays for horizontal concerns:** auth, db pool, wrappers, integrations, migrate runner — not feature-owned.
+- **`components/ui` + `components/layout` stay root-level:** used by every module; not duplicated per feature.
+- **Do NOT put routable pages only under `modules/` without `app/` re-exports** — that breaks App Router unless using experimental `src/app` rewrites (not recommended).
+
+### Full module inventory (repo-wide, not v2-only)
+
+Every row must eventually have both `backend/` and `ui/` (ui may be empty placeholder for API-only areas like `health`).
+
+| Module | Backend (routes/services/repos) | UI (pages/hooks/components) |
+|--------|--------------------------------|-----------------------------|
+| `auth` | login/logout/me/password/onboarding | `app/login`, onboarding modal wiring |
+| `admin` | companies, users, jira/rag config, demo-requests, resource-audit | `app/admin` |
+| `projects` | project CRUD + nested: activities, milestones, risks, issues, bugs, budget, team, meetings, escalations, documents, holidays, dependencies, pm-assignments, fiscal-budget, weekly-reports, document-checklist, report | `app/projects/**` |
+| `programs` | programs, allocations | `app/programs` |
+| `portfolio` | home data, roadmap, report, budget, members, quota, milestones | `app/page.tsx`, `app/portfolio/**` |
+| `dashboards` | portfolio/pm/document-compliance APIs | **NEW** UI-DASH pages |
+| `weekly` | weekly-periods, tracking, export preview | **NEW** UI-WEEK pages |
+| `documents` | document-templates, catalog, checklist APIs | **NEW** UI-DOC + existing project documents view |
+| `audit` | GET `/api/audit` | **NEW** UI-AUDIT |
+| `fiscal-budget` | fiscal budget, adjustments, benefits, ROI | project budget sub-views |
+| `operations` | ops systems/budget/incidents | `app/operations/**` |
+| `resources` | resources API, resource-plan import | `app/resources`, portfolio resources |
+| `jira` | search, fields, test, presets, sync-mappings | Jira dialogs in `components/jira` → move to module ui |
+| `import` | import-mapping, bug-import-mapping, parse-file-headers | import dialogs |
+| `export` | export/word/excel/ppt/report routes | download triggers in pages |
+| `config` | GET/PATCH settings | — |
+| `demo-requests` | public demo form + admin list | landing CTA |
+
+---
+
+## Migration Architecture (DATA-01..03)
+
+### Origin branch pattern (replay, do not merge)
+
+Branch `origin/gsd/quick-260826-ded-data-layer-migrations` ships the correct **mechanism** against **stale v1.0 schema**. v2.1 replays:
+
+| File (from branch) | Purpose |
+|--------------------|---------|
+| `lib/migrate/runner.ts` | Advisory lock, BEGIN/COMMIT per file, ledger insert, checksum drift detection |
+| `lib/migrate/plan.ts` | Parse `NNNN-name.sql`, plan pending |
+| `lib/migrate/assertMigrated.ts` | Fast-fail in `getDb()` if ledger empty/missing (legacy `companies` probe for transitional DBs) |
+| `scripts/migrate.ts` | CLI: `npm run migrate`, `npm run migrate -- --check` |
+| `migrations/0001-baseline-schema.sql` | **Regenerate** — must include v2.0 tables from `lib/db-roles.ts`, `db-project-master.ts`, `db-raid-masters.ts`, `db-weekly-reports.ts`, `db-fiscal-budget.ts`, `db-dashboards.ts`, `db-documents.ts`, `db-mapping-tenant.ts` |
+| `scripts/data-fixes/*` | Boot-time UPDATE/backfill scripts moved out of `getDb()` |
+| `migrations/README.md` | Operator runbook |
+
+### New vs modified (migrations)
+
+**New files:**
+- `lib/migrate/runner.ts`, `plan.ts`, `assertMigrated.ts` (+ tests)
+- `migrations/0001-baseline-schema.sql` (regenerated), `migrations/README.md`
+- `scripts/migrate.ts`, `scripts/data-fixes/*.ts`
+- `package.json` scripts: `"migrate": "tsx scripts/migrate.ts"`; devDependency `tsx`
+
+**Modified files:**
+- `lib/db.ts` — remove `initPostgresSchema`, `migratePostgresSchema`, all `migrate*` imports from `db-*.ts`, `backfillWeightedCompletion` from boot path; add `assertMigrated`; keep `PostgresClient`, pool singleton, types, `seedAuthData`, `runInTransaction`
+- `Dockerfile` — copy `migrations/` + `scripts/` into runner; add release/init migrate step (or document operator Job until `tsx` vendored in prod image)
+- `railway.json` — optional `deploy.preDeployCommand` / release command for migrate
+- K8s manifest (when present) — init Job running `npm run migrate -- --check` then migrate
+
+### Integration flow
+
+```text
+Deploy / operator
+    │
+    ▼
+npm run migrate  ──► scripts/migrate.ts
+    │                    │
+    │                    ├─ load migrations/*.sql (fs at CLI time only)
+    │                    ├─ runMigrations() → schema_migrations ledger
+    │                    └─ getDb() → seed if users empty
+    │
+    ▼
+App boot (next start)
+    │
+    ▼
+getDb()  ──► Pool connect
+    │        assertMigrated()  ──► fail fast if no ledger
+    │        seedAuthData()     ──► idempotent admin seed
+    └─► return PostgresClient (DbClient)
+```
+
+**Critical:** Schema source of truth **moves from `lib/db.ts` to `migrations/`**. After cutover, new DDL is **only** new `NNNN-*.sql` files — stop editing inline arrays in `db-*.ts` (those modules become delete candidates once folded into baseline + later migrations).
+
+### First deploy on existing production DB
+
+Idempotent `0001` stamps ledger without destructive changes (same as origin README). Rehearse on `pg_dump` scratch copy first — old boot path swallowed errors with `try/catch`, so first explicit migrate may surface latent DDL gaps.
+
+---
+
+## Kysely Integration (ENF-02)
+
+### Design: same pool, no big-bang
+
+Kysely sits **beside** `PostgresClient`, not replacing it on day one.
+
+**New files:**
+- `lib/kysely.ts` — `getKysely(): Kysely<Database>` using `PostgresDialect({ pool: _pool })` after `getDb()` initializes pool
+- `lib/db-types.ts` — `Database` interface (hand-maintained initially; optional later `kysely-codegen` against migrated schema)
+- `lib/repositories/_kysely-helpers.ts` — typed update helpers mirroring `buildUpdate` semantics
+
+**Modified files:**
+- `lib/db.ts` — export `getPool()` or ensure `getKysely` reads same `_pool` singleton
+- `package.json` — `"kysely": "^0.29.x"` (PostgresDialect accepts existing `pg.Pool`)
+- Each `*.repo.ts` — incremental conversion
+
+### Bridge pattern
+
+```typescript
+// lib/kysely.ts
+import { Kysely, PostgresDialect } from 'kysely';
+import type { Database } from '@/lib/db-types';
+
+let _kysely: Kysely<Database> | null = null;
+
+export async function getKysely(): Promise<Kysely<Database>> {
+  if (_kysely) return _kysely;
+  const pool = await getPool(); // same pool as PostgresClient
+  _kysely = new Kysely<Database>({ dialect: new PostgresDialect({ pool }) });
+  return _kysely;
+}
+```
+
+### Allowlist migration strategy
+
+| Phase | Repos | Approach |
+|-------|-------|----------|
+| 1 | `audit.repo`, `weekly-periods.repo` | Greenfield v2 tables — full Kysely |
+| 2 | `projects.repo`, `risks.repo`, `issues.repo` | Hybrid: reads via Kysely, writes keep `buildUpdate` until typed |
+| 3 | Remaining repos | Convert per module move |
+| Last | `_helpers.ts` `buildUpdate` | Retire when all UPDATE paths use `.updateTable().set(pick(...))` |
+
+**Compile-time allowlist:** define `UpdatableProject = Pick<ProjectTable, 'name' | 'status' | …>` and pass to `.set()` — replaces runtime `PROJECT_COLUMNS` array checks.
+
+**Keep `DbClient` for:** `runInTransaction` paths, data-fix scripts, migrate runner (simple `pool.query`), any raw SQL too dynamic for Kysely.
+
+**Do NOT:** introduce Prisma/Drizzle, replace `pg` driver, or rewrite all repos before DATA cutover (schema types depend on migrated ledger).
+
+---
+
+## Proxy vs Node Wrappers (PROXY-01)
+
+### Division of responsibility
+
+| Layer | Runs on | Session truth | Tenancy truth | Missing cookie |
+|-------|---------|---------------|---------------|----------------|
+| `proxy.ts` | Edge | Cookie **presence** only | None | **API:** JSON 401; **pages:** redirect `/login` |
+| `withAuth` family | Node | DB session via `getSessionFromRequest` | `actor` + role/project asserts | JSON 401 (defense in depth) |
+
+**Modified:** `proxy.ts` lines 29–34 — when `pathname.startsWith('/api/')` and no cookie, return `NextResponse.json({ error: 'Unauthorized' }, { status: 401 })` instead of redirect (which produced HTML 307 for API clients).
+
+**Unchanged:** Wrappers remain authoritative for expired/locked/inactive sessions, role matrix, project/program scope. **Never import `pg` or call `getDb()` from `proxy.ts`** — edge runtime is not viable for bank-session DB lookups.
+
+```typescript
+// proxy.ts — PROXY-01 shape
+if (!session?.value) {
+  if (isApi) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (pathname === '/') return NextResponse.redirect(new URL('/landing', req.url));
+  // ... page redirect
+}
+```
+
+---
+
+## Data Flow: Route Thinning (THIN-01)
+
+### Current debt (routes → repo direct)
+
+These bypass services today and are THIN-01 targets:
+
+- `app/api/operations/**` → `lib/repositories/operations.repo.ts`
+- `app/api/admin/**` (most) → `admin.repo`, `rag-config.repo`, `jira-config.repo`
+- `app/api/config/route.ts` → `settings.repo`
+- `app/api/import-mapping/**`, `bug-import-mapping/**` → repos (partially has services)
+- `app/api/programs/route.ts`, `resources/route.ts`, some portfolio helpers → repos
+
+### Target flow
+
+```text
+app/api/operations/systems/route.ts  (thin re-export)
+    → modules/operations/backend/routes/systems.route.ts
+        → withAuth + ops access check
+        → operations.service.ts
+            → operations.repo.ts
+```
+
+**New services (examples):**
+- `modules/operations/backend/services/operations.service.ts`
+- `modules/admin/backend/services/admin-companies.service.ts`
+- `modules/config/backend/services/config.service.ts`
+
+**Modified:** each listed route file shrinks to wrapper + service call; repos unchanged initially.
+
+---
+
+## v2 UI Consumers (UI-DASH / UI-WEEK / UI-DOC / UI-AUDIT)
+
+APIs already exist and follow wrapper → service pattern:
+
+| API | Wrapper | Service | New UI home |
+|-----|---------|---------|-------------|
+| `/api/dashboards/portfolio`, `/pm`, filters, export | `withCpmo` / PM role | `spec-dashboards.service.ts` | `modules/dashboards/ui/pages/*` |
+| `/api/weekly-periods`, tracking, project weekly-reports | `withCpmo`, `withProjectAccess` | `weekly-*.service.ts` | `modules/weekly/ui/pages/*` |
+| `/api/projects/[id]/document-checklist` | `withProjectAccess` | `project-document-checklist.service.ts` | `modules/documents/ui/pages/*` |
+| `/api/audit` | `withCpmo` | `audit.service.ts` | `modules/audit/ui/pages/*` |
+
+**Flow:** UI hooks `fetch('/api/...')` with cookies → proxy (401 JSON if logged out) → wrapper (role assert) → service → repo → JSON.
+
+**New pages** live in module `ui/`; `app/` adds routes + Sidebar links in `components/layout/Sidebar.tsx`.
+
+**Order:** UI phases run **after** module backend dirs exist (or concurrently once API paths stable) — APIs already shipped in v2.0.
+
+---
 
 ## Architectural Patterns
 
-### Pattern 1: Master Register + Snapshot on Submit
+### Pattern 1: Thin app shell + fat modules
 
-**What:** Risks, issues, and milestones are edited in place (master). On weekly-report **submit**, the service copies relevant rows into snapshot tables keyed by `weekly_report_version_id`. Submitted versions are immutable.
+**What:** Routable files in `app/` only re-export from `modules/`.
+**When:** Every feature move (MOD-01).
+**Trade-off:** Two paths per route until moves complete; grep `@/modules` to track progress.
 
-**When to use:** PR-07, PR-09, PR-11 — spec principle "one master data source."
+### Pattern 2: Ledger-gated boot
 
-**Trade-offs:** (+) PMs always edit one RAID register; (+) historical reports stay stable; (−) snapshot schema must track enough fields for export/CPMO review; (−) submit transaction spans multiple repos.
+**What:** `getDb()` refuses to serve if `schema_migrations` empty; operator runs migrate first.
+**When:** Immediately after DATA cutover.
+**Trade-off:** Cold start faster and deterministic; deploy must wire migrate job.
 
-**Example flow:**
-```typescript
-// lib/services/weekly-reports.service.ts (new)
-export async function submitWeeklyReport(projectId, actor, reportId) {
-  await assertPmOnProject(projectId, actor);           // PR-04 + PR-02
-  const version = await createVersionRepo(reportId);      // immutable row
-  await snapshotRaidRepo(projectId, version.id);          // PR-09
-  await snapshotMilestonesRepo(projectId, version.id);    // PR-07
-  await finalizeVersionRepo(version.id);
-  await auditLog(actor, 'weekly_report.submit', version.id);
-  return version;
-}
-```
+### Pattern 3: Dual data access during Kysely rollout
 
-### Pattern 2: Role Gate Composition (CPMO / PM / Viewer)
+**What:** `getDb()` for legacy repos; `getKysely()` for converted repos; same pool.
+**When:** ENF-02 incremental.
+**Trade-off:** Temporary duplication; avoid converting repo before its schema is in migrations.
 
-**What:** Keep `withAuth` as the outer shell. Add `withRole(['CPMO'])` for company-wide config routes, and extend `assertProjectAccess` (or add `assertPmWriteAccess`) for project mutations.
+### Pattern 4: Wrapper-first API surface
 
-**When to use:** Every route after PR-02. Viewers get read via `withProjectAccess`; PMs get write only on assigned projects; CPMO gets company-wide read/write.
+**What:** ENF-01 ESLint rule — project-scoped `route.ts` must export handler wrapped by sanctioned helper.
+**When:** Parallel to module moves; prevents new debt.
 
-**Trade-offs:** (+) Same error-mapping tail as v1.0; (+) Vitest can unit-test asserts in `access.ts`; (−) `SessionUser` load must join roles — one extra query per request unless cached on session.
-
-**Example:**
-```typescript
-// lib/services/access.ts (extend)
-export async function assertPmWriteAccess(projectId: string, actor: AccessActor, userId: number) {
-  const row = await assertProjectAccess(projectId, actor);
-  if (actorHasRole(actor, 'CPMO')) return row;
-  if (await isAssignedPm(projectId, userId)) return row;
-  throw new ForbiddenError();
-}
-```
-
-### Pattern 3: Company-Scoped Mapping Tables (TENANT-01)
-
-**What:** Add `company_id` to four global tables; repositories take `companyId` as first filter parameter; routes pass `ctx.actor.company_id` (admin may pass explicit company).
-
-**When to use:** `timeline_import_mappings`, `bug_import_mappings`, `jira_jql_presets`, `jira_sync_mappings`.
-
-**Trade-offs:** (+) Closes cross-tenant mapping leak; (+) independent of roles work; (−) migration must backfill existing rows to a default company.
-
-**Example:** Mirror `listProjects(companyId, isAdmin)` — `listTimelineMappings(companyId)` with admin bypass optional.
-
-### Pattern 4: Audit Hook at Service Layer
-
-**What:** `audit.service.ts` appends rows after successful mutations — not in repositories (no actor context) and not in routes (too scattered).
-
-**When to use:** User/role changes, PM assignment history, budget adjustments, weekly-report submit, master-data changes per spec.
-
-**Trade-offs:** (+) Central shape for `who/when/what/entity_id`; (−) must not fail the primary transaction — append after commit or same transaction with best-effort.
-
-## Data Flow
-
-### Request Flow (unchanged skeleton)
-
-```
-Browser action
-    ↓
-Client page/hook → fetch('/api/...')
-    ↓
-proxy.ts (cookie presence)
-    ↓
-route.ts → withAuth / withProjectAccess / withRole
-    ↓
-service.ts → assert* → business rules → repo(s)
-    ↓
-PostgreSQL
-    ↓
-NextResponse.json → React state
-```
-
-### Key Data Flows (new/changed)
-
-#### 1. Login + role resolution (PR-01, PR-02)
-
-```
-POST /api/auth/login
-  → auth.repo findUserByUsername
-  → check status != Locked/Inactive
-  → verifyPassword (lib/auth.ts)
-  → user-roles.repo loadRoleUnion(userId)
-  → createSession → Set-Cookie pm_session
-GET /api/auth/me
-  → extend to return roles[], status
-```
-
-**Modified:** `lib/auth.ts` (`getSessionUser` or me-route enrichment), `auth.repo.ts`, new `users.repo.ts` / `user-roles.repo.ts`.
-**New:** `users.service.ts`, admin user routes switch from physical delete to status=Inactive.
-
-#### 2. PM assignment → project access (PR-04 before PM write paths)
-
-```
-CPMO POST /api/projects/[id]/pm-assignments
-  → assertRole CPMO
-  → pm-assignments.service assignPrimary / addCollaborator
-  → pm-assignments.repo INSERT + history row
-  → audit.service
-
-PM GET /api/projects/[id]/risks (write routes)
-  → withProjectAccess + assertPmWriteAccess
-  → existing risks.service → risks.repo
-```
-
-**New:** `pm-assignments.*`, history table.
-**Modified:** `access.ts`, all PM-mutation services.
-
-#### 3. RAID master CRUD (PR-09 master half)
-
-```
-PM PUT /api/projects/[id]/risks
-  → assertPmWriteAccess
-  → risks.service updateRisk (no DELETE — status → Closed/Inactive)
-  → risks.repo UPDATE (allowlist unchanged)
-  → audit.service
-```
-
-**Modified:** `risks.service.ts`, `issues.service.ts`, routes (remove DELETE or map to deactivate).
-**Unchanged:** Repository allowlists — extend columns only if spec adds fields.
-
-#### 4. Weekly report submit with snapshots (PR-09 + PR-11)
-
-```
-PM POST /api/projects/[id]/weekly-reports/[id]/submit
-  → assertPmWriteAccess
-  → weekly-reports.service submit:
-       1. Validate period open (weekly-report-periods.repo)
-       2. INSERT weekly_report_versions (immutable)
-       3. raid-snapshots.repo copy open risks/issues
-       4. raid-snapshots.repo copy milestone status snapshot
-       5. Store PM narrative fields on version row
-       6. status → Submitted
-  → audit.service
-
-CPMO GET /api/portfolio/weekly-tracking
-  → weekly-tracking.service listByPeriod(companyId, periodId)
-  → join versions + projects + submission status
-```
-
-**New:** `weekly-reports.*`, `raid-snapshots.*`, `weekly-report-periods.*`.
-**Modified:** `project-report.service.ts` — `getWeeklyProjectReport` remains **live preview** for draft UI; export/submit reads **version** when `versionId` present.
-
-#### 5. Period config → auto-create report shells (PR-10 → PR-11)
-
-```
-CPMO POST /api/portfolio/weekly-periods
-  → withRole CPMO
-  → weekly-report-periods.service createPeriod
-  → for each project where weekly_report_flag=true:
-       weekly-reports.repo createDraftShell(projectId, periodId)
-
-PM GET /api/projects/[id]/weekly-reports?period=current
-  → returns draft shell + live master preview merged
-```
-
-**Dependency:** Period config before bulk draft creation; project master `weekly_report_flag` (PR-03) before auto-create filter.
-
-#### 6. TENANT-01 mapping isolation
-
-```
-POST /api/import-mapping
-  → withAuth
-  → import-mapping.service create(companyId, ...)
-  → import-mapping.repo INSERT with company_id
-
-GET /api/jira/jql-presets?context=bugs
-  → withAuth
-  → jira-presets.service list(companyId, context)  // NEW thin service
-  → jira-config.repo scoped SELECT
-```
-
-**Modified:** `import-mapping.repo.ts`, `jira-config.repo.ts`, routes currently **repo-direct** (`app/api/jira/jql-presets/route.ts`) gain a service for company filter.
-
-#### 7. Portfolio / PM dashboards (PR-13, PR-14)
-
-```
-GET /api/portfolio (existing)
-  → portfolio.service getPortfolioSummary
-  → extend: filter by role (CPMO=all company, PM=assigned, Viewer=read assigned)
-  → add: stage L0–L5 buckets, high RAID count, overdue milestones drill-down
-
-GET /api/pm-dashboard (new)
-  → pm-dashboard.service getPmActions(userId)
-  → assigned projects + pending weekly reports + overdue milestones + open RAID
-```
-
-**Modified:** `portfolio.service.ts`, `portfolio.repo.ts` list queries, `app/page.tsx` + `usePortfolioDashboard`.
-**New:** `pm-dashboard.*`, `app/pm-dashboard/page.tsx`.
-
-#### 8. Documents — templates + Confluence checklist (PR-15)
-
-```
-CPMO CRUD /api/document-templates
-  → document-templates.service (company-scoped)
-
-PM GET/PUT /api/projects/[id]/documents
-  → documents.service checklist against templates
-  → store confluence_url + metadata only (no upload)
-  → documents.repo extend types
-```
-
-**Modified:** `documents.repo.ts`, `documents.service.ts`.
-**New:** `document-templates.*`.
-
-#### 9. Budget adjustment ledger + ROI (PR-08)
-
-```
-PM POST /api/projects/[id]/budget/adjustments
-  → assertPmWriteAccess
-  → budget-adjustments.service recordAdjustment
-  → INSERT ledger row (approved vs actual delta, reason, effective_date)
-  → recompute ROI summary (service-level, not trigger)
-  → existing budget.repo for line items unchanged
-```
-
-**New:** `budget-adjustments.*`.
-**Modified:** `budget.service.ts` for summary endpoint; project budget UI.
-
-### State Management
-
-Unchanged: per-page `useState` + `fetch`, no Redux/React Query. Weekly-report **draft** state lives server-side (`weekly_reports.status=Draft`); client refetches on save/submit. Submitted **versions** are read-only — client disables edits when `version.status=Submitted`.
-
-## Integration Matrix: PR Feature → New vs Modified
-
-| ID | Feature | New components | Modified components |
-|----|---------|----------------|---------------------|
-| TENANT-01 | Mapping `company_id` | Migration in `lib/db.ts` | `import-mapping.repo.ts`, `jira-config.repo.ts`, mapping routes, optional `jira-presets.service.ts` |
-| PR-01 | Users & roles | `users.repo.ts`, `user-roles.repo.ts`, `users.service.ts` | `admin.repo.ts` (user CRUD → status not delete), `app/api/admin/users/*`, admin UI |
-| PR-02 | Login & auth | `with-role-access.ts`, role asserts in `access.ts` | `lib/auth.ts`, `auth.repo.ts`, login/me routes, `SessionUser` type |
-| PR-03 | Project master L0–L5 | — | `projects.repo.ts` (`PROJECT_COLUMNS`), `projects.service.ts`, project form UI, `lib/rag.ts` alignment |
-| PR-04 | PM assignment | `pm-assignments.repo.ts`, `pm-assignments.service.ts`, assignment routes/history | `access.ts` (`assertPmWriteAccess`), project detail UI |
-| PR-05 | Stakeholders | `stakeholders.repo.ts`, `stakeholders.service.ts`, routes | Project settings UI |
-| PR-06 | Cross-project deps | `project-dependencies.repo.ts`, `dependencies.service.ts`, routes | Portfolio dependency view (optional) |
-| PR-07 | Milestones + snapshot | `raid-snapshots.repo.ts` (milestone slice) | `milestones.repo.ts` (soft delete), `milestones.service.ts` (delete guard if in report) |
-| PR-08 | Budget & ROI | `budget-adjustments.repo.ts`, `budget-adjustments.service.ts` | `budget.service.ts`, budget UI, `budget.repo.ts` (benefit columns if needed) |
-| PR-09 | RAID master + snapshot | `raid-snapshots.repo.ts`, `raid-snapshots.service.ts` | `risks.service.ts`, `issues.service.ts` (deactivate not delete), submit flow |
-| PR-10 | Weekly period config | `weekly-report-periods.repo.ts`, `weekly-report-periods.service.ts`, CPMO routes | — |
-| PR-11 | PM submit/version | `weekly-reports.repo.ts`, `weekly-reports.service.ts`, routes | `project-report.service.ts` (preview vs version), report UI |
-| PR-12 | CPMO tracking/export | `weekly-tracking.service.ts`, tracking routes | `lib/export/*` weekly-report path (read version), portfolio report UI |
-| PR-13 | Portfolio dashboard | — | `portfolio.service.ts`, `portfolio.repo.ts`, `app/page.tsx`, `usePortfolioDashboard` |
-| PR-14 | PM dashboard | `pm-dashboard.service.ts`, `app/pm-dashboard/*`, `/api/pm-dashboard` | Sidebar nav by role |
-| PR-15 | Document templates | `document-templates.repo.ts`, `document-templates.service.ts` | `documents.repo.ts`, `documents.service.ts`, documents UI |
-| Audit | Audit log | `audit-log.repo.ts`, `audit.service.ts` | All mutation services (incremental wiring) |
+---
 
 ## Suggested Build Order
 
-Phases respect dependencies: **roles before PM assignment before weekly reports**; **RAID master before snapshot sync**; **period config before auto-create**; **TENANT-01 early/independent**.
+Dependencies enforced:
 
 ```text
-Wave 0 — Independent tenant fix
-  └── TENANT-01  company_id on 4 mapping tables + backfill + repo/route scope
-
-Wave 1 — Auth substrate (blocks everything role-aware)
-  ├── PR-01  users, multi-role union, status, no physical delete
-  └── PR-02  login lock/inactive, SessionUser roles, withRole, access asserts
-
-Wave 2 — Project master & assignment (blocks PM-scoped writes)
-  ├── PR-03  project master L0–L5, RAG, weekly_report_flag
-  └── PR-04  PM assignment primary/collaborator/history + assertPmWriteAccess
-
-Wave 3 — Master registers (parallel tracks)
-  ├── PR-05  stakeholders
-  ├── PR-06  cross-project dependencies
-  ├── PR-08  budget adjustment ledger + ROI
-  ├── PR-09a RAID master rules (deactivate, field completeness)
-  └── PR-07a milestone soft-delete + "in report" guard (logic only; snapshot table comes Wave 4)
-
-Wave 4 — Weekly report pipeline
-  ├── PR-10  CPMO period configuration
-  ├── PR-09b raid-snapshots.repo + sync on submit
-  ├── PR-07b milestone snapshot slice (same submit transaction)
-  ├── PR-11  draft/submit/version immutable + auto-create shells from PR-10
-  └── PR-12  CPMO tracking, consolidate, export from version
-
-Wave 5 — Dashboards & documents (needs Waves 1–4 data)
-  ├── PR-13  portfolio dashboard (role-filtered aggregates)
-  ├── PR-14  PM personal dashboard
-  └── PR-15  document templates + Confluence checklist
-
-Wave 6 — Cross-cutting (wire throughout, complete last)
-  └── Audit log  audit.service called from Waves 1–5 mutation services
+DATA-01..03 ─────────────────────────────────────────────┐
+       │                                                │
+       ├─► PROXY-01 (small, independent)                │
+       ├─► ENF-01 ESLint gate                           │
+       ├─► THIN-01 ops/admin/config services            │
+       │                                                │
+       ├─► MOD-01 module split (incremental)           │
+       │      backend routes/services/repos per area    │
+       │      then ui pages/hooks per area              │
+       │                                                │
+       └─► ENF-02 Kysely (repo-by-repo) ◄── schema stable
+                │
+                ├─► UI-DASH / UI-WEEK / UI-DOC / UI-AUDIT
+                ├─► PERF-01..03
+                └─► NIT-01..02, HYG-02, NYQ-01
 ```
 
-**Critical path:** TENANT-01 → PR-01 → PR-02 → PR-04 → PR-10 → PR-09b → PR-11 → PR-12 → PR-13/14.
+### Phase 0 — DATA-01..03 (blocker for everything else)
 
-**Parallel-safe after Wave 2:** PR-05, PR-06, PR-08, PR-09a, PR-15 (UI gates only need PR-02).
+1. Copy `lib/migrate/*`, `scripts/migrate.ts` from origin branch
+2. Generate `migrations/0001-baseline-schema.sql` from current `lib/db.ts` + all `lib/db-*.ts` DDL
+3. Move boot UPDATE/backfill to `scripts/data-fixes/`
+4. Slim `getDb()` to pool + `assertMigrated` + seed
+5. Wire `npm run migrate` in CI/deploy docs; rehearse on scratch DB
+6. Delete obsolete inline migration functions once ledger stamped
 
-**Keep green throughout:** Each wave adds Vitest coverage at service + route auth layer (403 cross-company, 403 wrong role) per HYG-03.
+### Phase 1 — Enforcement + proxy (parallel, low risk)
 
-## Scaling Considerations
+- PROXY-01: JSON 401 for API
+- ENF-01: ESLint/CI — wrapped exports on `app/api/**/route.ts`
+- JIRA-01: hygiene in jira module/route
 
-| Scale | Architecture adjustments |
-|-------|--------------------------|
-| 0–1k users | Monolith unchanged; snapshot tables grow ~(#projects × #weeks × RAID rows) — index `(project_id, period_id)` on versions |
-| 1k–100k users | Add read replicas for dashboard aggregates; consider materialized view for PR-13 KPIs; audit log partition by month |
-| 100k+ users | Weekly-report submit is write-heavy — batch snapshot inserts; archive old versions to cold storage |
+### Phase 2 — THIN-01 services
 
-### Scaling Priorities
+- Add operations/admin/config services; routes call services only
+- Fits naturally into `modules/operations/backend`, `modules/admin/backend`
 
-1. **First bottleneck:** Portfolio dashboard aggregate queries (PR-13) — multiple joins across projects/risks/milestones; add repo-level summary queries rather than N+1 in service.
-2. **Second bottleneck:** Weekly-report snapshot copy on submit — single transaction per project per week; acceptable until high concurrent submit on Monday deadlines.
+### Phase 3 — MOD-01 incremental module moves
+
+Recommended move order (backend first, then ui):
+
+1. **dashboards, weekly, audit, documents** — v2 APIs already service-backed; add UI in same module
+2. **auth, admin, config** — small surface
+3. **operations, import, jira, export** — THIN-01 overlap
+4. **programs, resources, portfolio** — portfolio home + sub-pages
+5. **projects** — largest; move nested resources in batches (milestones, timeline, risks, …)
+
+Each batch: move files → update imports to `@/modules/...` → leave thin `app/` re-export → run tests.
+
+### Phase 4 — ENF-02 Kysely
+
+**Only after Phase 0 complete.** Per-module repo conversion alongside or after backend move:
+
+1. Add `lib/kysely.ts` + `lib/db-types.ts`
+2. Convert v2 repos (audit, weekly, dashboard-filter-state)
+3. Convert high-churn masters (projects, risks, issues, milestones)
+4. Remaining repos + retire runtime allowlists
+
+### Phase 5 — v2 UI consumers
+
+- UI-DASH, UI-WEEK, UI-DOC, UI-AUDIT in respective `modules/*/ui/`
+- Sidebar nav entries; reuse existing API contracts (no API rewrite)
+
+### Phase 6 — PERF + nits
+
+- PERF-01 virtualization in grid-heavy module UIs
+- PERF-02 RSC chrome extraction
+- PERF-03 cold-start budget (benefits from DATA already)
+- NIT-01..02, HYG-02, NYQ-01
+
+---
+
+## New vs Modified Summary
+
+### New
+
+| Path | Purpose |
+|------|---------|
+| `modules/**` | Feature backend + ui (entire tree) |
+| `lib/migrate/**` | Migration runner, assertMigrated |
+| `lib/kysely.ts`, `lib/db-types.ts` | Kysely + schema types |
+| `migrations/*.sql` | Versioned DDL |
+| `scripts/migrate.ts`, `scripts/data-fixes/**` | CLI migrate + one-off fixes |
+| Module UI pages | Portfolio/PM dashboards, weekly tracking, checklist, audit viewer |
+
+### Modified
+
+| Path | Change |
+|------|--------|
+| `lib/db.ts` | Remove boot DDL/migrations; add assertMigrated; optional getPool export |
+| `app/api/**/route.ts` | Thin re-exports → modules |
+| `app/**/page.tsx` | Thin re-exports → modules |
+| `proxy.ts` | JSON 401 for unauthenticated API |
+| `app/api/operations/**`, `admin/**`, `config/**` | Route → service (THIN-01) |
+| `lib/repositories/*.repo.ts` | Incremental Kysely (ENF-02) |
+| `package.json` | migrate script, kysely, tsx |
+| `Dockerfile`, deploy manifests | Ship migrations; migrate job |
+| `eslint.config.mjs` | ENF-01 wrapper rule |
+| `vitest.config.ts` | Include `modules/**` test globs |
+| `components/layout/Sidebar.tsx` | Nav to new v2 UI routes |
+
+### Deleted (after DATA cutover)
+
+| Path | When |
+|------|------|
+| `lib/db-*.ts` inline migrate functions | After folded into `migrations/0001` + verified |
+| `initPostgresSchema` / `migratePostgresSchema` in `lib/db.ts` | Phase 0 |
+| `lib/services/*.service.ts` + `lib/repositories/*.repo.ts` | After moved to modules (re-export shims optional short-term) |
+
+### Unchanged
+
+- Next.js 16 App Router, React 19, PostgreSQL, `pg` pool
+- `lib/http/*` wrappers — remain enforcement point
+- `lib/integrations/*`, `lib/auth.ts`, `lib/api-errors.ts`
+- Multi-tenant access model (CPMO/PM/Viewer)
+- Vitest 4 gate, Docker standalone, `serverExternalPackages`
+
+---
 
 ## Anti-Patterns
 
-### Anti-Pattern 1: UI-Only Role Hiding
+### Put pages only under modules/ without app/ re-exports
 
-**What people do:** Hide buttons for Viewer in React without server checks.
-**Why it's wrong:** Spec requires server-side authorization; v1.0 reorg exists precisely to prevent this.
-**Do this instead:** Every mutating route goes through `assertPmWriteAccess` or `withRole(['CPMO'])`; Viewer gets 403 on POST/PUT/DELETE.
+**Why wrong:** Next.js will not serve URLs.
+**Instead:** Always mirror with one-line `app/**` re-export.
 
-### Anti-Pattern 2: Editing Submitted Weekly Report Version
+### Run Kysely/codegen before migration cutover
 
-**What people do:** UPDATE `weekly_report_versions` when PM wants to "fix" last week.
-**Why it's wrong:** Spec immutable versions; breaks CPMO audit trail.
-**Do this instead:** New version on resubmit if period still open; otherwise CPMO override workflow with audit entry.
+**Why wrong:** Schema types drift from production; boot still mutates DDL.
+**Instead:** DATA first; baseline SQL is source of truth; then db-types.
 
-### Anti-Pattern 3: Snapshot-as-Master
+### DB session lookup in proxy.ts
 
-**What people do:** PM edits RAID in snapshot table during draft.
-**Why it's wrong:** Violates "one master data source"; duplicates divergence.
-**Do this instead:** Draft UI reads live master via `getWeeklyProjectReport`; submit copies to snapshot once.
+**Why wrong:** Edge cannot run `pg`; duplicates Node authz.
+**Instead:** Cookie presence at edge; full session in `withAuth`.
 
-### Anti-Pattern 4: Physical Delete on Users/RAID/Milestones
+### Big-bang move of all lib/services to modules
 
-**What people do:** Keep `DELETE FROM users/risks/milestones`.
-**Why it's wrong:** Spec forbids physical delete; breaks report integrity references.
-**Do this instead:** Status columns (`Inactive`, `Closed`) + soft-delete flags; repo drops hard DELETE exports.
+**Why wrong:** Massive conflict surface; blocks v2.1 delivery.
+**Instead:** Incremental per feature area; shims `@/lib/services/foo` → re-export during transition.
 
-### Anti-Pattern 5: Global Mapping Tables Post-TENANT-01
+### Merge origin migration branch as-is
 
-**What people do:** Forget `company_id` filter on one of four mapping repos.
-**Why it's wrong:** Reintroduces cross-tenant mapping leak (v1.0 known gap).
-**Do this instead:** Every list/create/delete takes `companyId`; admin bypass explicit in service.
+**Why wrong:** Missing v2.0 tables (weekly, fiscal, roles, audit, dashboards, checklist).
+**Instead:** Replay runner pattern; regenerate `0001` from current master schema.
 
-### Anti-Pattern 6: Bypassing Service Layer on New Routes
+---
 
-**What people do:** Copy `jira/jql-presets/route.ts` repo-direct pattern for new weekly-report routes.
-**Why it's wrong:** v1.0 accepted debt on ops routes; v2.0 spec features are not ops debt.
-**Do this instead:** route → service → repo for all PR-01..15 endpoints.
+## Scaling Considerations
+
+| Concern | Today | After v2.1 |
+|---------|-------|------------|
+| Cold start | `getDb()` runs full DDL chain | Pool + assert + seed only — PERF-03 measurable win |
+| Deploy schema | Implicit on first request | Explicit migrate job — safer multi-replica |
+| Repo safety | Runtime allowlists | + compile-time Kysely picks |
+| Code navigation | Flat lib/ + app/ | Feature modules — clearer ownership |
+
+---
 
 ## Integration Points
 
-### External Services (unchanged)
+### External Services
 
-| Service | Integration pattern | v2.0 notes |
-|---------|---------------------|------------|
-| Jira Cloud | `lib/integrations/jira` + `company_jira_config` env var names | Keep; mapping tables get `company_id` (TENANT-01) |
-| Anthropic | `lib/integrations/anthropic` | Keep AI report/email; may summarize submitted version |
-| Resend | `lib/integrations/resend` | Keep; PR-12 may email consolidated CPMO export |
-| Excel/PPT/Word | `lib/export/*` | Extend weekly-report export to read version snapshot |
+| Service | Pattern | Notes |
+|---------|---------|-------|
+| PostgreSQL | `pg.Pool` singleton → `DbClient` + Kysely | Migrations via CLI only post-DATA |
+| Jira/Anthropic/Resend | `lib/integrations/*` | Unchanged; called from module routes/services |
 
 ### Internal Boundaries
 
 | Boundary | Communication | Notes |
 |----------|---------------|-------|
-| access.ts ↔ all services | Sync assert calls | Single place for role + tenant + assignment |
-| weekly-reports.service ↔ raid-snapshots.service | Sync in submit transaction | Must succeed or roll back together |
-| project-report.service ↔ weekly-reports.service | Preview uses live; submit delegates | Avoid duplicating aggregation logic — extract shared `buildReportPayload(projectId, period)` |
-| portfolio.service ↔ pm-dashboard.service | Shared repo queries | Extract `listAssignedProjects(userId)` to avoid drift |
-| audit.service ↔ mutation services | Fire-and-forget append | Never block primary operation on audit failure |
+| `app/` ↔ `modules/` | Re-export | URL stability |
+| `modules/*/ui` ↔ `modules/*/backend` | HTTP `/api/*` only | No direct service import from client components |
+| `modules/*/backend/services` ↔ `lib/` | `@/lib/db`, `@/lib/http` | Shared pool + wrappers |
+| Migrate CLI ↔ App | `schema_migrations` ledger | assertMigrated on boot |
+
+---
 
 ## Sources
 
-- `.planning/PROJECT.md` — v2.0 requirements PR-01..PR-15, TENANT-01, constraints
-- `.planning/codebase/ARCHITECTURE.md` — v1.0 layer diagram (2026-08-07)
-- Live codebase (2026-08-25): `lib/http/with-auth.ts`, `with-project-access.ts`, `lib/services/access.ts`, `risks.service.ts`, `projects.service.ts`, `project-report.service.ts`, `portfolio.service.ts`, `import-mapping.repo.ts`, `jira-config.repo.ts`, `milestones.repo.ts`, `budget.repo.ts`, `documents.repo.ts`, `admin.repo.ts`
-- Codegraph exploration — auth wrappers, RAID/milestone/budget/report flows, mapping table call sites
+- Live codebase: `lib/db.ts`, `proxy.ts`, `lib/http/*`, `app/api/dashboards/*`, `app/api/audit/route.ts`, THIN-01 route grep
+- `.planning/PROJECT.md` — v2.1 requirements MOD-01, DATA-01..03, ENF-02, PROXY-01
+- `.planning/codebase/ARCHITECTURE.md`, `STRUCTURE.md` — v1.0 layer model (preserved)
+- `origin/gsd/quick-260826-ded-data-layer-migrations` — `lib/migrate/*`, `scripts/migrate.ts`, `migrations/README.md` (pattern only; baseline stale)
+- Kysely docs — `PostgresDialect({ pool })` accepts existing `pg.Pool` ([kysely-org/kysely](https://github.com/kysely-org/kysely))
 
 ---
-*Architecture research for: v2.0 Portfolio One View (PR-01..PR-15 + TENANT-01)*
-*Researched: 2026-08-25*
+*Architecture research for: PM Tool B v2.1 Hardening & Deferred Debt*
+*Researched: 2026-08-28*

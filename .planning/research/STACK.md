@@ -1,14 +1,26 @@
 # Stack Research
 
-**Domain:** Bank PPM / Portfolio One View (v2.0 on brownfield Next.js app)
-**Researched:** 2026-08-25
-**Confidence:** HIGH (additive stack on validated v1.0 base; one new runtime dep)
+**Domain:** PM Tool B v2.1 — Hardening & Deferred Debt (brownfield Next.js 16 / React 19 / PostgreSQL)
+**Researched:** 2026-08-28
+**Confidence:** HIGH (additive stack on validated v2.0 base; integration points verified against codebase + origin DATA branch)
 
 ## Scope
 
-v1.0 stack is **fixed and validated** — do not replace Next.js 16.2.4, React 19.2.4, TypeScript strict, PostgreSQL via `pg`, Vitest 4, Zod, exceljs, pptxgenjs, docx, Anthropic SDK, Jira/Resend clients, scrypt sessions, or route → service → repository layers.
+v2.0 stack is **fixed and validated** — do not replace Next.js 16.2.4, React 19.2.4, TypeScript strict, PostgreSQL via `pg`, Vitest 4, Zod, exceljs, pptxgenjs, docx, Anthropic SDK, Jira/Resend clients, scrypt sessions, or route → service → repository layers.
 
-This document covers **additions and schema-level changes** for PR-01..PR-15 + TENANT-01 only.
+This document covers **additions and changes** for v2.1 only:
+
+| Requirement | Stack focus |
+|-------------|-------------|
+| DATA-01..03 | Versioned SQL migrations, external `npm run migrate`, `getDb()` connect+guard+seed only |
+| ENF-01 | ESLint/CI gate for auth wrapper on project-scoped `route.ts` handlers |
+| ENF-02 | Kysely over existing `pg.Pool` in repositories (no Prisma, no second ORM) |
+| PERF-01 | Large grid virtualization |
+| PERF-02 | Static page chrome → React Server Components |
+| PERF-03 | Cold-start measurement and budget |
+| PROXY-01 | `proxy.ts` JSON 401 for API callers |
+
+Repo-wide per-module backend/UI directory layout is an **architecture** decision (see ARCHITECTURE.md); no new packages required unless a path-alias ESLint plugin is added later.
 
 ## Recommended Stack
 
@@ -16,162 +28,231 @@ This document covers **additions and schema-level changes** for PR-01..PR-15 + T
 
 | Technology | Version | Purpose | Why Recommended |
 |------------|---------|---------|-----------------|
-| Next.js | 16.2.4 | App Router, API routes, standalone deploy | Already validated; v2.0 extends routes/services, not framework |
-| React | 19.2.4 | UI for dashboards, weekly-report flows | Already validated; decomposed page modules from v1.0 reuse |
-| PostgreSQL | 15+ (hosting) | Multi-tenant master data, snapshots, audit | Spec needs relational integrity, UNIQUE constraints, immutability via CHECK/trigger |
-| `pg` | ^8.20.0 (8.23.0 latest) | DB driver | Already wired through `lib/db.ts`; JSONB auto-parse, BIGINT-as-string is the right VND pattern |
-| Zod | ^4.4.3 | Boundary validation | Already direct dep + used in `withAuth` schemas; extend for roles, email, Confluence URLs |
-| Node `crypto` | stdlib | scrypt passwords, session IDs | Already in `lib/auth.ts`; account lock = status column + invalidate sessions, no new auth lib |
+| Next.js | 16.2.4 | App Router, `proxy.ts`, RSC layouts | Already validated; v2.1 uses built-in proxy + RSC — no middleware migration |
+| React | 19.2.4 | UI, `@tanstack/react-virtual` host | Already validated; virtualizer is headless and React-19-compatible |
+| PostgreSQL | 15+ (hosting) | Multi-tenant master data | Unchanged; migrations stay raw SQL |
+| `pg` | ^8.20.0 | DB driver + Kysely `PostgresDialect` pool | Single pool shared by Kysely and legacy `DbClient` bridge during ENF-02 rollout |
+| TypeScript | ^5 (strict) | Compile-time column safety via Kysely | Kysely requires TS ≥5.4 and `strict: true` — project already satisfies both |
+| Vitest | 4.1.10 | Regression gate | Extend for migration runner unit tests, wrapper lint, cold-start script |
 
-### New Runtime Dependency
+### New Runtime Dependencies
 
-| Library | Version | Purpose | When to Use |
-|---------|---------|---------|-------------|
-| `date-fns` | ^4.4.0 | Report period math | CPMO weekly-period config (PR-10), fiscal-year labels (PR-08), ISO week IDs for submitted snapshots (PR-11). Replaces ad-hoc `Date` math in `getWeekBounds()` (`lib/services/project-report.service.ts`) with `startOfWeek` / `endOfWeek` (`weekStartsOn: 1` = Monday), `getISOWeek`, `format(..., 'yyyy-MM-dd')`. Import individual functions only — tree-shaking keeps standalone bundle lean. |
+| Library | Version | Purpose | Why Recommended |
+|---------|---------|---------|-----------------|
+| `kysely` | **0.29.5** | Type-safe query builder over existing `pg.Pool` | ENF-02: compile-time column/table names replace stringly-typed allowlists; zero runtime overhead; wraps same pool — no second connection layer |
+| `@tanstack/react-virtual` | **3.14.10** | Row virtualization for large HTML tables/grids | PERF-01: headless `useVirtualizer` works with existing `<table>` markup (timeline activities, admin tables, audit viewer) without adopting a full datagrid framework |
 
-**Why date-fns and not more:** The app already hand-rolls week boundaries; v2.0 adds CPMO-configurable periods, overlap validation, and fiscal-year grouping. One small date library beats copying ISO-week edge cases into three services. **Do not add `@date-fns/tz`** unless period boundaries must flip at Asia/Ho_Chi_Minh midnight — store report periods as PostgreSQL `DATE` (date-only strings `yyyy-MM-dd`) and timezone stays a non-issue.
+### New Development Dependencies
 
-### PostgreSQL Schema Patterns (no npm — apply in `lib/db.ts` migrations)
+| Library | Version | Purpose | Why Recommended |
+|---------|---------|---------|-----------------|
+| `tsx` | **4.23.12** (pinned) | Run migration CLI + cold-start script outside Next bundle | Origin DATA branch pattern; **must** be a devDependency — never bare `npx tsx` in Docker/CI (unpinned transitive drift) |
+| `kysely-codegen` | **0.20.0** | Generate `Database` interface from live Postgres schema | After `npm run migrate`, codegen produces Kysely types matching v2.0 tables; avoids hand-maintaining 40+ table interfaces |
+| `@typescript-eslint/utils` | **^8.68.0** | Author local ESLint rule for ENF-01 | Matches `eslint-config-next@16.2.4` typescript-eslint major; flat-config local plugin for wrapper enforcement |
 
-| Pattern | Columns / types | PR coverage | Why |
-|---------|-----------------|-------------|-----|
-| Multi-role union | `user_roles(user_id, role TEXT CHECK (role IN ('cpmo','pm','viewer')), company_id)` | PR-01, PR-02 | Spec requires role union, not single `is_admin` flag; query `ARRAY_AGG` or join in session load |
-| Account lifecycle | `users.status TEXT`, `users.email TEXT UNIQUE`, `failed_login_count`, `locked_at` | PR-01, PR-02 | Active/Inactive/Locked + unique username/email are DB constraints + service rules; soft-delete via status, never `DELETE` |
-| VND integers | `BIGINT` (not `NUMERIC(15,2)`) on budget/benefit columns | PR-08 | Spec: VND whole dong; migrate existing `NUMERIC` columns. `pg` returns BIGINT as **string** by default — keep amounts as `string` in TS or use native `BigInt` for ROI math; **do not** set `pg.defaults.parseInt8 = true` (loses precision above `Number.MAX_SAFE_INTEGER`) |
-| Fiscal year | `fiscal_year SMALLINT`, `period_start DATE`, `period_end DATE` | PR-08, PR-10 | Filter/group in SQL; ROI formulas in pure TS service functions |
-| Weekly report versioning | `weekly_report_periods`, `weekly_report_submissions(status draft\|submitted, version INT, submitted_at)` | PR-10, PR-11 | Period config separate from submission state machine |
-| Immutable snapshots | `weekly_report_snapshots(submission_id, payload JSONB)` + `CHECK (true)` + revoke UPDATE/DELETE via app + optional PG trigger | PR-07, PR-09, PR-11 | On submit: `INSERT` copy of RAID/milestones/highlights into JSONB; never UPDATE submitted rows |
-| RAID master + snapshot | Keep live `risks`/`issues`; add `weekly_raid_snapshots(submission_id, risk_id, …)` or embed in JSONB payload | PR-09 | Master register editable until submit; snapshot frozen with report version |
-| Audit log | `audit_logs(id BIGSERIAL, company_id, actor_id, entity_type, entity_id, action, before JSONB, after JSONB, created_at)` append-only | All mutations | No ORM/trigger framework — single `auditLog()` in service layer after successful write |
-| Document checklist | `document_templates(company_id, …)`, `project_document_links(project_id, template_id, confluence_url TEXT, …)` | PR-15 | Metadata + HTTPS link only; no blob storage |
-| Tenant mapping | `company_id INTEGER NOT NULL` on `timeline_import_mappings`, `bug_import_mappings`, `jira_jql_presets`, `jira_sync_mappings` | TENANT-01 | FK + index; filter in existing Jira/import repos |
+### Migration Stack (DATA-01..03) — keep custom runner, not node-pg-migrate
 
-### Supporting Libraries (existing — extend usage, do not add alternatives)
+| Component | Version / source | Purpose | Why Recommended |
+|-----------|------------------|---------|-----------------|
+| Custom runner (`lib/migrate/*`) | Replay from `origin/gsd/quick-260826-ded-data-layer-migrations` | Advisory lock, checksum ledger, pending/drift detection | Already designed for this app: `schema_migrations` ledger, sha256 drift detection, `pg_advisory_lock(1347246335)`, no `fs` in `getDb()` (standalone-safe) |
+| `migrations/*.sql` | Regenerated `0001-baseline-*.sql` from **current** `lib/db.ts` | Versioned DDL baseline incl. v2.0 weekly/fiscal/roles/RAID/dashboard/checklist/audit | Origin branch `0001` is v1.0-era — merging as-is would drop v2.0 tables |
+| `scripts/migrate.ts` | Replay from origin branch | External `npm run migrate` / `--check` deploy gate | Reads SQL at CLI time only; calls `getDb()` post-migrate for idempotent seed |
+| `assertMigrated()` | Replay from origin branch | Fast-fail in `getDb()` when ledger empty | Legacy DB with `companies` row but no ledger still boots (dev tolerance); fresh DB fails with runbook message |
+| `pg` | ^8.20.0 (existing) | Migration client + app pool | Runner uses dedicated `pool.connect()` session; app uses singleton — same driver, no new dep |
 
-| Library | Version | v2.0 use | Integration point |
-|---------|---------|----------|-------------------|
-| Zod | ^4.4.3 | `z.enum(['cpmo','pm','viewer'])`, `z.array(roleEnum).min(1)`, `z.email()`, `z.url({ protocol: /^https?$/ })` for Confluence | Route schemas + `withAuth({ schema })`; uniqueness enforced by PG `23505` catch in user service, not Zod |
-| `exceljs` | ^4.4.0 | CPMO consolidated export (PR-12) | Existing export routes; add workbook sheet from submitted snapshot JSONB |
-| `pptxgenjs` / `docx` | ^4.0.1 / ^9.6.1 | Optional formatted exports | Same pattern as v1.0 portfolio report export |
-| `recharts` | ^3.8.1 | Portfolio/PM dashboards RAG, stage, RAID counts (PR-13, PR-14) | Already installed; aggregate queries in new dashboard services |
-| Vitest | 4.1.10 | RBAC 403 matrix, snapshot immutability, BIGINT ROI edge cases | Extend existing service/route test harness; no new test libs |
-| Anthropic SDK | ^0.92.0 | Keep AI report generation alongside spec weekly reports | Parallel path — spec submit/export is authoritative for compliance |
+**Recommendation: keep custom runner, reject `node-pg-migrate@9.0.0`.**
 
-### Development Tools (unchanged)
+| Criterion | Custom runner (origin pattern) | node-pg-migrate |
+|-----------|----------------------------------|-----------------|
+| Checksum drift on edited applied files | Built-in (`planPendingMigrations` → throw) | Not native — would need custom hooks |
+| Advisory lock | Built-in (`PMMG` key) | Separate concern |
+| `output: 'standalone'` | SQL read only in CLI; `getDb()` has no `fs` | Adds CLI + migration table format unlike existing ledger |
+| Brownfield baseline | One `0001` SQL dump from current schema | Would still need manual baseline; different file naming |
+| Team familiarity | Already implemented on origin branch | New abstraction for ~200 lines of proven code |
 
-| Tool | Purpose | Notes |
-|------|---------|-------|
-| Vitest 4 + RTL | Regression gate for new RBAC and snapshot rules | HYG-03: capability not done until tests pass |
-| ESLint (eslint-config-next 16.2.4) | Lint | ENF-01 still deferred — no new lint wrapper |
+### ENF-01 — Auth wrapper ESLint gate
 
-## Integration Architecture
+| Component | Version | Purpose | Why Recommended |
+|-----------|---------|---------|-----------------|
+| Local rule `pm-tool/require-auth-wrapper` | via `@typescript-eslint/utils@^8.68.0` | Fail lint when `app/api/**/route.ts` exports `GET`/`POST`/… not wrapped | Matches existing export pattern: `export const GET = withProjectAccess(async …)` |
+| Allowlist in `eslint.config.mjs` | — | Exempt `/api/auth/*`, `/api/health`, `/api/demo-requests`, platform admin routes per D-23 | Same paths as `proxy.ts` `PUBLIC` + documented carve-outs |
+| CI fallback (optional) | `tsx scripts/check-route-wrappers.ts` | Same AST check outside ESLint | Only if flat-config local plugin wiring blocks CI — ESLint is primary per ENF-01 |
 
-### Authorization (PR-01, PR-02) — extend, do not replace
+**Sanctioned wrappers** (must appear as direct call wrapping the handler): `withAuth`, `withProjectAccess`, `withProgramAccess`, `withCpmo`, `withRole`.
+
+### ENF-02 — Kysely integration with existing pool
 
 ```
-Session load → SessionUser { id, company_id, roles: Role[], status }
-withAuth → withRole(['cpmo']) / withProjectAccess → assertProjectAccess + assertPmOrViewer
+getDb()  →  Pool (singleton _pool)
+              ├─ PostgresClient (DbClient) — retire per-repo during migration
+              └─ Kysely<Database> via PostgresDialect({ pool: _pool })
+runInTransaction(fn)  →  pg PoolClient  →  kysely.execute(db => fn(db)) for Kysely repos
 ```
 
-- **Extend** `SessionUser` and `AccessActor` in `lib/auth.ts` / `lib/services/access.ts` — map `is_admin` to `cpmo` during migration, then deprecate boolean.
-- **CPMO** = company-scoped admin (period config, user CRUD, portfolio dashboard, submission tracking).
-- **PM** = `assertProjectAccess` + PM assignment row (primary or collaborating).
-- **Viewer** = read-only project access via assignment or company portfolio visibility.
-- Multi-role union = OR of permitted actions in service layer; **no** `@casl/ability`, `accesscontrol`, or `casbin` — three fixed roles with project scoping fit ~50 lines of `hasRole()` / `assertRole()` better than a policy engine.
+| Pattern | Package | Notes |
+|---------|---------|-------|
+| Singleton Kysely | `kysely@0.29.5` | `new Kysely<Database>({ dialect: new PostgresDialect({ pool: _pool }) })` — reuse `_pool`, do not create second pool |
+| Type generation | `kysely-codegen@0.20.0` | `"codegen:db": "kysely-codegen --dialect postgres --url env(DATABASE_URL) --out-file lib/db/kysely-types.ts"` — run after migrate in dev/CI |
+| BIGINT amounts | `pg` defaults | Keep BIGINT as **string** in generated types; do **not** set `parseInt8` globally (VND precision) |
+| Transactions | `kysely` | Prefer `db.transaction().execute()` for new code; existing `runInTransaction` can wrap Kysely `.execute()` on reserved connection |
+| Compile-time columns | `kysely` | `.select(['id', 'company_id', …])` — invalid column is TS error; replaces manual allowlist arrays |
 
-### Weekly report flow (PR-10..PR-12)
+### PERF-01 — Grid virtualization targets
 
-1. CPMO creates `weekly_report_periods` (date-fns validates non-overlap).
-2. PM saves draft → UPDATE mutable draft row only.
-3. PM submits → service copies master RAID/milestones/highlights into JSONB snapshot, bumps `version`, sets `status = submitted`; subsequent edits create new draft version, never mutate submitted snapshot.
-4. CPMO export reads snapshot JSONB → exceljs (existing client).
+| Page / component | Est. row count | Virtualization approach |
+|------------------|----------------|-------------------------|
+| Project timeline activity table | 100–500+ | `useVirtualizer` on scroll container wrapping `<tbody>` rows |
+| Admin user/company tables | 50–200 | Same row virtualizer; fixed `estimateSize` (~40px) |
+| Audit viewer (UI-AUDIT) | Unbounded append-only | Virtualizer + server pagination later; virtualizer first |
+| Resource plan matrix | Medium | Row virtualizer; column virtualization only if horizontal scroll becomes bottleneck |
 
-### Budget & ROI (PR-08)
+Use **`@tanstack/react-virtual`** — not `@tanstack/react-table` (no need for headless table state yet) and not `react-virtualized` (maintenance mode, heavier API).
 
-- Store amounts as `BIGINT`; expose as string in API JSON to avoid JS float corruption.
-- ROI / benefit-cost formulas in `lib/services/budget-value.service.ts` using `BigInt` or integer arithmetic on parsed strings.
-- Adjustment history = append-only `budget_adjustments` table (mirrors audit pattern).
+### PERF-02 — RSC chrome (no new packages)
 
-### Audit (cross-cutting)
+| Change | Mechanism | Why |
+|--------|-----------|-----|
+| Authenticated route-group layout | Server Component `(app)/layout.tsx` or per-segment layout | Static shell (Logo, nav structure, `<main>`) renders on server — less client JS |
+| Split `Sidebar.tsx` | Server `SidebarShell` + Client `SidebarInteractive` | Current 400-line `'use client'` Sidebar fetches `/api/auth/me` and uses `usePathname` — only interactive islands need client |
+| Page files | Server page wraps Client feature module | Pattern: `export default async function Page() { return <TimelineClient … /> }` — data fetched in server parent where possible |
+| Root layout | Already Server (`app/layout.tsx`) | Keep `Toaster` as client island; font + metadata stay server |
 
-- Call `auditLog({ actor, entity, action, before, after })` at end of successful service mutators (users, projects, budget, RAID, submissions).
-- `before`/`after` as JSONB — full row snapshot, not diff library. Query by `company_id`, `entity_type`, `created_at`.
+### PERF-03 — Cold-start measurement (stdlib-first)
+
+| Tool | Version | Purpose | Why Recommended |
+|------|---------|---------|-----------------|
+| Node `perf_hooks` | stdlib | `performance.now()` around first `getDb()` in benchmark script | Zero deps; measures post-DATA-01 boot path (connect + assertMigrated + seed, no DDL) |
+| `tsx@4.23.12` | pinned devDep | `scripts/measure-cold-start.ts` | Same runner as migrate; exits non-zero when p95 exceeds budget |
+| Vitest 4 | existing | Unit test that `assertMigrated` throws without ledger | Complements timing script — correctness before perf |
+
+**Primary win for cold-start:** removing `initPostgresSchema` + inline migrate chain from `getDb()` (DATA-01..03). Measurement script validates the slim path; budget target is a planning constant (e.g. `<500ms` connect+guard on Railway — set in phase plan).
+
+### PROXY-01 — JSON 401 from `proxy.ts` (no new packages)
+
+| Pattern | Implementation |
+|---------|----------------|
+| API unauthenticated | `pathname.startsWith('/api/')` && no session → `NextResponse.json({ error: 'Unauthorized' }, { status: 401 })` |
+| Page unauthenticated | Keep existing `NextResponse.redirect('/login')` |
+| Public API paths | Same `PUBLIC` prefix list as today |
+| Request ID stamping | Preserve `NextResponse.next({ request: { headers } })` for authenticated API |
+
+Next.js 16 canonical pattern (Context7 `/vercel/next.js/v16.2.9`): proxy returns `Response.json(…, { status: 401 })` for `/api/:function*` — **cookie/session check only**, no edge DB/pg (session remains in route handlers via `withAuth`).
 
 ## Installation
 
 ```bash
-# Only new runtime dependency for v2.0
-npm install date-fns@^4.4.0
+# Runtime (ENF-02, PERF-01)
+npm install kysely@0.29.5 @tanstack/react-virtual@3.14.10
 
-# Everything else already in package.json — verify pins, do not reinstall:
-# next@16.2.4 react@19.2.4 pg@^8.20.0 zod@^4.4.3 exceljs pptxgenjs docx recharts vitest
+# Dev (DATA-01..03 CLI, ENF-01 local rule, ENF-02 codegen, PERF-03 script)
+npm install -D tsx@4.23.12 kysely-codegen@0.20.0 @typescript-eslint/utils@^8.68.0
 ```
 
-Optional patch (non-blocking): `npm install pg@^8.23.0` for driver fixes — no API change required for v2.0 features.
+**package.json scripts to add:**
+
+```json
+{
+  "migrate": "tsx scripts/migrate.ts",
+  "migrate:check": "tsx scripts/migrate.ts --check",
+  "codegen:db": "kysely-codegen --dialect postgres --url env(DATABASE_URL) --out-file lib/db/kysely-types.ts",
+  "measure:cold-start": "tsx scripts/measure-cold-start.ts"
+}
+```
+
+**Docker / deploy notes:**
+
+- Pin `tsx@4.23.12` in devDependencies; invoke via `npm run migrate`, never `npx tsx` without version pin.
+- Copy `migrations/` into runner image (or run migrate as init container before `node server.js`).
+- `output: 'standalone'` unchanged — migration SQL stays outside app bundle.
 
 ## Alternatives Considered
 
 | Recommended | Alternative | When to Use Alternative |
 |-------------|-------------|-------------------------|
-| App-level RBAC (`assertRole`, extend `withAuth`) | CASL / accesscontrol / casbin | Never for v2.0 — 3 roles + project assignment; libraries add policy DSL and client/server sync with no spec requirement |
-| `date-fns` for period math | Native `Date` (current `getWeekBounds`) | Only if v2.0 drops configurable periods — spec requires CPMO-defined windows and fiscal grouping |
-| PostgreSQL JSONB snapshots | Event-sourcing library (EventStore, etc.) | Never — weekly report snapshots are bounded, read-heavy, export-oriented |
-| BIGINT + string/BigInt in TS | `decimal.js` / `dinero.js` | Never — spec is integer VND, not fractional currency |
-| Service-layer `auditLog()` | DB triggers only / `audit-log` npm | Triggers alone miss actor context from session; npm adds no value over one INSERT helper |
-| Zod v4 at boundaries | Valibot / ArkType | Never — already direct dep, Anthropic SDK peer accepts v4, schemas shared across routes |
-| Column allowlist repos (v1.0) | Kysely (v1.0 optional, still deferred) | Still deferred per PROJECT.md — allowlists remain the minimum for v2.0 new tables |
+| Custom migration runner (origin replay) | `node-pg-migrate@9.0.0` | Greenfield project without existing ledger/checksum semantics — not this brownfield |
+| Custom runner | Flyway/Liquibase (JVM) | Never — ops team runs Node, not Java sidecar |
+| `kysely@0.29.5` | Prisma / Drizzle | Never — PROJECT.md forbids second ORM; raw SQL migrations stay |
+| `kysely@0.29.5` | Keep `DbClient` allowlists only | If ENF-02 descoped — but compile-time safety was explicit v2.1 goal |
+| `kysely-codegen@0.20.0` | Hand-written `Database` interface | Only for first repo before CI codegen wired — not maintainable at 40+ tables |
+| `@tanstack/react-virtual@3.14.10` | `@tanstack/react-table` + virtual | When sort/filter/column-visibility state machine needed — current grids are custom |
+| `@tanstack/react-virtual@3.14.10` | `react-virtualized` / `react-window` | Never — TanStack is actively maintained, React 19-friendly, headless |
+| Local ESLint rule (`@typescript-eslint/utils`) | CI grep/ast-grep script only | Acceptable fallback if ESLint plugin wiring blocked; ESLint gives dev-time feedback |
+| Local ESLint rule | `eslint-plugin-local-rules` | Extra indirection; flat-config local plugin is simpler for one rule |
+| RSC layout split (no package) | Full SSR data router (Remix, etc.) | Never — framework swap out of scope |
+| `perf_hooks` cold-start script | `@next/bundle-analyzer` | Bundle analysis is complementary, not cold-start measurement — optional devDep later |
 
 ## What NOT to Use
 
 | Avoid | Why | Use Instead |
 |-------|-----|-------------|
-| `@casl/ability`, `accesscontrol`, `casbin` | Over-engineered for 3 static roles; project-scoped checks stay clearer in `lib/services/access.ts` | `assertRole()`, extend `withProjectAccess` |
-| `next-auth` / Passport / Lucia | Replacing working scrypt + DB sessions is out of scope and risks tenant regression | Extend `lib/auth.ts` session payload with roles + lock check |
-| `multer`, `sharp`, S3 SDK | PR-15 explicitly forbids project file upload; Confluence links only | `z.url()` + `project_document_links` table |
-| `json-diff`, `fast-json-patch` | Audit/snapshot consumers read full JSONB; diffing adds complexity | Store complete `before`/`after` JSONB rows |
-| `decimal.js`, `dinero.js`, `currency.js` | VND integers — floats are wrong | PostgreSQL `BIGINT` + string/BigInt in services |
-| `node-cron`, Bull, pg-boss | No background job requirement in spec | Submit/export runs synchronously in route handler |
-| `uuid` package | Session IDs already use `crypto.randomBytes` | Node `crypto` stdlib |
-| Prisma / Drizzle / Kysely migration | Conflicts with `pg` + `lib/db.ts` bridge constraint | Raw SQL in repositories + column allowlists |
-| `@date-fns/tz` | Periods stored as `DATE`; week boundaries computed in UTC date-only | `date-fns` core + `yyyy-MM-dd` strings |
-| Replacing `recharts` with Chart.js/D3 | Dashboard charts already on recharts | Extend existing chart components |
+| Merge `origin/gsd/quick-260826-ded-data-layer-migrations` as-is | `0001` baseline predates v2.0 weekly/fiscal/roles/RAID/dashboard/checklist/audit tables | Replay runner + regenerate baseline SQL from current schema |
+| `npx tsx` without pin in Docker/CI | Unpinned transitive version drift between builds | `tsx@4.23.12` devDependency + `npm run migrate` |
+| `node-pg-migrate`, Flyway, Prisma Migrate | Second migration system; conflicts with checksum ledger design | Custom runner in `lib/migrate/*` |
+| Prisma, Drizzle, TypeORM | Second ORM / query layer | `kysely` over existing `pg.Pool` |
+| `pg` second pool for Kysely | Doubles connections, breaks transaction sharing | `PostgresDialect({ pool: _pool })` on singleton |
+| `pg.defaults.parseInt8 = true` | Loses precision for VND BIGINT above `Number.MAX_SAFE_INTEGER` | Keep string BIGINT; use `BigInt` in services |
+| Bare `npx tsx scripts/migrate.ts` in Dockerfile CMD | No lockfile pin | `npm run migrate` after `npm ci` |
+| `react-virtualized` | Legacy API, React 19 friction | `@tanstack/react-virtual@3.14.10` |
+| Edge session + pg in proxy | v2.1 PROXY-01 is cookie-presence check only; auth truth stays in `withAuth` | `proxy.ts` JSON 401 on missing cookie for `/api/*` |
+| CASL / policy engines for ENF-01 | ENF-01 checks wrapper presence, not role logic | AST call to sanctioned wrapper names |
+| `@next/bundle-analyzer` as cold-start gate | Measures bundle size, not DB boot | `perf_hooks` script on slim `getDb()` |
 
 ## Stack Patterns by Variant
 
-**If CPMO configures Monday–Sunday report weeks:**
-- Use `startOfWeek(date, { weekStartsOn: 1 })` / `endOfWeek` from date-fns.
-- Persist `period_start` / `period_end` as `DATE` in PostgreSQL.
+**If replaying DATA branch onto current master:**
+1. Port `lib/migrate/{plan,runner,assertMigrated}.ts` and `scripts/migrate.ts` verbatim (pure logic + CLI).
+2. Dump current schema (all v2.0 tables) into `migrations/0001-baseline-v2.sql`.
+3. Strip `initPostgresSchema`, `migratePostgresSchema`, and inline `migrate*` calls from `getDb()` — leave connect, `assertMigrated`, `seedAuthData`.
+4. Keep `lib/db-*.ts` one-off data-fix functions as `scripts/data-fix/*.ts` invoked manually or from numbered migrations.
 
-**If a user has multiple roles (e.g. CPMO + PM):**
-- Load all roles into session; authorization checks use **union** (CPMO wins for company actions; PM wins on assigned projects).
-- Do not model as single "active role" — spec says multi-role union.
+**If migrating a repository to Kysely (ENF-02 rollout):**
+- Replace `db.get('SELECT …', …)` with `db.selectFrom('table').select([…]).where(…).executeTakeFirst()`.
+- Run `npm run codegen:db` after each migration that adds/changes columns.
+- Keep repository as only SQL boundary — services unchanged.
 
-**If submitted weekly report must be immutable:**
-- Application: services throw on UPDATE to `submitted` rows.
-- Database: optional `BEFORE UPDATE` trigger on snapshot tables raising exception when `OLD.submission_id` links to submitted parent.
+**If a route is legitimately public (health, auth login):**
+- Add path to ESLint rule allowlist, not wrapper bypass in code.
 
-**If VND amount exceeds JS safe integer (~9 quadrillion dong):**
-- Keep `pg` default string parser for BIGINT; ROI helpers use `BigInt` arithmetic, serialize back to string for API.
+**If API caller gets HTML 307 today (PROXY-01):**
+- Branch in `proxy.ts` on `pathname.startsWith('/api/')` before redirect — fetch clients and Jira webhooks expect JSON 401.
+
+**If grid has variable row heights (timeline wrapped text):**
+- Use `@tanstack/react-virtual` `measureElement` ref callback on rows; set `estimateSize` to median height.
 
 ## Version Compatibility
 
 | Package A | Compatible With | Notes |
 |-----------|-----------------|-------|
-| `date-fns@^4.4.0` | Node 20+, Next 16 standalone | ESM-friendly; import `{ startOfWeek } from 'date-fns/startOfWeek'` for minimal bundle |
-| `zod@^4.4.3` | `@anthropic-ai/sdk@^0.92.0` | SDK peer accepts `^3.25.0 \|\| ^4.0.0` — no conflict |
-| `pg@^8.20.0` | PostgreSQL JSONB/BIGINT | JSONB ↔ object automatic; BIGINT stays string unless `parseInt8` (avoid for money) |
-| `exceljs@^4.4.0` | Next `serverExternalPackages` | Already listed in `next.config.ts` — preserve for PR-12 export |
-| Vitest 4.1.10 | TypeScript 5 strict | Service tests for RBAC matrix — no config change |
+| `kysely@0.29.5` | TypeScript ≥5.4, `strict: true` | Project TS ^5 + strict — OK |
+| `kysely@0.29.5` | `pg@^8.20.0` | `PostgresDialect` uses same Pool/PoolClient; no adapter package needed |
+| `kysely@0.29.5` | Node 20 (Dockerfile) | Supported; Dockerfile already `node:20-slim` |
+| `kysely-codegen@0.20.0` | `kysely@0.29.x` | Generate types after migrate; commit `kysely-types.ts` or regenerate in CI before typecheck |
+| `@tanstack/react-virtual@3.14.10` | React 19.2.4 | Headless hook — no peer conflict with Next 16 |
+| `tsx@4.23.12` | Node 20, ESM/CJS | Origin branch validated; pin exact version |
+| `@typescript-eslint/utils@^8.68.0` | ESLint 9 flat config, `eslint-config-next@16.2.4` | Same major as typescript-eslint bundled with Next ESLint config |
+| Vitest 4.1.10 | Kysely repos | Mock `getKysely()` or test DB pool same as existing repo tests |
+| `next@16.2.4` standalone | No `fs` in `getDb()` post-DATA | Preserves current deploy model |
+
+## Integration Checklist (v2.1 phase planner)
+
+1. **DATA-01..03:** Port runner → regenerate `0001` → add scripts → slim `getDb()` → Docker migrate step.
+2. **ENF-02:** Add Kysely singleton → codegen → migrate repos module-by-module → remove `DbClient` when last repo converted.
+3. **ENF-01:** Add local ESLint rule + allowlist → wire CI `npm run lint`.
+4. **PROXY-01:** API branch in `proxy.ts` → update 401 tests (existing ROUTE-03 patterns).
+5. **PERF-02:** Extract Server layout + split Sidebar before virtualizing (smaller client boundary).
+6. **PERF-01:** Virtualize timeline + admin tables first (highest row counts).
+7. **PERF-03:** Add measure script after DATA cutover (meaningful baseline only without inline DDL).
 
 ## Sources
 
-- `/brianc/node-postgres` (Context7) — JSONB auto parse/stringify; BIGINT `parseInt8` behavior — **MEDIUM** confidence
-- `/colinhacks/zod/v4.0.1` (Context7) — `z.enum`, `z.email()`, `z.url({ protocol })` — **MEDIUM** confidence
-- `/date-fns/date-fns` (Context7) — `startOfWeek`, `getISOWeek`, `yyyy-MM-dd` format tokens — **MEDIUM** confidence
-- npm registry (2026-08-25): `date-fns@4.4.0`, `pg@8.23.0`, `zod@4.4.3` — version pins verified live
-- Codebase: `lib/auth.ts`, `lib/http/with-auth.ts`, `lib/services/access.ts`, `lib/services/project-report.service.ts`, `lib/db.ts`, `package.json` — **HIGH** confidence (local)
-- Web (RBAC libraries): CASL/accesscontrol suited to dynamic ABAC — **LOW** confidence; conclusion (skip libraries) cross-checked against fixed 3-role spec — **HIGH** confidence on decision
+- `/kysely-org/kysely` (Context7) — `PostgresDialect` + Pool, TS 5.4+/strict requirement, transactions — **HIGH** confidence
+- `/robinblomberg/kysely-codegen` (Context7) — CLI codegen from `DATABASE_URL`, postgres dialect — **HIGH** confidence
+- `/tanstack/virtual` (Context7) — `@tanstack/react-virtual`, `useVirtualizer` row pattern — **HIGH** confidence
+- `/vercel/next.js/v16.2.9` (Context7) — `proxy.ts` JSON 401, RSC layout + client boundary — **HIGH** confidence
+- npm registry (2026-08-28): `kysely@0.29.5`, `@tanstack/react-virtual@3.14.10`, `tsx@4.23.12`, `kysely-codegen@0.20.0`, `node-pg-migrate@9.0.0`, `@typescript-eslint/utils@8.68.0` — version pins verified live
+- Codebase: `lib/db.ts`, `proxy.ts`, `eslint.config.mjs`, `lib/http/with-*.ts`, `app/api/**/route.ts` export pattern — **HIGH** confidence (local)
+- Origin branch `gsd/quick-260826-ded-data-layer-migrations`: `lib/migrate/runner.ts`, `plan.ts`, `assertMigrated.ts`, `scripts/migrate.ts` — **HIGH** confidence (local git)
 
 ---
-*Stack research for: PM Tool B v2.0 Portfolio One View*
-*Researched: 2026-08-25*
+*Stack research for: PM Tool B v2.1 Hardening & Deferred Debt*
+*Researched: 2026-08-28*

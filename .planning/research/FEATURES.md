@@ -1,176 +1,214 @@
 # Feature Research
 
-**Domain:** Bank PPM / Portfolio One View (CPMO, PM, Viewer) — v2.0 spec compliance on brownfield app
-**Researched:** 2026-08-25
-**Confidence:** HIGH (GuiIT spec Draft 1.0 read directly; enterprise PPM patterns cross-checked against Planview/Clarity/PMI status-report conventions)
+**Domain:** v2.1 Hardening & Deferred Debt — brownfield Next.js 16 App Router PPM (post–PR-01..15 API gate)
+**Researched:** 2026-08-28
+**Confidence:** HIGH (scoped to deferred items in PROJECT.md, v1/v2 milestone audits, and live codebase shape)
 
 ## Feature Landscape
 
-Enterprise PMO/PPM tools (Planview, Broadcom Clarity, Microsoft Project Online, Smartsheet PMO templates) converge on: **one master register** for projects/RAID/milestones, **role-scoped access**, **periodic status capture with immutable snapshots**, and **portfolio dashboards that drill down to the same numbers**. The GuiIT spec is tighter and more prescriptive than generic PPM — bank governance (L0–L5, RAG rules, Confluence-only documents, CPMO-owned identity fields) is the product shape, not optional configuration.
+This milestone closes **engineering debt and missing UI surfaces**, not new product spec. PR-01..PR-15 and AUDIT-01 are shipped at the API/service gate (`ui_phase: false`). v2.1 makes the repo maintainable, deploy-safe, performant, and **usable** by wiring React consumers to existing APIs.
 
-**Already shipped (v1.0 — do not re-scope as v2.0 table stakes unless the spec requires a different shape):** multi-tenant login (`company_id`, `is_admin`), project CRUD + nested resources (activities, risks, issues, meetings, team, documents, bugs, holidays, milestones, budget), portfolio views (home, roadmap, report, budget, members), activity-weighted weekly *computed* reports, Jira import, AI report generation, Excel/PPT/Word/PDF export, layer hardening (`withAuth` / `withProjectAccess`, repositories, Vitest).
+Brownfield PPM hardening typically follows three tracks in parallel after an API-first delivery:
 
----
-
-### Admin — PR-01, PR-02
-
-| ID | Feature | Category | Why Expected (Enterprise) | Spec vs Typical PPM | Complexity | Existing Dependency / Gap |
-|----|---------|----------|---------------------------|---------------------|------------|---------------------------|
-| PR-01 | User & role master (unique username/email, multi-role union, Active/Inactive/Locked, soft-delete) | **Table stakes** | Every enterprise PPM has user provisioning, role assignment, and account lifecycle; banks require audit trail and no physical delete of actors tied to history | **Stricter than typical:** username/email uniqueness even when locked; multi-role union (CPMO+PM); explicit Locked state; audit on every change. Typical tools use group-based RBAC with simpler deactivate | **Medium** — schema + admin UI + uniqueness constraints + audit | **Partial:** `users` table + admin page exist (`is_admin`, `company_id`). **Gap:** no CPMO/PM/Viewer roles, no Locked/Inactive lifecycle, no multi-role union, no email uniqueness enforcement |
-| PR-02 | Login, session, server-side authz (CPMO / PM / Viewer) | **Table stakes** | Instance/global + object-level rights (Clarity access-rights model); PMO tools fail audits when UI hiding substitutes for API enforcement | **Matches bank norm:** CPMO=all portfolio; PM=assigned projects only; Viewer=read-only; server enforcement mandatory; session extension without losing draft | **High** — replaces `is_admin` boolean with role matrix + project-scoped checks across all routes | **Partial:** scrypt auth, DB sessions, `withProjectAccess` tenant guard. **Gap:** no CPMO/PM/Viewer; PM scope not tied to assignment; dashboards/routes still largely company-wide for non-admins |
-
-**Admin opinion:** PR-01 and PR-02 are the **foundation phase** — every other PR-ID depends on correct role + project scope. Do not bolt L0–L5 or weekly snapshots onto the current `is_admin` model; it will leak data.
+1. **Structural** — colocate backend (routes, services, repos) and UI (pages, hooks, components) per domain module while keeping `app/` as a thin App Router shell.
+2. **Operational** — decouple schema evolution from request path (external migrate job, versioned SQL, one-off data fixes).
+3. **Surface completion** — ship the screens users expect for dashboards, weekly cadence, compliance checklist, and audit review.
 
 ---
 
-### Portfolio Master — PR-03..PR-09
+### Category A — Repo Structure (MOD-01)
 
-| ID | Feature | Category | Why Expected (Enterprise) | Spec vs Typical PPM | Complexity | Existing Dependency / Gap |
-|----|---------|----------|---------------------------|---------------------|------------|---------------------------|
-| PR-03 | Project master (identity, L0–L5, status, RAG rules, progress %, timeline, weekly-report flag) | **Table stakes** | Portfolio tools always have project registry with health (RAG) and lifecycle stage; executives expect one canonical project record | **Bank-specific:** L0–L5 (not generic phases); CPMO-only identity fields; coupled Stage/Status/RAG defaults + override warnings; weekly-report obligation flag with start period; progress must not overwrite historical report snapshots | **High** — field model rewrite, validation engine, migration from free-text phases | **Partial:** project CRUD, RAG field, phases as strings, portfolio list. **Gap:** no L0–L5, no status/RAG coupling rules, no weekly-report flag/period, PM-editable identity fields today |
-| PR-04 | PM assignment (one primary, collaborating PMs, history) | **Table stakes** | PM scope in Clarity/Planview comes from named PM on project; collaboration is common but secondary | **Clearer than many tools:** exactly one active primary; optional collaborators; explicit history periods; project may have no PM; cannot have collaborators without primary | **Medium** — assignment table + history + authz integration | **Partial:** `pm_name` on project, team members. **Gap:** no formal assignment entity, no history, no collaborator role, authz not driven by assignment |
-| PR-05 | Stakeholders (sponsor, PSC, director, external parties, effective dates) | **Table stakes** | Governance registers (sponsor, steering committee) appear in every PMO charter template | **Richer than typical:** effective-date ranges per role; external parties without accounts; unified feed for dashboards/reports | **Medium** — stakeholder entity overlaps PR-03 governance fields; needs single source of truth decision | **Partial:** governance names on project record. **Gap:** no effective dating, no external-party records, duplication risk with PR-03 fields |
-| PR-06 | Cross-project dependencies | **Differentiator (within bank spec)** | Clarity/Planview support inter-project dependencies; many mid-market tools omit or weakly support | **Focused:** source/target projects, direction, need-by date, validity window, bidirectional display, PM visibility on both sides | **Medium** — new entity + validation (no self-link, no duplicate active) + portfolio surfacing | **None** — greenfield within app |
-| PR-07 | Milestones (due/overdue, weekly snapshot, no physical delete after report) | **Table stakes** | Milestone tracking + overdue lists are standard portfolio dashboard widgets (Smartsheet/ProjectManager templates) | **Stricter:** 7-day upcoming warning; overdue rules tied to plan/adjusted dates; **immutable snapshot in weekly report**; soft-delete only if never reported | **Medium–High** — extends existing milestones + snapshot linkage on submit | **Partial:** milestones CRUD exists. **Gap:** no upcoming/overdue engine per spec, no report snapshot coupling, physical delete likely still allowed |
-| PR-08 | Budget & value (approved vs actual, financial/non-financial benefits, ROI) | **Table stakes** | PPM without approved/actual/spend variance is incomplete for IT PMO; ROI/benefits tracking is common in Clarity/Planview | **Detailed:** fiscal-year rows, cost-type catalog, adjustment history (never overwrite approvals), ROI formulas with "insufficient data" (not fake 0%), non-financial benefit KPIs | **High** — new budget/value sub-model beyond simple budget lines | **Partial:** budget resource exists. **Gap:** no fiscal-year dimension, no adjustment audit trail, no ROI/benefits split, likely not aligned to spec formulas |
-| PR-09 | RAID master + weekly sync (register is master; draft changes sync on submit) | **Table stakes** | RAID in status reports is universal; best practice is **one register**, not duplicate RAID in reports | **Critical spec pattern:** weekly report holds draft RAID deltas; **on submit** merges to master + locks snapshot; overdue/high flags on dashboards. Typical tools either live-edit register OR copy-on-submit — spec requires both with sync rules | **High** — transactional submit flow touching risks, issues, report snapshot | **Partial:** risks/issues CRUD per project. **Gap:** no master/register discipline, no weekly draft buffer, no submit-sync, no tech-council issue flag from PR-13 |
+| ID | Feature | Category | Why Expected | Complexity | Dependencies / Notes |
+|----|---------|----------|--------------|------------|----------------------|
+| MOD-01 | Repo-wide per-module **backend** + **UI** directories (sibling dirs per feature area) | **Table stakes (engineering)** | Enterprise brownfield refactors converge on domain modules once `lib/services` + `app/api` + scattered `app/**/_components` outgrow navigation. Thin `app/` routes import from module barrels; `@/` alias preserved. | **HIGH** — touches every feature area (portfolio, projects, admin, operations, reports, Jira/import, dashboards, weekly, checklist, audit, auth, resources, programs), not only new v2 screens | **Depends on:** stable layer contracts (route → service → repo). **Must not break:** App Router file conventions (`page.tsx`, `route.ts` stay under `app/` or re-export from module UI); `@/` imports. **Pattern:** `modules/<domain>/backend/{routes,services,repos}` + `modules/<domain>/ui/{pages,hooks,components}` with `app/` delegating, OR equivalent `features/<domain>/server|client` split — planning decision, not product behavior. |
 
-**Portfolio master opinion:** PR-03 is the **data model anchor** — stage/status/RAG/weekly flag drive PR-10 obligation, PR-13 KPI definitions, and PR-15 document checklists. PR-09 + PR-11 submit is the **highest-risk integration** (master vs snapshot divergence is the #1 PMO tool failure mode).
+**Typical behavior:** Each module owns its vertical slice. Routes remain discoverable under `app/api/**` (Next.js requirement) but delegate to module backend code. Pages/hooks move out of ad-hoc `app/**/_components` into module UI dirs. Shared chrome (`app/_components`, layout) stays cross-cutting. Barrel `index.ts` per module defines public API; internal paths are private.
+
+**Scope guard:** Move existing areas — portfolio home/roadmap/report/budget/members, project nested pages, admin, operations, Jira/import mapping, AI/export reports — not greenfield modules.
 
 ---
 
-### Weekly Report — PR-10, PR-11, PR-12
+### Category B — Data Layer (DATA-01..03, single task)
 
-| ID | Feature | Category | Why Expected (Enterprise) | Spec vs Typical PPM | Complexity | Existing Dependency / Gap |
-|----|---------|----------|---------------------------|---------------------|------------|---------------------------|
-| PR-10 | CPMO weekly period config (period bounds, due datetime, auto-create reports, overdue rules) | **Table stakes** | PMO calendars define reporting period, cut-off, and late flags; auto-generation reduces PM friction | **Prescriptive:** period label `YYYY-Wnn \| dd/mm – dd/mm`; due time (e.g. Thu 16:00); config snapshotted per period; retroactive periods not backfilled when flag turned on | **Medium** — scheduler/cron + period entity + snapshot of config | **None** — current reports use ad-hoc week bounds in `getWeeklyProjectReport`, no persisted periods |
-| PR-11 | PM draft/submit weekly report with versioned snapshots | **Table stakes** | Weekly status report = highlights, completed, next week, RAID, decisions needed (PMI/Atlassian/ProjectManager canon) | **Major shape change vs app today:** not activity-weighted % computation — **structured PMO form** with immutable submitted versions, post-submit corrections as new versions, RAG/previous-RAG, milestone/RAID/dependency sections, sync to master on submit | **Very High** — new report entity, state machine (Chưa nộp/Nháp/Đã nộp), version table, submit transaction | **Partial:** `getWeeklyProjectReport` aggregates live data; AI/template portfolio reports. **Gap:** no persisted submissions, no versioning, no draft RAID buffer, no obligation tracking |
-| PR-12 | CPMO submission tracking, consolidate, export | **Table stakes** | CPMO office lives in "who submitted, who is late" grids; consolidation into leadership pack is standard | **Explicit:** filter by period/status/on-time/PM/stage/RAG/tech issues; tick-select projects for consolidated export; on-time vs late locked to **first submit**; editable export template | **Medium–High** — CPMO ops UI + export pipeline (can extend existing Excel/PPT/Word) | **Partial:** portfolio report generation/export. **Gap:** no submission registry, no late/on-time semantics, no selective consolidation |
+| ID | Feature | Category | Why Expected | Complexity | Dependencies / Notes |
+|----|---------|----------|--------------|------------|------|
+| DATA-01 | App start **connects only** — no schema init / migrate loop in `getDb()` | **Table stakes (ops)** | Production PPM apps decouple schema from request path to avoid cold-start races, deploy coupling, and multi-replica DDL contention. Industry default: migrate job runs before or alongside deploy, app assumes schema version. | **HIGH** — removes `migratePostgresSchema` + v2 DDL helpers from hot path | **Blocks:** safe Railway/K8s rolling deploys. **Pattern source:** replay `origin/gsd/quick-260826-ded-data-layer-migrations` runner/ledger — **do not merge branch as-is** (v1.0-era baseline omits v2.0 tables). |
+| DATA-02 | Versioned SQL migration files + ledger table | **Table stakes (ops)** | Auditable, replayable schema history is standard for regulated environments (bank ATTT). In-code DDL arrays are acceptable in early MVP, not in mature brownfield. | **MEDIUM** (with DATA-01) | Regenerated `migrations/0001` baseline must include v2.0 weekly, fiscal, roles, RAID master, dashboard, checklist, audit tables from current `lib/db.ts`. |
+| DATA-03 | Data-fix `UPDATE`s as **one-off scripts**, not migrations | **Table stakes (ops)** | Mixing corrective DML with DDL migrations causes re-run hazards and obscures audit trail. One-off scripts are idempotent, named, and run manually or in controlled jobs. | **LOW–MEDIUM** | Existing backfills (`migrateMappingTableTenancy`, role backfill, etc.) become scripts or repeatable migration seeds with clear provenance. |
 
-**Weekly report opinion:** This cluster is **not an enhancement** to existing report pages — it is a **parallel product surface**. Reusing export/AI clients (differentiators) is correct; reusing activity-weighted completion as "progress" in submitted reports is **wrong** per spec (PR-03 progress is explicit PM-entered %).
-
----
-
-### Dashboards — PR-13, PR-14
-
-| ID | Feature | Category | Why Expected (Enterprise) | Spec vs Typical PPM | Complexity | Existing Dependency / Gap |
-|----|---------|----------|---------------------------|---------------------|------------|---------------------------|
-| PR-13 | Portfolio dashboard (active count, RAG, L0–L5, high RAID, overdue milestones, drill-down) | **Table stakes** | Portfolio dashboard = KPI tiles + distribution charts + filtered project list with consistent counts (Planview portfolio dashboard pattern) | **Rule-heavy:** "active" = Status Active AND stage L0–L4; RAG chart must sum to active count; high RAID counts **records** not projects; tech-council issues as separate tile; global AND filters with drill-down inheritance | **High** — KPI engine must match list queries exactly; export Excel/PDF | **Partial:** portfolio home/report pages with KPI-ish views. **Gap:** definitions don't match spec; no drill-down contract; no tech-issue tile |
-| PR-14 | PM personal dashboard (assigned projects + weekly/milestone/RAID actions) | **Table stakes** | PM landing = "my work queue" (submit report, fix overdue milestone, escalate high RAID) — standard in Clarity/Planview role landing | **Action-oriented:** explicit action cards with deep links; refreshes after action; scoped to PM assignment (PR-04) | **Medium** — query layer over PR-04/07/09/11 | **Partial:** project dashboard exists but project-scoped, not PM queue. **Gap:** no action queue, no assignment-scoped portfolio slice |
-
-**Dashboards opinion:** Build **after** master data + weekly obligation exist; otherwise KPIs and action cards lie. PR-13 and PR-14 should share query functions to prevent portfolio vs PM count drift.
+**Typical behavior:** `npm run migrate` (or K8s Job / CI pre-deploy step) applies pending SQL; app reads `DATABASE_URL`, pools connections, fails fast if schema version mismatch. Seeds may remain dev-only.
 
 ---
 
-### Documents — PR-15
+### Category C — Enforcement (ENF-01, ENF-02)
 
-| ID | Feature | Category | Why Expected (Enterprise) | Spec vs Typical PPM | Complexity | Existing Dependency / Gap |
-|----|---------|----------|---------------------------|---------------------|------------|---------------------------|
-| PR-15 | CPMO templates + Confluence checklist (no project file upload) | **Differentiator (within bank spec)** | Most PPM tools either host documents (SharePoint/Confluence integration with upload) or skip compliance tracking | **Bank anti-DMS:** templates stored in-app; project artifacts live on Confluence (link + metadata only); stage-based mandatory checklist; compliance rollup for CPMO; stage-change warning if mandatory docs incomplete | **High** — template versioning + checklist generation on stage change + compliance analytics | **Partial:** project documents module exists (likely upload-oriented). **Gap:** must **remove/replace** upload path; add catalog, template lifecycle, Confluence link validation, compliance dashboard |
+| ID | Feature | Category | Why Expected | Complexity | Dependencies / Notes |
+|----|---------|----------|--------------|------------|------|
+| ENF-01 | CI/ESLint gate: project-scoped `route.ts` must use sanctioned wrapper (`withAuth` / `withProjectAccess` / role helpers) | **Table stakes (security)** | Multi-tenant PPM cannot rely on code review alone; one unwrapped route is an IDOR. Static enforcement is standard after layer reorg (v1.0 ROUTE-03..11). | **MEDIUM** | AST or path-based rule over `app/api/**/route.ts`. Exemptions list for documented carve-outs (D-23 ops/admin platform routes) must be explicit. |
+| ENF-02 | Repositories adopt **Kysely** over raw `pg.Pool` queries | **Differentiator (engineering quality)** | Kysely fits brownfield: DB is authority, `kysely-codegen` from existing schema, compile-time column safety without second ORM. Keeps repos as SQL home; services unchanged. | **HIGH** — incremental repo-by-repo; 40+ repo files | **Depends on:** DATA-02 stable schema (types match DB). **Depends on:** repos remain sole SQL layer (REPO-01..06). **Not:** Prisma, Drizzle schema-first, or replacing Postgres. |
 
-**Documents opinion:** Deliberately **not** table stakes for generic PPM, but **table stakes for this bank spec**. The anti-feature is in-app binary storage (see Anti-Features).
-
----
-
-### Tenant Follow-up — TENANT-01
-
-| ID | Feature | Category | Why Expected (Enterprise) | Spec vs Typical PPM | Complexity | Existing Dependency / Gap |
-|----|---------|----------|---------------------------|---------------------|------------|---------------------------|
-| TENANT-01 | `company_id` on four mapping tables | **Table stakes (tenant isolation)** | Multi-tenant SaaS must scope integration mappings per company — v1.0 left holes | **Technical debt closure:** `timeline_import_mappings`, `bug_import_mappings`, `jira_jql_presets`, `jira_sync_mappings` | **Low–Medium** — migration + repo WHERE clauses + tests | **Gap:** tables lack `company_id`; cross-tenant IDOR risk for Jira/timeline import config |
+**Typical behavior:** ENF-01 fails PR/CI on new raw handlers. ENF-02 adds typed `db.selectFrom('projects').select([...])` with allowlists enforced by TypeScript; runtime behavior identical if migrated faithfully.
 
 ---
 
-### Shipped Differentiators (retain, not v2.0 scope)
+### Category D — Performance (PERF-01..03)
 
-| Feature | Value Proposition | Notes |
-|---------|-------------------|-------|
-| Jira Cloud import + sync mappings | Execution data freshness without double entry | Keep; extend with TENANT-01 scoping |
-| AI report generation (Anthropic) | Faster leadership narrative from structured data | Keep for portfolio/project reports **alongside** spec weekly submit — do not substitute for PR-11 |
-| Excel / PPT / Word / PDF export | Bank deliverable formats | Reuse for PR-12 consolidated export and PR-13 dashboard export |
-| Activity-weighted progress analytics | Engineering truth for delivery teams | **Not** the spec's weekly-report progress field — keep as supplementary analytics only |
+| ID | Feature | Category | Why Expected | Complexity | Dependencies / Notes |
+|----|---------|----------|--------------|------------|------|
+| PERF-01 | Virtualized large grids (CPMO weekly tracking, portfolio lists, audit log) | **Table stakes (UX at scale)** | Enterprise PMO grids routinely hold 500–5000+ rows; non-virtualized DOM kills scroll and TTI. `@tanstack/react-virtual` or equivalent is default for React data grids. | **MEDIUM** per grid | **UI depends on:** existing list APIs (`/api/weekly-periods/...`, `/api/dashboards/...`, `/api/audit`). Apply where row count > ~100. |
+| PERF-02 | Static page chrome as **Server Components** (layouts, headers, nav, KPI shells) | **Differentiator (perf)** | App Router best practice: server-render static chrome, client leaves for interactivity. Reduces JS bundle and improves FCP on dashboard/weekly pages. | **MEDIUM** | Works with MOD-01 UI dirs: `ui/components/server/` vs `client/`. Existing decomposed hooks stay client. |
+| PERF-03 | Cold-start time measured and **budgeted** | **Table stakes (ops/SLO)** | After DATA-01 removes boot DDL, establish baseline + budget (e.g. p95 connect < X ms). Without measurement, perf regressions go unnoticed. | **LOW–MEDIUM** | **Depends on:** DATA-01 (otherwise budget confounds migrate time). CI or smoke script records `getDb()` connect latency. |
 
 ---
 
-### Anti-Features (Commonly Requested, Problematic for This Spec)
+### Category E — Leftover Route Debt (THIN-01, PROXY-01, JIRA-01)
+
+| ID | Feature | Category | Why Expected | Complexity | Dependencies / Notes |
+|----|---------|----------|--------------|------------|------|
+| THIN-01 | Ops / admin / config / import-mapping routes through **services** (SVC-01 / ROUTE-05 remainder) | **Table stakes (architecture)** | v1.0 closed project-scoped routes; non-core paths still hand-roll session + repo calls. Incomplete layer stack is the #1 source of authz drift in brownfield Next apps. | **MEDIUM** | Routes: `app/api/operations/**`, `/api/admin/companies`, `/api/config`, import-mapping, jira-config, resources/portfolio-epics. D-23 carve-out: session+tenant only, not full product role matrix. |
+| PROXY-01 | `proxy.ts` returns **JSON 401** for `/api/*` callers, not HTML 307 | **Table stakes (API contract)** | SPA hooks and fetch clients expect `{ error: 'Unauthorized' }` + 401. HTML redirect breaks JSON parse and confuses Jira/AI clients (documented v1.0 finding). | **LOW** | Detect `Accept: application/json` or `/api/` prefix. HTML redirect may remain for document navigations. |
+| JIRA-01 | Jira search: remove debug `console.log`, guard `req.json()` | **Table stakes (hygiene)** | Production integration routes must not leak custom fields to logs; malformed body should 400, not 500. Pre-existing Phase 8 review items. | **LOW** | `app/api/jira/search/route.ts` (or post–MOD-01 equivalent). No behavior change to happy path. |
+
+---
+
+### Category F — Operator Checkpoint (NOT a feature)
+
+| ID | Item | Category | Notes |
+|----|------|----------|-------|
+| HYG-02 | Operator confirms Anthropic malformed-output **502 vs old 500** | **Checkpoint — not a feature** | v1.0 changed three report routes from 500→502 on bad model output. Before closing: operator verifies no dashboard/alert keys off old 500. **No rewrite unless rejected.** Not scoped as user-facing capability; do not create REQUIREMENTS checkbox as product behavior. |
+
+---
+
+### Category G — v2 UI Consumers (UI-DASH, UI-WEEK, UI-DOC, UI-AUDIT)
+
+APIs and tests exist; **no React pages fetch them today**. For a PPM product, missing UI = incomplete product regardless of `ui_phase: false` gate.
+
+| ID | Feature | Category | Why Expected | Complexity | Dependencies / Notes |
+|----|---------|----------|--------------|------------|------|
+| UI-DASH | Portfolio + PM dashboard pages consuming `/api/dashboards/portfolio`, `/api/dashboards/pm`, filters, export | **Table stakes (product)** | PR-13/PR-14 define executive and PM landing experiences. API satisfied PDSH/MDSH; users expect tiles, charts, filters, drill-downs, action queues. | **HIGH** | **Depends on:** PR-04 assignment scope, existing `spec-dashboards.service.ts`. Reuse v1 portfolio home patterns where KPI definitions align; **must match spec KPI rules**, not v1 aggregates. Lives in module UI dir (dashboards). |
+| UI-WEEK | Weekly period config, PM submit/correct, CPMO tracking/consolidation pages | **Table stakes (product)** | Weekly cadence is core PMO value (PR-10..12). CPMO lives in submission grids; PM lives in draft/submit flow. | **VERY HIGH** | **Depends on:** `/api/weekly-periods/**`, `/api/projects/[id]/weekly-reports/**`, tracking/export APIs. Largest UI surface; virtualize tracking grid (PERF-01). |
+| UI-DOC | Document catalog, templates, project checklist, compliance view | **Table stakes (product)** | PR-15 compliance workflow is unusable without checklist UI. Generate-on-create/stage already API-wired. | **HIGH** | **Depends on:** `/api/document-catalog`, `/api/document-templates`, `/api/projects/[id]/documents/checklist`, `/api/dashboards/document-compliance`. Confluence link-only — no upload UI. |
+| UI-AUDIT | CPMO audit log viewer (filter, paginate, before/after) | **Table stakes (product — bank context)** | AUDIT-01 GET `/api/audit` is CPMO+company-scoped. Regulated PMO expects searchable audit trail UI, not curl. | **MEDIUM** | **Depends on:** existing audit service + GET API. Virtualize if row volume high. |
+
+**Typical behavior:** Client hooks fetch JSON APIs with session cookie; server-side auth unchanged. UI hides controls by role but **never replaces** server enforcement (AUTH-05). Deep links from PM dashboard actions (MDSH-05) land on weekly/milestone/RAID screens.
+
+---
+
+### Category H — Audit Nits (NIT-01, NIT-02, NYQ-01)
+
+| ID | Feature | Category | Why Expected | Complexity | Dependencies / Notes |
+|----|---------|----------|--------------|------------|------|
+| NIT-01 | Wire or remove unused `listPeriodShells` service wrapper / `listOpenProjectDependencies` export | **Table stakes (engineering hygiene)** | Orphaned exports confuse Phase 16+ consumers and imply unfinished integration. Either dashboard services use them or delete re-exports. | **LOW** | `listPeriodShells`: Phase 14/16 bypass service wrapper. `listOpenProjectDependencies`: exported for Phase 16 but never imported — wire if fiscal/dependency tile needed, else remove. |
+| NIT-02 | Fiscal KPIs on portfolio dashboard (if spec-aligned); silence no-op milestone PATCH audit; resolve/document v1 `budget_items` coexistence | **Differentiator / doc** | Phase 16 intentionally omitted budget tiles; confirm with spec whether fiscal KPIs belong on PDSH. No-op audit noise pollutes CPMO viewer. Dual budget models (v1 `budget_items` vs fiscal ledger) need explicit UX or deprecation doc. | **LOW–MEDIUM** | **Depends on:** UI-DASH. Milestone PATCH: skip audit when before==after. Budget: parallel coexistence was intentional — document or redirect UI to fiscal API. |
+| NYQ-01 | Nyquist `validate-phase` pass on draft VALIDATION.md files | **Table stakes (quality gate)** | v1/v2 audits: all VALIDATION.md remain `status: draft`. Reconcile test coverage claims vs live tests. | **MEDIUM** (mechanical) | Discovery/orchestration; not user-facing. Run per phase, update VALIDATION frontmatter. |
+
+---
+
+### Shipped Differentiators (retain — not v2.1 scope)
+
+| Feature | Value | v2.1 relationship |
+|---------|-------|-------------------|
+| Jira Cloud import + sync mappings | Execution data without double entry | Keep; JIRA-01 hygiene only |
+| AI report generation (Anthropic) | Leadership narrative acceleration | Keep; HYG-02 checkpoint only |
+| Excel / PPT / Word / PDF export | Bank deliverable formats | Reuse in UI-WEEK consolidation, UI-DASH export |
+| Layered auth (`withAuth`, `withProjectAccess`, role asserts) | Tenant isolation | Extend via ENF-01, THIN-01 |
+
+---
+
+### Anti-Features (Commonly Requested, Problematic)
 
 | Anti-Feature | Why Requested | Why Problematic | Alternative |
 |--------------|---------------|-----------------|-------------|
-| In-app upload of project document binaries (PR-15) | "One place for everything" | Spec explicitly forbids; duplicates Confluence; increases ATTT scope | Confluence link + metadata checklist only |
-| Second RAID copy editable independently of register | Faster PM data entry | Creates two sources of truth; breaks PR-09 submit-sync | Draft in weekly report → sync to master on submit |
-| Real-time editable submitted weekly reports | Fix typos without friction | Destroys audit trail; violates bank snapshot principle | PR-11 post-submit correction = **new version**, first-submit time preserved |
-| Replacing spec weekly report with AI-generated narrative | Less PM workload | Non-deterministic; not comparable week-to-week; fails CPMO tracking | AI assists **optional** export (already shipped), structured form remains source of truth |
-| Generic custom fields / user-defined lifecycle | Flexibility | Breaks L0–L5, RAG, dashboard KPI, and document checklist rules | Fixed enumerations per spec; defer generic metadata platform |
-| Backfilling weekly reports when obligation flag turned on | Catch up history | Spec forbids retroactive obligation; distorts compliance metrics | Start obligation from configured period forward only |
-| UI-only authorization (hide buttons) | Faster UI delivery | Explicitly rejected in PR-02; bank ATTT failure | Server-side checks on every API + route |
-| Activity-weighted % as official project progress in PMO reports | Already implemented | Conflicts with PR-03 explicit progress % and historical report integrity | Separate "engineering progress" view if needed; PM-entered % for PMO |
-| Full PPM replacement (resources, financials ERP, agile boards) | Enterprise suite ambition | Out of scope; spec is portfolio one-view + weekly PMO cadence | Jira for execution; this app for portfolio master + reporting |
+| **Merge `origin/gsd/quick-260826-ded-data-layer-migrations` as-is** | Faster DATA delivery | Branch baseline is post–v1.0 / pre–v2.0; merge **drops** weekly, fiscal, roles, RAID master, dashboard, checklist, audit tables | Replay runner/ledger/**pattern**; regenerate `migrations/0001` from current schema |
+| Big-bang repo restructure in one PR | "Clean break" | Unreviewable diff; breaks `@/` paths, CI, and bisect | MOD-01 module-by-module moves with re-exports; keep `app/` routes stable until cutover |
+| Dual migration paths (boot DDL **and** external job) | Transitional safety | Two writers race; ambiguous source of truth | DATA-01 removes boot migrate entirely after cutover |
+| Full Kysely rewrite in single phase | "Done with ENF-02" | High regression risk across 40+ repos | Incremental repo migration; Vitest gate per repo |
+| New product features beyond deferred list | Stakeholder asks | Scope creep; v2.0 spec already shipped at API | v2.1 closes debt only; new PR-IDs → future milestone |
+| UI-only authorization on new pages | Faster UI | AUTH-05 violation; bank ATTT failure | Server gates unchanged; UI mirrors API errors |
+| Second ORM / Prisma / Drizzle schema-first | "Modern stack" | Conflicts with Kysely-over-pool decision; duplicate migration ownership | Kysely query builder only; SQL migrations via DATA-02 |
+| Replacing Jira / AI / export | Simplification | Core differentiators per PROJECT.md Out of Scope | Keep integrations; thin routes only |
+| Physical DELETE for governed entities | "Clean database" | Violates spec immutability (weekly versions, audit, soft-end dependencies) | Existing soft-delete / deactivate patterns |
+| Running migrations inside every pod without leader lock | Simplicity | Replica race on DDL (documented K8s anti-pattern) | External Job or leader-elected advisory lock if ever co-located |
+| Collapsing v1 `budget_items` without migration plan | Single budget model | Breaks existing portfolio budget pages and tests | NIT-02: document coexistence or staged deprecation with UI routing |
 
 ---
 
 ## Feature Dependencies
 
 ```
-PR-01 Users/Roles
-    └──requires──> PR-02 Authz (roles must exist to enforce)
-                       └──requires──> PR-04 PM assignment (PM scope)
-                                              └──requires──> PR-14 PM dashboard
+DATA-01..03 (external migrate, versioned SQL)
+    └──requires──> stable baseline from current lib/db.ts (regenerate, not merge branch)
+    └──enables──> PERF-03 meaningful cold-start budget
+    └──enables──> ENF-02 kysely-codegen types matching production schema
 
-PR-03 Project master (L0-L5, RAG, weekly flag)
-    ├──requires──> PR-01/02 (CPMO-only fields)
-    ├──requires──> PR-05 Stakeholders (governance fields — resolve duplication)
-    ├──feeds──> PR-10 (weekly obligation from flag + start period)
-    ├──feeds──> PR-13 (active/RAG/stage KPI definitions)
-    └──feeds──> PR-15 (stage-based document checklist)
+ENF-02 (Kysely)
+    └──requires──> repos remain SQL home; DATA-02 schema stable
+    └──parallel──> MOD-01 (can migrate repos inside module backend dirs)
 
-PR-07 Milestones ──snapshot on submit──> PR-11 Weekly report
-PR-09 RAID master ──draft/sync on submit──> PR-11 Weekly report
+ENF-01 (wrapper CI)
+    └──parallel──> THIN-01 (new service routes must still pass wrapper gate)
 
-PR-10 Period config ──creates obligation──> PR-11 PM submit
-PR-11 Submitted reports ──feeds──> PR-12 CPMO tracking/export
-PR-11/12 ──feeds──> PR-13/14 dashboards (actions & compliance)
+MOD-01 (module split)
+    └──should precede or interleave──> UI-DASH / UI-WEEK / UI-DOC / UI-AUDIT (greenfield UI lands in module ui/)
+    └──must not break──> app/api route paths, @/ imports
 
-PR-08 Budget/value ──optional in weekly──> PR-11 (dashboard rollup in PR-13)
+THIN-01 + PROXY-01 + JIRA-01
+    └──parallel──> no product API dependency
 
-TENANT-01 ──parallel──> any phase touching Jira/timeline import (no product dependency on PR-01..15 order)
+UI-DASH ──requires──> /api/dashboards/* (shipped)
+UI-WEEK ──requires──> /api/weekly-periods/*, /api/projects/[id]/weekly-reports/* (shipped)
+UI-DOC  ──requires──> document-catalog, templates, checklist, compliance APIs (shipped)
+UI-AUDIT ──requires──> GET /api/audit (shipped)
 
-Shipped: Jira/AI/Export ──enhances──> PR-12, PR-13 export surfaces (must not block spec compliance)
+UI-WEEK ──enhanced by──> PERF-01 (tracking grid virtualization)
+UI-DASH / UI-WEEK / UI-DOC / UI-AUDIT ──enhanced by──> PERF-02 (RSC chrome)
+
+NIT-01 ──depends on──> decision: wire listOpenProjectDependencies into UI-DASH or delete
+NIT-02 ──depends on──> UI-DASH (fiscal KPI question)
+NYQ-01 ──parallel──> all phases (validation hygiene)
+
+HYG-02 ──blocks nothing──> operator checkpoint only
 ```
 
 ### Dependency Notes
 
-- **PR-01 → PR-02:** Role union and account states are meaningless without enforcement on every route.
-- **PR-03 → PR-10/11:** Weekly-report flag and start period gate automatic report creation — without PR-03 rules, obligation engine misfires.
-- **PR-09 ↔ PR-11:** Submit transaction is the costliest integration; draft RAID must not touch master until submit succeeds atomically.
-- **PR-04 → PR-14:** PM dashboard actions must filter by assignment, not merely `company_id`.
-- **PR-07/09 → PR-11:** Snapshot tables link report version to source milestone/RAID rows; implement before allowing milestone hard-delete.
-- **PR-15 vs existing documents:** Likely **conflicts** with upload-based documents module — pick spec shape, don't combine.
+- **DATA before PERF-03:** Cold-start budget is meaningless while `getDb()` still runs DDL.
+- **MOD-01 vs UI consumers:** New v2 pages should land in module `ui/` dirs from day one; retrofitting avoids double moves.
+- **UI depends on existing APIs:** No new backend requirements for UI-DASH/WEEK/DOC/AUDIT unless audit finds gaps — consume shipped routes.
+- **Kysely depends on repos:** Services must not import Kysely; column allowlists migrate from string arrays to typed selects.
+- **ENF-01 depends on wrapper inventory:** Document D-23 exemptions before rule lands.
 
 ---
 
-## MVP Definition (v2.0 — spec compliance, not greenfield MVP)
+## MVP Definition
 
-### Launch With (v2.0 must ship)
+### v2.1 Launch With (must ship)
 
-- [ ] **PR-01 + PR-02** — Roles and server authz (blocks everything)
-- [ ] **PR-03 + PR-04** — Project master + PM assignment (defines who sees what)
-- [ ] **PR-07 + PR-09** — Milestones and RAID master (report inputs)
-- [ ] **PR-10 + PR-11 + PR-12** — Period config, PM submit/versioning, CPMO tracking (core PMO cadence)
-- [ ] **PR-13 + PR-14** — Portfolio and PM dashboards (executive + PM value)
-- [ ] **PR-05, PR-06, PR-08, PR-15** — Stakeholders, dependencies, budget/value, documents (spec completeness)
-- [ ] **TENANT-01** — Mapping table tenant columns (isolation hardening)
+- [ ] **DATA-01..03** — External migrate job; app connects only; versioned SQL; one-off data-fix scripts
+- [ ] **UI-DASH + UI-WEEK + UI-DOC + UI-AUDIT** — React consumers for spec APIs (product completeness)
+- [ ] **THIN-01 + PROXY-01 + JIRA-01** — Close v1 route debt
+- [ ] **ENF-01** — Wrapper CI gate on project-scoped routes
+- [ ] **MOD-01** — Repo-wide backend/UI split (every feature area)
 
-### Already Validated (do not regress)
+### Should Ship (high value, sequenced)
 
-- [x] Multi-tenant login and company scoping
-- [x] Project CRUD + nested RAID/milestones/budget/activities
-- [x] Jira import, AI reports, Excel/PPT/Word export
-- [x] Layer architecture and authorization wrappers
+- [ ] **PERF-01** — Virtualized CPMO tracking and other large grids
+- [ ] **PERF-02** — RSC static chrome on new v2 pages
+- [ ] **ENF-02** — Kysely in repositories (incremental)
+- [ ] **PERF-03** — Cold-start budget after DATA-01
+- [ ] **NIT-01 + NIT-02** — Orphan exports, audit noise, budget coexistence doc
+- [ ] **NYQ-01** — validate-phase reconciliation
 
-### Defer (explicitly out of v2.0)
+### Operator Gate (not a feature checkbox)
 
-- [ ] DATA-01..03 migrations out of `getDb()` — deferred per PROJECT.md
-- [ ] ENF/PERF packs — deferred
-- [ ] Replacing Jira/AI/export — never; they stay as differentiators
+- [ ] **HYG-02** — Operator confirms 502 behavior; no code change unless rejected
+
+### Explicitly Out of v2.1
+
+- New PR-01..15 product behavior (already shipped)
+- Replacing Jira / AI / export
+- Merging DATA branch as-is
+- Second ORM or Postgres swap
 
 ---
 
@@ -178,63 +216,64 @@ Shipped: Jira/AI/Export ──enhances──> PR-12, PR-13 export surfaces (must
 
 | Feature | User Value | Implementation Cost | Priority |
 |---------|------------|---------------------|----------|
-| PR-01/02 Admin & authz | HIGH | HIGH | P1 |
-| PR-03 Project master | HIGH | HIGH | P1 |
-| PR-04 PM assignment | HIGH | MEDIUM | P1 |
-| PR-10 Period config | HIGH | MEDIUM | P1 |
-| PR-11 Weekly submit/version | HIGH | VERY HIGH | P1 |
-| PR-09 RAID sync | HIGH | HIGH | P1 |
-| PR-07 Milestones + snapshot | HIGH | MEDIUM | P1 |
-| PR-12 CPMO tracking/export | HIGH | MEDIUM | P1 |
-| PR-13 Portfolio dashboard | HIGH | HIGH | P1 |
-| PR-14 PM dashboard | HIGH | MEDIUM | P1 |
-| PR-05 Stakeholders | MEDIUM | MEDIUM | P1 |
-| PR-08 Budget/value/ROI | MEDIUM | HIGH | P1 |
-| PR-15 Documents/Confluence | MEDIUM | HIGH | P1 |
-| PR-06 Dependencies | MEDIUM | MEDIUM | P2 (spec included — ship in v2.0 but after core auth/master/report path) |
-| TENANT-01 Mapping tables | HIGH (security) | LOW | P1 (can parallel early) |
+| UI-WEEK (weekly surfaces) | HIGH | VERY HIGH | P1 |
+| UI-DASH (portfolio + PM dashboards) | HIGH | HIGH | P1 |
+| DATA-01..03 (migrate out of boot) | HIGH (ops/reliability) | HIGH | P1 |
+| MOD-01 (module backend/UI split) | MEDIUM (maintainability) | HIGH | P1 |
+| THIN-01 (service-layer completion) | MEDIUM (security/consistency) | MEDIUM | P1 |
+| UI-DOC (checklist/compliance) | HIGH | HIGH | P1 |
+| UI-AUDIT (audit viewer) | MEDIUM–HIGH (bank) | MEDIUM | P1 |
+| ENF-01 (wrapper CI) | HIGH (security) | MEDIUM | P1 |
+| PROXY-01 (JSON 401) | MEDIUM | LOW | P1 |
+| PERF-01 (virtualized grids) | HIGH (CPMO UX) | MEDIUM | P2 |
+| ENF-02 (Kysely) | MEDIUM (DX/safety) | HIGH | P2 |
+| PERF-02 (RSC chrome) | MEDIUM | MEDIUM | P2 |
+| JIRA-01 (search hygiene) | LOW | LOW | P2 |
+| NIT-01..02 (orphans, audit noise) | LOW | LOW | P2 |
+| PERF-03 (cold-start budget) | MEDIUM (ops) | LOW | P2 |
+| NYQ-01 (validate-phase) | LOW (process) | MEDIUM | P2 |
+| HYG-02 (operator checkpoint) | N/A | LOW | Gate |
 
-**Priority key:** P1 = spec requirement for v2.0; P2 = same milestone, sequenced after foundation.
-
----
-
-## Competitor Feature Analysis
-
-| Capability | Planview / Clarity (typical) | This spec (GuiIT) | Our approach |
-|------------|------------------------------|-------------------|--------------|
-| Roles | Instance + global access rights, groups | Three fixed roles + project assignment | PR-01/02/04; replace `is_admin` |
-| Weekly status | Status reports + dashboards; some AI assist | Mandatory periodic submit, versioned snapshot, RAID sync | PR-10–12 new module; keep AI as optional overlay |
-| Progress | Schedule % complete, earned value | PM-entered % with L5=100% rules | PR-03 field; keep activity-weighted as secondary analytics |
-| Documents | DMS integration or attachments | Templates in-app; Confluence links only | PR-15; **anti** upload |
-| Portfolio KPIs | Configurable portlets | Fixed KPI definitions with drill-down | PR-13 exact rules |
-| Integrations | Many ERP/ALM connectors | Jira + export + AI (already shipped) | Differentiators retained |
+**Priority key:** P1 = milestone must close debt; P2 = should ship in v2.1 if capacity allows; Gate = operator confirmation, not feature work.
 
 ---
 
-## Table Stakes Summary (v2.0 — missing or wrong shape today)
+## REQUIREMENTS.md Category Grouping (for orchestrator)
 
-1. **PR-01/02** — CPMO/PM/Viewer with server enforcement (not `is_admin` only)
-2. **PR-03** — L0–L5 project master with RAG/status coupling and weekly-report flag
-3. **PR-04** — Formal PM primary/collaborator assignment driving access
-4. **PR-07** — Milestone overdue/upcoming + report snapshot immutability
-5. **PR-09** — RAID register as master with weekly draft/sync on submit
-6. **PR-10/11/12** — Configured periods, PM submit/versioning, CPMO late tracking & consolidation
-7. **PR-13/14** — Spec-defined portfolio and PM action dashboards
-8. **PR-08** — Fiscal-year budget, adjustments history, ROI/benefits
-9. **PR-05/15** — Stakeholders with effective dates; Confluence checklist compliance
-10. **TENANT-01** — Company scoping on import mapping tables
+| Category | IDs | Rationale |
+|----------|-----|-----------|
+| **Structure** | MOD-01 | Repo-wide module layout; enables clean UI landing zones |
+| **Data** | DATA-01, DATA-02, DATA-03 | Single phased task; external migrate + SQL files + data-fix scripts |
+| **Enforcement** | ENF-01, ENF-02 | CI wrapper gate; Kysely adoption in repos |
+| **Performance** | PERF-01, PERF-02, PERF-03 | Grid virtualization, RSC chrome, cold-start SLO |
+| **Route debt** | THIN-01, PROXY-01, JIRA-01 | Service thinning, API 401 contract, Jira hygiene |
+| **UI surfaces** | UI-DASH, UI-WEEK, UI-DOC, UI-AUDIT | v2 API consumers; product-complete spec workflows |
+| **Nits & validation** | NIT-01, NIT-02, NYQ-01 | Orphan wiring, fiscal/audit/budget cleanup, Nyquist pass |
+| **Operator gate** | HYG-02 | **Not a feature category** — checkpoint in PLAN/VERIFICATION only |
+
+---
+
+## Table Stakes Summary (v2.1)
+
+1. **UI consumers** for dashboards, weekly workflow, document checklist, audit viewer — APIs alone are insufficient for product use
+2. **External migrations** — app start connects; deploy pipeline owns schema
+3. **Module backend/UI split** — whole repo, not only new screens
+4. **Route debt closure** — services for ops/admin/config/import; JSON 401; Jira hygiene
+5. **Wrapper CI enforcement** — no new unwrapped project-scoped routes
+6. **Virtualized grids** — CPMO tracking at enterprise row counts
 
 ---
 
 ## Sources
 
-- GuiIT Portfolio One View business spec Draft 1.0 (20/08/2026) — local `docs/GuiIT_2008_Portfolio One View_Yeu cau nghiep vu (1).docx` (HIGH)
-- `.planning/PROJECT.md` v2.0 requirements (HIGH)
-- Existing codebase: `lib/http/with-auth.ts`, `lib/http/with-project-access.ts`, `lib/services/project-report.service.ts` (HIGH)
-- Broadcom Clarity PPM Access Rights Reference (MEDIUM)
-- Planview PPM / portfolio dashboard patterns (MEDIUM)
-- PMI/Atlassian/ProjectManager weekly status report structure conventions (MEDIUM)
+- `.planning/PROJECT.md` — v2.1 Active requirements (HIGH)
+- `.planning/milestones/v2.0-MILESTONE-AUDIT.md` — tech_debt inventory, UI deferred (HIGH)
+- `.planning/milestones/v1.0-MILESTONE-AUDIT.md` — SVC-01/ROUTE-05/PROXY/Jira leftovers (HIGH)
+- `.planning/milestones/v2.0-REQUIREMENTS.md` — Future Requirements DATA/ENF/PERF (HIGH)
+- Next.js enterprise module patterns — thin `app/`, `features/` or `modules/` with backend/UI split (MEDIUM)
+- Brownfield migration practice — decouple schema from app startup; external Job/CLI (MEDIUM)
+- Kysely brownfield fit — query builder over existing schema, external migrations (MEDIUM)
 
 ---
-*Feature research for: Portfolio One View v2.0 (PR-01..PR-15, TENANT-01)*
-*Researched: 2026-08-25*
+*Feature research for: v2.1 Hardening & Deferred Debt*
+*Researched: 2026-08-28*
