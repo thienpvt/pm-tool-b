@@ -15,6 +15,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import type { TemplateRow } from '../shared/types';
+import { safeHttpsHref } from '@/lib/documents/https-url';
 
 function FieldRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -129,19 +130,29 @@ export function TemplatePanel({
                   <TableCell className="p-2 text-sm">{row.version}</TableCell>
                   <TableCell className="p-2 text-sm">{row.effective_date}</TableCell>
                   <TableCell className="p-2 text-sm">
-                    {row.template_url ? (
-                      <a
-                        href={row.template_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 truncate block max-w-[200px]"
-                        title={row.template_url}
-                      >
-                        {row.name}
-                      </a>
-                    ) : (
-                      '—'
-                    )}
+                    {(() => {
+                      const href = safeHttpsHref(row.template_url);
+                      if (href) {
+                        return (
+                          <a
+                            href={href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 truncate block max-w-[200px]"
+                            title={href}
+                          >
+                            {row.name}
+                          </a>
+                        );
+                      }
+                      return row.template_url ? (
+                        <span className="text-muted-foreground truncate block max-w-[200px]" title={row.template_url}>
+                          {row.template_url}
+                        </span>
+                      ) : (
+                        '—'
+                      );
+                    })()}
                   </TableCell>
                   <TableCell className="p-2 text-sm">
                     {!row.retired_at ? (

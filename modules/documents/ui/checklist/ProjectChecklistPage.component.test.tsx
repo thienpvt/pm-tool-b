@@ -240,6 +240,20 @@ describe('ProjectChecklistPage PATCH editor', () => {
     expect(screen.getByRole('button', { name: 'Edit checklist item' })).toBeInTheDocument();
   });
 
+  it('renders non-HTTPS confluence URL as plain text without anchor', async () => {
+    const unsafeItem = {
+      ...checklistFixture[0],
+      confluence_url: 'javascript:alert(1)',
+    };
+    setupChecklistFetch({ items: [unsafeItem] });
+    render(<ProjectChecklistPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('javascript:alert(1)')).toBeInTheDocument();
+    });
+    expect(screen.queryByRole('link', { name: 'Open' })).not.toBeInTheDocument();
+  });
+
   it('shows approved fields when status is approved', async () => {
     const approvedItem = {
       ...checklistFixture[0],

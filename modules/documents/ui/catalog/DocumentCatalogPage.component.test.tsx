@@ -605,6 +605,27 @@ describe('DocumentCatalogPage', () => {
       });
     });
 
+    it('renders non-HTTPS template URL as plain text without anchor', async () => {
+      setupCatalogWithTemplates([
+        {
+          ...templatesFixture[0],
+          template_url: 'javascript:alert(1)',
+        },
+      ]);
+      render(<DocumentCatalogPage />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Charter')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText('Charter'));
+
+      await waitFor(() => {
+        expect(screen.queryByRole('link', { name: /charter template v1/i })).not.toBeInTheDocument();
+        expect(screen.getByText('javascript:alert(1)')).toBeInTheDocument();
+      });
+    });
+
     it('shows inline error for invalid template URL', async () => {
       setupCatalogWithTemplates(emptyTemplatesFixture());
       render(<DocumentCatalogPage />);

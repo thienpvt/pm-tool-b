@@ -31,3 +31,7 @@ export function parseHttpsUrl(
   }
   return trimmed;
 }
+
+export function safeHttpsHref(url: string | null | undefined): string | null {
+  return url?.startsWith('https://') ? url : null;
+}

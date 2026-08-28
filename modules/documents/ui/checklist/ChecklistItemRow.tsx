@@ -16,6 +16,7 @@ import { TableCell, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import type { ChecklistItem, ChecklistStatus } from '../shared/types';
 import type { PatchItemResult } from './useProjectChecklist';
+import { safeHttpsHref } from '@/lib/documents/https-url';
 
 const STATUS_LABEL: Record<ChecklistStatus, string> = {
   none: 'None',
@@ -111,6 +112,7 @@ export function ChecklistItemRow({ item, saving, onSave }: Props) {
   };
 
   const showHttpsLink = confluenceUrl.startsWith('https://');
+  const confluenceHref = safeHttpsHref(item.confluence_url);
 
   return (
     <>
@@ -134,15 +136,17 @@ export function ChecklistItemRow({ item, saving, onSave }: Props) {
           <Badge className={STATUS_BADGE[item.status]}>{STATUS_LABEL[item.status]}</Badge>
         </TableCell>
         <TableCell className="p-2 text-sm">
-          {item.confluence_url ? (
+          {confluenceHref ? (
             <a
-              href={item.confluence_url}
+              href={confluenceHref}
               target="_blank"
               rel="noopener noreferrer"
               className="text-blue-600 hover:underline"
             >
               Open
             </a>
+          ) : item.confluence_url ? (
+            <span className="text-muted-foreground">{item.confluence_url}</span>
           ) : (
             '—'
           )}
