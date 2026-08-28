@@ -364,7 +364,7 @@ describe('WeeklyTrackingPage', () => {
       });
       vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch);
 
-      render(<WeeklyTrackingPage />);
+      const { rerender } = render(<WeeklyTrackingPage />);
 
       await waitFor(() => {
         expect(screen.getByTestId('tracking-filter-bar')).toBeInTheDocument();
@@ -373,7 +373,8 @@ describe('WeeklyTrackingPage', () => {
       fireEvent.change(screen.getByLabelText('Status'), { target: { value: 'overdue' } });
       expect(screen.getByLabelText('Status')).toHaveValue('overdue');
 
-      fireEvent.change(screen.getByLabelText('Period'), { target: { value: '1' } });
+      searchParams = new URLSearchParams('periodId=1');
+      rerender(<WeeklyTrackingPage />);
 
       await waitFor(() => {
         expect(screen.getByLabelText('Status')).toHaveValue('');
