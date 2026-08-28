@@ -447,20 +447,11 @@ import VirtualRows from '@/modules/weekly/ui/shared/VirtualRows';
 
 ## Open Questions
 
-1. **D-05 error body: `field` vs `fields`**
-   - What we know: `ValidationError` maps to `{ error, field? }` [VERIFIED: lib/api-errors.ts:51-54].
-   - What's unclear: CONTEXT says `{ error, fields }`.
-   - Recommendation: Implement `field` (singular) to match shipped API; update VALIDATION.md if needed.
+RESOLVED (autonomous defaults, CONTEXT D-13..D-15):
 
-2. **Project hub card copy**
-   - What we know: Must deep-link to `/projects/{id}/document-checklist` without removing v1 Documents card.
-   - What's unclear: Exact label/description (English vs mixed VN like other hub cards).
-   - Recommendation: English title "Document checklist", description "Confluence links and approval status" to match Phase 21/22 density.
-
-3. **Catalog + templates on one page vs tabs**
-   - What we know: Single route `/documents/catalog` per D-01.
-   - What's unclear: Tab vs stacked sections.
-   - Recommendation: Two sections on one page — catalog table above, template panel for selected catalog row (minimal clicks).
+1. **D-05 error body** — **RESOLVED:** `{ error, field }` singular (D-13).
+2. **Project hub card copy** — **RESOLVED:** label Document checklist, body Complete Confluence evidence for this stage. (D-15).
+3. **Catalog + templates layout** — **RESOLVED:** one page, catalog table + template panel for selected row (D-14).
 
 ## Environment Availability
 

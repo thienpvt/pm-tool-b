@@ -1,11 +1,11 @@
 ---
 phase: 23
 slug: document-checklist-audit-viewer
-status: draft
+status: approved
 shadcn_initialized: true
 preset: b2fA (base-nova, neutral, geist, lucide)
 created: 2026-08-28
-reviewed_at: null
+reviewed_at: 2026-08-28T17:50:00+07:00
 ---
 
 # Phase 23 — UI Design Contract
@@ -100,7 +100,7 @@ Declared values (multiples of 4):
 
 Insert NAV links in `Sidebar.tsx` **after** Weekly tracking links, **before** `NAV_SECONDARY`. Do **not** add a global PM checklist NAV entry.
 
-**Project hub:** Add a quick-link card on `app/projects/[id]/page.tsx` — label **Document checklist**, href `/projects/{id}/document-checklist`, desc "Confluence links and approval status". Do **not** remove or replace the existing **Documents** card pointing at v1 `/projects/{id]/documents` (Phase 17 D-01 parallel surface).
+**Project hub:** Add a quick-link card on `app/projects/[id]/page.tsx` — label **Document checklist**, href `/projects/{id}/document-checklist`, desc "Complete Confluence evidence for this stage." Do **not** remove or replace the existing **Documents** card pointing at v1 `/projects/{id]/documents` (Phase 17 D-01 parallel surface).
 
 **Module roots:** `modules/documents/ui/` (catalog, compliance, checklist), `modules/audit/ui/` (audit viewer). Thin re-exports only in `app/`.
 
@@ -160,7 +160,7 @@ GET `/api/document-catalog` (auth read; CPMO write for mutations).
 | Stage | `stage` | L0–L5 or ALL |
 | Mandatory | `mandatory` | Yes/No Badge |
 | Status | `active` | Active / Retired Badge |
-| Actions | — | **Edit** opens inline form or dialog; **Retire** confirms then PATCH `active: false` |
+| Actions | — | **Edit catalog item** opens inline form or dialog; **Retire** confirms then PATCH `active: false` |
 
 **Create form fields:**
 
@@ -211,7 +211,7 @@ GET `/api/projects/[id]/document-checklist`.
 | Stage | `catalog_stage` | |
 | Status | `status` | Badge with mapped label (see below) |
 | Confluence | `confluence_url` | link or em dash |
-| Actions | — | **Edit** expands row editor |
+| Actions | — | **Edit checklist item** expands row editor |
 
 **Status Select values** (API enum as-is, D-11):
 
@@ -234,7 +234,7 @@ GET `/api/projects/[id]/document-checklist`.
 | N/A reason | `Textarea` rows=2 | status = not_applicable |
 | Notes | `Textarea` rows=2 | optional |
 
-Primary CTA **Save checklist item**. On 400 `{ error, fields }`, render `fields` keys inline under controls in `text-red-600 text-xs`. No file input anywhere.
+Primary CTA **Save checklist item**. On 400 `{ error, field }`, render that `field` inline under the matching control in `text-red-600 text-xs`. No file input anywhere.
 
 **Confluence link preview:** When URL valid HTTPS, show **Open in Confluence** text link (`text-blue-600`) below input.
 
@@ -288,7 +288,7 @@ GET `/api/audit` query params:
 | Actor | `actor_id` | numeric id (API does not enrich display name) |
 | Entity | `entity_type` + `entity_id` | `{type} #{id}` |
 | Action | `action` | monospace `text-xs` |
-| Details | expand toggle | chevron button |
+| Details | expand toggle | chevron button with `aria-label="Show audit details"` |
 
 **Expanded row (D-08, D-10):** Two-column grid on `md:` — **Before** and **After** labels `text-xs font-semibold`. Content:
 
@@ -328,7 +328,7 @@ Use `VirtualRows` when row count > 100 (same 40px row height for collapsed rows;
 | Primary CTA (apply filters) | Apply filters |
 | Secondary CTA (open confluence) | Open in Confluence |
 | Secondary CTA (project hub card) | Document checklist |
-| Hub card description | Confluence links and approval status |
+| Hub card description | Complete Confluence evidence for this stage. |
 | Retire confirmation title | Retire this catalog item? |
 | Retire confirmation body | Existing checklist rows remain; new projects won't receive this item. |
 | Empty state heading (catalog) | No catalog items yet |
@@ -353,7 +353,9 @@ Use `VirtualRows` when row count > 100 (same 40px row height for collapsed rows;
 | Catalog retire success toast | Catalog item retired |
 | Template publish success toast | Template published |
 | Checklist save success toast | Checklist item saved |
-| Validation error toast (checklist) | Fix the highlighted fields and try again. |
+| Catalog create error toast | Couldn't add catalog item. Check the fields and try again. |
+| Catalog save error toast | Couldn't save catalog item — try again. |
+| Validation error toast (checklist) | Fix the highlighted field and try again. |
 | Filter error toast | Invalid filter — check your selections. |
 | Destructive confirmation | Retire item: Retire this catalog item? (dialog copy above) |
 
@@ -384,8 +386,8 @@ Applicable state considerations resolved: **52 covered, 4 backstop, 0 unresolved
 | error | compliance-page-shell | ✅ covered | Same forbidden/error panel pattern |
 | error | checklist-page-shell | ✅ covered | 401/403/404/5xx render Copywriting error in centered panel |
 | error | audit-page-shell | ✅ covered | Same forbidden/error panel pattern |
-| error | catalog-create-form | ✅ covered | Failed POST shows generic error toast |
-| error | checklist-item-editor | ✅ covered | 400 `{ error, fields }` renders inline field messages + validation toast |
+| error | catalog-create-form | ✅ covered | Failed POST shows Copywriting catalog create error toast |
+| error | checklist-item-editor | ✅ covered | 400 `{ error, field }` renders inline under that field + validation toast |
 | error | compliance-filter-bar | ✅ covered | Unknown filter key shows Copywriting filter error toast |
 | populated | catalog-list | ✅ covered | Typical volume (<50 items) in compact table without virtualization |
 | populated | templates-panel | ✅ covered | Template list shows version, effective date, external URL link |
@@ -441,7 +443,7 @@ Applicable state considerations resolved: **52 covered, 4 backstop, 0 unresolved
 2. Do **not** overwrite v1 `/projects/[id]/documents` page or API (23-CONTEXT D-06, Phase 17 D-01).
 3. Reuse `modules/weekly/ui/shared/VirtualRows.tsx` for compliance/audit long lists; copy to `modules/documents/ui/shared/` or `modules/audit/ui/shared/` only if cross-module import is awkward (D-09).
 4. Audit JSON: `JSON.stringify(value, null, 2)` inside `<pre>`; never `dangerouslySetInnerHTML` (D-08).
-5. Checklist PATCH: map API field errors from `{ error, fields }` to inline messages; status enum values must match API snake_case on wire, human labels in Select only.
+5. Checklist PATCH: map API field errors from `{ error, field }` (singular) to inline messages; status enum values must match API snake_case on wire, human labels in Select only.
 6. Catalog retire = PATCH `{ active: false }`; do not DELETE.
 7. Template create retires prior version server-side — UI only POSTs new version; no separate retire button unless API exposes it.
 8. Sidebar: insert Catalog, Compliance, Audit log after Weekly tracking block; role-gate `cpmo` only.

@@ -56,6 +56,9 @@ CPMO manages the document catalog and templates, PMs complete Confluence checkli
 - **D-10:** JSON snapshots render as pretty-printed text in a scrollable panel, not a custom JSON tree widget.
 - **D-11:** Checklist status uses the API enum as-is; do not invent extra statuses.
 - **D-12:** Catalog `apply_to_in_flight` is a checkbox on create/update, posted only when the existing API field exists.
+- **D-13:** Checklist 400 bodies use `{ error, field }` (singular) from `lib/api-errors.ts`. Show that field inline. Do not invent a `fields[]` array.
+- **D-14:** Catalog UI is one page: catalog table plus a template panel for the selected catalog row.
+- **D-15:** Project hub card label **Document checklist**, body **Complete Confluence evidence for this stage.**, href `/projects/{id}/document-checklist`.
 
 </decisions>
 
