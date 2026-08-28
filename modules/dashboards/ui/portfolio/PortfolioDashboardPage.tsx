@@ -4,6 +4,7 @@
 
 import Sidebar from '@/components/layout/Sidebar';
 import { Card } from '@/components/ui/card';
+import { PortfolioFiltersBar } from './PortfolioFiltersBar';
 import { usePortfolioSpecDashboard } from './usePortfolioSpecDashboard';
 
 const KPI_TILES = [
@@ -16,7 +17,7 @@ const KPI_TILES = [
 ];
 
 export default function PortfolioDashboardPage() {
-  const { data, loading } = usePortfolioSpecDashboard();
+  const { data, loading, refreshing, saveFilters } = usePortfolioSpecDashboard();
 
   if (loading) {
     return (
@@ -39,6 +40,12 @@ export default function PortfolioDashboardPage() {
       <Sidebar />
       <main className="flex-1 p-4 lg:p-6 lg:p-8 overflow-auto">
         <h1 className="text-base font-semibold mb-4">Spec dashboard</h1>
+        <PortfolioFiltersBar
+          filters={data.filters}
+          list={data.list}
+          refreshing={refreshing}
+          onApply={saveFilters}
+        />
         <div
           data-testid="spec-kpi-row"
           className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4"
