@@ -5,7 +5,7 @@ const { companyJiraConfig, getSetting } = vi.hoisted(() => ({
   getSetting: vi.fn(),
 }));
 
-vi.mock('@/lib/repositories/jira-config.repo', () => ({ companyJiraConfig }));
+vi.mock('@/modules/admin/backend/repositories/jira-config.repo', () => ({ companyJiraConfig }));
 vi.mock('@/lib/repositories/settings.repo', () => ({ getSetting }));
 
 import { resolveAnthropicCredentials, resolveJiraCredentials, resolveResendCredentials } from './credentials';

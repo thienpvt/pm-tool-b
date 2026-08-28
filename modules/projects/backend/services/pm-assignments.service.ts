@@ -12,7 +12,7 @@ import {
   type PmAssignmentRole,
   type PmAssignmentRow,
 } from '@/modules/projects/backend/repositories/pm-assignments.repo';
-import { findUserById } from '@/lib/repositories/users.repo';
+import { findUserById } from '@/modules/admin/backend/repositories/users.repo';
 import {
   assertCompanyWrite,
   assertProjectAccess,

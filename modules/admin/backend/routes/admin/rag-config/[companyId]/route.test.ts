@@ -13,7 +13,7 @@ vi.mock('@/lib/auth', () => ({
   getSessionFromRequest,
   unauthorized: vi.fn(),
 }));
-vi.mock('@/lib/services/rag-config.service', () => ({
+vi.mock('@/modules/admin/backend/services/rag-config.service', () => ({
   getCompanyRagConfigOrDefault,
   setCompanyRagConfigValues,
 }));

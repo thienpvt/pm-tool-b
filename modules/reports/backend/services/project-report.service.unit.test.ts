@@ -76,7 +76,7 @@ vi.mock('@/modules/projects/backend/repositories/bugs.repo', () => ({
 vi.mock('@/modules/projects/backend/repositories/team.repo', () => ({
   listForReport: teamForReport,
 }));
-vi.mock('@/lib/repositories/rag-config.repo', () => ({ companyRagConfig }));
+vi.mock('@/modules/admin/backend/repositories/rag-config.repo', () => ({ companyRagConfig }));
 
 import { getProjectReport, getWeeklyProjectReport } from '@/modules/reports/backend/services/project-report.service';
 import { ForbiddenError } from '@/lib/services/errors';

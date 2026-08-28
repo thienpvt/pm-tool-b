@@ -30,7 +30,7 @@ vi.mock('@/modules/projects/backend/repositories/stakeholders.repo', () => ({
   endStakeholder: endStakeholderRepo,
   getStakeholder: getStakeholderRepo,
 }));
-vi.mock('@/lib/repositories/users.repo', () => ({ findUserById }));
+vi.mock('@/modules/admin/backend/repositories/users.repo', () => ({ findUserById }));
 vi.mock('@/modules/audit/backend/services/audit.service', () => ({ auditLog: auditLogFn }));
 
 import {

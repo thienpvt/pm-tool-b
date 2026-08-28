@@ -2,11 +2,11 @@ import { NextRequest } from 'next/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
-vi.mock('@/lib/repositories/jira-config.repo', () => ({ companyJiraConfig: vi.fn() }));
+vi.mock('@/modules/admin/backend/repositories/jira-config.repo', () => ({ companyJiraConfig: vi.fn() }));
 vi.mock('@/lib/integrations/jira/client', () => ({ testConnection: vi.fn() }));
 
 import { getSessionFromRequest } from '@/lib/auth';
-import { companyJiraConfig } from '@/lib/repositories/jira-config.repo';
+import { companyJiraConfig } from '@/modules/admin/backend/repositories/jira-config.repo';
 import { testConnection } from '@/lib/integrations/jira/client';
 import { IntegrationError } from '@/lib/integrations/errors';
 import { GET, POST } from './route';

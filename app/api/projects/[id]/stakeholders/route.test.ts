@@ -33,7 +33,7 @@ vi.mock('@/modules/projects/backend/repositories/stakeholders.repo', () => ({
   getStakeholder: getStakeholderRepo,
   endStakeholder: endStakeholderRepo,
 }));
-vi.mock('@/lib/repositories/users.repo', () => ({ findUserById }));
+vi.mock('@/modules/admin/backend/repositories/users.repo', () => ({ findUserById }));
 vi.mock('@/modules/audit/backend/services/audit.service', () => ({ auditLog: auditLogFn }));
 
 import { getSessionFromRequest } from '@/lib/auth';

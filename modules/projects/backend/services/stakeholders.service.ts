@@ -6,7 +6,7 @@ import {
   listStakeholders as listStakeholdersRepo,
   type StakeholderRole,
 } from '@/modules/projects/backend/repositories/stakeholders.repo';
-import { findUserById } from '@/lib/repositories/users.repo';
+import { findUserById } from '@/modules/admin/backend/repositories/users.repo';
 import { assertProjectAccess, assertProjectWriteAccess, type AccessActor } from '@/lib/services/access';
 import { auditLog } from '@/modules/audit/backend/services/audit.service';
 import { NotFoundError, ValidationError } from '@/lib/services/errors';

@@ -8,7 +8,7 @@ import {
   resourceAudit,
   updateCompany,
   updateDemoRequest,
-} from '@/lib/repositories/admin.repo';
+} from '@/modules/admin/backend/repositories/admin.repo';
 import { ConflictError } from '@/lib/services/errors';
 
 function isUniqueViolation(err: unknown): boolean {

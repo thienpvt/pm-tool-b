@@ -2,7 +2,7 @@ import {
   companyJiraConfig,
   setCompanyJiraConfig,
   type JiraConfigRow,
-} from '@/lib/repositories/jira-config.repo';
+} from '@/modules/admin/backend/repositories/jira-config.repo';
 
 const EMPTY_JIRA_CONFIG: JiraConfigRow = {
   base_url_var: '',

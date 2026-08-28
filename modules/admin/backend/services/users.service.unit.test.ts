@@ -30,7 +30,7 @@ const { auditLogFn } = vi.hoisted(() => ({
   auditLogFn: vi.fn(),
 }));
 
-vi.mock('@/lib/repositories/users.repo', () => ({
+vi.mock('@/modules/admin/backend/repositories/users.repo', () => ({
   listUsers: listUsersRepo,
   findUserById,
   findUserByUsername,
@@ -47,8 +47,8 @@ vi.mock('@/modules/audit/backend/services/audit.service', () => ({ auditLog: aud
 vi.mock('@/lib/auth', () => ({ hashPassword: vi.fn((p: string) => `hashed:${p}`) }));
 
 import { createUser, listUsers, updateUser, lockUser, unlockUser, deactivateUser } from './users.service';
-import { ConflictError, ForbiddenError, ValidationError } from './errors';
-import type { AccessActor } from './access';
+import { ConflictError, ForbiddenError, ValidationError } from '@/lib/services/errors';
+import type { AccessActor } from '@/lib/services/access';
 
 const cpmoActor: AccessActor = {
   company_id: 5,

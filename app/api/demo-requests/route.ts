@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createDemoRequest } from '@/lib/repositories/demo-requests.repo';
+import { createDemoRequest } from '@/modules/admin/backend/repositories/demo-requests.repo';
 import { demoRequestSchema } from './schema';
 
 export async function POST(req: NextRequest) {

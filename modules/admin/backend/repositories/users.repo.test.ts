@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest';
-import { hasTestDb } from '../../test/db';
-import { seedCompany, setupRepoTables, testDb } from '../../test/repo-db';
+import { hasTestDb } from '@/test/db';
+import { seedCompany, setupRepoTables, testDb } from '@/test/repo-db';
 import { hashPassword } from '@/lib/auth';
 
 vi.mock('@/lib/db', () => ({ getDb: vi.fn(async () => testDb()) }));

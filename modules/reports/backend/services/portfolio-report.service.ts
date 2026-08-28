@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- verbatim extract from pre-layer route */
 import { statusWeight, DONE_STATUSES } from '@/lib/status-weights';
 import { calculateRAG, DEFAULT_RAG_CONFIG } from '@/lib/rag';
-import { companyRagConfig } from '@/lib/repositories/rag-config.repo';
+import { companyRagConfig } from '@/modules/admin/backend/repositories/rag-config.repo';
 import { listCompanyPrograms } from '@/modules/portfolio/backend/repositories/programs.repo';
 import {
   completedPortfolioActivitiesBetween,

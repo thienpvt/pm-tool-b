@@ -1,4 +1,4 @@
-import { companyJiraConfig } from '@/lib/repositories/jira-config.repo';
+import { companyJiraConfig } from '@/modules/admin/backend/repositories/jira-config.repo';
 import { getSetting } from '@/lib/repositories/settings.repo';
 
 // INTG-09: this module is the ONE place under lib/integrations/ that imports

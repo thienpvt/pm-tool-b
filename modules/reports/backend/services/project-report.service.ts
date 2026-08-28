@@ -14,7 +14,7 @@ import {
 import { listNotClosedByPriority as issuesNotClosed, listOpenIssues } from '@/modules/projects/backend/repositories/issues.repo';
 import { listEpicActivityIds, listMilestones } from '@/modules/projects/backend/repositories/milestones.repo';
 import { getProjectForReport, getProjectWithCustomer } from '@/modules/projects/backend/repositories/projects.repo';
-import { companyRagConfig } from '@/lib/repositories/rag-config.repo';
+import { companyRagConfig } from '@/modules/admin/backend/repositories/rag-config.repo';
 import { listNotClosedByPriority as risksNotClosed, listOpenRisks } from '@/modules/projects/backend/repositories/risks.repo';
 import { listForReport as teamForReport } from '@/modules/projects/backend/repositories/team.repo';
 import { calculateRAG, DEFAULT_RAG_CONFIG } from '@/lib/rag';

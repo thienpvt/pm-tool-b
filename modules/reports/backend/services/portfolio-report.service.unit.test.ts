@@ -65,7 +65,7 @@ vi.mock('@/modules/portfolio/backend/repositories/portfolio.repo', () => ({
   portfolioReportMilestones,
 }));
 vi.mock('@/modules/portfolio/backend/repositories/programs.repo', () => ({ listCompanyPrograms }));
-vi.mock('@/lib/repositories/rag-config.repo', () => ({ companyRagConfig }));
+vi.mock('@/modules/admin/backend/repositories/rag-config.repo', () => ({ companyRagConfig }));
 
 import {
   getPortfolioReport,

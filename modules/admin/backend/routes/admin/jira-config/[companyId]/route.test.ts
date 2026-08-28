@@ -11,7 +11,7 @@ vi.mock('@/lib/auth', () => ({
   getSessionFromRequest,
   unauthorized: vi.fn(),
 }));
-vi.mock('@/lib/services/jira-config.service', () => ({
+vi.mock('@/modules/admin/backend/services/jira-config.service', () => ({
   getCompanyJiraConfigOrEmpty,
   setCompanyJiraConfigVars: vi.fn(),
 }));

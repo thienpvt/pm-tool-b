@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionFromRequest } from '@/lib/auth';
 import { integrationErrorResponse } from '@/lib/api-errors';
-import { companyJiraConfig } from '@/lib/repositories/jira-config.repo';
+import { companyJiraConfig } from '@/modules/admin/backend/repositories/jira-config.repo';
 import { resolveJiraCredentials } from '@/lib/integrations/credentials';
 import { listFields } from '@/lib/integrations/jira/client';
 

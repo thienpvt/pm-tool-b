@@ -61,7 +61,7 @@ vi.mock('@/modules/projects/backend/repositories/bugs.repo', () => ({
   countsBySnapshot: vi.fn(),
 }));
 vi.mock('@/modules/projects/backend/repositories/team.repo', () => ({ listForReport: vi.fn() }));
-vi.mock('@/lib/repositories/rag-config.repo', () => ({ companyRagConfig: vi.fn() }));
+vi.mock('@/modules/admin/backend/repositories/rag-config.repo', () => ({ companyRagConfig: vi.fn() }));
 
 import { getWeeklyProjectReport } from '@/modules/reports/backend/services/project-report.service';
 import { integrationErrorResponse } from '@/lib/api-errors';

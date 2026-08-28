@@ -46,7 +46,7 @@ vi.mock('@/modules/projects/backend/repositories/issues.repo', () => ({
 vi.mock('@/modules/projects/backend/repositories/team.repo', () => ({
   listForReport: vi.fn().mockResolvedValue([]),
 }));
-vi.mock('@/lib/repositories/rag-config.repo', () => ({
+vi.mock('@/modules/admin/backend/repositories/rag-config.repo', () => ({
   companyRagConfig: vi.fn().mockResolvedValue(null),
 }));
 vi.mock('@/lib/integrations/credentials', () => ({ resolveAnthropicCredentials }));

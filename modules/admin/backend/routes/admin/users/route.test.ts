@@ -9,7 +9,7 @@ const { listUsers, createUser, updateUser, deactivateUser } = vi.hoisted(() => (
 }));
 
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
-vi.mock('@/lib/services/users.service', () => ({ listUsers, createUser, updateUser, deactivateUser }));
+vi.mock('@/modules/admin/backend/services/users.service', () => ({ listUsers, createUser, updateUser, deactivateUser }));
 
 import { getSessionFromRequest } from '@/lib/auth';
 import { GET, POST, PUT, DELETE } from './route';

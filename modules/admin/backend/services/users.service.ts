@@ -13,10 +13,10 @@ import {
   updateUserRow,
   type UserListFilters,
   type UserRow,
-} from '@/lib/repositories/users.repo';
+} from '@/modules/admin/backend/repositories/users.repo';
 import { auditLog } from '@/modules/audit/backend/services/audit.service';
-import { hasRole, isCpmo, type AccessActor, type AppRole, type UserStatus } from './access';
-import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors';
+import { hasRole, isCpmo, type AccessActor, type AppRole, type UserStatus } from '@/lib/services/access';
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '@/lib/services/errors';
 
 export type { UserListFilters, UserRow };
 

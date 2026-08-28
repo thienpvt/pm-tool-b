@@ -8,7 +8,7 @@ const {
   createCompany: vi.fn(),
 }));
 
-vi.mock('@/lib/repositories/admin.repo', () => ({
+vi.mock('@/modules/admin/backend/repositories/admin.repo', () => ({
   listCompaniesWithUserCounts,
   createCompany,
   deleteCompany: vi.fn(),

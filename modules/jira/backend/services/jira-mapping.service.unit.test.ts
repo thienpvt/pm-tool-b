@@ -18,7 +18,7 @@ const {
   saveJiraSyncMappingRepo: vi.fn(),
 }));
 
-vi.mock('@/lib/repositories/jira-config.repo', () => ({
+vi.mock('@/modules/admin/backend/repositories/jira-config.repo', () => ({
   listJqlPresets: listJqlPresetsRepo,
   getJqlPresetById,
   findJqlPresetByName,

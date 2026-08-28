@@ -49,7 +49,7 @@ vi.mock('@/modules/projects/backend/repositories/pm-assignments.repo', () => ({
   replaceActivePrimary,
   syncProjectPmDisplay,
 }));
-vi.mock('@/lib/repositories/users.repo', () => ({ findUserById }));
+vi.mock('@/modules/admin/backend/repositories/users.repo', () => ({ findUserById }));
 vi.mock('@/modules/audit/backend/services/audit.service', () => ({ auditLog: auditLogFn }));
 
 import {

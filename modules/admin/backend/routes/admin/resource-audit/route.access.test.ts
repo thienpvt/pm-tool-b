@@ -7,7 +7,7 @@ const { addMissingTeamMembersToPortfolioForCompany, getResourceAudit } = vi.hois
 }));
 
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
-vi.mock('@/lib/services/admin-platform.service', () => ({
+vi.mock('@/modules/admin/backend/services/admin-platform.service', () => ({
   getResourceAudit,
   addMissingTeamMembersToPortfolioForCompany,
 }));
