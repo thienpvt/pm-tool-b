@@ -73,12 +73,13 @@ v2.0 remainder (no React consumers of v2 APIs, no repo-wide module split, Kysely
 - ✓ JIRA-01 — Jira search drops field dump; malformed JSON → 400 `{ error: 'Invalid JSON' }` — Phase 20
 - ✓ ENF-01 — ESLint `require-auth-wrapper` + allowlist file; `npm run lint` in CI — Phase 20
 - ✓ THIN-01 — Ops/admin/config/import-mapping through services; D-23 break-glass unchanged — Phase 20
+- ✓ PDSH-07 / MDSH-06 / NIT-04 — Spec portfolio + PM dashboard pages in `modules/dashboards/ui/`; fiscal KPIs omitted (live on `/portfolio/budget`) — Phase 21
 - [ ] ENF-02 — Repositories adopt Kysely over raw `pg.Pool` so column allowlists are compile-time
 - [ ] PERF-01 — Large grids are virtualized
 - [ ] PERF-02 — Static page chrome moves to server components
 - [ ] PERF-03 — Cold-start time is measured and budgeted
 - [ ] HYG-02 — Operator confirms Anthropic malformed-output 502 vs old 500 (checkpoint, not a rewrite unless rejected)
-- [ ] UI-DASH / UI-WEEK / UI-DOC / UI-AUDIT — React consumers for portfolio/PM dashboards, weekly reports, document checklist, audit viewer, each in that module's UI dir
+- [ ] UI-WEEK / UI-DOC / UI-AUDIT — React consumers for weekly reports, document checklist, audit viewer, each in that module's UI dir
 - [ ] NIT-01 — Wire or remove unused `listPeriodShells` / `listOpenProjectDependencies`
 - [ ] NIT-02 — Fiscal KPIs on portfolio dashboard if they belong; no-op milestone PATCH audit noise; v1 `budget_items` coexistence resolved or documented
 - [ ] NYQ-01 — Nyquist `validate-phase` pass on draft VALIDATION.md files
@@ -98,9 +99,9 @@ v2.0 remainder (no React consumers of v2 APIs, no repo-wide module split, Kysely
 
 **Shipped:** v2.0 Portfolio One View (2026-08-26) — Phases 9–18, 40 plans. Archive: `.planning/milestones/`. Audit: `tech_debt` (79/79 requirements, UI deferred).
 
-**Now:** v2.1 Hardening & Deferred Debt — Phase 21 Portfolio & PM Dashboard Pages.
+**Now:** v2.1 Hardening & Deferred Debt — Phase 22 Weekly Workflow Surfaces.
 
-CPMO/PM/Viewer is enforced on spec APIs. Weekly, fiscal, dashboards, Confluence checklist, and company-scoped append-only audit are server-gated. Schema evolution is an external `npm run migrate` job; `getDb()` connects, asserts the ledger, and seeds only. Ops/admin/config/import-mapping routes go through services. v2 dashboard APIs still have no React consumers. Feature code is not yet split backend-vs-UI per module across the repo.
+CPMO/PM/Viewer is enforced on spec APIs. Weekly, fiscal, dashboards, Confluence checklist, and company-scoped append-only audit are server-gated. Schema evolution is an external `npm run migrate` job; `getDb()` connects, asserts the ledger, and seeds only. Ops/admin/config/import-mapping routes go through services. Spec portfolio and PM dashboards have React consumers in `modules/dashboards/ui/`. Feature code is not yet split backend-vs-UI per module across the repo.
 
 ## Next Milestone Goals
 
@@ -181,4 +182,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-08-28 after Phase 20*
+*Last updated: 2026-08-28 after Phase 21*

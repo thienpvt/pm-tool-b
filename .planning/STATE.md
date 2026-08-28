@@ -2,17 +2,17 @@
 gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: Hardening & Deferred Debt
-current_phase: 21
-current_phase_name: Portfolio & PM Dashboard Pages
-status: verifying
-stopped_at: Completed 21-03-PLAN.md
-last_updated: "2026-08-28T09:00:06.361Z"
+current_phase: 22
+current_phase_name: Weekly Workflow Surfaces
+status: planning
+stopped_at: Phase 21 complete, ready to plan Phase 22
+last_updated: "2026-08-28T09:13:42.732Z"
 last_activity: 2026-08-28
-last_activity_desc: Phase 21 execution started
-state_head: 7a4cd40d290a12bfbe2b2923ce9a8e28451a7f92
+last_activity_desc: Phase 21 complete, transitioned to Phase 22
+state_head: 0c350e26d73f5e4c14596b5fae43a6fed7dc7d44
 progress:
   total_phases: 9
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 15
   completed_plans: 15
 ---
@@ -24,14 +24,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-28)
 
 **Core value:** One source of truth for projects, milestones, RAID, and weekly reports — role- and project-scoped — so CPMO and PMs act on highlights, nearest milestones, open risks/issues, and items that need leadership support.
-**Current focus:** Phase 21 — Portfolio & PM Dashboard Pages
+**Current focus:** Phase 22 — Weekly Workflow Surfaces
 
 ## Current Position
 
-Phase: 21 (Portfolio & PM Dashboard Pages) — EXECUTING
-Plan: 4 of 4
-Status: Phase complete — ready for verification
-Last activity: 2026-08-28 — Phase 21 execution started
+Phase: 22 — Weekly Workflow Surfaces
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-08-28 — Phase 21 complete, transitioned to Phase 22
 
 Progress: [██░░░░░░░░] 25%
 
@@ -239,7 +239,7 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-08-28T09:00:06.089Z
-Stopped at: Completed 21-03-PLAN.md
+Stopped at: Phase 21 complete, ready to plan Phase 22
 Resume file: None
 
 ## Operator Next Steps

@@ -55,7 +55,7 @@ Phase artifacts: [.planning/milestones/v2.0-phases/](milestones/v2.0-phases/)
 
 - [x] **Phase 19: Data Layer Cutover** - External versioned SQL migrate; app start connects and seeds only (completed 2026-08-28)
 - [x] **Phase 20: API Contract & Leftover Routes** - JSON 401, Jira hygiene, wrapper CI gate, ops/admin/config through services (completed 2026-08-28)
-- [ ] **Phase 21: Portfolio & PM Dashboard Pages** - CPMO and assigned-PM dashboards in module UI, with the fiscal-KPI call
+- [x] **Phase 21: Portfolio & PM Dashboard Pages** - CPMO and assigned-PM dashboards in module UI, with the fiscal-KPI call (completed 2026-08-28)
 - [ ] **Phase 22: Weekly Workflow Surfaces** - Periods, PM submit/correct, CPMO tracking/export; tracking grid virtualized
 - [ ] **Phase 23: Document Checklist & Audit Viewer** - Catalog, Confluence checklist, compliance, company-scoped audit UI
 - [ ] **Phase 24: Repo-wide Module Split** - Every remaining feature area in `modules/<feature>/{backend,ui}` with thin `app/` re-exports
@@ -132,7 +132,7 @@ Plans:
   2. An assigned PM can open a PM dashboard page with weekly, milestone, and RAID action queues and deep links
   3. Fiscal KPIs appear on the portfolio dashboard only if they belong in the spec KPI set; otherwise they stay omitted with that decision recorded
 
-**Plans:** 4/4 plans executed
+**Plans:** 4/4 plans complete
 **UI hint**: yes
 
 Plans:
@@ -244,7 +244,7 @@ v1.0 Phases 1–8 and v2.0 Phases 9–18 are complete (see milestone archives ab
 |-------|----------------|--------|-----------|
 | 19. Data Layer Cutover | 4/4 | Complete    | 2026-08-28 |
 | 20. API Contract & Leftover Routes | 7/7 | Complete    | 2026-08-28 |
-| 21. Portfolio & PM Dashboard Pages | 4/4 | In Progress|  |
+| 21. Portfolio & PM Dashboard Pages | 4/4 | Complete    | 2026-08-28 |
 | 22. Weekly Workflow Surfaces | 0/TBD | Not started | - |
 | 23. Document Checklist & Audit Viewer | 0/TBD | Not started | - |
 | 24. Repo-wide Module Split | 0/TBD | Not started | - |
