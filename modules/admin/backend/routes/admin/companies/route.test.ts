@@ -9,7 +9,7 @@ vi.mock('@/lib/auth', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/auth')>();
   return { ...actual, getSessionFromRequest: vi.fn() };
 });
-vi.mock('@/lib/services/admin-platform.service', () => ({
+vi.mock('@/modules/admin/backend/services/admin-platform.service', () => ({
   listCompaniesPlatform,
   createCompanyPlatform: vi.fn(),
   updateCompanyPlatform: vi.fn(),

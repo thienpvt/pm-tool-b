@@ -21,7 +21,7 @@ vi.mock('@/lib/repositories/admin.repo', () => ({
 }));
 
 import { createCompanyPlatform, listCompaniesPlatform } from './admin-platform.service';
-import { ConflictError } from './errors';
+import { ConflictError } from '@/lib/services/errors';
 
 beforeEach(() => vi.clearAllMocks());
 

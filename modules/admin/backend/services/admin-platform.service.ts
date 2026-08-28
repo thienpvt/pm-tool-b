@@ -9,7 +9,7 @@ import {
   updateCompany,
   updateDemoRequest,
 } from '@/lib/repositories/admin.repo';
-import { ConflictError } from './errors';
+import { ConflictError } from '@/lib/services/errors';
 
 function isUniqueViolation(err: unknown): boolean {
   if (typeof err !== 'object' || err === null) return false;
