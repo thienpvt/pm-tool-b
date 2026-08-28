@@ -1,19 +1,11 @@
 ---
 phase: 24-repo-wide-module-split
 verified: 2026-08-28T14:35:00Z
-status: gaps_found
-score: 7/8 truths verified
+status: passed
+score: 8/8 truths verified
 behavior_unverified: 0
 overrides_applied: 0
-gaps:
-  - truth: "All 10 *-module-split.test.ts contract tests pass (committed HEAD)"
-    status: failed
-    reason: "At git HEAD, documents-module-split.test.ts retains a Wave 4 'Wave 6 guard' expecting app/projects/[id]/documents/page.tsx to stay a fat page (>500 chars). Wave 6 correctly moved the page to modules/projects/ui/documents/ProjectDocumentsPage. An uncommitted working-tree fix retargets the assertion to D-06 projects ownership; with that fix applied, all 195/195 tests pass."
-    artifacts:
-      - path: "modules/documents/backend/documents-module-split.test.ts"
-        issue: "HEAD stale test lines 47–54; working tree has uncommitted fix (not included in this docs-only commit)"
-    missing:
-      - "Commit the documents-module-split.test.ts Wave-6 guard update (already present uncommitted in working tree)"
+gaps: []
 ---
 
 # Phase 24: Repo-wide Module Split Verification Report
@@ -21,8 +13,8 @@ gaps:
 **Phase Goal:** Every listed feature area has `modules/<feature>/{backend,ui}`; existing page and `/api/*` URLs still resolve via thin `app/` re-exports (MOD-01, MOD-02).
 
 **Verified:** 2026-08-28T14:35:00Z  
-**Status:** gaps_found  
-**Re-verification:** No — initial verification
+**Status:** passed  
+**Re-verification:** Yes — documents contract + milestone schema import closed 2026-08-28
 
 ## Goal Achievement
 
@@ -37,9 +29,9 @@ gaps:
 | 5 | Program-scoped routes keep P3 `withProgramAccess` in `app/api` | ✓ VERIFIED | `app/api/programs/[id]/route.ts` and `[id]/project-allocations/route.ts` use `withProgramAccess` locally |
 | 6 | D-07: operations and admin companies routes use session+tenant/`requireAdmin`, not `withCpmo`/`@/lib/http/with-role` | ✓ VERIFIED | `modules/admin/backend/routes/admin/companies/route.ts`: `getSessionFromRequest` + local `requireAdmin`; no with-role import. `modules/operations/backend/routes/operations/systems/route.ts`: `getSessionFromRequest` only. Grep: zero matches for `withCpmo`/`with-role` under `modules/operations/backend/routes`. (Admin users route legitimately uses `withCpmo` — out of D-07 companies scope.) |
 | 7 | `/portfolio/report` UI under reports module with P1 shell at existing URL (D-11) | ✓ VERIFIED | `app/portfolio/report/page.tsx` re-exports `PortfolioReportPage` from `modules/reports/ui/portfolio-report/` |
-| 8 | All 10 `*-module-split.test.ts` contract tests pass | ✗ FAILED | At HEAD: 194/195 pass (documents Wave 6 guard stale). With uncommitted working-tree fix: 195/195 pass (10/10 files green) |
+| 8 | All 10 `*-module-split.test.ts` contract tests pass | ✓ VERIFIED | `npx vitest run --project node` on all ten `*-module-split.test.ts` files: 10 files, 196 tests passed after documents Wave-6 guard retarget and milestone schema import fix |
 
-**Score:** 7/8 truths verified (0 present, behavior-unverified)
+**Score:** 8/8 truths verified
 
 ### Required Artifacts
 
@@ -47,7 +39,7 @@ gaps:
 | -------- | ----------- | ------ | ------- |
 | `modules/*/backend/` (×10) | Backend routes, services, repos per feature | ✓ VERIFIED | All ten modules present with substantive backend trees |
 | `modules/*/ui/` (×10) | UI pages, hooks, components per feature | ✓ VERIFIED | All ten modules present with substantive UI trees |
-| `modules/*/backend/*-module-split.test.ts` (×10) | Contract tests for split | ✓ VERIFIED | All 10 test files exist; 9/10 files green |
+| `modules/*/backend/*-module-split.test.ts` (×10) | Contract tests for split | ✓ VERIFIED | All 10 test files exist; 196/196 green |
 | `app/page.tsx` | P1 shell at `/` | ✓ VERIFIED | Thin re-export to `PortfolioHomePage` |
 | `app/projects/[id]/page.tsx` | P1 shell | ✓ VERIFIED | Thin re-export to `ProjectHubPage` |
 | `app/api/projects/[id]/route.ts` | P3 withProjectAccess shell | ✓ VERIFIED | Wraps module handlers |
@@ -97,15 +89,13 @@ Step 7c: SKIPPED — no phase-declared probe scripts.
 
 ### Human Verification Required
 
-None — all checks are programmatic. The single failing test is a stale assertion, not unverifiable runtime behavior.
+None — all checks are programmatic.
 
 ### Gaps Summary
 
-Phase 24 **implementation achieves MOD-01 and MOD-02**: all ten feature modules exist with separated backend/UI, and URLs resolve through thin app shells. P3 wrappers remain on project-scoped routes; D-07 auth is preserved on operations and admin companies.
-
-**One gap blocks a clean contract-test pass at HEAD:** `documents-module-split.test.ts` still asserts Wave 4 invariant ("documents page stays fat until Wave 6"). Wave 6 completed correctly — the page is a thin shell to `modules/projects/ui/documents/ProjectDocumentsPage`. An uncommitted working-tree fix retargets the test to D-06 projects ownership; commit that change to close the gap. MOD-01/MOD-02 implementation is otherwise complete.
+None remaining. Phase 24 **achieves MOD-01 and MOD-02**: all ten feature modules exist with separated backend/UI; URLs resolve through thin app shells. P3 wrappers remain on project-scoped routes; D-07 auth is preserved on operations and admin companies. Contract suite: 196/196 passed.
 
 ---
 
-_Verified: 2026-08-28T14:35:00Z_  
+_Verified: 2026-08-28T14:45:00Z_  
 _Verifier: Claude (gsd-verifier)_

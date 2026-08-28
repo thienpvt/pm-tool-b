@@ -2,7 +2,7 @@
 phase: 24
 slug: repo-wide-module-split
 status: validated
-nyquist_compliant: false
+nyquist_compliant: true
 wave_0_complete: true
 validated_at: 2026-08-28
 created: 2026-08-28
@@ -42,7 +42,7 @@ created: 2026-08-28
 | MOD-01 | Each of 10 feature areas has `modules/<feature>/{backend,ui}/` | 24-01 through 24-10 | `<feature>-module-split.test.ts` per wave; 24-10 also asserts all ten backend dirs | ✅ green |
 | MOD-01 | Backend holds routes/services/repos; UI holds pages/hooks/components | 24-01..24-10 | Dynamic import of moved S1/S2 + P5 page modules in contract tests | ✅ green |
 | MOD-02 | Page URLs unchanged via P1 `app/**/page.tsx` re-exports | 24-01 (keep), 24-05..24-10 (new shells) | Contract tests read `app/**/page.tsx` source for `export { default } from '@/modules/...` | ✅ green |
-| MOD-02 | `/api/*` URLs unchanged via P2/P3/P4 `app/api/**/route.ts` shells | 24-01..24-10 | Contract tests plus moved `route.test.ts`; P3 eslint `require-auth-wrapper` | ⚠️ partial — see 24-06-03 escalation |
+| MOD-02 | `/api/*` URLs unchanged via P2/P3/P4 `app/api/**/route.ts` shells | 24-01..24-10 | Contract tests plus moved `route.test.ts`; P3 eslint `require-auth-wrapper` | ✅ green |
 | ENF-01 (preserve) | Project-scoped `route.ts` still contains local wrapper calls | 24-03, 24-04, 24-05, 24-06, 24-07, 24-08 | `withProjectAccess(` / `withProgramAccess(` in app/api source; `npx eslint` on those files | ✅ green |
 | D-07 / D-23 (preserve) | Ops and admin companies do not import `@/lib/http/with-role` | 24-09, 24-10 | `admin-module-split.test.ts`, `operations-module-split.test.ts` | ✅ green |
 
@@ -68,7 +68,7 @@ created: 2026-08-28
 | 24-05-03 | 05 | 5 | MOD-02, ENF-01 | T-24-07 | programs/[id] withProgramAccess | node+eslint | `npx vitest run --project node modules/portfolio/backend && npx eslint "app/api/programs/[id]/**/route.ts"` | ✅ | ✅ green |
 | 24-06-01 | 06 | 6 | MOD-01, MOD-02 | T-24-08 | Hub P1 plus project GET P3 | node+eslint | `npx vitest run --project node modules/projects/backend/projects-module-split.test.ts && npx eslint "app/api/projects/[id]/route.ts"` | ✅ | ✅ green |
 | 24-06-02 | 06 | 6 | MOD-02 | T-24-08 | Remaining project P1 shells | mixed | `npx vitest run modules/projects/ui modules/projects/backend/projects-module-split.test.ts` | ✅ | ✅ green |
-| 24-06-03 | 06 | 6 | MOD-02, ENF-01 | T-24-08 | Remaining P3 project APIs | node+eslint | `npx vitest run --project node modules/projects/backend && npx eslint "app/api/projects/[id]/route.ts" "app/api/projects/[id]/milestones/**/route.ts" "app/api/projects/[id]/risks/route.ts"` | ✅ | ❌ red — stale `../schema` import in `milestones/[milestoneId]/route.ts` |
+| 24-06-03 | 06 | 6 | MOD-02, ENF-01 | T-24-08 | Remaining P3 project APIs | node+eslint | `npx vitest run --project node modules/projects/backend && npx eslint "app/api/projects/[id]/route.ts" "app/api/projects/[id]/milestones/**/route.ts" "app/api/projects/[id]/risks/route.ts"` | ✅ | ✅ green |
 | 24-07-01 | 07 | 7 | MOD-02, D-11 | T-24-10 | /portfolio/report P1 in reports module | mixed | `npx vitest run modules/reports/backend/reports-module-split.test.ts modules/reports/ui/portfolio-report` | ✅ | ✅ green |
 | 24-07-02 | 07 | 7 | MOD-02, ENF-01 | T-24-09 | Project report P1/P3 | mixed+eslint | `npx vitest run modules/reports && npx eslint "app/api/projects/[id]/report/**/route.ts" "app/api/projects/[id]/project-report/**/route.ts"` | ✅ | ✅ green |
 | 24-07-03 | 07 | 7 | MOD-02, ENF-01 | T-24-09 | Export/[id] P3 | node+eslint | `npx vitest run --project node modules/reports/backend && npx eslint "app/api/export/excel/[id]/route.ts" "app/api/export/ppt/[id]/route.ts" "app/api/export/word/[id]/[type]/route.ts" "app/api/export/resource-plan/[id]/route.ts"` | ✅ | ✅ green |
@@ -116,20 +116,19 @@ End-of-phase `human_verify_mode` visual pass is orchestrator-owned, not a per-ta
 - [x] Wave 0 covers all MISSING references (no new test runner)
 - [x] No watch-mode flags
 - [x] Feedback latency < 180s
-- [ ] `nyquist_compliant: true` — blocked by 24-06-03: `app/api/projects/[id]/milestones/[milestoneId]/route.ts` imports `../schema` (file absent after split); contract test added in `projects-module-split.test.ts`
+- [x] `nyquist_compliant: true`
 
 ## Nyquist Audit (2026-08-28)
 
-**Contract suite:** `npx vitest run --project node modules/*/backend/*-module-split.test.ts` — 195/196 pass (1 red: milestone schema import).
+**Contract suite:** `npx vitest run --project node` on all ten `*-module-split.test.ts` files — **196/196 pass**.
 
 ### Filled gaps
 | Gap | Fix | Command |
 |-----|-----|---------|
 | Stale Wave 6 guard in `documents-module-split.test.ts` expected fat page; wave 6 moved page to projects module | Retargeted assertion to D-06 projects-owned thin shell | `npx vitest run --project node modules/documents/backend/documents-module-split.test.ts` ✅ |
+| 24-06-03 stale `../schema` import | Shell now imports `@/modules/projects/backend/routes/projects/[id]/milestones/schema` | `npx vitest run --project node modules/projects/backend/projects-module-split.test.ts` ✅ |
 
 ### Escalated (BLOCKER)
-| Task | Requirement | Reason | Test |
-|------|-------------|--------|------|
-| 24-06-03 | MOD-02 | P3 shell `app/api/projects/[id]/milestones/[milestoneId]/route.ts` uses `import { milestoneUpdateSchema } from '../schema'` — module lives at `@/modules/projects/backend/routes/projects/[id]/milestones/schema`; breaks route load (`route-401-matrix.test.ts`) | `projects-module-split.test.ts` P3 MOD-02 assertion ❌ |
+None.
 
-**Approval:** pending fix for 24-06-03 escalation
+**Approval:** approved — 27/27 tasks green
