@@ -78,7 +78,8 @@ describe('DocumentCatalogPage', () => {
     });
 
     expect(screen.getByText('Charter')).toBeInTheDocument();
-    expect(screen.getByText('L2')).toBeInTheDocument();
+    const list = screen.getByTestId('catalog-list');
+    expect(list.textContent).toContain('L2');
   });
 
   it('shows 403 forbidden copy in-page', async () => {

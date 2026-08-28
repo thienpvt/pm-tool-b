@@ -2,6 +2,7 @@
 
 import { AlertTriangle } from 'lucide-react';
 import Sidebar from '@/components/layout/Sidebar';
+import { CatalogForm } from './CatalogForm';
 import { CatalogList } from './CatalogList';
 import { useDocumentCatalog } from './useDocumentCatalog';
 
@@ -12,7 +13,7 @@ const ERROR_COPY = {
 } as const;
 
 export default function DocumentCatalogPage() {
-  const { data, loading, error } = useDocumentCatalog();
+  const { data, loading, error, creating, createCatalog } = useDocumentCatalog();
 
   if (loading) {
     return (
@@ -56,6 +57,8 @@ export default function DocumentCatalogPage() {
             {activeCount} item{activeCount === 1 ? '' : 's'}
           </p>
         </div>
+
+        <CatalogForm mode="create" saving={creating} onSubmit={createCatalog} />
 
         <CatalogList rows={data} />
 
