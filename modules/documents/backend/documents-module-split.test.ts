@@ -52,4 +52,32 @@ describe('documents module split contract (24-04)', () => {
     );
     expect(source.length).toBeGreaterThan(500);
   });
+
+  it('P2: app/api/document-catalog/[id]/route.ts re-exports GET and PATCH from module route', () => {
+    const source = readUtf8('app/api/document-catalog/[id]/route.ts');
+    expect(source).toMatch(
+      /export\s*\{\s*GET\s*,\s*PATCH\s*\}\s*from\s*['"]@\/modules\/documents\/backend\/routes\/document-catalog\/\[id\]\/route['"]/,
+    );
+  });
+
+  it('P2: app/api/document-templates/route.ts re-exports GET and POST from module route', () => {
+    const source = readUtf8('app/api/document-templates/route.ts');
+    expect(source).toMatch(
+      /export\s*\{\s*GET\s*,\s*POST\s*\}\s*from\s*['"]@\/modules\/documents\/backend\/routes\/document-templates\/route['"]/,
+    );
+  });
+
+  it('P2: app/api/document-templates/[id]/route.ts re-exports GET and PATCH from module route', () => {
+    const source = readUtf8('app/api/document-templates/[id]/route.ts');
+    expect(source).toMatch(
+      /export\s*\{\s*GET\s*,\s*PATCH\s*\}\s*from\s*['"]@\/modules\/documents\/backend\/routes\/document-templates\/\[id\]\/route['"]/,
+    );
+  });
+
+  it('P2: app/api/dashboards/document-compliance/route.ts re-exports GET from module route', () => {
+    const source = readUtf8('app/api/dashboards/document-compliance/route.ts');
+    expect(source).toMatch(
+      /export\s*\{\s*GET\s*\}\s*from\s*['"]@\/modules\/documents\/backend\/routes\/dashboards\/document-compliance\/route['"]/,
+    );
+  });
 });
