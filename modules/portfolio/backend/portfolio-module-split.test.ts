@@ -37,4 +37,44 @@ describe('portfolio module split contract (24-05)', () => {
     const source = readUtf8('app/portfolio/report/page.tsx');
     expect(source).not.toContain('modules/reports/ui');
   });
+
+  const p1PortfolioPages = [
+    {
+      shell: 'app/portfolio/budget/page.tsx',
+      target: '@/modules/portfolio/ui/budget/PortfolioBudgetPage',
+    },
+    {
+      shell: 'app/portfolio/roadmap/page.tsx',
+      target: '@/modules/portfolio/ui/roadmap/RoadmapPage',
+    },
+    {
+      shell: 'app/portfolio/resources/page.tsx',
+      target: '@/modules/portfolio/ui/resources/PortfolioResourcesPage',
+    },
+    {
+      shell: 'app/programs/page.tsx',
+      target: '@/modules/portfolio/ui/programs/ProgramsPage',
+    },
+    {
+      shell: 'app/resources/page.tsx',
+      target: '@/modules/portfolio/ui/members/ResourcesMembersPage',
+    },
+  ] as const;
+
+  it.each(p1PortfolioPages)('P1: $shell re-exports from module path', ({ shell, target }) => {
+    const source = readUtf8(shell);
+    expect(source).toMatch(
+      new RegExp(
+        `export\\s*\\{\\s*default\\s*\\}\\s*from\\s*['"]${target.replace(/\//g, '\\/')}['"]`,
+      ),
+    );
+  });
+
+  it('D-11: app/portfolio/report/page.tsx still contains local page logic', () => {
+    const source = readUtf8('app/portfolio/report/page.tsx');
+    expect(source).toContain('export default function PortfolioReportPage');
+    expect(source).not.toMatch(
+      /export\s*\{\s*default\s*\}\s*from\s*['"]@\/modules\/reports\/ui/,
+    );
+  });
 });
