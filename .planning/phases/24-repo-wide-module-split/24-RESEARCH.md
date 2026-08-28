@@ -315,7 +315,7 @@ Allowlist entries are `app/api/...` paths [VERIFIED: `eslint/route-wrapper-allow
 | A4 | `settings.service` / `config` API stay in **lib/** (cross-cutting admin config, not a feature module) | Cross-cutting | Low — not listed in D-06 feature areas |
 | A5 | Report UI at `/portfolio/report` lives in **reports/ui** (reports feature) while URL shell stays under `app/portfolio/report` | reports map | Planner may colocate under portfolio/ui if user prefers URL-owner grouping — D-06 lists reports separately from portfolio |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 RESOLVED (CONTEXT D-11): `/portfolio/report` implementation lives in `modules/reports/ui/` with a thin re-export at `app/portfolio/report/page.tsx`.
 
