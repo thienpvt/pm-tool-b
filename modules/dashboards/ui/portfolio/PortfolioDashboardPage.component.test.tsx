@@ -6,11 +6,17 @@ vi.mock('next/navigation', () => ({ usePathname: () => '/dashboards/portfolio' }
 vi.mock('@/components/layout/Sidebar', () => ({ default: () => <nav data-testid="sidebar" /> }));
 
 const toastError = vi.fn();
+const toastSuccess = vi.fn();
 vi.mock('sonner', () => ({
   toast: {
     error: (...args: unknown[]) => toastError(...args),
-    success: vi.fn(),
+    success: (...args: unknown[]) => toastSuccess(...args),
   },
+}));
+
+const downloadBlobMock = vi.fn();
+vi.mock('@/modules/dashboards/ui/shared/downloadBlob', () => ({
+  downloadBlob: (...args: unknown[]) => downloadBlobMock(...args),
 }));
 
 const portfolioFixture = {
@@ -95,6 +101,47 @@ const zeroKpiFixture = {
   },
 };
 
+const emptyListFixture = {
+  ...portfolioFixture,
+  list: [],
+};
+
+const longProjectName = 'B'.repeat(200);
+const longNameListFixture = {
+  ...portfolioFixture,
+  list: [
+    {
+      ...portfolioFixture.list[0],
+      name: longProjectName,
+    },
+  ],
+};
+
+function setupFetchWithExport(
+  exportHandler: (url: string, init?: RequestInit) => Promise<Response> | Response,
+) {
+  fetchMock = vi.fn((url: string, init?: RequestInit) => {
+    if (url === '/api/dashboards/portfolio/export' && init?.method === 'POST') {
+      return exportHandler(url, init);
+    }
+    if (url === '/api/dashboards/portfolio' && (!init || !init.method || init.method === 'GET')) {
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(portfolioFixture),
+      });
+    }
+    if (url === '/api/dashboards/portfolio/filters' && init?.method === 'PUT') {
+      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ ok: true }) });
+    }
+    if (url === '/api/dashboards/portfolio/filters' && init?.method === 'POST') {
+      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ ok: true }) });
+    }
+    return Promise.reject(new Error(`unexpected fetch: ${url} ${init?.method ?? 'GET'}`));
+  }) as unknown as typeof fetch;
+  vi.stubGlobal('fetch', fetchMock);
+}
+
 let resolvePortfolio: ((value: unknown) => void) | null = null;
 let fetchMock: ReturnType<typeof vi.fn>;
 
@@ -124,6 +171,8 @@ function setupDefaultFetch() {
 beforeEach(() => {
   resolvePortfolio = null;
   toastError.mockClear();
+  toastSuccess.mockClear();
+  downloadBlobMock.mockClear();
   setupDefaultFetch();
 });
 
@@ -381,6 +430,132 @@ describe('PortfolioDashboardPage', () => {
     expect(link).toHaveAttribute('title', longName);
     expect(link.className).toMatch(/truncate/);
     expect(link.className).toMatch(/max-w-\[200px\]/);
+  });
+
+  it('shows empty project list copy spanning columns', async () => {
+    render(<PortfolioDashboardPage />);
+    resolvePortfolio!(emptyListFixture);
+    await waitFor(() => expect(screen.getByTestId('portfolio-project-list')).toBeInTheDocument());
+
+    expect(screen.getByText('No projects match these filters')).toBeInTheDocument();
+    expect(
+      screen.getByText('Adjust or clear filters to see projects in the portfolio.'),
+    ).toBeInTheDocument();
+  });
+
+  it('truncates long project name with title attribute', async () => {
+    render(<PortfolioDashboardPage />);
+    resolvePortfolio!(longNameListFixture);
+    await waitFor(() => expect(screen.getByTestId('portfolio-project-list')).toBeInTheDocument());
+
+    const link = screen.getByRole('link', { name: longProjectName });
+    expect(link).toHaveAttribute('title', longProjectName);
+    expect(link.className).toMatch(/truncate/);
+    expect(link.className).toMatch(/max-w-\[200px\]/);
+  });
+
+  it('POSTs xlsx export and calls downloadBlob on success', async () => {
+    setupFetchWithExport(() =>
+      Promise.resolve({
+        ok: true,
+        status: 200,
+        blob: () => Promise.resolve(new Blob(['xlsx'], { type: 'application/vnd.ms-excel' })),
+      } as Response),
+    );
+
+    render(<PortfolioDashboardPage />);
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Export Excel' })).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Export Excel' }));
+
+    await waitFor(() => {
+      const exportCall = fetchMock.mock.calls.find(
+        ([u, i]) => u === '/api/dashboards/portfolio/export' && (i as RequestInit)?.method === 'POST',
+      );
+      expect(exportCall).toBeTruthy();
+      expect(JSON.parse((exportCall![1] as RequestInit).body as string)).toEqual({ format: 'xlsx' });
+      expect(downloadBlobMock).toHaveBeenCalledWith(expect.any(Blob), 'portfolio-dashboard.xlsx');
+      expect(toastSuccess).toHaveBeenCalledWith('Export downloaded');
+    });
+  });
+
+  it('POSTs pdf export format', async () => {
+    setupFetchWithExport(() =>
+      Promise.resolve({
+        ok: true,
+        status: 200,
+        blob: () => Promise.resolve(new Blob(['pdf'], { type: 'application/pdf' })),
+      } as Response),
+    );
+
+    render(<PortfolioDashboardPage />);
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Export PDF' })).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Export PDF' }));
+
+    await waitFor(() => {
+      const exportCall = fetchMock.mock.calls.find(
+        ([u, i]) => u === '/api/dashboards/portfolio/export' && (i as RequestInit)?.method === 'POST',
+      );
+      expect(JSON.parse((exportCall![1] as RequestInit).body as string)).toEqual({ format: 'pdf' });
+      expect(downloadBlobMock).toHaveBeenCalledWith(expect.any(Blob), 'portfolio-dashboard.pdf');
+    });
+  });
+
+  it('shows export error toast when POST returns 500', async () => {
+    setupFetchWithExport(() =>
+      Promise.resolve({ ok: false, status: 500, blob: () => Promise.resolve(new Blob()) } as Response),
+    );
+
+    render(<PortfolioDashboardPage />);
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Export Excel' })).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Export Excel' }));
+
+    await waitFor(() => {
+      expect(toastError).toHaveBeenCalledWith('Export failed — try again.');
+    });
+    expect(downloadBlobMock).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Export Excel' })).not.toBeDisabled();
+  });
+
+  it('disables export buttons while POST is in-flight', async () => {
+    let resolveExport: ((value: Response) => void) | null = null;
+    setupFetchWithExport(
+      () =>
+        new Promise((resolve) => {
+          resolveExport = resolve;
+        }),
+    );
+
+    render(<PortfolioDashboardPage />);
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Export Excel' })).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Export Excel' }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Exporting…' })).toBeDisabled();
+      expect(screen.getByRole('button', { name: 'Export PDF' })).toBeDisabled();
+    });
+
+    resolveExport!({
+      ok: true,
+      status: 200,
+      blob: () => Promise.resolve(new Blob(['xlsx'])),
+    } as Response);
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Export Excel' })).not.toBeDisabled();
+    });
+  });
+
+  it('keeps export buttons enabled when project list is empty', async () => {
+    render(<PortfolioDashboardPage />);
+    resolvePortfolio!(emptyListFixture);
+    await waitFor(() => expect(screen.getByTestId('portfolio-project-list')).toBeInTheDocument());
+
+    expect(screen.getByRole('button', { name: 'Export Excel' })).not.toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Export PDF' })).not.toBeDisabled();
   });
 
   it('shows 500 load failed copy', async () => {
