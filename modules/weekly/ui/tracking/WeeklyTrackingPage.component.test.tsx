@@ -22,6 +22,20 @@ vi.mock('@/components/layout/Sidebar', () => ({
   default: () => <nav data-testid="sidebar" />,
 }));
 
+const downloadBlobMock = vi.fn();
+vi.mock('@/modules/dashboards/ui/shared/downloadBlob', () => ({
+  downloadBlob: (...args: unknown[]) => downloadBlobMock(...args),
+}));
+
+const toastError = vi.fn();
+const toastSuccess = vi.fn();
+vi.mock('sonner', () => ({
+  toast: {
+    error: (...args: unknown[]) => toastError(...args),
+    success: (...args: unknown[]) => toastSuccess(...args),
+  },
+}));
+
 let resolvePeriods: ((value: unknown) => void) | null = null;
 let resolveTracking: ((value: unknown) => void) | null = null;
 
@@ -82,6 +96,9 @@ beforeEach(() => {
   replaceMock.mockClear();
   resolvePeriods = null;
   resolveTracking = null;
+  downloadBlobMock.mockClear();
+  toastError.mockClear();
+  toastSuccess.mockClear();
   setupDeferredFetch();
 });
 
@@ -356,19 +373,171 @@ describe('WeeklyTrackingPage', () => {
       ).toBeInTheDocument();
     });
 
-    it('records checkbox selection order as project_ids', async () => {
-      await renderWithPayload(twoSubmittedPayload);
-
-      fireEvent.click(screen.getByLabelText('Select First Submitted'));
-      fireEvent.click(screen.getByLabelText('Select Second Submitted'));
-
-      expect(screen.getByTestId('tracking-selected-ids')).toHaveTextContent('[201,202]');
-    });
-
     it('Open report link uses /projects/{id}/weekly-reports/{reportId}', async () => {
       await renderWithPayload(trackingPayload);
       const links = screen.getAllByRole('link', { name: 'Open report' });
       expect(links[0]).toHaveAttribute('href', '/projects/101/weekly-reports/501');
+    });
+  });
+
+  describe('export pack', () => {
+    const twoSubmittedPayload = {
+      ...trackingPayload,
+      rows: [
+        { ...trackingPayload.rows[0], project_id: 201, report_id: 601, name: 'First Submitted' },
+        { ...trackingPayload.rows[0], project_id: 202, report_id: 602, name: 'Second Submitted' },
+        trackingPayload.rows[1],
+        trackingPayload.rows[2],
+      ],
+    };
+
+    function setupFetchWithExport(
+      exportHandler: (url: string, init?: RequestInit) => Promise<Response>,
+      payload: typeof trackingPayload = twoSubmittedPayload,
+    ) {
+      const fetchMock = vi.fn((url: string, init?: RequestInit) => {
+        if (url === '/api/weekly-periods') {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: () => Promise.resolve(periodsFixture),
+          });
+        }
+        if (url.startsWith('/api/weekly-periods/2/tracking') && (!init || init.method === undefined)) {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: () => Promise.resolve(payload),
+          });
+        }
+        if (url === '/api/weekly-periods/2/export' && init?.method === 'POST') {
+          return exportHandler(url, init);
+        }
+        return Promise.reject(new Error(`unexpected fetch: ${url} ${init?.method ?? 'GET'}`));
+      });
+      vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch);
+      return fetchMock;
+    }
+
+    async function renderExportPage(payload: typeof trackingPayload = twoSubmittedPayload) {
+      setupFetchWithExport(
+        () =>
+          Promise.resolve({
+            ok: true,
+            status: 200,
+            headers: new Headers({
+              'Content-Disposition': 'attachment; filename="weekly-pack.xlsx"',
+            }),
+            blob: () => Promise.resolve(new Blob(['xlsx'], { type: 'application/vnd.ms-excel' })),
+          } as Response),
+        payload,
+      );
+      render(<WeeklyTrackingPage />);
+      await waitFor(() => {
+        expect(screen.getByTestId('tracking-grid')).toBeInTheDocument();
+      });
+    }
+
+    it('disables Export pack with hint when selection is empty', async () => {
+      await renderExportPage();
+
+      const exportBtn = screen.getByRole('button', { name: 'Export pack' });
+      expect(exportBtn).toBeDisabled();
+      expect(screen.getByText('Select at least one project to export.')).toBeInTheDocument();
+    });
+
+    it('POSTs project_ids in checkbox order with format xlsx on success', async () => {
+      const fetchMock = setupFetchWithExport(() =>
+        Promise.resolve({
+          ok: true,
+          status: 200,
+          headers: new Headers({
+            'Content-Disposition': 'attachment; filename="weekly-pack.xlsx"',
+          }),
+          blob: () => Promise.resolve(new Blob(['xlsx'], { type: 'application/vnd.ms-excel' })),
+        } as Response),
+      );
+
+      render(<WeeklyTrackingPage />);
+      await waitFor(() => {
+        expect(screen.getByTestId('tracking-grid')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByLabelText('Select First Submitted'));
+      fireEvent.click(screen.getByLabelText('Select Second Submitted'));
+      fireEvent.click(screen.getByRole('button', { name: 'Export pack' }));
+
+      await waitFor(() => {
+        const exportCall = fetchMock.mock.calls.find(
+          ([u, i]) => u === '/api/weekly-periods/2/export' && (i as RequestInit)?.method === 'POST',
+        );
+        expect(exportCall).toBeTruthy();
+        expect(JSON.parse((exportCall![1] as RequestInit).body as string)).toEqual({
+          project_ids: [201, 202],
+          format: 'xlsx',
+        });
+        expect(downloadBlobMock).toHaveBeenCalledWith(expect.any(Blob), 'weekly-pack.xlsx');
+        expect(toastSuccess).toHaveBeenCalledWith('Export downloaded');
+      });
+    });
+
+    it('shows failure toast and skips downloadBlob on 400', async () => {
+      setupFetchWithExport(() =>
+        Promise.resolve({
+          ok: false,
+          status: 400,
+          json: () => Promise.resolve({ error: 'Ineligible', fields: ['project_ids'] }),
+        } as Response),
+      );
+
+      render(<WeeklyTrackingPage />);
+      await waitFor(() => {
+        expect(screen.getByTestId('tracking-grid')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByLabelText('Select First Submitted'));
+      fireEvent.click(screen.getByRole('button', { name: 'Export pack' }));
+
+      await waitFor(() => {
+        expect(toastError).toHaveBeenCalledWith('Export failed — try again.');
+      });
+      expect(downloadBlobMock).not.toHaveBeenCalled();
+      expect(screen.getByRole('button', { name: 'Export pack' })).not.toBeDisabled();
+    });
+
+    it('disables Export pack and shows Exporting… while POST is in-flight', async () => {
+      let resolveExport: ((value: Response) => void) | null = null;
+      setupFetchWithExport(
+        () =>
+          new Promise((resolve) => {
+            resolveExport = resolve;
+          }),
+      );
+
+      render(<WeeklyTrackingPage />);
+      await waitFor(() => {
+        expect(screen.getByTestId('tracking-grid')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByLabelText('Select First Submitted'));
+      fireEvent.click(screen.getByRole('button', { name: 'Export pack' }));
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Exporting…' })).toBeDisabled();
+      });
+
+      resolveExport!({
+        ok: true,
+        status: 200,
+        headers: new Headers({
+          'Content-Disposition': 'attachment; filename="weekly-pack.xlsx"',
+        }),
+        blob: () => Promise.resolve(new Blob(['xlsx'])),
+      } as Response);
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Export pack' })).not.toBeDisabled();
+      });
     });
   });
 });
