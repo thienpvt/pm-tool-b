@@ -24,14 +24,10 @@ describe('migrateDashboards DDL fragments', () => {
   });
 });
 
-describe('getDb wires migrateDashboards after migrateFiscalBudget (D-07)', () => {
-  it('awaits migrateDashboards immediately after migrateFiscalBudget and before backfillWeightedCompletion', () => {
+describe('getDb does not wire migrateDashboards (D-07, D-08)', () => {
+  it('keeps migrateDashboards exported but getDb does not await it', () => {
+    expect(typeof migrateDashboards).toBe('function');
     const src = readFileSync(resolve(__dirname, 'db.ts'), 'utf8');
-    const fiscalIdx = src.indexOf('await migrateFiscalBudget(pool)');
-    const dashboardsIdx = src.indexOf('await migrateDashboards(pool)');
-    const backfillIdx = src.indexOf('await backfillWeightedCompletion(pool)');
-    expect(fiscalIdx).toBeGreaterThan(-1);
-    expect(dashboardsIdx).toBeGreaterThan(fiscalIdx);
-    expect(dashboardsIdx).toBeLessThan(backfillIdx);
+    expect(src).not.toMatch(/await migrateDashboards\(pool\)/);
   });
 });

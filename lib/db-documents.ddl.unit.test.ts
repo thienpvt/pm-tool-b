@@ -40,14 +40,10 @@ describe('migrateDocuments DDL fragments', () => {
   });
 });
 
-describe('getDb wires migrateDocuments after migrateDashboards (D-11)', () => {
-  it('awaits migrateDocuments immediately after migrateDashboards and before backfillWeightedCompletion', () => {
+describe('getDb does not wire migrateDocuments (D-11, D-08)', () => {
+  it('keeps migrateDocuments exported but getDb does not await it', () => {
+    expect(typeof migrateDocuments).toBe('function');
     const src = readFileSync(resolve(__dirname, 'db.ts'), 'utf8');
-    const dashboardsIdx = src.indexOf('await migrateDashboards(pool)');
-    const documentsIdx = src.indexOf('await migrateDocuments(pool)');
-    const backfillIdx = src.indexOf('await backfillWeightedCompletion(pool)');
-    expect(dashboardsIdx).toBeGreaterThan(-1);
-    expect(documentsIdx).toBeGreaterThan(dashboardsIdx);
-    expect(documentsIdx).toBeLessThan(backfillIdx);
+    expect(src).not.toMatch(/await migrateDocuments\(pool\)/);
   });
 });

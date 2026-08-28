@@ -35,14 +35,10 @@ describe('migrateFiscalBudget DDL fragments', () => {
   });
 });
 
-describe('getDb wires migrateFiscalBudget after migrateWeeklyReports (D-12)', () => {
-  it('awaits migrateFiscalBudget immediately after migrateWeeklyReports in lib/db.ts', () => {
+describe('getDb does not wire migrateFiscalBudget (D-12, D-08)', () => {
+  it('keeps migrateFiscalBudget exported but getDb does not await it', () => {
+    expect(typeof migrateFiscalBudget).toBe('function');
     const src = readFileSync(resolve(__dirname, 'db.ts'), 'utf8');
-    const weeklyIdx = src.indexOf('await migrateWeeklyReports(pool)');
-    const fiscalIdx = src.indexOf('await migrateFiscalBudget(pool)');
-    expect(weeklyIdx).toBeGreaterThan(-1);
-    expect(fiscalIdx).toBeGreaterThan(weeklyIdx);
-    const backfillIdx = src.indexOf('await backfillWeightedCompletion(pool)');
-    expect(fiscalIdx).toBeLessThan(backfillIdx);
+    expect(src).not.toMatch(/await migrateFiscalBudget\(pool\)/);
   });
 });
