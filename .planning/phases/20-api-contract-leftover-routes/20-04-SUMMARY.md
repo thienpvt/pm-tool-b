@@ -104,7 +104,7 @@ Each task was committed atomically:
 2. **Task 2: Thin GET/POST /api/operations/systems** - `5dd4413` (feat)
 3. **Task 3: Thin GET/PUT/DELETE /api/operations/systems/[id]** - `6cbd4ef` (feat)
 
-**Plan metadata:** pending (docs commit follows)
+**Plan metadata:** `704e355` (docs: complete plan)
 
 ## Files Created/Modified
 
