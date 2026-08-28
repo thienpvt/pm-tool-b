@@ -75,11 +75,11 @@ v2.0 remainder (no React consumers of v2 APIs, no repo-wide module split, Kysely
 - ✓ THIN-01 — Ops/admin/config/import-mapping through services; D-23 break-glass unchanged — Phase 20
 - ✓ PDSH-07 / MDSH-06 / NIT-04 — Spec portfolio + PM dashboard pages in `modules/dashboards/ui/`; fiscal KPIs omitted (live on `/portfolio/budget`) — Phase 21
 - ✓ PERD-04 / WKRP-07 / CPMO-05 / PERF-01 — Weekly periods, PM editor, tracking/export, in-repo VirtualRows in `modules/weekly/ui/` — Phase 22
+- ✓ DOC-07 / DOC-08 / DOC-09 / AUDIT-02 — Catalog, Confluence checklist, compliance, audit viewer in `modules/documents/ui/` and `modules/audit/ui/` — Phase 23
 - [ ] ENF-02 — Repositories adopt Kysely over raw `pg.Pool` so column allowlists are compile-time
 - [ ] PERF-02 — Static page chrome moves to server components
 - [ ] PERF-03 — Cold-start time is measured and budgeted
 - [ ] HYG-02 — Operator confirms Anthropic malformed-output 502 vs old 500 (checkpoint, not a rewrite unless rejected)
-- [ ] UI-DOC / UI-AUDIT — React consumers for document checklist and audit viewer, each in that module's UI dir
 - [ ] NIT-01 — Wire or remove unused `listPeriodShells` / `listOpenProjectDependencies`
 - [ ] NIT-02 — Fiscal KPIs on portfolio dashboard if they belong; no-op milestone PATCH audit noise; v1 `budget_items` coexistence resolved or documented
 - [ ] NYQ-01 — Nyquist `validate-phase` pass on draft VALIDATION.md files
@@ -99,9 +99,9 @@ v2.0 remainder (no React consumers of v2 APIs, no repo-wide module split, Kysely
 
 **Shipped:** v2.0 Portfolio One View (2026-08-26) — Phases 9–18, 40 plans. Archive: `.planning/milestones/`. Audit: `tech_debt` (79/79 requirements, UI deferred).
 
-**Now:** v2.1 Hardening & Deferred Debt — Phase 23 Document Checklist & Audit Viewer.
+**Now:** v2.1 Hardening & Deferred Debt — Phase 24 Repo-wide Module Split.
 
-CPMO/PM/Viewer is enforced on spec APIs. Weekly, fiscal, dashboards, Confluence checklist, and company-scoped append-only audit are server-gated. Schema evolution is an external `npm run migrate` job; `getDb()` connects, asserts the ledger, and seeds only. Ops/admin/config/import-mapping routes go through services. Spec portfolio, PM dashboards, and weekly workflow have React consumers in `modules/dashboards/ui/` and `modules/weekly/ui/`. Feature code is not yet split backend-vs-UI per module across the repo.
+CPMO/PM/Viewer is enforced on spec APIs. Weekly, fiscal, dashboards, Confluence checklist, and company-scoped append-only audit are server-gated. Schema evolution is an external `npm run migrate` job; `getDb()` connects, asserts the ledger, and seeds only. Ops/admin/config/import-mapping routes go through services. Spec portfolio, PM dashboards, weekly workflow, document catalog/checklist/compliance, and audit viewer have React consumers in `modules/dashboards/ui/`, `modules/weekly/ui/`, `modules/documents/ui/`, and `modules/audit/ui/`. Feature code is not yet split backend-vs-UI per module across the repo.
 
 ## Next Milestone Goals
 
@@ -184,4 +184,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-08-28 after Phase 22*
+*Last updated: 2026-08-28 after Phase 23*
