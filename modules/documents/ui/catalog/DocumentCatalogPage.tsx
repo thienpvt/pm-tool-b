@@ -1,16 +1,8 @@
 'use client';
 
 import { AlertTriangle } from 'lucide-react';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
 import Sidebar from '@/components/layout/Sidebar';
+import { CatalogList } from './CatalogList';
 import { useDocumentCatalog } from './useDocumentCatalog';
 
 const ERROR_COPY = {
@@ -65,40 +57,11 @@ export default function DocumentCatalogPage() {
           </p>
         </div>
 
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="h-8 px-2 text-xs font-semibold">Name</TableHead>
-                <TableHead className="h-8 px-2 text-xs font-semibold">Stage</TableHead>
-                <TableHead className="h-8 px-2 text-xs font-semibold">Mandatory</TableHead>
-                <TableHead className="h-8 px-2 text-xs font-semibold">Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data.map((row) => (
-                <TableRow key={row.id}>
-                  <TableCell className="p-2 text-sm">
-                    <span
-                      className={
-                        row.active ? undefined : 'text-slate-400 line-through'
-                      }
-                    >
-                      {row.name}
-                    </span>
-                  </TableCell>
-                  <TableCell className="p-2 text-sm">{row.stage}</TableCell>
-                  <TableCell className="p-2 text-sm">
-                    <Badge variant="outline">{row.mandatory ? 'Yes' : 'No'}</Badge>
-                  </TableCell>
-                  <TableCell className="p-2 text-sm">
-                    <Badge variant="outline">{row.active ? 'Active' : 'Retired'}</Badge>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+        <CatalogList rows={data} />
+
+        <p className="text-sm text-muted-foreground mt-6">
+          Select a catalog item to manage templates.
+        </p>
       </main>
     </div>
   );
