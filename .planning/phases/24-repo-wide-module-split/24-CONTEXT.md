@@ -49,6 +49,7 @@ Every listed feature area keeps backend and UI in separate directories under `mo
 - **D-08:** No new npm. Isolation none: one feature-area plan per sequential wave when files overlap (`vitest.config`, `eslint` allowlist, `Sidebar`).
 - **D-09:** A route/page test that imported a file by old path must be updated or keep passing via re-export. Prefer tests next to the new module files when they were colocated.
 - **D-10:** Visual contract: no intentional UI redesign. Pages must look and behave the same; UI-SPEC records "preserve existing".
+- **D-11:** `/portfolio/report` UI components move to `modules/reports/ui/` with a thin shell at the existing URL (reports feature, not portfolio URL-owner grouping).
 
 </decisions>
 

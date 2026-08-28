@@ -1,10 +1,11 @@
 ---
 phase: 24
 slug: repo-wide-module-split
-status: draft
+status: approved
 shadcn_initialized: true
 preset: b2fA (base-nova, neutral, geist, lucide)
 created: 2026-08-28
+reviewed_at: 2026-08-28T19:00:00+07:00
 ---
 
 # Phase 24 — UI Design Contract
@@ -232,11 +233,11 @@ Applicable state considerations resolved: **18 covered, 0 backstop, 0 unresolved
 
 ## Checker Sign-Off
 
-- [ ] Dimension 1 Copywriting: PASS (preserve existing)
-- [ ] Dimension 2 Visuals: PASS (preserve existing — URL regression gate)
-- [ ] Dimension 3 Color: PASS (preserve existing)
-- [ ] Dimension 4 Typography: PASS (2 weights, preserve existing)
-- [ ] Dimension 5 Spacing: PASS (preserve existing)
-- [ ] Dimension 6 Registry Safety: PASS (no new installs)
+- [x] Dimension 1 Copywriting: PASS (preserve existing)
+- [x] Dimension 2 Visuals: PASS (preserve existing — URL regression gate)
+- [x] Dimension 3 Color: PASS (preserve existing)
+- [x] Dimension 4 Typography: PASS (2 weights, preserve existing)
+- [x] Dimension 5 Spacing: PASS (preserve existing)
+- [x] Dimension 6 Registry Safety: PASS (no new installs)
 
-**Approval:** pending
+**Approval:** approved (gsd-ui-checker 2026-08-28)

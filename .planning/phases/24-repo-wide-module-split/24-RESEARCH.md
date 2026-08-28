@@ -317,10 +317,7 @@ Allowlist entries are `app/api/...` paths [VERIFIED: `eslint/route-wrapper-allow
 
 ## Open Questions
 
-1. **Report UI ownership (`/portfolio/report` vs reports module)**
-   - What we know: D-06 assigns `/portfolio/*` URLs to portfolio and `/report` + AI routes to reports.
-   - What's unclear: Whether portfolio-report *page components* live in `portfolio/ui` or `reports/ui`.
-   - Recommendation: Place page implementation in `modules/reports/ui/portfolio-report/` (reports feature); keep `app/portfolio/report/page.tsx` as thin re-export (MOD-02 satisfied).
+RESOLVED (CONTEXT D-11): `/portfolio/report` implementation lives in `modules/reports/ui/` with a thin re-export at `app/portfolio/report/page.tsx`.
 
 ## Environment Availability
 
