@@ -59,7 +59,12 @@ export default function PortfolioDashboardPage() {
       <Sidebar />
       <main className="flex-1 p-4 lg:p-6 lg:p-8 overflow-auto">
         <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
-          <h1 className="text-base font-semibold">Spec dashboard</h1>
+          <div>
+            <h1 className="text-base font-semibold">Spec dashboard</h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              {data.list.length} project{data.list.length === 1 ? '' : 's'} matching filters
+            </p>
+          </div>
           <div className="flex gap-2">
             <Button
               variant="outline"
