@@ -58,6 +58,10 @@ export async function POST(req: NextRequest, { params }: Params) {
     low_progress_amber:  Number(body.low_progress_amber  ?? DEFAULT_RAG_CONFIG.low_progress_amber),
   };
 
+  if (Object.values(cfg).some((v) => Number.isNaN(v))) {
+    return NextResponse.json({ error: 'Invalid threshold values' }, { status: 400 });
+  }
+
   await setCompanyRagConfigValues(companyIdNum, cfg);
   return NextResponse.json({ ok: true });
 }

@@ -18,7 +18,7 @@ vi.mock('@/lib/services/rag-config.service', () => ({
   setCompanyRagConfigValues,
 }));
 
-import { GET } from './route';
+import { GET, POST } from './route';
 
 const configKeys = Object.keys(DEFAULT_RAG_CONFIG).sort();
 
@@ -73,5 +73,24 @@ describe('GET /api/admin/rag-config/[companyId] invalid companyId (WR-03)', () =
     expect(res.status).toBe(400);
     await expect(res.json()).resolves.toEqual({ error: 'Invalid company id' });
     expect(getCompanyRagConfigOrDefault).not.toHaveBeenCalled();
+  });
+});
+
+describe('POST /api/admin/rag-config/[companyId] invalid thresholds (WR-04)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getSessionFromRequest.mockResolvedValue({ is_admin: 1 });
+  });
+
+  it('returns 400 when threshold coerces to NaN', async () => {
+    const req = new NextRequest('http://localhost/api/admin/rag-config/12', {
+      method: 'POST',
+      body: JSON.stringify({ spi_red_threshold: 'not-a-number' }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+    const res = await POST(req, { params: Promise.resolve({ companyId: '12' }) });
+    expect(res.status).toBe(400);
+    await expect(res.json()).resolves.toEqual({ error: 'Invalid threshold values' });
+    expect(setCompanyRagConfigValues).not.toHaveBeenCalled();
   });
 });
