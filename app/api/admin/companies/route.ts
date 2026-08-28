@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionFromRequest, forbidden, unauthorized } from '@/lib/auth';
+import { parseRequestJson } from '@/lib/http/parse-request-json';
 import { serviceErrorResponse } from '@/lib/api-errors';
 import {
   createCompanyPlatform,
@@ -24,7 +25,9 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const err = await requireAdmin(req); if (err) return err;
-  const parsed = createCompanySchema.safeParse(await req.json());
+  const body = await parseRequestJson(req);
+  if (!body.ok) return body.response;
+  const parsed = createCompanySchema.safeParse(body.data);
   if (!parsed.success) return NextResponse.json({ error: 'Name required' }, { status: 400 });
   const { name } = parsed.data;
   try {
@@ -37,7 +40,9 @@ export async function POST(req: NextRequest) {
 
 export async function PUT(req: NextRequest) {
   const err = await requireAdmin(req); if (err) return err;
-  const parsed = updateCompanySchema.safeParse(await req.json());
+  const body = await parseRequestJson(req);
+  if (!body.ok) return body.response;
+  const parsed = updateCompanySchema.safeParse(body.data);
   if (!parsed.success) return NextResponse.json({ error: 'id and name required' }, { status: 400 });
   const { id, name } = parsed.data;
   await updateCompanyPlatform(id, name);

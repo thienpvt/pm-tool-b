@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionFromRequest } from '@/lib/auth';
+import { parseRequestJson } from '@/lib/http/parse-request-json';
 import {
   createIncidentForSystem,
   listIncidentsForSystem,
@@ -25,7 +26,9 @@ export async function POST(req: NextRequest, { params }: Params) {
 
   const { id } = await params;
 
-  const parsed = createOpsIncidentSchema.safeParse(await req.json());
+  const body = await parseRequestJson(req);
+  if (!body.ok) return body.response;
+  const parsed = createOpsIncidentSchema.safeParse(body.data);
   if (!parsed.success) return NextResponse.json({ error: 'title required' }, { status: 400 });
   const { title, severity, description, reported_at, resolved_at, cost_impact, status } = parsed.data;
 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionFromRequest, unauthorized, forbidden } from '@/lib/auth';
+import { parseRequestJson } from '@/lib/http/parse-request-json';
 import { DEFAULT_RAG_CONFIG, RagConfig } from '@/lib/rag';
 import {
   getCompanyRagConfigOrDefault,
@@ -30,7 +31,9 @@ export async function POST(req: NextRequest, { params }: Params) {
   if (err) return err;
 
   const { companyId } = await params;
-  const raw = await req.json();
+  const body = await parseRequestJson(req);
+  if (!body.ok) return body.response;
+  const raw = body.data;
   // Passthrough shape guard only — see schema.ts for why coercion stays here.
   const parsed = ragConfigSchema.safeParse(raw);
   const body = (parsed.success ? parsed.data : raw) as Partial<RagConfig>;

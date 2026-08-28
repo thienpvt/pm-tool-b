@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionFromRequest } from '@/lib/auth';
+import { parseRequestJson } from '@/lib/http/parse-request-json';
 import {
   deleteBudgetItemForSystem,
   updateBudgetItemForSystem,
@@ -12,8 +13,9 @@ export async function PUT(req: NextRequest, { params }: Params) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { id, itemId } = await params;
-  const body = await req.json();
-  const { category, name, planned_amount, actual_amount, unit, period_label, notes } = body;
+  const body = await parseRequestJson(req);
+  if (!body.ok) return body.response;
+  const { category, name, planned_amount, actual_amount, unit, period_label, notes } = body.data as Record<string, unknown>;
 
   const updated = await updateBudgetItemForSystem(user, id, itemId, {
     category, name, planned_amount, actual_amount, unit, period_label, notes,

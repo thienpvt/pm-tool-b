@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionFromRequest, forbidden, unauthorized } from '@/lib/auth';
+import { parseRequestJson } from '@/lib/http/parse-request-json';
 import {
   deleteDemoRequestPlatform,
   listDemoRequestsPlatform,
@@ -22,7 +23,9 @@ export async function GET(req: NextRequest) {
 
 export async function PUT(req: NextRequest) {
   const err = await requireAdmin(req); if (err) return err;
-  const parsed = updateDemoRequestSchema.safeParse(await req.json());
+  const body = await parseRequestJson(req);
+  if (!body.ok) return body.response;
+  const parsed = updateDemoRequestSchema.safeParse(body.data);
   if (!parsed.success) return NextResponse.json({ error: 'id required' }, { status: 400 });
   const { id, status, notes } = parsed.data;
   await updateDemoRequestPlatform(id, status ?? null, notes ?? null);

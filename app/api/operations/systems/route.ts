@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionFromRequest } from '@/lib/auth';
+import { parseRequestJson } from '@/lib/http/parse-request-json';
 import {
   createOperationsSystem,
   listOperationsSystems,
@@ -18,7 +19,9 @@ export async function POST(req: NextRequest) {
   const user = await getSessionFromRequest(req);
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const parsed = createOperationsSystemSchema.safeParse(await req.json());
+  const body = await parseRequestJson(req);
+  if (!body.ok) return body.response;
+  const parsed = createOperationsSystemSchema.safeParse(body.data);
   if (!parsed.success) return NextResponse.json({ error: 'name required' }, { status: 400 });
   const { name, description, project_id, go_live_date, status } = parsed.data;
 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionFromRequest, unauthorized, forbidden } from '@/lib/auth';
+import { parseRequestJson } from '@/lib/http/parse-request-json';
 import {
   getCompanyJiraConfigOrEmpty,
   setCompanyJiraConfigVars,
@@ -29,7 +30,9 @@ export async function POST(req: NextRequest, { params }: Params) {
   if (err) return err;
 
   const { companyId } = await params;
-  const raw = await req.json();
+  const body = await parseRequestJson(req);
+  if (!body.ok) return body.response;
+  const raw = body.data;
   const parsed = jiraConfigSchema.safeParse(raw);
   const { base_url_var, email_var, token_var } = (parsed.success ? parsed.data : raw) as {
     base_url_var: string; email_var: string; token_var: string;

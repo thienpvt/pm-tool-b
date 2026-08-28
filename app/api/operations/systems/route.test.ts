@@ -80,4 +80,17 @@ describe('POST /api/operations/systems', () => {
       status: undefined,
     });
   });
+
+  it('returns 400 Invalid JSON for malformed body (WR-02)', async () => {
+    vi.mocked(getSessionFromRequest).mockResolvedValue(session as never);
+    const bad = new NextRequest('http://localhost/api/operations/systems', {
+      method: 'POST',
+      body: '{bad json',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    const res = await POST(bad, ctx);
+    expect(res.status).toBe(400);
+    await expect(res.json()).resolves.toEqual({ error: 'Invalid JSON' });
+    expect(createOperationsSystem).not.toHaveBeenCalled();
+  });
 });

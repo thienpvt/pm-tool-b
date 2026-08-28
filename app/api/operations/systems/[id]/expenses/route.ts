@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionFromRequest } from '@/lib/auth';
+import { parseRequestJson } from '@/lib/http/parse-request-json';
 import {
   createExpenseForSystem,
   listExpensesForSystem,
@@ -23,8 +24,9 @@ export async function POST(req: NextRequest, { params }: Params) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { id } = await params;
-  const body = await req.json();
-  const { expense_date, category, description, amount, reference } = body;
+  const body = await parseRequestJson(req);
+  if (!body.ok) return body.response;
+  const { expense_date, category, description, amount, reference } = body.data as Record<string, unknown>;
 
   const created = await createExpenseForSystem(user, id, {
     expense_date, category, description, amount, reference,

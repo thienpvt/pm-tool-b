@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionFromRequest } from '@/lib/auth';
+import { parseRequestJson } from '@/lib/http/parse-request-json';
 import {
   createBudgetItemForSystem,
   listBudgetItemsForSystem,
@@ -25,7 +26,9 @@ export async function POST(req: NextRequest, { params }: Params) {
 
   const { id } = await params;
 
-  const parsed = createOpsBudgetItemSchema.safeParse(await req.json());
+  const body = await parseRequestJson(req);
+  if (!body.ok) return body.response;
+  const parsed = createOpsBudgetItemSchema.safeParse(body.data);
   if (!parsed.success) return NextResponse.json({ error: 'name required' }, { status: 400 });
   const { category, name, planned_amount, actual_amount, unit, period_label, notes } = parsed.data;
 

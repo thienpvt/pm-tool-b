@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionFromRequest } from '@/lib/auth';
+import { parseRequestJson } from '@/lib/http/parse-request-json';
 import {
   deleteOperationsSystemForUser,
   getOperationsSystemDetail,
@@ -25,7 +26,9 @@ export async function PUT(req: NextRequest, { params }: Params) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { id } = await params;
-  const raw = await req.json();
+  const body = await parseRequestJson(req);
+  if (!body.ok) return body.response;
+  const raw = body.data;
   // Passthrough shape guard only (no inline validation existed before this
   // schema) — parsed.data mirrors `raw` on any object body; behavior is
   // unchanged for the object bodies this route has always accepted.

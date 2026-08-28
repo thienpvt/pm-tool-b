@@ -17,7 +17,7 @@ vi.mock('@/lib/services/admin-platform.service', () => ({
 }));
 
 import { getSessionFromRequest } from '@/lib/auth';
-import { GET } from './route';
+import { GET, POST } from './route';
 
 const adminSession = {
   id: 1,
@@ -65,5 +65,19 @@ describe('GET /api/admin/companies', () => {
     expect(res.status).toBe(200);
     expect(listCompaniesPlatform).toHaveBeenCalled();
     await expect(res.json()).resolves.toEqual([{ id: 1, name: 'Acme', user_count: 3 }]);
+  });
+});
+
+describe('POST /api/admin/companies invalid JSON (WR-02)', () => {
+  it('returns 400 Invalid JSON for malformed body', async () => {
+    vi.mocked(getSessionFromRequest).mockResolvedValue(adminSession as never);
+    const bad = new NextRequest('http://localhost/api/admin/companies', {
+      method: 'POST',
+      body: '{bad json',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    const res = await POST(bad);
+    expect(res.status).toBe(400);
+    await expect(res.json()).resolves.toEqual({ error: 'Invalid JSON' });
   });
 });
