@@ -1,10 +1,11 @@
 ---
 phase: 22
 slug: weekly-workflow-surfaces
-status: draft
-nyquist_compliant: false
+status: validated
+nyquist_compliant: true
 wave_0_complete: true
 created: 2026-08-28
+validated: 2026-08-28
 ---
 
 # Phase 22 — Validation Strategy
@@ -38,14 +39,14 @@ created: 2026-08-28
 
 | Req | Must-have | Automated proof | Status |
 |-----|-----------|-----------------|--------|
-| PERD-04 | Periods list from GET `/api/weekly-periods` | `WeeklyPeriodsPage.component.test.tsx` | ⬜ pending |
-| PERD-04 | Create period POST + config PUT | `WeeklyPeriodsPage.component.test.tsx` | ⬜ pending |
-| PERD-04 | Viewer 403 in-page | `WeeklyPeriodsPage.component.test.tsx` | ⬜ pending |
-| WKRP-07 | Draft PATCH + submit/correct | `WeeklyReportEditorPage.component.test.tsx` | ⬜ pending |
-| WKRP-07 | 409 toast on PATCH of submitted snapshot | `WeeklyReportEditorPage.component.test.tsx` | ⬜ pending |
-| CPMO-05 | Tracking grid + `?periodId=` | `WeeklyTrackingPage.component.test.tsx` | ⬜ pending |
-| CPMO-05 | Export pack POST + `downloadBlob` | `WeeklyTrackingPage.component.test.tsx` | ⬜ pending |
-| PERF-01 | VirtualRows 150-row DOM bound | `VirtualRows.component.test.tsx` | ⬜ pending |
+| PERD-04 | Periods list from GET `/api/weekly-periods` | `WeeklyPeriodsPage.component.test.tsx` | ✅ green |
+| PERD-04 | Create period POST + config PUT | `WeeklyPeriodsPage.component.test.tsx` | ✅ green |
+| PERD-04 | Viewer 403 in-page | `WeeklyPeriodsPage.component.test.tsx` | ✅ green |
+| WKRP-07 | Draft PATCH + submit/correct | `WeeklyReportEditorPage.component.test.tsx` | ✅ green |
+| WKRP-07 | 409 toast on PATCH of submitted snapshot | `WeeklyReportEditorPage.component.test.tsx` | ✅ green |
+| CPMO-05 | Tracking grid + `?periodId=` | `WeeklyTrackingPage.component.test.tsx` | ✅ green |
+| CPMO-05 | Export pack POST + `downloadBlob` | `WeeklyTrackingPage.component.test.tsx` | ✅ green |
+| PERF-01 | VirtualRows 150-row DOM bound | `VirtualRows.component.test.tsx` | ✅ green |
 
 ---
 
@@ -53,20 +54,20 @@ created: 2026-08-28
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 22-01-01 | 01 | 1 | PERD-04 / PERF-01 | T-22-02 / T-22-03 | Consume GET `/api/weekly-periods` only; window math is UX-only | component | `npx vitest run --project jsdom modules/weekly/ui/shared/VirtualRows.component.test.tsx modules/weekly/ui/periods/WeeklyPeriodsPage.component.test.tsx` | ❌ W0 | ⬜ pending |
-| 22-01-02 | 01 | 1 | PERD-04 | T-22-01 | NAV hide is not authz | component | `npx vitest run --project jsdom components/layout/Sidebar.weekly-nav.component.test.tsx components/layout/Sidebar.dashboard-nav.component.test.tsx` | ❌ W0 | ⬜ pending |
-| 22-01-03 | 01 | 1 | PERD-04 | T-22-01 | 401/403 in-page; rely on withCpmo | component | `npx vitest run --project jsdom modules/weekly/ui/periods/WeeklyPeriodsPage.component.test.tsx` | ❌ W0 | ⬜ pending |
-| 22-02-01 | 02 | 2 | PERD-04 | T-22-04 / T-22-05 | Create POST uses existing withCpmo route | component | `npx vitest run --project jsdom modules/weekly/ui/periods/WeeklyPeriodsPage.component.test.tsx` | ❌ W0 | ⬜ pending |
-| 22-02-02 | 02 | 2 | PERD-04 | T-22-04 | Config PUT uses existing withCpmo route | component | `npx vitest run --project jsdom modules/weekly/ui/periods/WeeklyPeriodsPage.component.test.tsx` | ❌ W0 | ⬜ pending |
-| 22-02-03 | 02 | 2 | PERD-04 | T-22-04 | 403 stays in-page; no client role skip | component | `npx vitest run --project jsdom modules/weekly/ui/periods/WeeklyPeriodsPage.component.test.tsx` | ❌ W0 | ⬜ pending |
-| 22-03-01 | 03 | 2 | CPMO-05 | T-22-06 / T-22-07 | Tracking GET withCpmo; invalid periodId falls back locally | component | `npx vitest run --project jsdom modules/weekly/ui/tracking/WeeklyTrackingPage.component.test.tsx` | ❌ W0 | ⬜ pending |
-| 22-03-02 | 03 | 2 | CPMO-05 | T-22-06 | Filters stay on existing tracking query params | component | `npx vitest run --project jsdom modules/weekly/ui/tracking/WeeklyTrackingPage.component.test.tsx` | ❌ W0 | ⬜ pending |
-| 22-03-03 | 03 | 2 | CPMO-05 / PERF-01 | T-22-03 | Grid consumes in-repo VirtualRows; no npm | component | `npx vitest run --project jsdom modules/weekly/ui/tracking/WeeklyTrackingPage.component.test.tsx modules/weekly/ui/shared/VirtualRows.component.test.tsx` | ❌ W0 | ⬜ pending |
-| 22-05-01 | 05 | 2 | WKRP-07 | T-22-11 / T-22-13 | withProjectAccess GET; required Phase 16 re-export | component | `npx vitest run --project jsdom modules/weekly/ui/report/WeeklyReportEditorPage.component.test.tsx` | ❌ W0 | ⬜ pending |
-| 22-05-02 | 05 | 2 | WKRP-07 | T-22-12 | PATCH allowlisted keys; no innerHTML | component | `npx vitest run --project jsdom modules/weekly/ui/report/WeeklyReportEditorPage.component.test.tsx` | ❌ W0 | ⬜ pending |
-| 22-05-03 | 05 | 2 | WKRP-07 | T-22-11 | submit/correct use existing write-access routes | component | `npx vitest run --project jsdom modules/weekly/ui/report/WeeklyReportEditorPage.component.test.tsx` | ❌ W0 | ⬜ pending |
-| 22-04-01 | 04 | 3 | CPMO-05 | T-22-08 / T-22-09 | POST existing withCpmo export; project_ids from selection | component | `npx vitest run --project jsdom modules/weekly/ui/tracking/WeeklyTrackingPage.component.test.tsx` | ❌ W0 | ⬜ pending |
-| 22-04-02 | 04 | 3 | CPMO-05 | T-22-10 / T-22-08 | No preview UI; exporting flag disables repeat clicks | component | `npx vitest run --project jsdom modules/weekly/ui/tracking/WeeklyTrackingPage.component.test.tsx` | ❌ W0 | ⬜ pending |
+| 22-01-01 | 01 | 1 | PERD-04 / PERF-01 | T-22-02 / T-22-03 | Consume GET `/api/weekly-periods` only; window math is UX-only | component | `npx vitest run --project jsdom modules/weekly/ui/shared/VirtualRows.component.test.tsx modules/weekly/ui/periods/WeeklyPeriodsPage.component.test.tsx` | ✅ | ✅ green |
+| 22-01-02 | 01 | 1 | PERD-04 | T-22-01 | NAV hide is not authz | component | `npx vitest run --project jsdom components/layout/Sidebar.weekly-nav.component.test.tsx components/layout/Sidebar.dashboard-nav.component.test.tsx` | ✅ | ✅ green |
+| 22-01-03 | 01 | 1 | PERD-04 | T-22-01 | 401/403 in-page; rely on withCpmo | component | `npx vitest run --project jsdom modules/weekly/ui/periods/WeeklyPeriodsPage.component.test.tsx` | ✅ | ✅ green |
+| 22-02-01 | 02 | 2 | PERD-04 | T-22-04 / T-22-05 | Create POST uses existing withCpmo route | component | `npx vitest run --project jsdom modules/weekly/ui/periods/WeeklyPeriodsPage.component.test.tsx` | ✅ | ✅ green |
+| 22-02-02 | 02 | 2 | PERD-04 | T-22-04 | Config PUT uses existing withCpmo route | component | `npx vitest run --project jsdom modules/weekly/ui/periods/WeeklyPeriodsPage.component.test.tsx` | ✅ | ✅ green |
+| 22-02-03 | 02 | 2 | PERD-04 | T-22-04 | 403 stays in-page; no client role skip | component | `npx vitest run --project jsdom modules/weekly/ui/periods/WeeklyPeriodsPage.component.test.tsx` | ✅ | ✅ green |
+| 22-03-01 | 03 | 2 | CPMO-05 | T-22-06 / T-22-07 | Tracking GET withCpmo; invalid periodId falls back locally | component | `npx vitest run --project jsdom modules/weekly/ui/tracking/WeeklyTrackingPage.component.test.tsx` | ✅ | ✅ green |
+| 22-03-02 | 03 | 2 | CPMO-05 | T-22-06 | Filters stay on existing tracking query params | component | `npx vitest run --project jsdom modules/weekly/ui/tracking/WeeklyTrackingPage.component.test.tsx` | ✅ | ✅ green |
+| 22-03-03 | 03 | 2 | CPMO-05 / PERF-01 | T-22-03 | Grid consumes in-repo VirtualRows; no npm | component | `npx vitest run --project jsdom modules/weekly/ui/tracking/WeeklyTrackingPage.component.test.tsx modules/weekly/ui/shared/VirtualRows.component.test.tsx` | ✅ | ✅ green |
+| 22-05-01 | 05 | 2 | WKRP-07 | T-22-11 / T-22-13 | withProjectAccess GET; required Phase 16 re-export | component | `npx vitest run --project jsdom modules/weekly/ui/report/WeeklyReportEditorPage.component.test.tsx` | ✅ | ✅ green |
+| 22-05-02 | 05 | 2 | WKRP-07 | T-22-12 | PATCH allowlisted keys; no innerHTML | component | `npx vitest run --project jsdom modules/weekly/ui/report/WeeklyReportEditorPage.component.test.tsx` | ✅ | ✅ green |
+| 22-05-03 | 05 | 2 | WKRP-07 | T-22-11 | submit/correct use existing write-access routes | component | `npx vitest run --project jsdom modules/weekly/ui/report/WeeklyReportEditorPage.component.test.tsx` | ✅ | ✅ green |
+| 22-04-01 | 04 | 3 | CPMO-05 | T-22-08 / T-22-09 | POST existing withCpmo export; project_ids from selection | component | `npx vitest run --project jsdom modules/weekly/ui/tracking/WeeklyTrackingPage.component.test.tsx` | ✅ | ✅ green |
+| 22-04-02 | 04 | 3 | CPMO-05 | T-22-10 / T-22-08 | No preview UI; exporting flag disables repeat clicks | component | `npx vitest run --project jsdom modules/weekly/ui/tracking/WeeklyTrackingPage.component.test.tsx` | ✅ | ✅ green |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -99,6 +100,14 @@ All listed behaviors have automated verification. End-of-phase `human_verify_mod
 - [x] Wave 0 covers all MISSING references
 - [x] No watch-mode flags
 - [x] Feedback latency < 120s
-- [ ] `nyquist_compliant: true` set in frontmatter (set by `/gsd-validate-phase` after execute)
+- [x] `nyquist_compliant: true` set in frontmatter (set by `/gsd-validate-phase` after execute)
 
-**Approval:** pending
+**Approval:** approved 2026-08-28 — 14/14 tasks green, 64 tests passed in 2.9s
+
+---
+
+## Nyquist Run Log
+
+| Date | Command | Result |
+|------|---------|--------|
+| 2026-08-28 | `npx vitest run --project jsdom modules/weekly/ui/shared/VirtualRows.component.test.tsx modules/weekly/ui/periods/WeeklyPeriodsPage.component.test.tsx components/layout/Sidebar.weekly-nav.component.test.tsx components/layout/Sidebar.dashboard-nav.component.test.tsx modules/weekly/ui/tracking/WeeklyTrackingPage.component.test.tsx modules/weekly/ui/report/WeeklyReportEditorPage.component.test.tsx` | 6 files, 64 passed |
