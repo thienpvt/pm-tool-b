@@ -67,4 +67,44 @@ describe('reports module split contract (24-07)', () => {
       expect(source).toContain('modules/reports/backend/routes');
     },
   );
+
+  const p2ReportRoutes = [
+    {
+      shell: 'app/api/portfolio/report/generate-email/route.ts',
+      target: '@/modules/reports/backend/routes/portfolio/report/generate-email/route',
+    },
+    {
+      shell: 'app/api/portfolio/report/send-email/route.ts',
+      target: '@/modules/reports/backend/routes/portfolio/report/send-email/route',
+    },
+    {
+      shell: 'app/api/export/portfolio/members/route.ts',
+      target: '@/modules/reports/backend/routes/export/portfolio/members/route',
+    },
+  ] as const;
+
+  it.each(p2ReportRoutes)('P2: $shell re-exports POST or GET from module route', ({ shell, target }) => {
+    const source = readUtf8(shell);
+    expect(source).toMatch(
+      new RegExp(
+        `export\\s*\\{\\s*(GET|POST)(\\s*,\\s*(GET|POST))?\\s*\\}\\s*from\\s*['"]${target.replace(/\//g, '\\/')}['"]`,
+      ),
+    );
+  });
+
+  const p3ExportRoutes = [
+    'app/api/export/excel/[id]/route.ts',
+    'app/api/export/ppt/[id]/route.ts',
+    'app/api/export/word/[id]/[type]/route.ts',
+    'app/api/export/resource-plan/[id]/route.ts',
+  ] as const;
+
+  it.each(p3ExportRoutes)(
+    'P3 ENF-01: %s contains withProjectAccess( and module handler import',
+    (routePath) => {
+      const source = readUtf8(routePath);
+      expect(source).toContain('withProjectAccess(');
+      expect(source).toContain('modules/reports/backend/routes');
+    },
+  );
 });
