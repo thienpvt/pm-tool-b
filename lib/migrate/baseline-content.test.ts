@@ -30,6 +30,23 @@ function readBaseline(): string {
   return readFileSync(BASELINE_PATH, 'utf8');
 }
 
+/** Split migration SQL on semicolon-newline boundaries (ignores comment-only fragments). */
+function splitSqlStatements(sql: string): string[] {
+  return sql
+    .split(/;\s*\n/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0 && !/^--[^\n]*$/m.test(s));
+}
+
+/** Fail if two DDL/DML statements appear concatenated without a semicolon terminator. */
+function assertStatementsTerminated(sql: string): void {
+  const withoutComments = sql.replace(/^--[^\n]*\n/gm, '');
+  const badJoin = withoutComments.match(
+    /\)\s*\n\s*(CREATE|ALTER|INSERT|UPDATE|DO\s+\$\$)/i,
+  );
+  expect(badJoin).toBeNull();
+}
+
 describe('0001-baseline-schema.sql content (DATA-02, D-02, D-03, D-04, D-09)', () => {
   it('parses as version 1 via parseMigrationFile', () => {
     const sql = readBaseline();
@@ -81,5 +98,14 @@ describe('0001-baseline-schema.sql content (DATA-02, D-02, D-03, D-04, D-09)', (
     const sql = readBaseline();
     expect(sql).toMatch(/weekly_periods/);
     expect(sql).toMatch(/user_roles/);
+  });
+
+  it('splits into multiple terminated SQL statements (semicolon presence)', () => {
+    const sql = readBaseline();
+    assertStatementsTerminated(sql);
+    const statements = splitSqlStatements(sql);
+    expect(statements.length).toBeGreaterThan(1);
+    expect(statements.some((s) => /^CREATE TABLE/i.test(s))).toBe(true);
+    expect(statements.some((s) => /^ALTER TABLE/i.test(s))).toBe(true);
   });
 });

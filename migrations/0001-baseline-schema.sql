@@ -353,7 +353,7 @@ CREATE TABLE IF NOT EXISTS companies (
       name TEXT NOT NULL,
       mappings_json TEXT NOT NULL,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )
+    );
 
 -- Part 2: migratePostgresSchema — legacy ALTER/CREATE (boot DML fingerprints excluded)
 
@@ -479,55 +479,55 @@ ALTER TABLE activities ADD COLUMN IF NOT EXISTS priority TEXT DEFAULT 'Medium';
 
 -- MAPPING_TENANT_DDL
 
-ALTER TABLE timeline_import_mappings ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id)
+ALTER TABLE timeline_import_mappings ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id);
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_timeline_import_mappings_company_unique
-   ON timeline_import_mappings (company_id, name)
+   ON timeline_import_mappings (company_id, name);
 
-CREATE INDEX IF NOT EXISTS idx_timeline_import_mappings_company_id ON timeline_import_mappings (company_id)
+CREATE INDEX IF NOT EXISTS idx_timeline_import_mappings_company_id ON timeline_import_mappings (company_id);
 
-ALTER TABLE bug_import_mappings ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id)
+ALTER TABLE bug_import_mappings ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id);
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_bug_import_mappings_company_unique
-   ON bug_import_mappings (company_id, name)
+   ON bug_import_mappings (company_id, name);
 
-CREATE INDEX IF NOT EXISTS idx_bug_import_mappings_company_id ON bug_import_mappings (company_id)
+CREATE INDEX IF NOT EXISTS idx_bug_import_mappings_company_id ON bug_import_mappings (company_id);
 
-ALTER TABLE jira_jql_presets ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id)
+ALTER TABLE jira_jql_presets ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id);
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_jira_jql_presets_company_unique
-   ON jira_jql_presets (company_id, name, context)
+   ON jira_jql_presets (company_id, name, context);
 
-CREATE INDEX IF NOT EXISTS idx_jira_jql_presets_company_id ON jira_jql_presets (company_id)
+CREATE INDEX IF NOT EXISTS idx_jira_jql_presets_company_id ON jira_jql_presets (company_id);
 
-ALTER TABLE jira_sync_mappings ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id)
+ALTER TABLE jira_sync_mappings ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id);
 
-CREATE INDEX IF NOT EXISTS idx_jira_sync_mappings_company_id ON jira_sync_mappings (company_id)
+CREATE INDEX IF NOT EXISTS idx_jira_sync_mappings_company_id ON jira_sync_mappings (company_id);
 
 -- ROLES_AUDIT_DDL
 
-ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT
+ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT;
 
-ALTER TABLE users ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'active'
+ALTER TABLE users ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'active';
 
-ALTER TABLE users ADD COLUMN IF NOT EXISTS locked_at TIMESTAMPTZ
+ALTER TABLE users ADD COLUMN IF NOT EXISTS locked_at TIMESTAMPTZ;
 
-ALTER TABLE users ADD COLUMN IF NOT EXISTS locked_by INTEGER REFERENCES users(id)
+ALTER TABLE users ADD COLUMN IF NOT EXISTS locked_by INTEGER REFERENCES users(id);
 
-ALTER TABLE users ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ
+ALTER TABLE users ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
 
 DO $$ BEGIN
       ALTER TABLE users ADD CONSTRAINT users_status_check
         CHECK (status IN ('active', 'inactive', 'locked'));
     EXCEPTION WHEN duplicate_object THEN NULL;
-    END $$
+    END $$;
 
 CREATE TABLE IF NOT EXISTS user_roles (
       user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       role TEXT NOT NULL CHECK (role IN ('cpmo', 'pm', 'viewer')),
       company_id INTEGER REFERENCES companies(id),
       PRIMARY KEY (user_id, role)
-    )
+    );
 
 CREATE TABLE IF NOT EXISTS audit_logs (
       id BIGSERIAL PRIMARY KEY,
@@ -539,39 +539,39 @@ CREATE TABLE IF NOT EXISTS audit_logs (
       before JSONB,
       after JSONB,
       created_at TIMESTAMPTZ DEFAULT now()
-    )
+    );
 
 CREATE UNIQUE INDEX IF NOT EXISTS users_email_lower_unique
     ON users (LOWER(email))
-    WHERE email IS NOT NULL AND email <> ''
+    WHERE email IS NOT NULL AND email <> '';
 
 -- PROJECT_MASTER_DDL
 
-ALTER TABLE projects ADD COLUMN IF NOT EXISTS project_code TEXT
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS project_code TEXT;
 
-ALTER TABLE projects ADD COLUMN IF NOT EXISTS portfolio_year INTEGER
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS portfolio_year INTEGER;
 
-ALTER TABLE projects ADD COLUMN IF NOT EXISTS stage TEXT
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS stage TEXT;
 
-ALTER TABLE projects ADD COLUMN IF NOT EXISTS status_reason TEXT
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS status_reason TEXT;
 
-ALTER TABLE projects ADD COLUMN IF NOT EXISTS rag TEXT
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS rag TEXT;
 
-ALTER TABLE projects ADD COLUMN IF NOT EXISTS progress_pct INTEGER DEFAULT 0
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS progress_pct INTEGER DEFAULT 0;
 
-ALTER TABLE projects ADD COLUMN IF NOT EXISTS weekly_report_enabled BOOLEAN DEFAULT FALSE
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS weekly_report_enabled BOOLEAN DEFAULT FALSE;
 
-ALTER TABLE projects ADD COLUMN IF NOT EXISTS weekly_report_start_period TEXT
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS weekly_report_start_period TEXT;
 
-ALTER TABLE projects ADD COLUMN IF NOT EXISTS plan_end TEXT
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS plan_end TEXT;
 
-ALTER TABLE projects ADD COLUMN IF NOT EXISTS adjusted_end TEXT
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS adjusted_end TEXT;
 
-ALTER TABLE projects ADD COLUMN IF NOT EXISTS actual_end TEXT
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS actual_end TEXT;
 
-ALTER TABLE projects ADD COLUMN IF NOT EXISTS classification TEXT
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS classification TEXT;
 
-ALTER TABLE projects ADD COLUMN IF NOT EXISTS governance TEXT
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS governance TEXT;
 
 CREATE TABLE IF NOT EXISTS project_pm_assignments (
       id SERIAL PRIMARY KEY,
@@ -581,7 +581,7 @@ CREATE TABLE IF NOT EXISTS project_pm_assignments (
       effective_from DATE NOT NULL,
       effective_to DATE,
       created_at TIMESTAMPTZ DEFAULT now()
-    )
+    );
 
 CREATE TABLE IF NOT EXISTS project_stakeholders (
       id SERIAL PRIMARY KEY,
@@ -593,48 +593,48 @@ CREATE TABLE IF NOT EXISTS project_stakeholders (
       effective_from DATE NOT NULL,
       effective_to DATE,
       created_at TIMESTAMPTZ DEFAULT now()
-    )
+    );
 
 CREATE UNIQUE INDEX IF NOT EXISTS projects_company_code_lower_unique
     ON projects (company_id, LOWER(project_code))
-    WHERE project_code IS NOT NULL AND TRIM(project_code) <> ''
+    WHERE project_code IS NOT NULL AND TRIM(project_code) <> '';
 
 -- PROJECT_MASTER_CONSTRAINTS_DDL
 
 CREATE UNIQUE INDEX IF NOT EXISTS project_pm_assignments_one_open_primary_unique
     ON project_pm_assignments (project_id)
-    WHERE role = 'primary' AND effective_to IS NULL
+    WHERE role = 'primary' AND effective_to IS NULL;
 
 CREATE UNIQUE INDEX IF NOT EXISTS project_pm_assignments_open_user_role_unique
     ON project_pm_assignments (project_id, user_id, role)
-    WHERE effective_to IS NULL
+    WHERE effective_to IS NULL;
 
 CREATE UNIQUE INDEX IF NOT EXISTS project_stakeholders_singleton_open_unique
     ON project_stakeholders (project_id, stakeholder_role)
     WHERE effective_to IS NULL
-      AND stakeholder_role IN ('sponsor', 'psc_chair', 'project_director')
+      AND stakeholder_role IN ('sponsor', 'psc_chair', 'project_director');
 
 -- RAID_MASTERS_DDL
 
-ALTER TABLE milestones ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'planned'
+ALTER TABLE milestones ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'planned';
 
-ALTER TABLE milestones ADD COLUMN IF NOT EXISTS plan_end TEXT
+ALTER TABLE milestones ADD COLUMN IF NOT EXISTS plan_end TEXT;
 
-ALTER TABLE milestones ADD COLUMN IF NOT EXISTS adjusted_end TEXT
+ALTER TABLE milestones ADD COLUMN IF NOT EXISTS adjusted_end TEXT;
 
-ALTER TABLE milestones ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMPTZ
+ALTER TABLE milestones ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMPTZ;
 
-ALTER TABLE milestones ADD COLUMN IF NOT EXISTS cancelled_by INTEGER REFERENCES users(id)
+ALTER TABLE milestones ADD COLUMN IF NOT EXISTS cancelled_by INTEGER REFERENCES users(id);
 
-ALTER TABLE risks ADD COLUMN IF NOT EXISTS code TEXT
+ALTER TABLE risks ADD COLUMN IF NOT EXISTS code TEXT;
 
-ALTER TABLE risks ADD COLUMN IF NOT EXISTS deactivated_at TIMESTAMPTZ
+ALTER TABLE risks ADD COLUMN IF NOT EXISTS deactivated_at TIMESTAMPTZ;
 
-ALTER TABLE issues ADD COLUMN IF NOT EXISTS code TEXT
+ALTER TABLE issues ADD COLUMN IF NOT EXISTS code TEXT;
 
-ALTER TABLE issues ADD COLUMN IF NOT EXISTS technology_council BOOLEAN DEFAULT FALSE
+ALTER TABLE issues ADD COLUMN IF NOT EXISTS technology_council BOOLEAN DEFAULT FALSE;
 
-ALTER TABLE issues ADD COLUMN IF NOT EXISTS deactivated_at TIMESTAMPTZ
+ALTER TABLE issues ADD COLUMN IF NOT EXISTS deactivated_at TIMESTAMPTZ;
 
 CREATE TABLE IF NOT EXISTS raid_due_date_history (
       id BIGSERIAL PRIMARY KEY,
@@ -644,7 +644,7 @@ CREATE TABLE IF NOT EXISTS raid_due_date_history (
       new_due TEXT,
       changed_at TIMESTAMPTZ DEFAULT now(),
       changed_by INTEGER REFERENCES users(id)
-    )
+    );
 
 -- RAID backfill DML (before unique indexes, D-09)
 
@@ -691,11 +691,11 @@ END $$;
 
 CREATE UNIQUE INDEX IF NOT EXISTS risks_project_code_lower_unique
     ON risks (project_id, LOWER(code))
-    WHERE code IS NOT NULL AND TRIM(code) <> ''
+    WHERE code IS NOT NULL AND TRIM(code) <> '';
 
 CREATE UNIQUE INDEX IF NOT EXISTS issues_project_code_lower_unique
     ON issues (project_id, LOWER(code))
-    WHERE code IS NOT NULL AND TRIM(code) <> ''
+    WHERE code IS NOT NULL AND TRIM(code) <> '';
 
 -- WEEKLY_REPORTS_DDL
 
@@ -705,7 +705,7 @@ CREATE TABLE IF NOT EXISTS company_weekly_config (
       due_time_utc TIME NOT NULL DEFAULT '18:00:00',
       updated_at TIMESTAMPTZ DEFAULT now(),
       updated_by INTEGER REFERENCES users(id)
-    )
+    );
 
 CREATE TABLE IF NOT EXISTS weekly_periods (
       id SERIAL PRIMARY KEY,
@@ -720,7 +720,7 @@ CREATE TABLE IF NOT EXISTS weekly_periods (
       created_by INTEGER REFERENCES users(id),
       created_at TIMESTAMPTZ DEFAULT now(),
       UNIQUE (company_id, iso_week)
-    )
+    );
 
 CREATE TABLE IF NOT EXISTS weekly_reports (
       id SERIAL PRIMARY KEY,
@@ -741,7 +741,7 @@ CREATE TABLE IF NOT EXISTS weekly_reports (
       this_week_rag TEXT,
       prev_week_rag TEXT,
       draft_raid_json JSONB
-    )
+    );
 
 CREATE TABLE IF NOT EXISTS weekly_report_versions (
       id SERIAL PRIMARY KEY,
@@ -752,15 +752,15 @@ CREATE TABLE IF NOT EXISTS weekly_report_versions (
       submitted_by INTEGER REFERENCES users(id),
       rag TEXT,
       progress_pct INTEGER
-    )
+    );
 
 -- WEEKLY_REPORTS_INDEX_DDL
 
 CREATE UNIQUE INDEX IF NOT EXISTS weekly_reports_period_project_unique
-     ON weekly_reports (period_id, project_id)
+     ON weekly_reports (period_id, project_id);
 
 CREATE UNIQUE INDEX IF NOT EXISTS weekly_report_versions_report_version_unique
-     ON weekly_report_versions (report_id, version)
+     ON weekly_report_versions (report_id, version);
 
 -- WEEKLY_EXPORT_LOGS_DDL
 
@@ -774,7 +774,7 @@ CREATE TABLE IF NOT EXISTS weekly_export_logs (
       data_version INTEGER NOT NULL,
       project_ids JSONB NOT NULL,
       period_display_name TEXT NOT NULL
-    )
+    );
 
 -- FISCAL_BUDGET_DDL
 
@@ -790,7 +790,7 @@ CREATE TABLE IF NOT EXISTS project_fiscal_budgets (
       CHECK (cost_type IN ('CAPEX', 'OPEX')),
       CHECK (approved_amount_vnd >= 0),
       CHECK (actual_amount_vnd >= 0)
-    )
+    );
 
 CREATE TABLE IF NOT EXISTS budget_adjustments (
       id SERIAL PRIMARY KEY,
@@ -801,7 +801,7 @@ CREATE TABLE IF NOT EXISTS budget_adjustments (
       created_by INTEGER REFERENCES users(id),
       created_at TIMESTAMPTZ DEFAULT now(),
       CHECK (amount_vnd <> 0)
-    )
+    );
 
 CREATE TABLE IF NOT EXISTS financial_benefits (
       id SERIAL PRIMARY KEY,
@@ -813,7 +813,7 @@ CREATE TABLE IF NOT EXISTS financial_benefits (
       UNIQUE (project_id, fiscal_year, benefit_type),
       CHECK (benefit_type IN ('COST_SAVING', 'REVENUE', 'PRODUCTIVITY')),
       CHECK (expected_vnd >= 0)
-    )
+    );
 
 CREATE TABLE IF NOT EXISTS nonfinancial_benefits (
       id SERIAL PRIMARY KEY,
@@ -823,7 +823,7 @@ CREATE TABLE IF NOT EXISTS nonfinancial_benefits (
       target TEXT NOT NULL,
       actual_text TEXT,
       created_at TIMESTAMPTZ DEFAULT now()
-    )
+    );
 
 CREATE TABLE IF NOT EXISTS project_dependencies (
       id SERIAL PRIMARY KEY,
@@ -837,7 +837,7 @@ CREATE TABLE IF NOT EXISTS project_dependencies (
       created_by INTEGER REFERENCES users(id),
       created_at TIMESTAMPTZ DEFAULT now(),
       CHECK (dependency_type IN ('FINISH_TO_START', 'START_TO_START', 'FINISH_TO_FINISH', 'START_TO_FINISH', 'BLOCKS'))
-    )
+    );
 
 -- DASHBOARDS_DDL
 
@@ -847,7 +847,7 @@ CREATE TABLE IF NOT EXISTS dashboard_filter_state (
       filters_json JSONB NOT NULL DEFAULT '{}',
       updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
       PRIMARY KEY (user_id, surface)
-    )
+    );
 
 -- DOCUMENTS_DDL
 
@@ -861,7 +861,7 @@ CREATE TABLE IF NOT EXISTS document_catalog (
       active BOOLEAN NOT NULL DEFAULT TRUE,
       created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-    )
+    );
 
 CREATE TABLE IF NOT EXISTS document_templates (
       id SERIAL PRIMARY KEY,
@@ -876,7 +876,7 @@ CREATE TABLE IF NOT EXISTS document_templates (
       retired_at TIMESTAMPTZ,
       created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
       UNIQUE (catalog_id, version)
-    )
+    );
 
 CREATE TABLE IF NOT EXISTS project_document_checklist (
       id SERIAL PRIMARY KEY,
@@ -891,4 +891,4 @@ CREATE TABLE IF NOT EXISTS project_document_checklist (
       created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
       UNIQUE (project_id, catalog_id)
-    )
+    );
