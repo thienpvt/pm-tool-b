@@ -16,8 +16,8 @@ DATA-01..03 is **one migration task** (replay origin `gsd/quick-260826-ded-data-
 
 ### Data layer (single task)
 
-- [ ] **DATA-01**: App start connects, guards, and seeds only — schema init and the migrate loop are not in `getDb()`
-- [ ] **DATA-02**: Schema changes ship as versioned SQL files applied by `npm run migrate` with a checksum ledger; `migrations/0001` is regenerated from current v2.0 schema (weekly, fiscal, roles, RAID master, dashboard, checklist, audit tables included)
+- [x] **DATA-01**: App start connects, guards, and seeds only — schema init and the migrate loop are not in `getDb()`
+- [x] **DATA-02**: Schema changes ship as versioned SQL files applied by `npm run migrate` with a checksum ledger; `migrations/0001` is regenerated from current v2.0 schema (weekly, fiscal, roles, RAID master, dashboard, checklist, audit tables included)
 - [ ] **DATA-03**: Data-fix `UPDATE`s that currently run as boot-time migrations move to one-off scripts under `scripts/data-fixes/`
 
 ### Enforcement
@@ -94,8 +94,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DATA-01 | Phase 19 | Pending |
-| DATA-02 | Phase 19 | Pending |
+| DATA-01 | Phase 19 | Complete |
+| DATA-02 | Phase 19 | Complete |
 | DATA-03 | Phase 19 | Pending |
 | PROXY-01 | Phase 20 | Pending |
 | JIRA-01 | Phase 20 | Pending |
@@ -124,6 +124,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | HYG-02 | Phase 27 | Pending |
 
 **Coverage:**
+
 - v2.1 requirements: 28 total
 - Mapped to phases: 28
 - Unmapped: 0
