@@ -11,6 +11,8 @@ import {
   LogOut, ShieldCheck, ChevronDown, KeyRound, Menu, X,
   FolderOpen, Plus, Map, DollarSign, UserCog, Flag, Bug, BarChart2,
   ListChecks,
+  ClipboardCheck,
+  ScrollText,
 } from 'lucide-react';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -218,6 +220,45 @@ function SidebarNav({
             >
               <ListChecks className="h-4 w-4 shrink-0" />
               Weekly tracking
+            </Link>
+            <Link
+              href="/documents/catalog"
+              onClick={onNavClick}
+              className={cn(
+                'flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors',
+                pathname === '/documents/catalog' || pathname.startsWith('/documents/catalog/')
+                  ? 'bg-blue-600 text-white'
+                  : 'text-slate-300 hover:bg-slate-700 hover:text-white'
+              )}
+            >
+              <FileText className="h-4 w-4 shrink-0" />
+              Catalog
+            </Link>
+            <Link
+              href="/documents/compliance"
+              onClick={onNavClick}
+              className={cn(
+                'flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors',
+                pathname === '/documents/compliance' || pathname.startsWith('/documents/compliance/')
+                  ? 'bg-blue-600 text-white'
+                  : 'text-slate-300 hover:bg-slate-700 hover:text-white'
+              )}
+            >
+              <ClipboardCheck className="h-4 w-4 shrink-0" />
+              Compliance
+            </Link>
+            <Link
+              href="/audit"
+              onClick={onNavClick}
+              className={cn(
+                'flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors',
+                pathname === '/audit' || pathname.startsWith('/audit/')
+                  ? 'bg-blue-600 text-white'
+                  : 'text-slate-300 hover:bg-slate-700 hover:text-white'
+              )}
+            >
+              <ScrollText className="h-4 w-4 shrink-0" />
+              Audit log
             </Link>
           </>
         ) : null}
