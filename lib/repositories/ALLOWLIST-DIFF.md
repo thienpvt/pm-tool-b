@@ -18,7 +18,7 @@ These are the silent-breakage risk:
 
 | Table | Migration-only columns |
 |---|---|
-| `projects` | `headcount_quota`, `budget_status` |
+| `projects` | `headcount_quota`, `budget_status`, `project_code`, `portfolio_year`, `stage`, `status_reason`, `rag`, `progress_pct`, `weekly_report_enabled`, `weekly_report_start_period`, `plan_end`, `adjusted_end`, `actual_end`, `classification`, `governance` (Phase 11 `migrateProjectMaster`) |
 | `activities` | `project_status`, `parent_id` |
 
 The rest of the migration list (`objective`, `project_owner`, `budget`,
@@ -52,6 +52,19 @@ Route: `app/api/projects/[id]/route.ts` PATCH. Current code:
 | `budget_currency` | yes | yes | yes | |
 | `headcount_quota` | no | yes | yes | **migration-only** |
 | `budget_status` | no | yes | yes | **migration-only** |
+| `project_code` | no | yes (Phase 11) | yes | **migrateProjectMaster** |
+| `portfolio_year` | no | yes (Phase 11) | yes | **migrateProjectMaster** |
+| `stage` | no | yes (Phase 11) | yes | **migrateProjectMaster** |
+| `status_reason` | no | yes (Phase 11) | yes | **migrateProjectMaster** |
+| `rag` | no | yes (Phase 11) | yes | **migrateProjectMaster** |
+| `progress_pct` | no | yes (Phase 11) | yes | **migrateProjectMaster** (D-09 live progress) |
+| `weekly_report_enabled` | no | yes (Phase 11) | yes | **migrateProjectMaster** |
+| `weekly_report_start_period` | no | yes (Phase 11) | yes | **migrateProjectMaster** |
+| `plan_end` | no | yes (Phase 11) | yes | **migrateProjectMaster** |
+| `adjusted_end` | no | yes (Phase 11) | yes | **migrateProjectMaster** |
+| `actual_end` | no | yes (Phase 11) | yes | **migrateProjectMaster** |
+| `classification` | no | yes (Phase 11) | yes | **migrateProjectMaster** |
+| `governance` | no | yes (Phase 11) | yes | **migrateProjectMaster** |
 | `customer_id` | yes | yes | **no** | tenancy — client-settable today; this is the IDOR vector |
 | `company_id` | yes | yes | **no** | tenancy — same |
 | `created_at` | yes | — | **no** | DB default |
@@ -108,6 +121,7 @@ Route: `app/api/projects/[id]/risks/route.ts` PUT.
 | `id` | yes | — | **no** | WHERE key |
 | `project_id` | yes | — | **no** | scoping param |
 | `risk_id` | yes | — | yes | display id (`R{n}`), editable |
+| `code` | no | yes (Phase 12) | yes | **migrateRaidMasters** — unique per project |
 | `description` | yes | — | yes | |
 | `category` | yes | — | yes | |
 | `owner` | yes | — | yes | |
@@ -129,6 +143,7 @@ Route: `app/api/projects/[id]/issues/route.ts` PUT. Same shape as risks plus
 | `id` | yes | — | **no** | WHERE key |
 | `project_id` | yes | — | **no** | scoping param |
 | `issue_id` | yes | — | yes | display id (`I{n}`) |
+| `code` | no | yes (Phase 12) | yes | **migrateRaidMasters** — unique per project |
 | `description` | yes | — | yes | |
 | `root_cause` | yes | — | yes | |
 | `category` | yes | — | yes | |
@@ -140,6 +155,7 @@ Route: `app/api/projects/[id]/issues/route.ts` PUT. Same shape as risks plus
 | `priority` | yes | yes | yes | |
 | `impact` | yes | yes | yes | |
 | `affected_activity_id` | yes | yes | yes | |
+| `technology_council` | no | yes (Phase 12) | yes | **migrateRaidMasters** — defaults false |
 
 ## meetings — `MEETING_COLUMNS`
 
@@ -194,8 +210,8 @@ Route: `app/api/projects/[id]/escalations/route.ts` PUT. No migration-added colu
 |---|---|---|---|
 | `projects` | any key the DB accepted | 15 | `id`, `company_id`, `customer_id`, `created_at` |
 | `activities` | any | 23 | `id`, `project_id` |
-| `risks` | any | 11 | `id`, `project_id` |
-| `issues` | any | 12 | `id`, `project_id` |
+| `risks` | any | 12 | `id`, `project_id` |
+| `issues` | any | 14 | `id`, `project_id` |
 | `meetings` | any | 6 | `id`, `project_id` |
 | `team_members` | any | 6 | `id`, `project_id` |
 | `escalation_levels` | any | 6 | `id`, `project_id` |

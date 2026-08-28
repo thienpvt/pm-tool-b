@@ -1,12 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { assertProjectAccess, listEscalationsRepo, updateEscalationRepo } = vi.hoisted(() => ({
+const { assertProjectAccess, assertProjectWriteAccess, listEscalationsRepo, updateEscalationRepo } = vi.hoisted(() => ({
   assertProjectAccess: vi.fn(),
+  assertProjectWriteAccess: vi.fn(),
   listEscalationsRepo: vi.fn(),
   updateEscalationRepo: vi.fn(),
 }));
 
-vi.mock('@/lib/services/access', () => ({ assertProjectAccess }));
+vi.mock('@/lib/services/access', () => ({ assertProjectAccess, assertProjectWriteAccess }));
 vi.mock('@/lib/repositories/escalations.repo', () => ({
   listEscalations: listEscalationsRepo,
   updateEscalation: updateEscalationRepo,
@@ -18,6 +19,7 @@ import { ForbiddenError, NotFoundError } from './errors';
 beforeEach(() => {
   vi.clearAllMocks();
   assertProjectAccess.mockResolvedValue(undefined);
+  assertProjectWriteAccess.mockResolvedValue(undefined);
 });
 
 const owner = { company_id: 5 as number | null, is_admin: 0 as number | boolean };
@@ -41,8 +43,8 @@ describe('escalations.service', () => {
     await expect(updateEscalation(7, owner, 99, {})).rejects.toBeInstanceOf(NotFoundError);
   });
 
-  it('updateEscalation does not call the repository when access is denied', async () => {
-    assertProjectAccess.mockRejectedValue(new ForbiddenError());
+  it('updateEscalation does not call the repository when write access is denied', async () => {
+    assertProjectWriteAccess.mockRejectedValue(new ForbiddenError());
     await expect(updateEscalation(7, foreign, 1, {})).rejects.toBeInstanceOf(ForbiddenError);
     expect(updateEscalationRepo).not.toHaveBeenCalled();
   });

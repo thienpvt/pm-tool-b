@@ -23,13 +23,19 @@ import {
   upcomingPortfolioActivities,
   companyNameAndQuota,
 } from '@/lib/repositories/portfolio.repo';
-import type { AccessActor } from './access';
+import { isCpmo, type AccessActor } from './access';
+import { ForbiddenError } from './errors';
 
 export type PortfolioReportQuery = {
   start?: string | null;
   end?: string | null;
   milestone_ids?: string | null;
 };
+
+/** CPMO-only gate for portfolio AI/email write paths (D-13). GET stays company-tenant. */
+export function assertPortfolioCpmoWrite(actor: AccessActor): void {
+  if (!isCpmo(actor)) throw new ForbiddenError();
+}
 
 /**
  * Mon–Sun week bounds for the given "today". Exported for unit coverage of the
@@ -51,7 +57,7 @@ export function monSunWeekBounds(today: Date): { start: string; end: string } {
 
 /**
  * Portfolio report aggregate (GET /api/portfolio/report).
- * Company-scoped via actor.company_id + is_admin bypass.
+ * Company-scoped via actor.company_id (D-13; no leftover is_admin all-rows bypass).
  * Uses lib/rag.ts:calculateRAG (unlike portfolio.service / roadmap.service which
  * hand-roll thresholds — that divergence is recorded there, not here).
  */
@@ -76,7 +82,6 @@ export async function getPortfolioReport(actor: AccessActor, query: PortfolioRep
     const selection = await portfolioMilestoneSelection(
       ids,
       actor.company_id,
-      Boolean(actor.is_admin),
     );
     for (const projectId of selection.projectIds) milestoneProjectIds.add(projectId);
     milestoneEpicIds = new Set(selection.activityIds);
@@ -94,8 +99,8 @@ export async function getPortfolioReport(actor: AccessActor, query: PortfolioRep
   const _projIdList = [...milestoneProjectIds];
   const _epicIdList = [...milestoneEpicIds];
   const [projects, programs, riskCounts, issueCounts, allActivityRows] = await Promise.all([
-    listPortfolioReportProjects(actor.company_id, Boolean(actor.is_admin)) as Promise<any[]>,
-    listCompanyPrograms(actor.company_id, Boolean(actor.is_admin)) as Promise<any[]>,
+    listPortfolioReportProjects(actor.company_id) as Promise<any[]>,
+    listCompanyPrograms(actor.company_id) as Promise<any[]>,
     riskCountsByProject() as Promise<any[]>,
     issueCountsByProject() as Promise<any[]>,
     listPortfolioReportActivities(),
@@ -299,8 +304,8 @@ export async function getPortfolioReport(actor: AccessActor, query: PortfolioRep
 
   // ─── Additional report data ────────────────────────────────────────────────
   const [topRisks, topIssues] = await Promise.all([
-    topPortfolioRisks(actor.company_id, Boolean(actor.is_admin), _projIdList) as Promise<any[]>,
-    topPortfolioIssues(actor.company_id, Boolean(actor.is_admin), _projIdList) as Promise<any[]>,
+    topPortfolioRisks(actor.company_id, _projIdList) as Promise<any[]>,
+    topPortfolioIssues(actor.company_id, _projIdList) as Promise<any[]>,
   ]);
 
   const now = new Date();
@@ -310,19 +315,19 @@ export async function getPortfolioReport(actor: AccessActor, query: PortfolioRep
 
   // Upcoming milestones: not in any done status
   const upcomingMilestones = await upcomingPortfolioActivities(
-    actor.company_id, Boolean(actor.is_admin), _projIdList, _epicIdList,
+    actor.company_id, _projIdList, _epicIdList,
     todayStr, plus30, DONE_STATUSES,
   ) as any[];
 
   // Recently completed: any done status, using actual_end
   const recentlyCompleted = await recentlyCompletedPortfolioActivities(
-    actor.company_id, Boolean(actor.is_admin), _projIdList, _epicIdList,
+    actor.company_id, _projIdList, _epicIdList,
     minus14, DONE_STATUSES,
   ) as any[];
 
   // Completed in selected date range: any done status + actual_end in range
   const completedInRange = await completedPortfolioActivitiesBetween(
-    actor.company_id, Boolean(actor.is_admin), _projIdList, _epicIdList,
+    actor.company_id, _projIdList, _epicIdList,
     startParam, endParam, DONE_STATUSES,
   ) as any[];
 
@@ -343,7 +348,7 @@ export async function getPortfolioReport(actor: AccessActor, query: PortfolioRep
   // ─── Bug Report stats ─────────────────────────────────────────────────────
   // In milestone mode: pick the latest snapshot within the milestone's end-date month
   const bugRows = await portfolioBugCounts(
-    actor.company_id, Boolean(actor.is_admin), _projIdList, milestoneMonth,
+    actor.company_id, _projIdList, milestoneMonth,
   ) as { project_id: number; project_name: string; status: string; priority: string; severity: string; cnt: number }[];
 
   // Build bug stats
@@ -380,8 +385,8 @@ export async function getPortfolioReport(actor: AccessActor, query: PortfolioRep
 
   // ─── Personnel stats ──────────────────────────────────────────────────────
   const [internalPortfolioMembers, allTeamMembersForPersonnel] = await Promise.all([
-    listInternalPortfolioMembers(actor.company_id, Boolean(actor.is_admin)),
-    portfolioTeamMembers(actor.company_id, Boolean(actor.is_admin)),
+    listInternalPortfolioMembers(actor.company_id),
+    portfolioTeamMembers(actor.company_id),
   ]);
 
   const internalNameSet = new Set(internalPortfolioMembers.map((m: { name: string }) => m.name.toLowerCase().trim()));
@@ -481,7 +486,7 @@ export async function getPortfolioReport(actor: AccessActor, query: PortfolioRep
 
   // Portfolio milestones list for mode selector dropdown
   const portfolioMilestones = await portfolioReportMilestones(
-    actor.company_id, Boolean(actor.is_admin),
+    actor.company_id,
   ) as { id: number; project_id: number; name: string; start_date: string; end_date: string; project_name: string; program_name: string }[];
 
   return {

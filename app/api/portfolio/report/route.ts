@@ -5,6 +5,7 @@ import { createMessage } from '@/lib/integrations/anthropic/client';
 import { MODEL_OPUS_4_7 } from '@/lib/integrations/anthropic/models';
 import { integrationErrorResponse, serviceErrorResponse } from '@/lib/api-errors';
 import { IntegrationError } from '@/lib/integrations/errors';
+import { isCpmo, toAccessActor } from '@/lib/services/access';
 import { getPortfolioReport } from '@/lib/services/portfolio-report.service';
 
 // ─── GET: Full portfolio report data ─────────────────────────────────────────
@@ -15,7 +16,7 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const data = await getPortfolioReport(
-      { company_id: user.company_id, is_admin: user.is_admin },
+      toAccessActor(user),
       {
         start: searchParams.get('start'),
         end: searchParams.get('end'),
@@ -67,6 +68,11 @@ export async function POST(req: NextRequest) {
   // could burn the shared Anthropic key generating full portfolio reports.
   const user = await getSessionFromRequest(req);
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const actor = toAccessActor(user);
+  if (!isCpmo(actor)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
 
   // WR-05: reject a malformed/oversized body with a JSON 400 instead of letting
   // req.json() reject the handler and surface a bare 500.

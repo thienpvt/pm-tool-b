@@ -12,7 +12,7 @@ vi.mock('@/lib/repositories/milestones.repo', () => ({
   listMilestones: vi.fn(),
   createMilestone: vi.fn(),
   updateMilestone: vi.fn(),
-  deleteMilestone: vi.fn(),
+  cancelMilestone: vi.fn(),
   listEpics: listEpicsRepo,
   linkEpic: vi.fn(),
   unlinkEpic: vi.fn(),

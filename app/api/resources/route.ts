@@ -7,7 +7,7 @@ export async function GET(req: NextRequest) {
     const user = await getSessionFromRequest(req);
     if (!user) return NextResponse.json([], { status: 401 });
 
-    return NextResponse.json(await listResourceMembers(user.company_id, Boolean(user.is_admin)));
+    return NextResponse.json(await listResourceMembers(user.company_id));
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }

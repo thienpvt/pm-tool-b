@@ -10,7 +10,7 @@ import {
   updateImportedActivity,
   type ImportedActivity,
 } from '@/lib/repositories/activities.repo';
-import { assertProjectAccess, type AccessActor } from './access';
+import { assertProjectAccess, assertProjectWriteAccess, type AccessActor } from './access';
 import { NotFoundError } from './errors';
 
 export async function listActivities(projectId: number | string, actor: AccessActor) {
@@ -23,7 +23,7 @@ export async function createActivity(
   actor: AccessActor,
   body: Record<string, unknown>,
 ) {
-  await assertProjectAccess(projectId, actor);
+  await assertProjectWriteAccess(projectId, actor);
   return createActivityRepo(projectId, body);
 }
 
@@ -33,7 +33,7 @@ export async function updateActivity(
   rowId: number | string,
   fields: Record<string, unknown>,
 ) {
-  await assertProjectAccess(projectId, actor);
+  await assertProjectWriteAccess(projectId, actor);
   const updated = await updateActivityRepo(projectId, rowId, fields);
   if (!updated) throw new NotFoundError('Not found', 'activity');
   return updated;
@@ -44,7 +44,7 @@ export async function deleteActivity(
   actor: AccessActor,
   rowId: number | string,
 ) {
-  await assertProjectAccess(projectId, actor);
+  await assertProjectWriteAccess(projectId, actor);
   const result = await deleteActivityRepo(projectId, rowId);
   if (!result || Number(result.changes ?? 0) === 0) {
     throw new NotFoundError('Not found', 'activity');
@@ -69,7 +69,7 @@ export async function importActivities(
   actor: AccessActor,
   activities: ActivityInput[],
 ) {
-  await assertProjectAccess(projectId, actor);
+  await assertProjectWriteAccess(projectId, actor);
 
   const existing = await listJiraKeyed(projectId);
   const localKeyToId = new Map(existing.map(r => [r.jira_key, r.id]));

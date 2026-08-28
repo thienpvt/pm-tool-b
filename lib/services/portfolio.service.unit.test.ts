@@ -124,7 +124,7 @@ import {
   updateProgramAllocation,
   updateQuota,
 } from './portfolio.service';
-import { NotFoundError, ValidationError } from './errors';
+import { ForbiddenError, NotFoundError, ValidationError } from './errors';
 
 const FIXED_NOW = new Date('2026-06-15T12:00:00Z').getTime();
 
@@ -142,20 +142,48 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-const scoped = { company_id: 5 as number | null, is_admin: 0 as number | boolean };
-const admin = { company_id: 5 as number | null, is_admin: 1 as number | boolean };
+const cpmoScoped = {
+  company_id: 5 as number | null,
+  is_admin: 1 as number | boolean,
+  roles: ['cpmo'] as const,
+  user_id: 1,
+  username: 'cpmo',
+  display_name: 'CPMO',
+  email: 'cpmo@example.com',
+  status: 'active' as const,
+};
+const cpmoLeftover = { ...cpmoScoped, is_admin: 1 as number | boolean };
+const pmScoped = {
+  company_id: 5 as number | null,
+  is_admin: 0 as number | boolean,
+  roles: ['pm'] as const,
+  user_id: 2,
+  username: 'pm',
+  display_name: 'PM',
+  email: 'pm@example.com',
+  status: 'active' as const,
+};
+const scoped = cpmoScoped;
 
 describe('portfolio.service getPortfolioSummary', () => {
-  it('passes company scope for a non-admin actor', async () => {
-    await getPortfolioSummary(scoped);
-    expect(listPortfolioProjects).toHaveBeenCalledWith(5, false);
-    expect(listPrograms).toHaveBeenCalledWith(5, false);
+  it('passes company scope only for leftover-flag CPMO company 5 (D-13)', async () => {
+    await getPortfolioSummary(cpmoLeftover);
+    expect(listPortfolioProjects).toHaveBeenCalledWith(5);
+    expect(listPrograms).toHaveBeenCalledWith(5);
   });
 
-  it('passes admin bypass to repository list calls', async () => {
-    await getPortfolioSummary(admin);
-    expect(listPortfolioProjects).toHaveBeenCalledWith(5, true);
-    expect(listPrograms).toHaveBeenCalledWith(5, true);
+  it('does not request all-rows for leftover-flag CPMO (D-13, AUTH-04)', async () => {
+    listPortfolioProjects.mockResolvedValue([
+      { id: 1, name: 'mine', current_phase: 'Execution', end_date: '2026-12-31', customer_id: 10, company_id: 5 },
+    ]);
+    listPrograms.mockResolvedValue([{ id: 10, name: 'Prog' }]);
+    riskCountsByProject.mockResolvedValue([]);
+    issueCountsByProject.mockResolvedValue([]);
+    activityCompletionByProject.mockResolvedValue([]);
+
+    const result = await getPortfolioSummary(cpmoLeftover);
+    expect(listPortfolioProjects).toHaveBeenCalledWith(5);
+    expect(result.projects.every((p: { company_id: number }) => p.company_id === 5)).toBe(true);
   });
 
   it('computes inline RAG thresholds verbatim (open_risks >= 3 → red, <=14 days → amber)', async () => {
@@ -263,7 +291,16 @@ describe('portfolio.service getPortfolioSummary', () => {
   });
 });
 
-const foreign = { company_id: 9 as number | null, is_admin: 0 as number | boolean };
+const foreign = {
+  company_id: 9 as number | null,
+  is_admin: 0 as number | boolean,
+  roles: ['cpmo'] as const,
+  user_id: 3,
+  username: 'foreign',
+  display_name: 'Foreign',
+  email: 'foreign@example.com',
+  status: 'active' as const,
+};
 
 describe('portfolio.service budgets', () => {
   it('listBudgets passes company scope', async () => {
@@ -319,6 +356,12 @@ describe('portfolio.service budgets', () => {
 
   it('createBudget validates required fields before insert', async () => {
     await expect(createBudget(scoped, { period_label: 'Q1' })).rejects.toBeInstanceOf(ValidationError);
+    expect(createPortfolioBudget).not.toHaveBeenCalled();
+  });
+
+  it('createBudget denies PM via assertCompanyWrite (D-15)', async () => {
+    const body = { period_label: 'Q1', start_date: '2026-01-01', end_date: '2026-03-31' };
+    await expect(createBudget(pmScoped, body)).rejects.toBeInstanceOf(ForbiddenError);
     expect(createPortfolioBudget).not.toHaveBeenCalled();
   });
 
@@ -469,16 +512,10 @@ describe('portfolio.service members', () => {
 });
 
 describe('portfolio.service milestones', () => {
-  it('listPortfolioMilestones passes company scope and admin bypass', async () => {
+  it('listPortfolioMilestones passes company scope only', async () => {
     listPortfolioMilestones.mockResolvedValue([{ id: 1 }]);
-    await expect(listPortfolioMilestonesSvc(scoped)).resolves.toEqual([{ id: 1 }]);
-    expect(listPortfolioMilestones).toHaveBeenCalledWith(5, false);
-  });
-
-  it('listPortfolioMilestones passes admin bypass', async () => {
-    listPortfolioMilestones.mockResolvedValue([]);
-    await listPortfolioMilestonesSvc(admin);
-    expect(listPortfolioMilestones).toHaveBeenCalledWith(5, true);
+    await expect(listPortfolioMilestonesSvc(cpmoLeftover)).resolves.toEqual([{ id: 1 }]);
+    expect(listPortfolioMilestones).toHaveBeenCalledWith(5);
   });
 });
 

@@ -1,111 +1,177 @@
-# Technology Stack
+# Stack Research
 
-**Project:** PM Tool B — Layer Reorg & Hardening
-**Researched:** 2026-08-07
+**Domain:** Bank PPM / Portfolio One View (v2.0 on brownfield Next.js app)
+**Researched:** 2026-08-25
+**Confidence:** HIGH (additive stack on validated v1.0 base; one new runtime dep)
+
+## Scope
+
+v1.0 stack is **fixed and validated** — do not replace Next.js 16.2.4, React 19.2.4, TypeScript strict, PostgreSQL via `pg`, Vitest 4, Zod, exceljs, pptxgenjs, docx, Anthropic SDK, Jira/Resend clients, scrypt sessions, or route → service → repository layers.
+
+This document covers **additions and schema-level changes** for PR-01..PR-15 + TENANT-01 only.
 
 ## Recommended Stack
 
-### Core Framework
+### Core Technologies (unchanged)
 
-No changes. Next.js `16.2.4`, React `19.2.4`, TypeScript strict, `pg` `^8.20.0`, npm are fixed per PROJECT.md constraints. This research covers additions only.
+| Technology | Version | Purpose | Why Recommended |
+|------------|---------|---------|-----------------|
+| Next.js | 16.2.4 | App Router, API routes, standalone deploy | Already validated; v2.0 extends routes/services, not framework |
+| React | 19.2.4 | UI for dashboards, weekly-report flows | Already validated; decomposed page modules from v1.0 reuse |
+| PostgreSQL | 15+ (hosting) | Multi-tenant master data, snapshots, audit | Spec needs relational integrity, UNIQUE constraints, immutability via CHECK/trigger |
+| `pg` | ^8.20.0 (8.23.0 latest) | DB driver | Already wired through `lib/db.ts`; JSONB auto-parse, BIGINT-as-string is the right VND pattern |
+| Zod | ^4.4.3 | Boundary validation | Already direct dep + used in `withAuth` schemas; extend for roles, email, Confluence URLs |
+| Node `crypto` | stdlib | scrypt passwords, session IDs | Already in `lib/auth.ts`; account lock = status column + invalidate sessions, no new auth lib |
 
-### Testing
+### New Runtime Dependency
 
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| `vitest` | `^4.1.10` | Test runner | Native ESM/TS, no transpile step, fast watch mode. Official Next.js 16 testing guide (nextjs.org/docs/app/guides/testing/vitest, updated 2026-02-11) recommends Vitest + RTL for App Router. Runs plain TS (services/repos) and route handlers with zero config beyond `vitest.config.ts`. |
-| `@vitejs/plugin-react` | `^5.0.1` | JSX/TSX transform for Vitest | Required so Vitest can compile `.tsx` component tests; pulled straight from the official Next.js `with-vitest` example. |
-| `jsdom` | `^26.1.0` | DOM environment for component tests | Vitest needs a DOM to render React components outside a browser. |
-| `@testing-library/react` | `^16.3.2` | Component testing | peerDeps confirm `react`/`react-dom` `^18.0.0 \|\| ^19.0.0` — React 19 compatible. Standard RTL API (render, screen, user-event) needs no adaptation for React 19. |
-| `@testing-library/jest-dom` | `^6.x` | DOM matchers (`toBeVisible`, etc.) | Standard RTL companion; makes component assertions readable. |
+| Library | Version | Purpose | When to Use |
+|---------|---------|---------|-------------|
+| `date-fns` | ^4.4.0 | Report period math | CPMO weekly-period config (PR-10), fiscal-year labels (PR-08), ISO week IDs for submitted snapshots (PR-11). Replaces ad-hoc `Date` math in `getWeekBounds()` (`lib/services/project-report.service.ts`) with `startOfWeek` / `endOfWeek` (`weekStartsOn: 1` = Monday), `getISOWeek`, `format(..., 'yyyy-MM-dd')`. Import individual functions only — tree-shaking keeps standalone bundle lean. |
 
-**What this does NOT need:** `node-mocks-http`. App Router route handlers (`route.ts`) take a Web-standard `Request`/`NextRequest` and return `Response`/`NextResponse` — the same objects available in Node 20+ and in Vitest's environment. Test a route handler by constructing a `NextRequest` directly and calling the exported `GET`/`POST`/`PUT`/`DELETE` function — no server, no mock library:
+**Why date-fns and not more:** The app already hand-rolls week boundaries; v2.0 adds CPMO-configurable periods, overlap validation, and fiscal-year grouping. One small date library beats copying ISO-week edge cases into three services. **Do not add `@date-fns/tz`** unless period boundaries must flip at Asia/Ho_Chi_Minh midnight — store report periods as PostgreSQL `DATE` (date-only strings `yyyy-MM-dd`) and timezone stays a non-issue.
 
-```typescript
-import { NextRequest } from 'next/server';
-import { GET } from '@/app/api/projects/[id]/activities/route';
+### PostgreSQL Schema Patterns (no npm — apply in `lib/db.ts` migrations)
 
-const req = new NextRequest('http://localhost/api/projects/1/activities');
-const res = await GET(req, { params: Promise.resolve({ id: '1' }) });
-expect(res.status).toBe(200);
+| Pattern | Columns / types | PR coverage | Why |
+|---------|-----------------|-------------|-----|
+| Multi-role union | `user_roles(user_id, role TEXT CHECK (role IN ('cpmo','pm','viewer')), company_id)` | PR-01, PR-02 | Spec requires role union, not single `is_admin` flag; query `ARRAY_AGG` or join in session load |
+| Account lifecycle | `users.status TEXT`, `users.email TEXT UNIQUE`, `failed_login_count`, `locked_at` | PR-01, PR-02 | Active/Inactive/Locked + unique username/email are DB constraints + service rules; soft-delete via status, never `DELETE` |
+| VND integers | `BIGINT` (not `NUMERIC(15,2)`) on budget/benefit columns | PR-08 | Spec: VND whole dong; migrate existing `NUMERIC` columns. `pg` returns BIGINT as **string** by default — keep amounts as `string` in TS or use native `BigInt` for ROI math; **do not** set `pg.defaults.parseInt8 = true` (loses precision above `Number.MAX_SAFE_INTEGER`) |
+| Fiscal year | `fiscal_year SMALLINT`, `period_start DATE`, `period_end DATE` | PR-08, PR-10 | Filter/group in SQL; ROI formulas in pure TS service functions |
+| Weekly report versioning | `weekly_report_periods`, `weekly_report_submissions(status draft\|submitted, version INT, submitted_at)` | PR-10, PR-11 | Period config separate from submission state machine |
+| Immutable snapshots | `weekly_report_snapshots(submission_id, payload JSONB)` + `CHECK (true)` + revoke UPDATE/DELETE via app + optional PG trigger | PR-07, PR-09, PR-11 | On submit: `INSERT` copy of RAID/milestones/highlights into JSONB; never UPDATE submitted rows |
+| RAID master + snapshot | Keep live `risks`/`issues`; add `weekly_raid_snapshots(submission_id, risk_id, …)` or embed in JSONB payload | PR-09 | Master register editable until submit; snapshot frozen with report version |
+| Audit log | `audit_logs(id BIGSERIAL, company_id, actor_id, entity_type, entity_id, action, before JSONB, after JSONB, created_at)` append-only | All mutations | No ORM/trigger framework — single `auditLog()` in service layer after successful write |
+| Document checklist | `document_templates(company_id, …)`, `project_document_links(project_id, template_id, confluence_url TEXT, …)` | PR-15 | Metadata + HTTPS link only; no blob storage |
+| Tenant mapping | `company_id INTEGER NOT NULL` on `timeline_import_mappings`, `bug_import_mappings`, `jira_jql_presets`, `jira_sync_mappings` | TENANT-01 | FK + index; filter in existing Jira/import repos |
+
+### Supporting Libraries (existing — extend usage, do not add alternatives)
+
+| Library | Version | v2.0 use | Integration point |
+|---------|---------|----------|-------------------|
+| Zod | ^4.4.3 | `z.enum(['cpmo','pm','viewer'])`, `z.array(roleEnum).min(1)`, `z.email()`, `z.url({ protocol: /^https?$/ })` for Confluence | Route schemas + `withAuth({ schema })`; uniqueness enforced by PG `23505` catch in user service, not Zod |
+| `exceljs` | ^4.4.0 | CPMO consolidated export (PR-12) | Existing export routes; add workbook sheet from submitted snapshot JSONB |
+| `pptxgenjs` / `docx` | ^4.0.1 / ^9.6.1 | Optional formatted exports | Same pattern as v1.0 portfolio report export |
+| `recharts` | ^3.8.1 | Portfolio/PM dashboards RAG, stage, RAID counts (PR-13, PR-14) | Already installed; aggregate queries in new dashboard services |
+| Vitest | 4.1.10 | RBAC 403 matrix, snapshot immutability, BIGINT ROI edge cases | Extend existing service/route test harness; no new test libs |
+| Anthropic SDK | ^0.92.0 | Keep AI report generation alongside spec weekly reports | Parallel path — spec submit/export is authoritative for compliance |
+
+### Development Tools (unchanged)
+
+| Tool | Purpose | Notes |
+|------|---------|-------|
+| Vitest 4 + RTL | Regression gate for new RBAC and snapshot rules | HYG-03: capability not done until tests pass |
+| ESLint (eslint-config-next 16.2.4) | Lint | ENF-01 still deferred — no new lint wrapper |
+
+## Integration Architecture
+
+### Authorization (PR-01, PR-02) — extend, do not replace
+
+```
+Session load → SessionUser { id, company_id, roles: Role[], status }
+withAuth → withRole(['cpmo']) / withProjectAccess → assertProjectAccess + assertPmOrViewer
 ```
 
-`node-mocks-http` mocks legacy Node `http.IncomingMessage`/`ServerResponse` (Pages API / Express shape) — the wrong abstraction for App Router and an unneeded dependency.
+- **Extend** `SessionUser` and `AccessActor` in `lib/auth.ts` / `lib/services/access.ts` — map `is_admin` to `cpmo` during migration, then deprecate boolean.
+- **CPMO** = company-scoped admin (period config, user CRUD, portfolio dashboard, submission tracking).
+- **PM** = `assertProjectAccess` + PM assignment row (primary or collaborating).
+- **Viewer** = read-only project access via assignment or company portfolio visibility.
+- Multi-role union = OR of permitted actions in service layer; **no** `@casl/ability`, `accesscontrol`, or `casbin` — three fixed roles with project scoping fit ~50 lines of `hasRole()` / `assertRole()` better than a policy engine.
 
-**Known limitation (from official Next.js docs, confirmed 2026-02-11):** Vitest cannot unit-test `async` Server Components. Not a concern for this refactor's targets (route handlers, services, repositories, and client components are all synchronous or already tested via direct function calls) — flag it only if the roadmap later wants to unit-test an `async` page/layout component; use Playwright/E2E for those instead.
+### Weekly report flow (PR-10..PR-12)
 
-All of the above are **dev dependencies only** — no impact on the Docker image or `output: 'standalone'` build.
+1. CPMO creates `weekly_report_periods` (date-fns validates non-overlap).
+2. PM saves draft → UPDATE mutable draft row only.
+3. PM submits → service copies master RAID/milestones/highlights into JSONB snapshot, bumps `version`, sets `status = submitted`; subsequent edits create new draft version, never mutate submitted snapshot.
+4. CPMO export reads snapshot JSONB → exceljs (existing client).
 
-### Runtime Validation
+### Budget & ROI (PR-08)
 
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| `zod` | `^4.4.3` (v4 line) | Schema validation at external boundaries | Already a transitive peer dependency of `@anthropic-ai/sdk` (`^0.92.0`, confirmed in `package-lock.json`: `"zod": "^3.25.0 \|\| ^4.0.0"`) — adding it as a direct dependency introduces zero new transitive risk and lets request-body/Jira-response/Anthropic-output schemas share one library end to end. v4's core was rewritten for performance and has the best TypeScript-strict inference of the mainstream validators. |
+- Store amounts as `BIGINT`; expose as string in API JSON to avoid JS float corruption.
+- ROI / benefit-cost formulas in `lib/services/budget-value.service.ts` using `BigInt` or integer arithmetic on parsed strings.
+- Adjustment history = append-only `budget_adjustments` table (mirrors audit pattern).
 
-**Where to apply it in this refactor:**
-- **Request bodies** — replace `body.phase ?? 'General'` fallback chains (see `app/api/projects/[id]/activities/route.ts`) with a `z.object({...})` parsed once per route; reject with 400 instead of silently coercing `undefined` into a default.
-- **Jira Cloud REST responses** — the codebase currently trusts untyped JSON from `fetch()`; a `z.object({...}).passthrough()` schema at the integration boundary turns a shape-drift 500 (or worse, a silent wrong value written to the DB) into an explicit, loggable validation error.
-- **Anthropic model output** — when the report/email generation code parses JSON out of a Claude response, validate it with Zod before using it, instead of trusting the model's JSON to match the expected shape.
+### Audit (cross-cutting)
 
-**Not recommended: Valibot or ArkType.** Both are smaller/faster in micro-benchmarks, but this is a server-rendered Next.js app in `standalone` output — client bundle size from a validation library isn't the bottleneck, and Zod's larger ecosystem (Anthropic SDK already depends on it, most `zod-to-json-schema`-style tool-schema helpers assume it) outweighs the marginal runtime win. Switching would mean maintaining two mental models for schemas with no offsetting benefit here.
-
-**Runtime dependency** — ships in the Docker image, used at request-handling time, not just dev/test.
-
-### Typed Data Access (optional, scoped)
-
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| Column allowlist pattern (no new dependency) | — | Safe dynamic `UPDATE ... SET` | The minimum fix for the `Object.keys(body)` → `SET ${col} = ?` pattern (seen in `app/api/projects/[id]/activities/route.ts` and ~4 sibling routes) is a `const ALLOWED_FIELDS = ['phase', 'no', ...] as const` per repository, filtering `Object.keys(fields)` against it before building the `SET` clause. Zero new dependency, closes the SQL-injection-via-column-name / mass-assignment hole in one line per repo. This is the required minimum regardless of whether a query builder is adopted. |
-| `kysely` | `^0.29.4` | Optional type-safe query builder for **new/refactored** repositories | Kysely's `PostgresDialect` wraps an existing `pg.Pool` directly — no new connection layer, no schema-migration ownership, and it does not touch the existing `lib/db.ts` `PostgresClient` bridge (explicitly out of scope to rewrite per PROJECT.md). A repository migrated to Kysely bypasses `DbClient.run()`/`.get()`/`.all()` entirely and queries `pool` directly through Kysely's typed builder — so it's additive, not a replacement of the fragile bridge. Column allowlisting becomes compile-time (a typo'd or removed column fails to build) rather than only a runtime array check. |
-
-**Recommendation:** Do the allowlist fix everywhere as part of this milestone regardless (it's the actual vulnerability). Adopt Kysely only for repositories being freshly written or substantially rewritten during the layer reorg — do not do a big-bang migration of every existing query, since `lib/db.ts`'s SQLite-style `?` placeholder translation is explicitly marked "touch only where a repository requires it." Let the roadmap decide per-phase whether a given repository's rewrite is substantial enough to justify introducing Kysely there, versus just adding the allowlist to the existing `db.run()` call.
-
-**Not recommended: Drizzle, Prisma, or any schema-first ORM.** All three want to own migrations and the connection pool, which conflicts directly with the constraint to keep `pg` and not rewrite the existing bridge. Kysely was chosen specifically because it can layer onto an existing `pg.Pool` without taking over schema ownership.
-
-**Runtime dependency if adopted** — Kysely ships in the Docker image (it generates and executes SQL at request time, not just at build time).
-
-## Alternatives Considered
-
-| Category | Recommended | Alternative | Why Not |
-|----------|-------------|-------------|---------|
-| Test runner | Vitest | Jest | Jest needs `ts-jest`/Babel transform config and is slower under watch mode; Next.js's own 2026 docs recommend Vitest first for App Router, no added value switching. |
-| Component testing | React Testing Library | Enzyme | Enzyme has no React 19 adapter and is effectively unmaintained for concurrent-mode React; RTL is the only viable option for React 19. |
-| Validation | Zod v4 | Valibot / ArkType | Faster/smaller, but no ecosystem overlap with the already-installed `@anthropic-ai/sdk` peer dependency, and bundle size isn't a constraint server-side. |
-| Data access | Kysely (scoped) | Drizzle ORM | Drizzle wants to own the schema/migrations and typically its own driver wrapper — conflicts with "don't rewrite `lib/db.ts`" and "don't replace `pg`." |
-| Data access | Kysely (scoped) | Prisma | Prisma requires its own generated client and schema file as source of truth, and a different connection model entirely — much bigger footprint than "safe column allowlisting" calls for. |
-
-## What NOT to Use
-
-- **`node-mocks-http`** — wrong abstraction for App Router (`Request`/`Response`, not `http.IncomingMessage`). Adds a dependency for something the platform already gives you for free.
-- **Enzyme** — no React 19 support.
-- **Prisma / Drizzle** — schema-first ORMs that would require owning migrations and replacing the connection layer; directly contradicts PROJECT.md's "Replacing the stack" and "Rewriting `lib/db.ts`" out-of-scope items.
-- **A big-bang Kysely migration of every repository** — unnecessary churn against a bridge that's explicitly marked "fragile but working, touch only where a repository requires it." Adopt it repository-by-repository, only where the refactor already requires rewriting that repository.
+- Call `auditLog({ actor, entity, action, before, after })` at end of successful service mutators (users, projects, budget, RAID, submissions).
+- `before`/`after` as JSONB — full row snapshot, not diff library. Query by `company_id`, `entity_type`, `created_at`.
 
 ## Installation
 
 ```bash
-# Testing (dev only)
-npm install -D vitest @vitejs/plugin-react jsdom @testing-library/react @testing-library/jest-dom
+# Only new runtime dependency for v2.0
+npm install date-fns@^4.4.0
 
-# Runtime validation
-npm install zod
-
-# Optional, scoped data access (only if a phase adopts it)
-npm install kysely
+# Everything else already in package.json — verify pins, do not reinstall:
+# next@16.2.4 react@19.2.4 pg@^8.20.0 zod@^4.4.3 exceljs pptxgenjs docx recharts vitest
 ```
 
-## Version Compatibility Notes
+Optional patch (non-blocking): `npm install pg@^8.23.0` for driver fixes — no API change required for v2.0 features.
 
-- `@testing-library/react@16.3.2` peer-depends on `react`/`react-dom` `^18.0.0 || ^19.0.0` — confirmed compatible with the project's React `19.2.4`.
-- `zod` is already present transitively via `@anthropic-ai/sdk@^0.92.0` (`package-lock.json` shows `"zod": "^3.25.0 || ^4.0.0"` as an accepted peer range) — installing `^4.4.3` directly does not create a version conflict.
-- Vitest's `jsdom` environment is opt-in per test file or globally in `vitest.config.ts` (`test: { environment: 'jsdom' }`) — route handler and service/repository tests should use Node environment (the default) since they don't touch the DOM; only component tests need `jsdom`. Two config blocks (or `// @vitest-environment node` comments) may be needed to avoid paying jsdom's startup cost on server-side tests.
-- Kysely's `PostgresDialect` requires passing it the existing `pg.Pool` instance (`new Pool(...)` from `lib/db.ts` or a new one pointed at the same `DATABASE_URL`) — verify whichever pool Kysely uses is the same one the rest of the app uses, or connection limits under load could double.
+## Alternatives Considered
+
+| Recommended | Alternative | When to Use Alternative |
+|-------------|-------------|-------------------------|
+| App-level RBAC (`assertRole`, extend `withAuth`) | CASL / accesscontrol / casbin | Never for v2.0 — 3 roles + project assignment; libraries add policy DSL and client/server sync with no spec requirement |
+| `date-fns` for period math | Native `Date` (current `getWeekBounds`) | Only if v2.0 drops configurable periods — spec requires CPMO-defined windows and fiscal grouping |
+| PostgreSQL JSONB snapshots | Event-sourcing library (EventStore, etc.) | Never — weekly report snapshots are bounded, read-heavy, export-oriented |
+| BIGINT + string/BigInt in TS | `decimal.js` / `dinero.js` | Never — spec is integer VND, not fractional currency |
+| Service-layer `auditLog()` | DB triggers only / `audit-log` npm | Triggers alone miss actor context from session; npm adds no value over one INSERT helper |
+| Zod v4 at boundaries | Valibot / ArkType | Never — already direct dep, Anthropic SDK peer accepts v4, schemas shared across routes |
+| Column allowlist repos (v1.0) | Kysely (v1.0 optional, still deferred) | Still deferred per PROJECT.md — allowlists remain the minimum for v2.0 new tables |
+
+## What NOT to Use
+
+| Avoid | Why | Use Instead |
+|-------|-----|-------------|
+| `@casl/ability`, `accesscontrol`, `casbin` | Over-engineered for 3 static roles; project-scoped checks stay clearer in `lib/services/access.ts` | `assertRole()`, extend `withProjectAccess` |
+| `next-auth` / Passport / Lucia | Replacing working scrypt + DB sessions is out of scope and risks tenant regression | Extend `lib/auth.ts` session payload with roles + lock check |
+| `multer`, `sharp`, S3 SDK | PR-15 explicitly forbids project file upload; Confluence links only | `z.url()` + `project_document_links` table |
+| `json-diff`, `fast-json-patch` | Audit/snapshot consumers read full JSONB; diffing adds complexity | Store complete `before`/`after` JSONB rows |
+| `decimal.js`, `dinero.js`, `currency.js` | VND integers — floats are wrong | PostgreSQL `BIGINT` + string/BigInt in services |
+| `node-cron`, Bull, pg-boss | No background job requirement in spec | Submit/export runs synchronously in route handler |
+| `uuid` package | Session IDs already use `crypto.randomBytes` | Node `crypto` stdlib |
+| Prisma / Drizzle / Kysely migration | Conflicts with `pg` + `lib/db.ts` bridge constraint | Raw SQL in repositories + column allowlists |
+| `@date-fns/tz` | Periods stored as `DATE`; week boundaries computed in UTC date-only | `date-fns` core + `yyyy-MM-dd` strings |
+| Replacing `recharts` with Chart.js/D3 | Dashboard charts already on recharts | Extend existing chart components |
+
+## Stack Patterns by Variant
+
+**If CPMO configures Monday–Sunday report weeks:**
+- Use `startOfWeek(date, { weekStartsOn: 1 })` / `endOfWeek` from date-fns.
+- Persist `period_start` / `period_end` as `DATE` in PostgreSQL.
+
+**If a user has multiple roles (e.g. CPMO + PM):**
+- Load all roles into session; authorization checks use **union** (CPMO wins for company actions; PM wins on assigned projects).
+- Do not model as single "active role" — spec says multi-role union.
+
+**If submitted weekly report must be immutable:**
+- Application: services throw on UPDATE to `submitted` rows.
+- Database: optional `BEFORE UPDATE` trigger on snapshot tables raising exception when `OLD.submission_id` links to submitted parent.
+
+**If VND amount exceeds JS safe integer (~9 quadrillion dong):**
+- Keep `pg` default string parser for BIGINT; ROI helpers use `BigInt` arithmetic, serialize back to string for API.
+
+## Version Compatibility
+
+| Package A | Compatible With | Notes |
+|-----------|-----------------|-------|
+| `date-fns@^4.4.0` | Node 20+, Next 16 standalone | ESM-friendly; import `{ startOfWeek } from 'date-fns/startOfWeek'` for minimal bundle |
+| `zod@^4.4.3` | `@anthropic-ai/sdk@^0.92.0` | SDK peer accepts `^3.25.0 \|\| ^4.0.0` — no conflict |
+| `pg@^8.20.0` | PostgreSQL JSONB/BIGINT | JSONB ↔ object automatic; BIGINT stays string unless `parseInt8` (avoid for money) |
+| `exceljs@^4.4.0` | Next `serverExternalPackages` | Already listed in `next.config.ts` — preserve for PR-12 export |
+| Vitest 4.1.10 | TypeScript 5 strict | Service tests for RBAC matrix — no config change |
 
 ## Sources
 
-- Next.js official docs: https://nextjs.org/docs/app/guides/testing/vitest (Next.js version 16.3.0, last updated 2026-02-11) — HIGH confidence (curated Context7/official source retrieved via webfetch; officially maintained docs but classified LOW-tier by the confidence seam due to fetch method, treat findings as directionally correct and cross-check version numbers via registry before pinning in `package.json`)
-- npm registry (`registry.npmjs.org`) latest-version lookups for `vitest`, `@testing-library/react`, `zod`, `kysely`, `node-mocks-http` — version numbers as of 2026-08-07
-- `package-lock.json` (this repo) — confirms `zod` is already an accepted peer dependency of `@anthropic-ai/sdk`
-- Next.js `with-vitest` example (`github.com/vercel/next.js/tree/canary/examples/with-vitest`) — confirms devDependency set and minimal `vitest.config.ts` shape
+- `/brianc/node-postgres` (Context7) — JSONB auto parse/stringify; BIGINT `parseInt8` behavior — **MEDIUM** confidence
+- `/colinhacks/zod/v4.0.1` (Context7) — `z.enum`, `z.email()`, `z.url({ protocol })` — **MEDIUM** confidence
+- `/date-fns/date-fns` (Context7) — `startOfWeek`, `getISOWeek`, `yyyy-MM-dd` format tokens — **MEDIUM** confidence
+- npm registry (2026-08-25): `date-fns@4.4.0`, `pg@8.23.0`, `zod@4.4.3` — version pins verified live
+- Codebase: `lib/auth.ts`, `lib/http/with-auth.ts`, `lib/services/access.ts`, `lib/services/project-report.service.ts`, `lib/db.ts`, `package.json` — **HIGH** confidence (local)
+- Web (RBAC libraries): CASL/accesscontrol suited to dynamic ABAC — **LOW** confidence; conclusion (skip libraries) cross-checked against fixed 3-role spec — **HIGH** confidence on decision
 
-**Confidence:** MEDIUM overall. Version numbers were verified live against npm registry and official Next.js docs (not training data), which raises confidence on the specific numbers. The confidence-classification seam returned LOW for the `webfetch` provider tier regardless of source authority, so treat this as directionally solid but re-verify exact pinned versions at implementation time, particularly for `vitest` (`4.1.10`) which is a fast-moving major version line.
+---
+*Stack research for: PM Tool B v2.0 Portfolio One View*
+*Researched: 2026-08-25*

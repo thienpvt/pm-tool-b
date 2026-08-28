@@ -7,14 +7,57 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { Plus, Pencil, Trash2, KeyRound, Building2, Users, ShieldCheck, ClipboardList, CheckCircle2, Clock, XCircle, Phone, Mail, MessageSquare, Link2, CheckCircle, Loader2, Gauge } from 'lucide-react';
+import { Plus, Pencil, Trash2, KeyRound, Building2, Users, ShieldCheck, ClipboardList, CheckCircle2, Clock, XCircle, Phone, Mail, MessageSquare, Link2, CheckCircle, Loader2, Gauge, Lock, Unlock, Search } from 'lucide-react';
+import type { AppRole, UserStatus } from '@/lib/services/access';
 
 type Company = { id: number; name: string; user_count: number };
-type User = { id: number; username: string; display_name: string; company_id: number | null; company_name: string | null; is_admin: number };
-type Me = { id: number; username: string; is_admin: number };
+type User = {
+  id: number;
+  username: string;
+  display_name: string;
+  email: string;
+  company_id: number;
+  company_name?: string | null;
+  roles: AppRole[];
+  status: UserStatus;
+};
+type Me = { id: number; username: string; is_admin: number; roles?: AppRole[] };
 type DemoRequest = { id: number; full_name: string; phone: string; email: string; company_name: string; status: string; notes: string; created_at: string };
 
-const EMPTY_USER = { username: '', display_name: '', company_id: '', is_admin: false, password: '' };
+type UserForm = {
+  username: string;
+  display_name: string;
+  email: string;
+  roles: AppRole[];
+  status: UserStatus;
+  password: string;
+};
+
+const EMPTY_USER: UserForm = {
+  username: '',
+  display_name: '',
+  email: '',
+  roles: ['pm'],
+  status: 'active',
+  password: '',
+};
+
+const ALL_ROLES: AppRole[] = ['cpmo', 'pm', 'viewer'];
+const ROLE_LABELS: Record<AppRole, string> = { cpmo: 'CPMO', pm: 'PM', viewer: 'Viewer' };
+const USER_STATUS_STYLE: Record<UserStatus, string> = {
+  active: 'bg-green-50 text-green-700',
+  inactive: 'bg-slate-100 text-slate-500',
+  locked: 'bg-red-50 text-red-700',
+};
+
+function canAccessAdmin(me: Me): boolean {
+  return !!me.is_admin || (me.roles?.includes('cpmo') ?? false);
+}
+
+function canMutateUsers(me: Me): boolean {
+  if (me.is_admin) return true;
+  return me.roles?.includes('cpmo') ?? false;
+}
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
   pending:   { label: 'Pending',   color: 'bg-amber-50 text-amber-700 border-amber-200',  icon: <Clock className="h-3 w-3" /> },
@@ -63,22 +106,37 @@ export default function AdminPage() {
   const [ragCompany, setRagCompany] = useState<Company | null>(null);
   const [ragForm, setRagForm] = useState<RagForm>(DEFAULT_RAG);
 
+  const [searchQ, setSearchQ] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | UserStatus>('all');
+  const [roleFilter, setRoleFilter] = useState<'all' | AppRole>('all');
+
   const loadCompanies = useCallback(() =>
     fetch('/api/admin/companies').then(r => r.json()).then(setCompanies), []);
-  const loadUsers = useCallback(() =>
-    fetch('/api/admin/users').then(r => r.json()).then(setUsers), []);
+  const loadUsers = useCallback(() => {
+    const params = new URLSearchParams();
+    if (searchQ.trim()) params.set('q', searchQ.trim());
+    if (statusFilter !== 'all') params.set('status', statusFilter);
+    if (roleFilter !== 'all') params.set('role', roleFilter);
+    const qs = params.toString();
+    return fetch(`/api/admin/users${qs ? `?${qs}` : ''}`).then(r => r.json()).then(setUsers);
+  }, [searchQ, statusFilter, roleFilter]);
   const loadDemoRequests = useCallback(() =>
     fetch('/api/admin/demo-requests').then(r => r.json()).then(setDemoRequests), []);
 
   useEffect(() => {
     fetch('/api/auth/me').then(r => r.json()).then((data: Me) => {
-      if (!data || !data.is_admin) { router.replace('/'); return; }
+      if (!data || !canAccessAdmin(data)) { router.replace('/'); return; }
       setMe(data);
+      if (data.is_admin) {
+        loadCompanies();
+        loadDemoRequests();
+      }
     });
-    loadCompanies();
-    loadUsers();
-    loadDemoRequests();
-  }, [router, loadCompanies, loadUsers, loadDemoRequests]);
+  }, [router, loadCompanies, loadDemoRequests]);
+
+  useEffect(() => {
+    if (me) loadUsers();
+  }, [me, loadUsers]);
 
   // ── Companies ──────────────────────────────────────────────────────────────
   const openAddCompany = () => { setEditCompany(null); setCompanyName(''); setCompanyOpen(true); };
@@ -173,21 +231,55 @@ export default function AdminPage() {
   const openAddUser = () => { setEditUser(null); setUserForm(EMPTY_USER); setUserOpen(true); };
   const openEditUser = (u: User) => {
     setEditUser(u);
-    setUserForm({ username: u.username, display_name: u.display_name, company_id: u.company_id ? String(u.company_id) : '', is_admin: !!u.is_admin, password: '' });
+    setUserForm({
+      username: u.username,
+      display_name: u.display_name,
+      email: u.email,
+      roles: [...u.roles],
+      status: u.status,
+      password: '',
+    });
     setUserOpen(true);
+  };
+
+  const toggleRole = (role: AppRole) => {
+    setUserForm(f => {
+      const has = f.roles.includes(role);
+      const next = has ? f.roles.filter(r => r !== role) : [...f.roles, role];
+      return { ...f, roles: next.length ? next : f.roles };
+    });
   };
 
   const saveUser = async () => {
     if (!editUser && (!userForm.username.trim() || !userForm.password)) {
       toast.error('Username and password required'); return;
     }
-    const body = {
-      ...(editUser ? { id: editUser.id } : { username: userForm.username.trim() }),
-      display_name: userForm.display_name,
-      company_id: userForm.company_id ? Number(userForm.company_id) : null,
-      is_admin: userForm.is_admin,
-      ...(userForm.password ? { password: userForm.password } : {}),
-    };
+    if (!userForm.email.trim()) {
+      toast.error('Email required'); return;
+    }
+    if (!userForm.roles.length) {
+      toast.error('At least one role required'); return;
+    }
+    if (userForm.password && userForm.password.length < 8) {
+      toast.error('Password must be at least 8 characters'); return;
+    }
+    const body = editUser
+      ? {
+          id: editUser.id,
+          display_name: userForm.display_name,
+          email: userForm.email.trim(),
+          roles: userForm.roles,
+          status: userForm.status,
+          ...(userForm.password ? { password: userForm.password } : {}),
+        }
+      : {
+          username: userForm.username.trim(),
+          display_name: userForm.display_name,
+          email: userForm.email.trim(),
+          roles: userForm.roles,
+          status: userForm.status,
+          password: userForm.password,
+        };
     const res = await fetch('/api/admin/users', {
       method: editUser ? 'PUT' : 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -203,7 +295,7 @@ export default function AdminPage() {
   const doResetPwd = async () => {
     if (!resetPwd) { toast.error('Enter a new password'); return; }
     if (resetPwd !== resetConfirm) { toast.error('Passwords do not match'); return; }
-    if (resetPwd.length < 6) { toast.error('Password must be at least 6 characters'); return; }
+    if (resetPwd.length < 8) { toast.error('Password must be at least 8 characters'); return; }
     const res = await fetch('/api/admin/users', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -215,11 +307,23 @@ export default function AdminPage() {
   };
 
   const deleteUser = async (u: User) => {
-    if (u.id === me?.id) { toast.error('Cannot delete yourself'); return; }
-    if (!confirm(`Delete user "${u.username}"?`)) return;
+    if (u.id === me?.id) { toast.error('Cannot deactivate yourself'); return; }
+    if (!confirm(`Deactivate user "${u.username}"?`)) return;
     const res = await fetch(`/api/admin/users?id=${u.id}`, { method: 'DELETE' });
     if (!res.ok) { toast.error((await res.json()).error); return; }
-    toast.success('User deleted');
+    toast.success('User deactivated');
+    loadUsers();
+  };
+
+  const toggleLock = async (u: User) => {
+    const newStatus: UserStatus = u.status === 'locked' ? 'active' : 'locked';
+    const res = await fetch('/api/admin/users', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: u.id, status: newStatus }),
+    });
+    if (!res.ok) { toast.error((await res.json()).error); return; }
+    toast.success(newStatus === 'locked' ? 'User locked' : 'User unlocked');
     loadUsers();
   };
 
@@ -259,6 +363,9 @@ export default function AdminPage() {
 
   if (!me) return null;
 
+  const isPlatformAdmin = !!me.is_admin;
+  const showMutate = canMutateUsers(me);
+
   return (
     <div className="flex flex-col lg:flex-row min-h-screen">
       <Sidebar />
@@ -270,7 +377,7 @@ export default function AdminPage() {
           </div>
           <div>
             <h1 className="text-xl font-bold text-slate-800">Admin Panel</h1>
-            <p className="text-sm text-slate-500">Manage users and companies</p>
+            <p className="text-sm text-slate-500">{isPlatformAdmin ? 'Manage users and companies' : 'Manage company users'}</p>
           </div>
         </div>
 
@@ -283,45 +390,83 @@ export default function AdminPage() {
             <Users className="h-3.5 w-3.5" />
             Users ({users.length})
           </button>
-          <button
-            onClick={() => setTab('companies')}
-            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${tab === 'companies' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}
-          >
-            <Building2 className="h-3.5 w-3.5" />
-            Companies ({companies.length})
-          </button>
-          <button
-            onClick={() => setTab('requests')}
-            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${tab === 'requests' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}
-          >
-            <ClipboardList className="h-3.5 w-3.5" />
-            Demo Requests
-            {demoRequests.filter(r => r.status === 'pending').length > 0 && (
-              <span className="ml-1 bg-amber-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
-                {demoRequests.filter(r => r.status === 'pending').length}
-              </span>
-            )}
-          </button>
+          {isPlatformAdmin && (
+            <>
+              <button
+                onClick={() => setTab('companies')}
+                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${tab === 'companies' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}
+              >
+                <Building2 className="h-3.5 w-3.5" />
+                Companies ({companies.length})
+              </button>
+              <button
+                onClick={() => setTab('requests')}
+                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${tab === 'requests' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}
+              >
+                <ClipboardList className="h-3.5 w-3.5" />
+                Demo Requests
+                {demoRequests.filter(r => r.status === 'pending').length > 0 && (
+                  <span className="ml-1 bg-amber-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                    {demoRequests.filter(r => r.status === 'pending').length}
+                  </span>
+                )}
+              </button>
+            </>
+          )}
         </div>
 
         {/* ── Users tab ───────────────────────────────────────────────────── */}
         {tab === 'users' && (
           <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-3 border-b">
-              <h2 className="font-semibold text-slate-700">All Users</h2>
-              <Button onClick={openAddUser} className="h-8 text-xs gap-1.5 bg-blue-600 hover:bg-blue-700">
-                <Plus className="h-3.5 w-3.5" /> Add User
-              </Button>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-3 border-b">
+              <h2 className="font-semibold text-slate-700">Company Users</h2>
+              {showMutate && (
+                <Button onClick={openAddUser} className="h-8 text-xs gap-1.5 bg-blue-600 hover:bg-blue-700">
+                  <Plus className="h-3.5 w-3.5" /> Add User
+                </Button>
+              )}
+            </div>
+            <div className="flex flex-wrap items-center gap-2 px-5 py-3 border-b bg-slate-50/50">
+              <div className="relative flex-1 min-w-[180px] max-w-xs">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                <Input
+                  className="h-8 pl-8 text-xs"
+                  placeholder="Search username, email, name…"
+                  value={searchQ}
+                  onChange={e => setSearchQ(e.target.value)}
+                />
+              </div>
+              <select
+                className="h-8 text-xs border rounded-md px-2 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                value={statusFilter}
+                onChange={e => setStatusFilter(e.target.value as 'all' | UserStatus)}
+              >
+                <option value="all">All statuses</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+                <option value="locked">Locked</option>
+              </select>
+              <select
+                className="h-8 text-xs border rounded-md px-2 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                value={roleFilter}
+                onChange={e => setRoleFilter(e.target.value as 'all' | AppRole)}
+              >
+                <option value="all">All roles</option>
+                <option value="cpmo">CPMO</option>
+                <option value="pm">PM</option>
+                <option value="viewer">Viewer</option>
+              </select>
             </div>
             <div className="overflow-x-auto">
-            <table className="w-full text-sm min-w-[500px]">
+            <table className="w-full text-sm min-w-[640px]">
               <thead>
                 <tr className="bg-slate-50 text-left text-xs text-slate-500 uppercase tracking-wide">
                   <th className="px-5 py-3">Username</th>
                   <th className="px-5 py-3">Display Name</th>
-                  <th className="px-5 py-3">Company</th>
-                  <th className="px-5 py-3">Role</th>
-                  <th className="px-5 py-3 w-28">Actions</th>
+                  <th className="px-5 py-3">Email</th>
+                  <th className="px-5 py-3">Roles</th>
+                  <th className="px-5 py-3">Status</th>
+                  {showMutate && <th className="px-5 py-3 w-32">Actions</th>}
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -329,33 +474,47 @@ export default function AdminPage() {
                   <tr key={u.id} className="hover:bg-slate-50">
                     <td className="px-5 py-3 font-mono font-medium text-slate-800">{u.username}</td>
                     <td className="px-5 py-3 text-slate-600">{u.display_name || '—'}</td>
+                    <td className="px-5 py-3 text-slate-600 text-xs">{u.email || '—'}</td>
                     <td className="px-5 py-3">
-                      {u.company_name
-                        ? <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded text-xs font-medium">{u.company_name}</span>
-                        : <span className="text-slate-400 text-xs">No company</span>}
-                    </td>
-                    <td className="px-5 py-3">
-                      {u.is_admin
-                        ? <span className="px-2 py-0.5 bg-amber-50 text-amber-700 rounded text-xs font-semibold">Admin</span>
-                        : <span className="text-slate-400 text-xs">User</span>}
-                    </td>
-                    <td className="px-5 py-3">
-                      <div className="flex gap-2">
-                        <button onClick={() => openEditUser(u)} className="text-slate-400 hover:text-blue-600 transition-colors" title="Edit">
-                          <Pencil className="h-4 w-4" />
-                        </button>
-                        <button onClick={() => openResetPwd(u)} className="text-slate-400 hover:text-amber-600 transition-colors" title="Reset password">
-                          <KeyRound className="h-4 w-4" />
-                        </button>
-                        <button onClick={() => deleteUser(u)} className="text-slate-400 hover:text-red-500 transition-colors" title="Delete" disabled={u.id === me?.id}>
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                      <div className="flex flex-wrap gap-1">
+                        {u.roles.map(r => (
+                          <span key={r} className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded text-xs font-medium">
+                            {ROLE_LABELS[r]}
+                          </span>
+                        ))}
                       </div>
                     </td>
+                    <td className="px-5 py-3">
+                      <span className={`px-2 py-0.5 rounded text-xs font-semibold capitalize ${USER_STATUS_STYLE[u.status]}`}>
+                        {u.status}
+                      </span>
+                    </td>
+                    {showMutate && (
+                      <td className="px-5 py-3">
+                        <div className="flex gap-2">
+                          <button onClick={() => openEditUser(u)} className="text-slate-400 hover:text-blue-600 transition-colors" title="Edit">
+                            <Pencil className="h-4 w-4" />
+                          </button>
+                          <button onClick={() => openResetPwd(u)} className="text-slate-400 hover:text-amber-600 transition-colors" title="Reset password">
+                            <KeyRound className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => toggleLock(u)}
+                            className="text-slate-400 hover:text-orange-600 transition-colors"
+                            title={u.status === 'locked' ? 'Unlock' : 'Lock'}
+                          >
+                            {u.status === 'locked' ? <Unlock className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
+                          </button>
+                          <button onClick={() => deleteUser(u)} className="text-slate-400 hover:text-red-500 transition-colors" title="Deactivate" disabled={u.id === me?.id}>
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))}
                 {users.length === 0 && (
-                  <tr><td colSpan={5} className="px-5 py-10 text-center text-slate-400">No users yet</td></tr>
+                  <tr><td colSpan={showMutate ? 6 : 5} className="px-5 py-10 text-center text-slate-400">No users found</td></tr>
                 )}
               </tbody>
             </table>
@@ -364,7 +523,7 @@ export default function AdminPage() {
         )}
 
         {/* ── Companies tab ────────────────────────────────────────────────── */}
-        {tab === 'companies' && (
+        {tab === 'companies' && isPlatformAdmin && (
           <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
             <div className="flex items-center justify-between px-5 py-3 border-b">
               <h2 className="font-semibold text-slate-700">All Companies</h2>
@@ -415,7 +574,7 @@ export default function AdminPage() {
           </div>
         )}
         {/* ── Requests tab ─────────────────────────────────────────────────── */}
-        {tab === 'requests' && (
+        {tab === 'requests' && isPlatformAdmin && (
           <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
             <div className="flex items-center justify-between px-5 py-3 border-b">
               <h2 className="font-semibold text-slate-700">Demo Requests</h2>
@@ -671,7 +830,7 @@ export default function AdminPage() {
               <Label>New Password <span className="text-red-500">*</span></Label>
               <Input className="mt-1.5" type="password" value={resetPwd}
                 onChange={e => setResetPwd(e.target.value)}
-                placeholder="Min. 6 characters" autoFocus />
+                placeholder="Min. 8 characters" autoFocus />
             </div>
             <div>
               <Label>Confirm Password <span className="text-red-500">*</span></Label>
@@ -706,6 +865,12 @@ export default function AdminPage() {
               </div>
             )}
             <div>
+              <Label>Email <span className="text-red-500">*</span></Label>
+              <Input className="mt-1.5" type="email" value={userForm.email}
+                onChange={e => setUserForm(f => ({ ...f, email: e.target.value }))}
+                placeholder="e.g. user@company.com" />
+            </div>
+            <div>
               <Label>Display Name</Label>
               <Input className="mt-1.5" value={userForm.display_name}
                 onChange={e => setUserForm(f => ({ ...f, display_name: e.target.value }))}
@@ -715,25 +880,36 @@ export default function AdminPage() {
               <Label>{editUser ? 'New Password (leave blank to keep)' : 'Password *'}</Label>
               <Input className="mt-1.5" type="password" value={userForm.password}
                 onChange={e => setUserForm(f => ({ ...f, password: e.target.value }))}
-                placeholder={editUser ? 'Leave blank to keep current' : 'Set password'} />
+                placeholder={editUser ? 'Leave blank to keep current' : 'Min. 8 characters'} />
             </div>
             <div>
-              <Label>Company</Label>
+              <Label>Status</Label>
               <select
                 className="mt-1.5 w-full text-sm border rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-400"
-                value={userForm.company_id}
-                onChange={e => setUserForm(f => ({ ...f, company_id: e.target.value }))}
+                value={userForm.status}
+                onChange={e => setUserForm(f => ({ ...f, status: e.target.value as UserStatus }))}
               >
-                <option value="">— No company (Admin only) —</option>
-                {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+                <option value="locked">Locked</option>
               </select>
             </div>
-            <label className="flex items-center gap-2.5 cursor-pointer">
-              <input type="checkbox" checked={userForm.is_admin}
-                onChange={e => setUserForm(f => ({ ...f, is_admin: e.target.checked }))}
-                className="w-4 h-4 rounded" />
-              <span className="text-sm font-medium text-slate-700">Grant admin access</span>
-            </label>
+            <div>
+              <Label>Roles <span className="text-red-500">*</span></Label>
+              <div className="mt-2 flex flex-col gap-2">
+                {ALL_ROLES.map(role => (
+                  <label key={role} className="flex items-center gap-2.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={userForm.roles.includes(role)}
+                      onChange={() => toggleRole(role)}
+                      className="w-4 h-4 rounded"
+                    />
+                    <span className="text-sm font-medium text-slate-700">{ROLE_LABELS[role]}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setUserOpen(false)}>Cancel</Button>

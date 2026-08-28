@@ -20,10 +20,9 @@ export type PortfolioMember = {
 const PROJECTS_WITH_PROGRAM = `SELECT p.*, c.name as program_name, c.industry as program_industry
   FROM projects p LEFT JOIN customers c ON p.customer_id = c.id`;
 
-/** Portfolio-visible projects, preserving the route's admin/company/null branches. */
-export async function listPortfolioProjects(companyId: number | null, isAdmin: boolean) {
+/** Portfolio-visible projects, company-scoped (D-13). */
+export async function listPortfolioProjects(companyId: number | null) {
   const db = await getDb();
-  if (isAdmin) return db.all(`${PROJECTS_WITH_PROGRAM} ORDER BY p.created_at DESC`);
   if (companyId !== null) {
     return db.all(
       `${PROJECTS_WITH_PROGRAM}
@@ -194,7 +193,7 @@ export async function setCompanyHeadcountQuota(companyId: number | null, quota: 
   return db.run('UPDATE companies SET headcount_quota = ? WHERE id = ?', quota, companyId);
 }
 
-export async function bugCountsByAssignee(companyId: number | null, isAdmin: boolean) {
+export async function bugCountsByAssignee(companyId: number | null) {
   const db = await getDb();
   const base = (where: string) => `
     SELECT b.assignee, COUNT(*) as total_bugs,
@@ -210,20 +209,18 @@ export async function bugCountsByAssignee(companyId: number | null, isAdmin: boo
         SELECT MAX(b2.snapshot_date) FROM bugs b2
         WHERE b2.project_id = b.project_id AND b2.snapshot_date != '')
     GROUP BY b.assignee ORDER BY total_bugs DESC`;
-  if (isAdmin) return db.all(base(''));
   if (companyId !== null) {
     return db.all(base('AND (p.company_id = ? OR c.company_id = ?)'), companyId, companyId);
   }
   return db.all(base('AND p.company_id IS NULL AND (p.customer_id IS NULL OR c.company_id IS NULL)'));
 }
 
-export async function listPortfolioMilestones(companyId: number | null, isAdmin: boolean) {
+export async function listPortfolioMilestones(companyId: number | null) {
   const db = await getDb();
   const base = `SELECT m.id, m.project_id, m.name, m.start_date, m.end_date,
       p.name AS project_name, p.customer_id, c.name AS program_name
     FROM milestones m JOIN projects p ON p.id = m.project_id
     LEFT JOIN customers c ON p.customer_id = c.id`;
-  if (isAdmin) return db.all(`${base} ORDER BY p.name, m.start_date, m.id`);
   if (companyId !== null) {
     return db.all(
       `${base} WHERE (p.company_id = ? OR c.company_id = ?) ORDER BY p.name, m.start_date, m.id`,
@@ -457,8 +454,11 @@ export async function deletePortfolioProgramAllocation(
 
 type Scope = { sql: string; params: unknown[] };
 
-function reportCompanyScope(companyId: number | null, isAdmin: boolean): Scope {
-  return isAdmin ? { sql: '', params: [] } : { sql: 'AND p.company_id = ?', params: [companyId] };
+function reportCompanyScope(companyId: number | null): Scope {
+  if (companyId !== null) {
+    return { sql: 'AND p.company_id = ?', params: [companyId] };
+  }
+  return { sql: 'AND p.company_id IS NULL AND (p.customer_id IS NULL OR c.company_id IS NULL)', params: [] };
 }
 
 function idScope(column: string, ids: readonly number[]): Scope {
@@ -483,10 +483,9 @@ export type PortfolioMilestoneInfo = {
 export async function portfolioMilestoneSelection(
   ids: readonly number[],
   companyId: number | null,
-  isAdmin: boolean,
 ) {
   const db = await getDb();
-  const company = reportCompanyScope(companyId, isAdmin);
+  const company = reportCompanyScope(companyId);
   const milestones: PortfolioMilestoneInfo[] = [];
   const projectIds = new Set<number>();
   const activityIds = new Set<number>();
@@ -523,9 +522,9 @@ export async function portfolioMilestoneSelection(
 }
 
 /** Report route scope intentionally uses project.company_id only, matching its prior SQL. */
-export async function listPortfolioReportProjects(companyId: number | null, isAdmin: boolean) {
+export async function listPortfolioReportProjects(companyId: number | null) {
   const db = await getDb();
-  const company = reportCompanyScope(companyId, isAdmin);
+  const company = reportCompanyScope(companyId);
   return db.all(
     `${PROJECTS_WITH_PROGRAM} WHERE 1=1 ${company.sql} ORDER BY p.created_at DESC`,
     ...company.params,
@@ -559,11 +558,10 @@ export async function milestoneDateRanges(projectIds: readonly number[]) {
 
 export async function topPortfolioRisks(
   companyId: number | null,
-  isAdmin: boolean,
   projectIds: readonly number[],
 ) {
   const db = await getDb();
-  const company = reportCompanyScope(companyId, isAdmin);
+  const company = reportCompanyScope(companyId);
   const projects = idScope('r.project_id', projectIds);
   return db.all(
     `SELECT r.*, p.name as project_name, c.name as program_name
@@ -578,11 +576,10 @@ export async function topPortfolioRisks(
 
 export async function topPortfolioIssues(
   companyId: number | null,
-  isAdmin: boolean,
   projectIds: readonly number[],
 ) {
   const db = await getDb();
-  const company = reportCompanyScope(companyId, isAdmin);
+  const company = reportCompanyScope(companyId);
   const projects = idScope('i.project_id', projectIds);
   return db.all(
     `SELECT i.*, p.name as project_name, c.name as program_name
@@ -597,12 +594,11 @@ export async function topPortfolioIssues(
 
 function reportActivityScopes(
   companyId: number | null,
-  isAdmin: boolean,
   projectIds: readonly number[],
   activityIds: readonly number[],
 ) {
   return {
-    company: reportCompanyScope(companyId, isAdmin),
+    company: reportCompanyScope(companyId),
     projects: idScope('a.project_id', projectIds),
     activities: idScope('a.id', activityIds),
   };
@@ -610,7 +606,6 @@ function reportActivityScopes(
 
 export async function upcomingPortfolioActivities(
   companyId: number | null,
-  isAdmin: boolean,
   projectIds: readonly number[],
   activityIds: readonly number[],
   startDate: string,
@@ -618,7 +613,7 @@ export async function upcomingPortfolioActivities(
   doneStatuses: readonly string[],
 ) {
   const db = await getDb();
-  const scope = reportActivityScopes(companyId, isAdmin, projectIds, activityIds);
+  const scope = reportActivityScopes(companyId, projectIds, activityIds);
   const done = doneStatuses.map(() => '?').join(',');
   return db.all(
     `SELECT a.*, p.name as project_name, c.name as program_name
@@ -635,14 +630,13 @@ export async function upcomingPortfolioActivities(
 
 export async function recentlyCompletedPortfolioActivities(
   companyId: number | null,
-  isAdmin: boolean,
   projectIds: readonly number[],
   activityIds: readonly number[],
   sinceDate: string,
   doneStatuses: readonly string[],
 ) {
   const db = await getDb();
-  const scope = reportActivityScopes(companyId, isAdmin, projectIds, activityIds);
+  const scope = reportActivityScopes(companyId, projectIds, activityIds);
   const done = doneStatuses.map(() => '?').join(',');
   return db.all(
     `SELECT a.*, p.name as project_name, c.name as program_name
@@ -659,7 +653,6 @@ export async function recentlyCompletedPortfolioActivities(
 
 export async function completedPortfolioActivitiesBetween(
   companyId: number | null,
-  isAdmin: boolean,
   projectIds: readonly number[],
   activityIds: readonly number[],
   startDate: string,
@@ -667,7 +660,7 @@ export async function completedPortfolioActivitiesBetween(
   doneStatuses: readonly string[],
 ) {
   const db = await getDb();
-  const scope = reportActivityScopes(companyId, isAdmin, projectIds, activityIds);
+  const scope = reportActivityScopes(companyId, projectIds, activityIds);
   const done = doneStatuses.map(() => '?').join(',');
   return db.all(
     `SELECT a.*, p.name as project_name, p.current_phase, c.name as program_name
@@ -684,12 +677,11 @@ export async function completedPortfolioActivitiesBetween(
 
 export async function portfolioBugCounts(
   companyId: number | null,
-  isAdmin: boolean,
   projectIds: readonly number[],
   milestoneMonth: string | null,
 ) {
   const db = await getDb();
-  const company = reportCompanyScope(companyId, isAdmin);
+  const company = reportCompanyScope(companyId);
   const projects = milestoneMonth ? idScope('b.project_id', projectIds) : { sql: '', params: [] };
   const select = `SELECT b.project_id, p.name as project_name, b.status, b.priority, b.severity,
       COUNT(*) as cnt FROM bugs b JOIN projects p ON b.project_id = p.id`;
@@ -717,20 +709,22 @@ export async function portfolioBugCounts(
   );
 }
 
-export async function internalPortfolioMembers(companyId: number | null, isAdmin: boolean) {
+export async function internalPortfolioMembers(companyId: number | null) {
   const db = await getDb();
-  if (isAdmin) return db.all<{ name: string; role: string }>(
-    `SELECT name, role FROM portfolio_members WHERE member_type = 'internal'`,
-  );
+  if (companyId !== null) {
+    return db.all<{ name: string; role: string }>(
+      `SELECT name, role FROM portfolio_members WHERE member_type = 'internal' AND company_id = ?`,
+      companyId,
+    );
+  }
   return db.all<{ name: string; role: string }>(
-    `SELECT name, role FROM portfolio_members WHERE member_type = 'internal' AND company_id = ?`,
-    companyId,
+    `SELECT name, role FROM portfolio_members WHERE member_type = 'internal' AND company_id IS NULL`,
   );
 }
 
-export async function portfolioTeamMembers(companyId: number | null, isAdmin: boolean) {
+export async function portfolioTeamMembers(companyId: number | null) {
   const db = await getDb();
-  const company = reportCompanyScope(companyId, isAdmin);
+  const company = reportCompanyScope(companyId);
   return db.all<{ name: string; project_name: string }>(
     `SELECT tm.name, p.name as project_name
      FROM team_members tm JOIN projects p ON tm.project_id = p.id
@@ -776,9 +770,9 @@ export async function portfolioProgramFillRates(companyId: number | null) {
   );
 }
 
-export async function portfolioReportMilestones(companyId: number | null, isAdmin: boolean) {
+export async function portfolioReportMilestones(companyId: number | null) {
   const db = await getDb();
-  const company = reportCompanyScope(companyId, isAdmin);
+  const company = reportCompanyScope(companyId);
   return db.all(
     `SELECT m.id, m.project_id, m.name, m.start_date, m.end_date,
        p.name as project_name, COALESCE(c.name, '') as program_name

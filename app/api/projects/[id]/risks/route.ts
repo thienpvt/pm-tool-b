@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { withProjectAccess } from '@/lib/http/with-project-access';
-import { createRisk, deleteRisk, listRisks, updateRisk } from '@/lib/services/risks.service';
+import { createRisk, deactivateRisk, listRisks, updateRisk } from '@/lib/services/risks.service';
 import { riskInputSchema, riskUpdateSchema } from './schema';
 
 export const GET = withProjectAccess(async (_req, { params, actor }) =>
@@ -23,6 +23,6 @@ export const PUT = withProjectAccess(
 
 export const DELETE = withProjectAccess(async (req, { params, actor }) => {
   const rowId = new URL(req.url).searchParams.get('rowId') ?? '';
-  await deleteRisk(params.id, actor, rowId);
+  await deactivateRisk(params.id, actor, rowId);
   return NextResponse.json({ ok: true });
 });

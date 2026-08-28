@@ -1,7 +1,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { integrationErrorResponse, serviceErrorResponse } from './api-errors';
 import { IntegrationError } from './integrations/errors';
-import { ForbiddenError, NotFoundError, ValidationError } from './services/errors';
+import {
+  ConflictError,
+  ForbiddenError,
+  MandatoryIncompleteError,
+  NotFoundError,
+  SubmitValidationError,
+  ValidationError,
+} from './services/errors';
 
 /**
  * INTG-06: a malformed upstream response must log server-side and must not
@@ -69,6 +76,41 @@ describe('serviceErrorResponse', () => {
 
     expect(res.status).toBe(400);
     expect(body).toEqual({ error: 'bad category', field: 'category' });
+  });
+
+  it('maps MandatoryIncompleteError to 409 with code and items (D-09, DOC-06)', async () => {
+    const items = [
+      { checklist_id: 1, catalog_id: 10, name: 'Charter', status: 'none' },
+    ];
+    const res = serviceErrorResponse(new MandatoryIncompleteError(items));
+    const body = await res.json();
+
+    expect(res.status).toBe(409);
+    expect(body).toEqual({ code: 'mandatory_incomplete', items });
+    expect(body).not.toHaveProperty('error');
+  });
+
+  it('maps ConflictError to 409 with error message unchanged (D-09)', async () => {
+    const res = serviceErrorResponse(new ConflictError('Project code already exists'));
+    const body = await res.json();
+
+    expect(res.status).toBe(409);
+    expect(body).toEqual({ error: 'Project code already exists' });
+    expect(body).not.toHaveProperty('code');
+  });
+
+  it('maps SubmitValidationError to 400 with fields array not singular field (D-11, RAID-03)', async () => {
+    const res = serviceErrorResponse(
+      new SubmitValidationError('fix fields', ['raid.risks[0].description']),
+    );
+    const body = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(body).toEqual({
+      error: 'fix fields',
+      fields: ['raid.risks[0].description'],
+    });
+    expect(body).not.toHaveProperty('field');
   });
 
   it('maps unknown errors to a generic 500 without String(e)', async () => {

@@ -1,129 +1,180 @@
 # External Integrations
 
-**Analysis Date:** 2026-08-07
+**Analysis Date:** 2026-08-25
 
 ## APIs & External Services
 
-**LLM / AI reports:**
-- Anthropic Claude API — generate portfolio/project reports and email HTML
-  - SDK/Client: `@anthropic-ai/sdk` (`Anthropic` class)
-  - Models in use: `claude-opus-4-7` (portfolio/project report routes), `claude-sonnet-4-6` (`app/api/projects/[id]/project-report/generate-email/route.ts`)
-  - Auth: `ANTHROPIC_API_KEY` env, else DB `settings` key `anthropic_api_key`
-  - Routes: `app/api/portfolio/report/route.ts`, `app/api/portfolio/report/generate-email/route.ts`, `app/api/projects/[id]/report/route.ts`, `app/api/projects/[id]/project-report/route.ts`, `app/api/projects/[id]/project-report/generate-email/route.ts`
-  - Config surface: `app/api/config/route.ts` (masks key; reports env vs DB)
+**Issue Tracking (Jira Cloud):**
+- Atlassian Jira Cloud REST API v3 — issue search, field listing, connection testing
+  - Client: `lib/integrations/jira/client.ts` (native `fetch`, 15s timeout via `withFetchTimeout`)
+  - Schemas: `lib/integrations/jira/schemas.ts` (Zod validation)
+  - Endpoints used:
+    - `POST /rest/api/3/search/jql` — cursor-based issue search (`searchIssues`)
+    - `GET /rest/api/3/field` — custom field listing (`listFields`)
+    - `GET /rest/api/3/myself` — connection test (`testConnection`)
+  - Auth: HTTP Basic (`email:api_token` base64-encoded)
+  - API routes: `app/api/jira/search/route.ts`, `app/api/jira/fields/route.ts`, `app/api/jira/test/route.ts`, `app/api/jira/jql-presets/route.ts`, `app/api/jira/sync-mappings/route.ts`
+  - Admin config: `app/api/admin/jira-config/[companyId]/route.ts` → `lib/repositories/jira-config.repo.ts`
 
-**Issue tracker:**
-- Atlassian Jira Cloud REST API v3 — search/import activities & bugs, field list, connection test
-  - SDK/Client: native `fetch` (no official Jira SDK)
-  - Auth: HTTP Basic `email:api_token` (Base64)
-  - Credential resolution: per-company rows in `company_jira_config` store **names** of env vars (`base_url_var`, `email_var`, `token_var`); runtime reads `process.env[name]`
-  - Endpoints used: `POST /rest/api/3/search/jql`, `GET /rest/api/3/myself`, fields helpers
-  - Routes: `app/api/jira/search/route.ts`, `app/api/jira/fields/route.ts`, `app/api/jira/test/route.ts`, `app/api/jira/sync-mappings/route.ts`, `app/api/jira/jql-presets/**`, admin `app/api/admin/jira-config/[companyId]/route.ts`
-  - UI: `components/jira/JiraSyncDialog.tsx`, admin company Jira config on `app/admin/page.tsx`
+**AI / LLM (Anthropic):**
+- Anthropic Messages API — AI-generated portfolio reports, project reports, and email content
+  - SDK: `@anthropic-ai/sdk` in `lib/integrations/anthropic/client.ts`
+  - Models (constants in `lib/integrations/anthropic/models.ts`):
+    - `claude-opus-4-7` (`MODEL_OPUS_4_7`) — email generation
+    - `claude-sonnet-4-6` (`MODEL_SONNET_4_6`) — report generation
+  - Timeout: 120s per request (SDK client config)
+  - API routes:
+    - `app/api/portfolio/report/route.ts`
+    - `app/api/portfolio/report/generate-email/route.ts`
+    - `app/api/projects/[id]/report/route.ts`
+    - `app/api/projects/[id]/project-report/route.ts`
+    - `app/api/projects/[id]/project-report/generate-email/route.ts`
+  - Auth: API key via `resolveAnthropicCredentials()` in `lib/integrations/credentials.ts`
 
-**Transactional email:**
-- Resend HTTP API — send portfolio report email
-  - SDK/Client: `fetch('https://api.resend.com/emails')`
-  - Auth: `Authorization: Bearer ${RESEND_API_KEY}`
-  - From: `MAIL_FROM` or default `PMO Reports <onboarding@resend.dev>`
-  - Route: `app/api/portfolio/report/send-email/route.ts`
+**Email (Resend):**
+- Resend transactional email API — send portfolio report emails
+  - Client: `lib/integrations/resend/client.ts` (native `fetch` to `https://api.resend.com/emails`, 15s timeout)
+  - API route: `app/api/portfolio/report/send-email/route.ts`
+  - Auth: Bearer token via `RESEND_API_KEY`
+  - From address: `MAIL_FROM` env var, default `'PMO Reports <onboarding@resend.dev>'`
 
-**RAG status (domain logic, not vector RAG):**
-- In-process SPI/deadline/risk thresholds — `lib/rag.ts` + per-company `company_rag_config` (admin `app/api/admin/rag-config/[companyId]/route.ts`)
-  - Not an external embedding service
+**Not integrated:**
+- Stripe, Supabase, AWS SDK, Sentry, Datadog — not detected in dependencies or source
+- OAuth/OIDC providers — not used; auth is custom session-based (`lib/auth.ts`)
 
 ## Data Storage
 
 **Databases:**
-- PostgreSQL
-  - Connection: `DATABASE_URL` (required)
-  - Client: `pg` `Pool` wrapped by `PostgresClient` / `getDb()` in `lib/db.ts`
-  - Schema: created/migrated at first `getDb()` call (`initPostgresSchema`, `migratePostgresSchema`, `backfillWeightedCompletion`, `seedAuthData`)
-  - SSL: disabled for `sslmode=disable|false`, Railway internal host, localhost/private LAN; else `{ rejectUnauthorized: false }`
-  - Deploy: `k8s.yaml` injects `DATABASE_URL` into Deployment; Railway expects same env
+- PostgreSQL 17
+  - Connection: `DATABASE_URL` environment variable
+  - Client: `pg` `Pool` wrapped by `PostgresClient` implementing `DbClient` in `lib/db.ts`
+  - ORM: None — raw SQL via repository layer (`lib/repositories/*.repo.ts`)
+  - Schema: auto-created on startup (`initPostgresSchema`, `migratePostgresSchema` in `lib/db.ts`)
+  - Key tables for integrations:
+    - `company_jira_config` — stores env var *names* for Jira credentials per company
+    - `settings` — key/value store including `anthropic_api_key` DB fallback
+    - `jira_jql_presets`, `jira_sync_mappings` — Jira workflow persistence
+  - Test database: `TEST_DATABASE_URL` (must end in `_test`; enforced in `test/db.ts`)
 
 **File Storage:**
-- Local/app filesystem only for static assets (`public/`)
-- Exports generated in-memory / response streams (`lib/export/*`, `app/api/export/**`) — no S3/blob store detected
-- Import uploads parsed in API routes (e.g. `app/api/parse-file-headers/route.ts`, resource/timeline import routes)
+- Local filesystem only — no cloud object storage SDK
+- Generated exports (Word, Excel, PPT, PDF) streamed from API routes; no persistent file store
+- Static assets in `public/` served by Next.js
 
 **Caching:**
-- None (no Redis/Memcached). Module singleton `_client` for DB pool in `lib/db.ts`
+- None — no Redis, Memcached, or in-memory cache layer detected
+- Singleton `DbClient` in `lib/db.ts` (`_client`) persists pool for process lifetime
 
 ## Authentication & Identity
 
 **Auth Provider:**
-- Custom session auth (not OAuth/NextAuth/Clerk)
-  - Implementation: `lib/auth.ts`
-  - Password: Node `crypto.scryptSync` with salt (`hashPassword` / `verifyPassword`)
-  - Session: random 32-byte hex id, table `sessions`, cookie `pm_session` (`SESSION_COOKIE_NAME`), 7-day expiry
-  - Request helper: `getSessionFromRequest`
-  - Routes: `app/api/auth/login/route.ts`, `logout`, `me`, `change-password`, `complete-onboarding`
-  - Gate: `proxy.ts` redirects unauthenticated users (public: `/login`, `/landing`, `/api/auth/`, `/api/health`, `/api/demo-requests`)
-  - Roles: `users.is_admin`, multi-tenant `company_id` / `companies`
-  - Seed users created when users table empty (`seedAuthData` in `lib/db.ts`) — change defaults in production
+- Custom (not third-party IdP)
+  - Implementation: `lib/auth.ts` — scrypt password hashing, session cookies, PostgreSQL `sessions` table
+  - Session cookie: `pm_session` (HTTP-only, `sameSite: 'lax'`, 7-day TTL)
+  - Login: `app/api/auth/login/route.ts` → `lib/repositories/auth.repo.ts`
+  - Session resolution: `getSessionFromRequest()` used by routes and `withAuth` wrapper
+  - Multi-tenant: users belong to `companies`; `company_id` scopes data access via `lib/services/access.ts`
+
+**Access enforcement:**
+- `ACCESS_ENFORCEMENT=shadow` — optional shadow mode logs would-be denials without blocking (`lib/http/with-auth.ts`, `isAccessShadowMode()`)
+- Project/program ownership checks via `lib/http/with-project-access.ts`, `lib/http/with-program-access.ts`
 
 ## Monitoring & Observability
 
 **Error Tracking:**
-- None detected (no Sentry/Datadog SDK)
+- None — no Sentry, Bugsnag, or similar SDK
+- Server errors logged via Next.js instrumentation hook: `instrumentation.ts` (`onRequestError`)
 
 **Logs:**
-- Default process/console logging only; no structured logging library
-
-**Health:**
-- `GET /api/health` — liveness for Railway/K8s (`app/api/health/route.ts`)
+- Structured stdout/stderr via `console` in `lib/log.ts`
+- Request correlation: `x-request-id` header stamped by `proxy.ts`, read in route handlers and `instrumentation.ts`
+- API request logging: method, path, session presence (no bodies — passwords/tokens excluded by design)
+- Access shadow denials: `[ACCESS-SHADOW]` JSON lines in `lib/http/with-auth.ts`
 
 ## CI/CD & Deployment
 
 **Hosting:**
-- Railway — `railway.json` (Dockerfile build, `npm start`, healthcheck `/api/health`)
-- Kubernetes — `k8s.yaml` (Deployment `nextjs`, Service NodePort, image from GHCR)
-- Container registry: GitHub Container Registry `ghcr.io`
+- Docker container (`Dockerfile` — Node 20 slim, standalone Next.js)
+- `docker-compose.yml` for local/production compose with health check on `/api/health`
+- GitHub Container Registry (`ghcr.io`) — images built and pushed on `master` branch (`.github/workflows/docker-build.yml`)
+- Railway-compatible PostgreSQL SSL handling in `lib/db.ts` (`*.railway.internal` host detection)
 
 **CI Pipeline:**
-- GitHub Actions `.github/workflows/docker-build.yml`
-  - Triggers: push/PR to `master`, `workflow_dispatch`
-  - Buildx + push tags (sha, branch, `latest` on default branch)
-  - Auth: `GITHUB_TOKEN` for GHCR
+- GitHub Actions — `.github/workflows/test.yml`
+  - Triggers: push, PR to `master`, manual dispatch
+  - Postgres 17 service container for integration tests
+  - Steps: `npm ci` → `npm test` with `TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/pm_tool_test`
+- Docker build workflow — `.github/workflows/docker-build.yml` (buildx, GHA cache, push on non-PR events)
 
 ## Environment Configuration
 
 **Required env vars:**
-- `DATABASE_URL` — PostgreSQL URL (mandatory for app boot via `getDb()`)
+- `DATABASE_URL` — PostgreSQL connection string (required at app startup)
 
-**Feature env vars:**
-- `ANTHROPIC_API_KEY` — Claude reports (optional if DB setting set)
-- `RESEND_API_KEY` — outbound email
-- `MAIL_FROM` — Resend from address
-- Company-specific Jira vars — names configured in DB (`company_jira_config`); values must exist in process env (ops set on Railway/K8s)
+**Integration credentials:**
+- `ANTHROPIC_API_KEY` — Anthropic API key (env takes precedence over DB `settings.anthropic_api_key`)
+- `RESEND_API_KEY` — Resend API key (env only, no DB fallback)
+- Jira — tenant-specific; admin configures env var *names* in `company_jira_config`:
+  - Values read from `process.env[base_url_var]`, `process.env[email_var]`, `process.env[token_var]`
+  - Example pattern (names vary per tenant): custom vars like `JIRA_BASE_URL`, `JIRA_EMAIL`, `JIRA_TOKEN`
+
+**Optional env vars:**
+- `MAIL_FROM` — sender address for Resend emails
+- `ACCESS_ENFORCEMENT` — set to `shadow` for access-control shadow mode
+- `TEST_DATABASE_URL` — PostgreSQL test DB for Vitest repository suites (CI and local)
+- `NODE_ENV` — `production` enables secure cookies on login
 
 **Secrets location:**
-- Local: `.env` (present; gitignored — do not commit)
-- Runtime: platform env (Railway / K8s env on Deployment)
-- Optional: Anthropic key also in DB `settings` table
-- CI: `secrets.GITHUB_TOKEN` for package push only
+- Production: operator-supplied `.env` file (referenced by `docker-compose.yml`) or platform env injection (Railway, K8s, etc.)
+- Jira credential *names* in PostgreSQL; actual secrets only in environment
+- Anthropic key optionally in DB `settings` table (masked in `GET /api/config`)
+- Verification script: `scripts/verify-credential-cutover.ts` (requires live `DATABASE_URL`; run with `npx tsx --env-file=.env.local`)
+
+## Integration Error Handling
+
+**Normalized errors:**
+- `IntegrationError` class in `lib/integrations/errors.ts` — kinds: `timeout`, `auth`, `upstream`, `validation`, `network`
+- HTTP mapping: `integrationErrorResponse()` in `lib/api-errors.ts` (used by Jira, Anthropic, Resend routes)
+- Fetch timeout wrapper: `withFetchTimeout()` — 15s for Jira/Resend; Anthropic uses SDK's 120s timeout
+
+**Credential resolution (single entry point):**
+- `lib/integrations/credentials.ts` — the only module under `lib/integrations/` that imports repositories
+- Precedence preserved per integration:
+  - Jira: DB config row → `process.env[name]`
+  - Anthropic: `process.env.ANTHROPIC_API_KEY` → DB `settings.anthropic_api_key`
+  - Resend: `process.env.RESEND_API_KEY` only
 
 ## Webhooks & Callbacks
 
 **Incoming:**
-- None detected (no Stripe/GitHub webhook handlers). Public write: `app/api/demo-requests/route.ts` (landing demo form)
+- None — no webhook receiver routes detected
 
 **Outgoing:**
-- Jira REST calls from server routes
-- Anthropic Messages API from report routes
-- Resend email API from `send-email` route
+- None — all external calls are request/response (fetch/SDK); no outbound webhook subscriptions
 
-## Integration Patterns (prescriptive)
+## Export Integrations (Local Generation)
 
-**Add new Jira call:** implement under `app/api/jira/`, resolve creds like `getJiraCredentials` in `app/api/jira/search/route.ts` (company config → env vars → Basic auth). Do not hardcode URL/token.
+These produce files server-side without external API calls:
 
-**Add AI generation:** use `@anthropic-ai/sdk`, resolve key env-then-DB (see `generate-email` routes), return `NO_API_KEY` 503 when missing.
+| Format | Library | Route | Module |
+|--------|---------|-------|--------|
+| Word (.docx) | `docx` | `app/api/export/word/[id]/[type]/route.ts` | `lib/export/word.ts` |
+| Excel (.xlsx) | `exceljs` | `app/api/export/excel/[id]/route.ts` | `lib/export/excel.ts` |
+| PowerPoint (.pptx) | `pptxgenjs` | `app/api/export/ppt/[id]/route.ts` | `lib/export/ppt.ts` |
+| Weekly report | — | `app/api/export/weekly-report/[id]/route.ts` | — |
+| Resource plan | — | `app/api/export/resource-plan/[id]/route.ts` | — |
+| Portfolio members | — | `app/api/export/portfolio/members/route.ts` | — |
 
-**Add email send:** call Resend REST with `RESEND_API_KEY`; keep `MAIL_FROM` configurable.
+Client-side PDF/image capture uses `jspdf` and `html-to-image` in report UI components.
 
-**DB access:** always `const db = await getDb()` then `db.get` / `db.all` / `db.run` with `?` placeholders (converted to `$n` in `lib/db.ts`). Prefer schema changes via migrations array in `migratePostgresSchema`.
+## Public Unauthenticated Endpoints
+
+Routes bypassed by `proxy.ts` session check (`PUBLIC` list in `proxy.ts`):
+- `/login`, `/landing`
+- `/api/auth/*` — login, logout, me
+- `/api/health` — health check (`app/api/health/route.ts` returns `{ ok: true }`)
+- `/api/demo-requests` — demo request submission (`app/api/demo-requests/route.ts`)
 
 ---
 
-*Integration audit: 2026-08-07*
+*Integration audit: 2026-08-25*

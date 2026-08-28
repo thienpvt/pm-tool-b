@@ -43,3 +43,6 @@ next-env.d.ts
 # local database — never commit SQLite data
 /data
 *.db
+
+# Local business-spec reference — do not commit
+/docs/GuiIT_2008_Portfolio One View_Yeu cau nghiep vu (1).docx

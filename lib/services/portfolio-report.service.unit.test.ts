@@ -67,9 +67,30 @@ vi.mock('@/lib/repositories/portfolio.repo', () => ({
 vi.mock('@/lib/repositories/programs.repo', () => ({ listCompanyPrograms }));
 vi.mock('@/lib/repositories/rag-config.repo', () => ({ companyRagConfig }));
 
-import { getPortfolioReport, monSunWeekBounds } from './portfolio-report.service';
+import { getPortfolioReport, assertPortfolioCpmoWrite, monSunWeekBounds } from './portfolio-report.service';
+import { ForbiddenError } from './errors';
 
-const scoped = { company_id: 5 as number | null, is_admin: 0 as number | boolean };
+const scoped = {
+  company_id: 5 as number | null,
+  is_admin: 0 as number | boolean,
+  roles: ['pm'] as const,
+  status: 'active' as const,
+  user_id: 1,
+  username: 'pm1',
+  display_name: 'PM One',
+  email: 'pm@example.com',
+};
+
+const cpmoActor = {
+  ...scoped,
+  is_admin: 0,
+  roles: ['cpmo'] as const,
+};
+
+const viewerActor = {
+  ...scoped,
+  roles: ['viewer'] as const,
+};
 
 function stubEmpty() {
   listPortfolioReportProjects.mockResolvedValue([]);
@@ -186,7 +207,7 @@ describe('getPortfolioReport', () => {
 
     const result = await getPortfolioReport(scoped, { milestone_ids: '1,2' });
 
-    expect(portfolioMilestoneSelection).toHaveBeenCalledWith([1, 2], 5, false);
+    expect(portfolioMilestoneSelection).toHaveBeenCalledWith([1, 2], 5);
     // Only projects 10 and 20 — 30 excluded by milestone set
     expect(result.projects.map((p: { id: number }) => p.id).sort()).toEqual([10, 20]);
     expect(result.kpi.totalProjects).toBe(2);
@@ -197,11 +218,25 @@ describe('getPortfolioReport', () => {
     expect(result.projects.find((p: { id: number }) => p.id === 10)?.total_activities).toBe(1);
   });
 
-  it('passes company scope for non-admin and admin branches', async () => {
+  it('passes company scope without leftover is_admin all-rows bypass', async () => {
     await getPortfolioReport(scoped, {});
-    expect(listPortfolioReportProjects).toHaveBeenCalledWith(5, false);
+    expect(listPortfolioReportProjects).toHaveBeenCalledWith(5);
 
-    await getPortfolioReport({ company_id: 5, is_admin: 1 }, {});
-    expect(listPortfolioReportProjects).toHaveBeenCalledWith(5, true);
+    await getPortfolioReport({ ...scoped, is_admin: 1 }, {});
+    expect(listPortfolioReportProjects).toHaveBeenLastCalledWith(5);
+  });
+});
+
+describe('assertPortfolioCpmoWrite', () => {
+  it('allows CPMO actors', () => {
+    expect(() => assertPortfolioCpmoWrite(cpmoActor)).not.toThrow();
+  });
+
+  it('denies viewer-only actors', () => {
+    expect(() => assertPortfolioCpmoWrite(viewerActor)).toThrow(ForbiddenError);
+  });
+
+  it('denies PM-only actors without cpmo role', () => {
+    expect(() => assertPortfolioCpmoWrite(scoped)).toThrow(ForbiddenError);
   });
 });

@@ -23,14 +23,14 @@ describe.skipIf(!hasTestDb)('programs.repo', () => {
     )).lastInsertRowid);
   });
 
-  it('limits non-admins to their company programs', async () => {
-    const rows = await listPrograms(companyA, false) as { id: number }[];
+  it('limits callers to their company programs', async () => {
+    const rows = await listPrograms(companyA) as { id: number }[];
     expect(rows.map(row => row.id)).toContain(programA);
     expect(rows.map(row => row.id)).not.toContain(programB);
   });
 
-  it('lets admins see programs from both companies', async () => {
-    const rows = await listPrograms(companyA, true) as { id: number }[];
-    expect(rows.map(row => row.id)).toEqual(expect.arrayContaining([programA, programB]));
+  it('does not return other-company programs even when scoped to company A (D-13)', async () => {
+    const rows = await listPrograms(companyA) as { id: number }[];
+    expect(rows.map(row => row.id)).not.toContain(programB);
   });
 });

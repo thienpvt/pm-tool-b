@@ -43,6 +43,28 @@ describe.skipIf(!hasTestDb)('portfolio aggregates are company-scoped (SVC-05)', 
         project_id INTEGER,
         allocated_amount NUMERIC DEFAULT 0
       );
+      CREATE TABLE IF NOT EXISTS portfolio_members (
+        id SERIAL PRIMARY KEY,
+        company_id INTEGER,
+        role TEXT DEFAULT '',
+        name TEXT NOT NULL,
+        email TEXT DEFAULT '',
+        note TEXT DEFAULT '',
+        member_type TEXT DEFAULT 'internal',
+        member_category TEXT DEFAULT 'delivery',
+        overhead_remaining FLOAT DEFAULT 0
+      );
+      ALTER TABLE portfolio_members ADD COLUMN IF NOT EXISTS member_type TEXT DEFAULT 'internal';
+      ALTER TABLE portfolio_members ADD COLUMN IF NOT EXISTS member_category TEXT DEFAULT 'delivery';
+      ALTER TABLE portfolio_members ADD COLUMN IF NOT EXISTS overhead_remaining FLOAT DEFAULT 0;
+      CREATE TABLE IF NOT EXISTS portfolio_program_allocations (
+        id SERIAL PRIMARY KEY,
+        company_id INTEGER,
+        program_id INTEGER,
+        allocated_headcount NUMERIC(6,1) DEFAULT 0,
+        created_at TIMESTAMPTZ DEFAULT now(),
+        UNIQUE(company_id, program_id)
+      );
     `);
 
     companyA = await seedCompany('Scope Co A');
@@ -132,20 +154,20 @@ describe.skipIf(!hasTestDb)('portfolio aggregates are company-scoped (SVC-05)', 
       expect(p.id).not.toBe(projectB);
     }
     // B's 5 open risks must not appear in the sum over returned projects
-    const openFromB = (result.projects as { id: number; open_risks: number }[])
+    const openFromB = (result.projects as { id: number; open_risks: number | string }[])
       .filter(p => p.id === projectB)
-      .reduce((s, p) => s + p.open_risks, 0);
+      .reduce((s, p) => s + Number(p.open_risks), 0);
     expect(openFromB).toBe(0);
     // KPI totalOpenRisks equals sum of returned open_risks only
-    const sumOpen = (result.projects as { open_risks: number }[])
-      .reduce((s, p) => s + p.open_risks, 0);
-    expect(result.kpi.totalOpenRisks).toBe(sumOpen);
+    const sumOpen = (result.projects as { open_risks: number | string }[])
+      .reduce((s, p) => s + Number(p.open_risks), 0);
+    expect(Number(result.kpi.totalOpenRisks)).toBe(sumOpen);
     // And that sum must not include B's 5 (projectA has exactly 1 in this fixture;
     // other parallel seeds under companyA may add more, so lower-bound only on A presence)
     const projectARow = (result.projects as { id: number; open_risks: number }[])
       .find(p => p.id === projectA);
-    expect(projectARow?.open_risks).toBe(1);
-    expect(result.kpi.totalOpenRisks).toBeLessThan(1 + 5); // would be ≥6 if B leaked into sum
+    expect(Number(projectARow?.open_risks)).toBe(1);
+    expect(Number(result.kpi.totalOpenRisks)).toBeLessThan(1 + 5); // would be ≥6 if B leaked into sum
   });
 
   it('roadmap excludes company B from programs and noProgramProjects', async () => {
@@ -170,9 +192,9 @@ describe.skipIf(!hasTestDb)('portfolio aggregates are company-scoped (SVC-05)', 
       (result.projects as { id: number }[]).filter(p => p.id !== projectB).length,
     );
     // KPI open-risk sum must match returned projects only
-    const sumOpen = (result.projects as { open_risks: number }[])
-      .reduce((s, p) => s + p.open_risks, 0);
-    expect(result.kpi.totalOpenRisks).toBe(sumOpen);
+    const sumOpen = (result.projects as { open_risks: number | string }[])
+      .reduce((s, p) => s + Number(p.open_risks), 0);
+    expect(Number(result.kpi.totalOpenRisks)).toBe(sumOpen);
     expect(ids).not.toContain(projectB);
   });
 

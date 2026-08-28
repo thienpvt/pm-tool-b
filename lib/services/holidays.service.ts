@@ -4,7 +4,7 @@ import {
   findHolidayByDate,
   listHolidays as listHolidaysRepo,
 } from '@/lib/repositories/holidays.repo';
-import { assertProjectAccess, type AccessActor } from './access';
+import { assertProjectAccess, assertProjectWriteAccess, type AccessActor } from './access';
 import { ConflictError, NotFoundError, ValidationError } from './errors';
 
 export async function listHolidays(projectId: number | string, actor: AccessActor) {
@@ -18,7 +18,7 @@ export async function createHoliday(
   date: string | undefined,
   name: string,
 ) {
-  await assertProjectAccess(projectId, actor);
+  await assertProjectWriteAccess(projectId, actor);
   if (!date) throw new ValidationError('date required', 'date');
   if (await findHolidayByDate(projectId, date)) {
     throw new ConflictError('date already exists');
@@ -31,7 +31,7 @@ export async function deleteHoliday(
   actor: AccessActor,
   holidayId: string | null,
 ) {
-  await assertProjectAccess(projectId, actor);
+  await assertProjectWriteAccess(projectId, actor);
   if (!holidayId) throw new ValidationError('hid required', 'hid');
   const result = await deleteHolidayRepo(projectId, holidayId);
   if (!result || Number(result.changes ?? 0) === 0) {

@@ -17,6 +17,8 @@ export type AuthUserRow = {
   company_id: number | null;
   is_admin: number;
   onboarding_completed: number;
+  status: string;
+  email: string | null;
 };
 
 /** Full user row for a login attempt. Password comparison happens in the route. */

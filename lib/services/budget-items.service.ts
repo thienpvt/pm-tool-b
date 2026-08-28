@@ -7,7 +7,7 @@ import {
   listExpensesByItem,
   updateBudgetItem as updateBudgetItemRepo,
 } from '@/lib/repositories/budget.repo';
-import { assertProjectAccess, type AccessActor } from './access';
+import { assertProjectAccess, assertProjectWriteAccess, type AccessActor } from './access';
 import { NotFoundError, ValidationError } from './errors';
 
 /**
@@ -35,7 +35,7 @@ export async function updateBudgetItem(
   actor: AccessActor,
   body: BudgetItemBody,
 ) {
-  await assertProjectAccess(projectId, actor);
+  await assertProjectWriteAccess(projectId, actor);
   if (!body.name?.trim()) throw new ValidationError('Name is required', 'name');
   if (!['CAPEX', 'OPEX'].includes(body.type)) throw new ValidationError('Invalid type', 'type');
   const updated = await updateBudgetItemRepo(projectId, itemId, body);
@@ -48,7 +48,7 @@ export async function deleteBudgetItem(
   itemId: number | string,
   actor: AccessActor,
 ) {
-  await assertProjectAccess(projectId, actor);
+  await assertProjectWriteAccess(projectId, actor);
   return deleteBudgetItemRepo(projectId, itemId);
 }
 
@@ -74,7 +74,7 @@ export async function createExpense(
   actor: AccessActor,
   body: ExpenseBody,
 ) {
-  await assertProjectAccess(projectId, actor);
+  await assertProjectWriteAccess(projectId, actor);
   if (!body.description?.trim()) throw new ValidationError('Description is required', 'description');
   // Scoping guard: the item must belong to the asserted project before an expense
   // can be attached to it.
@@ -89,7 +89,7 @@ export async function deleteExpense(
   expId: number | string,
   actor: AccessActor,
 ) {
-  await assertProjectAccess(projectId, actor);
+  await assertProjectWriteAccess(projectId, actor);
   // Scoping guard: an expense belonging to a different item/project 404s rather
   // than silently no-op deleting (matches createExpense's item-scoping check).
   const expense = await getExpenseInItem(projectId, itemId, expId);

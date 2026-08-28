@@ -33,6 +33,8 @@ describe.skipIf(!hasTestDb)('PATCH /api/projects/[id] mass assignment', () => {
     vi.mocked(getSessionFromRequest).mockResolvedValue({
       id: 1, username: 'admin', display_name: 'Admin',
       company_id: 3, company_name: 'Acme', is_admin: 1,
+      onboarding_completed: 1,
+      roles: ['cpmo'], status: 'active', email: 'admin@example.com',
     } as never);
     projectId = await seedProject('Route Mass Assignment', { company_id: 3 });
   });

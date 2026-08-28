@@ -2,7 +2,10 @@ import { NextRequest } from 'next/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const {
-  listTimelineMappings, createTimelineMapping, updateTimelineMapping, deleteTimelineMapping,
+  listTimelineMappings,
+  createTimelineMapping,
+  updateTimelineMapping,
+  deleteTimelineMapping,
 } = vi.hoisted(() => ({
   listTimelineMappings: vi.fn(),
   createTimelineMapping: vi.fn(),
@@ -11,7 +14,7 @@ const {
 }));
 
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
-vi.mock('@/lib/repositories/import-mapping.repo', () => ({
+vi.mock('@/lib/services/import-mapping.service', () => ({
   listTimelineMappings,
   createTimelineMapping,
   updateTimelineMapping,
@@ -19,6 +22,7 @@ vi.mock('@/lib/repositories/import-mapping.repo', () => ({
 }));
 
 import { getSessionFromRequest } from '@/lib/auth';
+import { ForbiddenError } from '@/lib/services/errors';
 import { GET, POST } from './route';
 import { DELETE, PUT } from './[id]/route';
 
@@ -47,7 +51,7 @@ describe('GET/POST /api/import-mapping', () => {
     });
   }
 
-  it('GET returns 401 with no session, repo not called', async () => {
+  it('GET returns 401 with no session, service not called', async () => {
     vi.mocked(getSessionFromRequest).mockResolvedValue(null);
     const res = await GET(req('GET'), params());
     expect(res.status).toBe(401);
@@ -55,7 +59,7 @@ describe('GET/POST /api/import-mapping', () => {
     expect(listTimelineMappings).not.toHaveBeenCalled();
   });
 
-  it('POST returns 401 with no session, repo not called', async () => {
+  it('POST returns 401 with no session, service not called', async () => {
     vi.mocked(getSessionFromRequest).mockResolvedValue(null);
     const res = await POST(req('POST', undefined, { name: 'x', mappings_json: '{}' }), params());
     expect(res.status).toBe(401);
@@ -72,6 +76,7 @@ describe('GET/POST /api/import-mapping', () => {
 
     expect(res.status).toBe(200);
     await expect(res.json()).resolves.toEqual(rows);
+    expect(listTimelineMappings).toHaveBeenCalledWith(expect.objectContaining({ company_id: 5 }));
   });
 
   it('POST creates for an owner with 201', async () => {
@@ -83,6 +88,42 @@ describe('GET/POST /api/import-mapping', () => {
 
     expect(res.status).toBe(201);
     await expect(res.json()).resolves.toEqual(created);
+    expect(createTimelineMapping).toHaveBeenCalledWith(
+      expect.objectContaining({ company_id: 5 }),
+      'tpl2',
+      '{}',
+    );
+  });
+
+  it('POST ignores company_id in body and stamps session company', async () => {
+    vi.mocked(getSessionFromRequest).mockResolvedValue(ownerSession as never);
+    const created = { id: 3, name: 'tpl3', mappings_json: '{}' };
+    createTimelineMapping.mockResolvedValue(created);
+
+    const res = await POST(
+      req('POST', undefined, { name: 'tpl3', mappings_json: '{}', company_id: 999 }),
+      params(),
+    );
+
+    expect(res.status).toBe(201);
+    expect(createTimelineMapping).toHaveBeenCalledWith(
+      expect.objectContaining({ company_id: 5 }),
+      'tpl3',
+      '{}',
+    );
+    expect(createTimelineMapping).not.toHaveBeenCalledWith(
+      expect.objectContaining({ company_id: 999 }),
+      expect.anything(),
+      expect.anything(),
+    );
+  });
+
+  it('POST returns 400 { error: Missing fields } on schema failure', async () => {
+    vi.mocked(getSessionFromRequest).mockResolvedValue(ownerSession as never);
+    const res = await POST(req('POST', undefined, { mappings_json: '{}' }), params());
+    expect(res.status).toBe(400);
+    await expect(res.json()).resolves.toEqual({ error: 'Missing fields' });
+    expect(createTimelineMapping).not.toHaveBeenCalled();
   });
 });
 
@@ -94,6 +135,11 @@ describe('DELETE/PUT /api/import-mapping/[id]', () => {
   const ownerSession = {
     id: 2, username: 'ava', display_name: 'Ava', company_id: 5,
     company_name: 'Acme', is_admin: 0, onboarding_completed: 1,
+  };
+
+  const foreignSession = {
+    id: 3, username: 'bob', display_name: 'Bob', company_id: 9,
+    company_name: 'Other', is_admin: 0, onboarding_completed: 1,
   };
 
   const params = (id = '1') => ({ params: Promise.resolve({ id }) });
@@ -122,6 +168,26 @@ describe('DELETE/PUT /api/import-mapping/[id]', () => {
     expect(updateTimelineMapping).not.toHaveBeenCalled();
   });
 
+  it('DELETE returns 403 for a cross-company mapping', async () => {
+    vi.mocked(getSessionFromRequest).mockResolvedValue(foreignSession as never);
+    deleteTimelineMapping.mockRejectedValue(new ForbiddenError());
+
+    const res = await DELETE(req('DELETE'), params());
+
+    expect(res.status).toBe(403);
+    await expect(res.json()).resolves.toEqual({ error: 'Forbidden' });
+  });
+
+  it('PUT returns 403 for a cross-company mapping', async () => {
+    vi.mocked(getSessionFromRequest).mockResolvedValue(foreignSession as never);
+    updateTimelineMapping.mockRejectedValue(new ForbiddenError());
+
+    const res = await PUT(req('PUT', undefined, { name: 'x', mappings_json: '{}' }), params());
+
+    expect(res.status).toBe(403);
+    await expect(res.json()).resolves.toEqual({ error: 'Forbidden' });
+  });
+
   it('DELETE returns { ok: true } for an authenticated caller (shape preserved)', async () => {
     vi.mocked(getSessionFromRequest).mockResolvedValue(ownerSession as never);
     deleteTimelineMapping.mockResolvedValue({ changes: 1 });
@@ -130,7 +196,7 @@ describe('DELETE/PUT /api/import-mapping/[id]', () => {
 
     expect(res.status).toBe(200);
     await expect(res.json()).resolves.toEqual({ ok: true });
-    expect(deleteTimelineMapping).toHaveBeenCalledWith('1');
+    expect(deleteTimelineMapping).toHaveBeenCalledWith('1', expect.objectContaining({ company_id: 5 }));
   });
 
   it('PUT returns the updated row for an authenticated caller (shape preserved)', async () => {
@@ -142,6 +208,11 @@ describe('DELETE/PUT /api/import-mapping/[id]', () => {
 
     expect(res.status).toBe(200);
     await expect(res.json()).resolves.toEqual(updated);
-    expect(updateTimelineMapping).toHaveBeenCalledWith('1', 'renamed', '{}');
+    expect(updateTimelineMapping).toHaveBeenCalledWith(
+      '1',
+      expect.objectContaining({ company_id: 5 }),
+      'renamed',
+      '{}',
+    );
   });
 });

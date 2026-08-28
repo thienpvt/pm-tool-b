@@ -1,34 +1,45 @@
 import { NextRequest } from 'next/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { projectAccessRow, updateMilestoneRepo } = vi.hoisted(() => ({
-  projectAccessRow: vi.fn(),
-  updateMilestoneRepo: vi.fn(),
-}));
+const { projectAccessRow, hasActivePmAssignment, updateMilestoneRepo, cancelMilestoneRepo, getMilestoneRepo } =
+  vi.hoisted(() => ({
+    projectAccessRow: vi.fn(),
+    hasActivePmAssignment: vi.fn(),
+    updateMilestoneRepo: vi.fn(),
+    cancelMilestoneRepo: vi.fn(),
+    getMilestoneRepo: vi.fn(),
+  }));
 
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
 vi.mock('@/lib/repositories/projects.repo', () => ({ projectAccessRow }));
+vi.mock('@/lib/repositories/pm-assignments.repo', () => ({ hasActivePmAssignment }));
+vi.mock('@/lib/services/audit.service', () => ({ auditLog: vi.fn().mockResolvedValue(undefined) }));
 vi.mock('@/lib/repositories/milestones.repo', () => ({
   listMilestones: vi.fn(),
   createMilestone: vi.fn(),
   updateMilestone: updateMilestoneRepo,
-  deleteMilestone: vi.fn(),
+  cancelMilestone: cancelMilestoneRepo,
+  getMilestone: getMilestoneRepo,
   listEpics: vi.fn(),
   linkEpic: vi.fn(),
   unlinkEpic: vi.fn(),
 }));
 
 import { getSessionFromRequest } from '@/lib/auth';
-import { PUT } from './route';
+import { DELETE, PUT } from './route';
 
 const owner = {
   id: 2, username: 'ava', display_name: 'Ava', company_id: 5, company_name: 'Acme',
   is_admin: 0, onboarding_completed: 1,
+  roles: ['pm'], status: 'active', email: 'ava@example.com',
 };
 const foreign = { ...owner, company_id: 9 };
 
 describe('PUT /api/projects/[id]/milestones/[milestoneId]', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    hasActivePmAssignment.mockResolvedValue(true);
+  });
   const params = { params: Promise.resolve({ id: '7', milestoneId: '3' }) };
   const req = () =>
     new NextRequest('http://localhost/api/projects/7/milestones/3', {
@@ -56,5 +67,28 @@ describe('PUT /api/projects/[id]/milestones/[milestoneId]', () => {
     const res = await PUT(req(), params);
     expect(res.status).toBe(200);
     await expect(res.json()).resolves.toEqual({ id: 3, name: 'M' });
+  });
+});
+
+describe('DELETE /api/projects/[id]/milestones/[milestoneId]', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    hasActivePmAssignment.mockResolvedValue(true);
+  });
+
+  const params = { params: Promise.resolve({ id: '7', milestoneId: '3' }) };
+  const req = () =>
+    new NextRequest('http://localhost/api/projects/7/milestones/3', { method: 'DELETE' });
+
+  it('returns 200 { ok: true } and invokes cancelMilestone for owner', async () => {
+    vi.mocked(getSessionFromRequest).mockResolvedValue(owner as never);
+    projectAccessRow.mockResolvedValue({ company_id: 5, customer_company_id: null });
+    getMilestoneRepo.mockResolvedValue({ id: 3, status: 'planned' });
+    cancelMilestoneRepo.mockResolvedValue({ id: 3, status: 'cancelled' });
+
+    const res = await DELETE(req(), params);
+    expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toEqual({ ok: true });
+    expect(cancelMilestoneRepo).toHaveBeenCalledWith('7', '3', owner.id);
   });
 });

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { withProjectAccess } from '@/lib/http/with-project-access';
-import { createIssue, deleteIssue, listIssues, updateIssue } from '@/lib/services/issues.service';
+import { createIssue, deactivateIssue, listIssues, updateIssue } from '@/lib/services/issues.service';
 import { issueInputSchema, issueUpdateSchema } from './schema';
 
 export const GET = withProjectAccess(async (_req, { params, actor }) =>
@@ -23,6 +23,6 @@ export const PUT = withProjectAccess(
 
 export const DELETE = withProjectAccess(async (req, { params, actor }) => {
   const rowId = new URL(req.url).searchParams.get('rowId') ?? '';
-  await deleteIssue(params.id, actor, rowId);
+  await deactivateIssue(params.id, actor, rowId);
   return NextResponse.json({ ok: true });
 });

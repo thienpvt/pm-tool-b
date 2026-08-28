@@ -32,6 +32,7 @@ import {
 } from '@/lib/repositories/portfolio.repo';
 import { listPrograms } from '@/lib/repositories/programs.repo';
 import type { AccessActor } from './access';
+import { assertCompanyWrite } from './access';
 import { NotFoundError, ValidationError } from './errors';
 
 /**
@@ -47,8 +48,8 @@ import { NotFoundError, ValidationError } from './errors';
  */
 export async function getPortfolioSummary(actor: AccessActor) {
   const [projects, programs, riskCounts, issueCounts, activityStats] = await Promise.all([
-    listPortfolioProjects(actor.company_id, Boolean(actor.is_admin)) as Promise<any[]>,
-    listPrograms(actor.company_id, Boolean(actor.is_admin)) as Promise<any[]>,
+    listPortfolioProjects(actor.company_id) as Promise<any[]>,
+    listPrograms(actor.company_id) as Promise<any[]>,
     riskCountsByProject() as Promise<any[]>,
     issueCountsByProject() as Promise<any[]>,
     activityCompletionByProject() as Promise<any[]>,
@@ -202,6 +203,7 @@ export async function createBudget(actor: AccessActor, body: PortfolioBudgetBody
   if (!body.period_label || !body.start_date || !body.end_date) {
     throw new ValidationError('period_label, start_date, end_date required');
   }
+  assertCompanyWrite(actor);
   return createPortfolioBudget(actor.company_id, body);
 }
 
@@ -212,12 +214,14 @@ export async function updateBudget(
 ) {
   const existing = await findPortfolioBudget(actor.company_id, budgetId);
   if (!existing) throw new NotFoundError('Not found', 'portfolio_budget');
+  assertCompanyWrite(actor);
   return updatePortfolioBudget(budgetId, body);
 }
 
 export async function deleteBudget(budgetId: number | string, actor: AccessActor) {
   const existing = await findPortfolioBudget(actor.company_id, budgetId);
   if (!existing) throw new NotFoundError('Not found', 'portfolio_budget');
+  assertCompanyWrite(actor);
   await deletePortfolioBudget(actor.company_id, budgetId);
   return { ok: true as const };
 }
@@ -243,6 +247,7 @@ export async function createBudgetAllocation(
 ) {
   const budget = await findPortfolioBudget(actor.company_id, budgetId);
   if (!budget) throw new NotFoundError('Not found', 'portfolio_budget');
+  assertCompanyWrite(actor);
   return createPortfolioBudgetAllocation(budgetId, body);
 }
 
@@ -254,6 +259,7 @@ export async function updateBudgetAllocation(
 ) {
   const budget = await findPortfolioBudget(actor.company_id, budgetId);
   if (!budget) throw new NotFoundError('Not found', 'portfolio_budget');
+  assertCompanyWrite(actor);
   const updated = await updatePortfolioBudgetAllocation(budgetId, allocationId, body);
   if (!updated) throw new NotFoundError('Not found', 'portfolio_budget_allocation');
   return updated;
@@ -266,6 +272,7 @@ export async function deleteBudgetAllocation(
 ) {
   const budget = await findPortfolioBudget(actor.company_id, budgetId);
   if (!budget) throw new NotFoundError('Not found', 'portfolio_budget');
+  assertCompanyWrite(actor);
   await deletePortfolioBudgetAllocation(budgetId, allocationId);
   return { ok: true as const };
 }
@@ -288,6 +295,7 @@ export async function createBudgetCategory(
   const budget = await findPortfolioBudget(actor.company_id, budgetId);
   if (!budget) throw new NotFoundError('Not found', 'portfolio_budget');
   if (!body.category) throw new ValidationError('category required', 'category');
+  assertCompanyWrite(actor);
   return createPortfolioBudgetCategory(budgetId, body);
 }
 
@@ -299,6 +307,7 @@ export async function updateBudgetCategory(
 ) {
   const budget = await findPortfolioBudget(actor.company_id, budgetId);
   if (!budget) throw new NotFoundError('Not found', 'portfolio_budget');
+  assertCompanyWrite(actor);
   const updated = await updatePortfolioBudgetCategory(budgetId, categoryId, body);
   if (!updated) throw new NotFoundError('Not found', 'portfolio_budget_category');
   return updated;
@@ -311,6 +320,7 @@ export async function deleteBudgetCategory(
 ) {
   const budget = await findPortfolioBudget(actor.company_id, budgetId);
   if (!budget) throw new NotFoundError('Not found', 'portfolio_budget');
+  assertCompanyWrite(actor);
   await deletePortfolioBudgetCategory(budgetId, categoryId);
   return { ok: true as const };
 }
@@ -345,6 +355,7 @@ function normalizeMemberBody(body: PortfolioMemberBody) {
 }
 
 export async function createMember(actor: AccessActor, body: PortfolioMemberBody) {
+  assertCompanyWrite(actor);
   return createPortfolioMember(actor.company_id, normalizeMemberBody(body));
 }
 
@@ -353,12 +364,14 @@ export async function updateMember(
   actor: AccessActor,
   body: PortfolioMemberBody,
 ) {
+  assertCompanyWrite(actor);
   const row = await updatePortfolioMember(actor.company_id, memberId, normalizeMemberBody(body));
   if (!row) throw new NotFoundError('Not found', 'portfolio_member');
   return row;
 }
 
 export async function deleteMember(memberId: number | string, actor: AccessActor) {
+  assertCompanyWrite(actor);
   await deletePortfolioMember(actor.company_id, memberId);
   return { ok: true as const };
 }
@@ -366,7 +379,7 @@ export async function deleteMember(memberId: number | string, actor: AccessActor
 // ── Milestones ────────────────────────────────────────────────────────────────
 
 export async function listPortfolioMilestones(actor: AccessActor) {
-  return listPortfolioMilestonesRepo(actor.company_id, Boolean(actor.is_admin));
+  return listPortfolioMilestonesRepo(actor.company_id);
 }
 
 // ── Program allocations ───────────────────────────────────────────────────────
@@ -390,6 +403,7 @@ export async function createProgramAllocation(
   if (!program_id) throw new ValidationError('program_id required', 'program_id');
   const headcount = Math.max(0, Number(allocated_headcount) || 0);
   const pid = Number(program_id);
+  assertCompanyWrite(actor);
   await upsertPortfolioProgramAllocation(actor.company_id, pid, headcount);
   return { program_id: pid, allocated_headcount: headcount };
 }
@@ -400,11 +414,13 @@ export async function updateProgramAllocation(
   allocatedHeadcount: unknown,
 ) {
   const headcount = Math.max(0, Number(allocatedHeadcount) || 0);
+  assertCompanyWrite(actor);
   await updatePortfolioProgramAllocation(actor.company_id, allocationId, headcount);
   return { id: Number(allocationId), allocated_headcount: headcount };
 }
 
 export async function deleteProgramAllocation(allocationId: number | string, actor: AccessActor) {
+  assertCompanyWrite(actor);
   await deletePortfolioProgramAllocation(actor.company_id, allocationId);
   return { ok: true as const };
 }
@@ -418,6 +434,7 @@ export async function getQuota(actor: AccessActor) {
 
 export async function updateQuota(actor: AccessActor, body: { headcount_quota?: unknown }) {
   const quota = Math.max(0, Number(body.headcount_quota) || 0);
+  assertCompanyWrite(actor);
   await setCompanyHeadcountQuota(actor.company_id, quota);
   return { headcount_quota: quota };
 }

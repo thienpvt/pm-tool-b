@@ -12,6 +12,7 @@ export default defineConfig({
           name: 'node',
           environment: 'node',
           include: ['{lib,app}/**/*.test.ts'],
+          exclude: ['lib/log.test.ts'],
         },
       },
       {

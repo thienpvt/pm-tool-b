@@ -4,29 +4,22 @@ const PROGRAM_FIELDS = `id, name, industry, contact_name, contact_email,
   contact_phone, website, notes, company_id, created_at`;
 
 /** Programs are stored in the legacy `customers` table. */
-export async function listPrograms(companyId: number | null, isAdmin: boolean) {
+export async function listPrograms(companyId: number | null) {
   const db = await getDb();
-  if (isAdmin) return db.all(`SELECT ${PROGRAM_FIELDS} FROM customers ORDER BY name`);
   if (companyId !== null) {
     return db.all(`SELECT ${PROGRAM_FIELDS} FROM customers WHERE company_id = ? ORDER BY name`, companyId);
   }
   return db.all(`SELECT ${PROGRAM_FIELDS} FROM customers WHERE company_id IS NULL ORDER BY name`);
 }
 
-/** Admin sees all; non-admin uses an equality filter even when companyId is null. */
-export async function listCompanyPrograms(companyId: number | null, isAdmin: boolean) {
+/** Company-scoped program list (equality filter even when companyId is null). */
+export async function listCompanyPrograms(companyId: number | null) {
   const db = await getDb();
-  if (isAdmin) return db.all(`SELECT ${PROGRAM_FIELDS} FROM customers ORDER BY name`);
   return db.all(`SELECT ${PROGRAM_FIELDS} FROM customers WHERE company_id = ? ORDER BY name`, companyId);
 }
 
-export async function projectCountsByProgram(companyId: number | null, isAdmin: boolean) {
+export async function projectCountsByProgram(companyId: number | null) {
   const db = await getDb();
-  if (isAdmin) {
-    return db.all<{ customer_id: number; count: number }>(
-      'SELECT p.customer_id, COUNT(*) as count FROM projects p WHERE p.customer_id IS NOT NULL GROUP BY p.customer_id',
-    );
-  }
   if (companyId !== null) {
     return db.all<{ customer_id: number; count: number }>(
       `SELECT p.customer_id, COUNT(*) as count
@@ -85,9 +78,12 @@ export async function deleteProgram(programId: number | string) {
 export async function programProjectAllocations(
   programId: number | string,
   companyId: number | null,
-  isAdmin: boolean,
 ) {
   const db = await getDb();
+  const companyFilter = companyId !== null
+    ? 'AND p.company_id = ?'
+    : 'AND p.company_id IS NULL';
+  const companyParams = companyId !== null ? [companyId] : [];
   const projects = await db.all<{
     project_id: number; project_name: string; allocated_headcount: number;
   }>(
@@ -95,9 +91,9 @@ export async function programProjectAllocations(
             COALESCE(ppa.allocated_headcount, 0) AS allocated_headcount
      FROM projects p
      LEFT JOIN program_project_allocations ppa ON ppa.project_id = p.id AND ppa.program_id = ?
-     WHERE p.customer_id = ? AND (p.company_id = ? OR ? = 1)
+     WHERE p.customer_id = ? ${companyFilter}
      ORDER BY p.name`,
-    programId, programId, companyId, isAdmin ? 1 : 0,
+    programId, programId, ...companyParams,
   );
   const program = await db.get<{ allocated_headcount: number; name: string }>(
     `SELECT c.name, COALESCE(ppa.allocated_headcount, 0) AS allocated_headcount

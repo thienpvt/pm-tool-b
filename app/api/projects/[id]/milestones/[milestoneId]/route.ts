@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { withProjectAccess } from '@/lib/http/with-project-access';
-import { deleteMilestone, updateMilestone } from '@/lib/services/milestones.service';
+import { cancelMilestone, updateMilestone } from '@/lib/services/milestones.service';
 import { milestoneUpdateSchema } from '../schema';
 
 type Params = { id: string; milestoneId: string };
@@ -14,6 +14,6 @@ export const PUT = withProjectAccess<Params>(
 );
 
 export const DELETE = withProjectAccess<Params>(async (_req, { params, actor }) => {
-  await deleteMilestone(params.id, actor, params.milestoneId);
+  await cancelMilestone(params.id, actor, params.milestoneId);
   return NextResponse.json({ ok: true });
 });

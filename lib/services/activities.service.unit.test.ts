@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const {
   assertProjectAccess,
+  assertProjectWriteAccess,
   listActivitiesRepo,
   createActivityRepo,
   updateActivityRepo,
@@ -13,6 +14,7 @@ const {
   insertImportedActivity,
 } = vi.hoisted(() => ({
   assertProjectAccess: vi.fn(),
+  assertProjectWriteAccess: vi.fn(),
   listActivitiesRepo: vi.fn(),
   createActivityRepo: vi.fn(),
   updateActivityRepo: vi.fn(),
@@ -24,7 +26,7 @@ const {
   insertImportedActivity: vi.fn(),
 }));
 
-vi.mock('@/lib/services/access', () => ({ assertProjectAccess }));
+vi.mock('@/lib/services/access', () => ({ assertProjectAccess, assertProjectWriteAccess }));
 vi.mock('@/lib/repositories/activities.repo', () => ({
   listActivities: listActivitiesRepo,
   createActivity: createActivityRepo,
@@ -50,6 +52,7 @@ import { ForbiddenError, NotFoundError } from './errors';
 beforeEach(() => {
   vi.clearAllMocks();
   assertProjectAccess.mockResolvedValue(undefined);
+  assertProjectWriteAccess.mockResolvedValue(undefined);
 });
 
 const owner = { company_id: 5 as number | null, is_admin: 0 as number | boolean };
@@ -72,14 +75,15 @@ describe('activities.service', () => {
   });
 
   describe('createActivity', () => {
-    it('asserts access before inserting', async () => {
+    it('asserts write access before inserting', async () => {
       createActivityRepo.mockResolvedValue({ id: 2 });
       await expect(createActivity(7, owner, { activity: 'x' })).resolves.toEqual({ id: 2 });
+      expect(assertProjectWriteAccess).toHaveBeenCalledWith(7, owner);
       expect(createActivityRepo).toHaveBeenCalledWith(7, { activity: 'x' });
     });
 
-    it('does not call the repository when access is denied', async () => {
-      assertProjectAccess.mockRejectedValue(new ForbiddenError());
+    it('does not call the repository when write access is denied', async () => {
+      assertProjectWriteAccess.mockRejectedValue(new ForbiddenError());
       await expect(createActivity(7, foreign, {})).rejects.toBeInstanceOf(ForbiddenError);
       expect(createActivityRepo).not.toHaveBeenCalled();
     });
@@ -93,8 +97,8 @@ describe('activities.service', () => {
       );
     });
 
-    it('does not call the repository when access is denied', async () => {
-      assertProjectAccess.mockRejectedValue(new ForbiddenError());
+    it('does not call the repository when write access is denied', async () => {
+      assertProjectWriteAccess.mockRejectedValue(new ForbiddenError());
       await expect(updateActivity(7, foreign, 3, {})).rejects.toBeInstanceOf(ForbiddenError);
       expect(updateActivityRepo).not.toHaveBeenCalled();
     });
@@ -106,18 +110,28 @@ describe('activities.service', () => {
       await expect(deleteActivity(7, owner, 99)).rejects.toBeInstanceOf(NotFoundError);
     });
 
-    it('does not call the repository when access is denied', async () => {
-      assertProjectAccess.mockRejectedValue(new ForbiddenError());
+    it('does not call the repository when write access is denied', async () => {
+      assertProjectWriteAccess.mockRejectedValue(new ForbiddenError());
       await expect(deleteActivity(7, foreign, 3)).rejects.toBeInstanceOf(ForbiddenError);
       expect(deleteActivityRepo).not.toHaveBeenCalled();
     });
   });
 
   describe('importActivities', () => {
-    it('does not call import repos when access is denied', async () => {
-      assertProjectAccess.mockRejectedValue(new ForbiddenError());
+    it('does not call import repos when write access is denied', async () => {
+      assertProjectWriteAccess.mockRejectedValue(new ForbiddenError());
       await expect(importActivities(7, foreign, [])).rejects.toBeInstanceOf(ForbiddenError);
       expect(listJiraKeyed).not.toHaveBeenCalled();
+    });
+
+    it('asserts write access before importing', async () => {
+      listJiraKeyed.mockResolvedValue([]);
+      maxOrderIdx.mockResolvedValue(0);
+      insertImportedActivity.mockResolvedValue(11);
+
+      await importActivities(7, owner, [{ activity: 'epic', jira_key: 'EPIC-1' }]);
+
+      expect(assertProjectWriteAccess).toHaveBeenCalledWith(7, owner);
     });
 
     it('inserts and updates by jira key', async () => {

@@ -40,6 +40,46 @@
 
 ---
 
+## Milestone: v2.0 — Portfolio One View
+
+**Shipped:** 2026-08-26
+**Phases:** 10 | **Plans:** 40 | **Tasks:** 99
+
+### What Was Built
+- Mapping-table `company_id` tenancy (TENANT-01) and CPMO/PM/Viewer server authorization (USER/AUTH)
+- Spec project master, assignment windows, stakeholders, RAID/milestone masters
+- Weekly periods, versioned PM submit, CPMO tracking/export
+- Parallel fiscal budget/ROI/dependencies; portfolio + PM dashboard APIs; Confluence document checklist
+- Append-only `audit_logs` with company-scoped GET `/api/audit`
+
+### What Worked
+- Isolation none on the main tree after worktree races; sequential executors
+- Locked D-23 leftover so ops/admin never became a moving target
+- `ui_phase: false` kept the gate on Vitest instead of unbuilt screens
+- TDD RED/GREEN commits plus review-fixer for WR findings (Phase 17 CR-01 tenant, Phase 18 audit-after-write)
+
+### What Was Inefficient
+- Nyquist VALIDATION.md stayed `draft` on all ten phases (never `$gsd-validate-phase`)
+- Dashboard/weekly/checklist/audit APIs shipped without UI consumers (accepted, still a product gap)
+- `listOpenProjectDependencies` exported for Phase 16 and never imported
+
+### Patterns Established
+- Parallel spec tables/APIs beside v1 (`project_fiscal_budgets`, `/api/dashboards/*`, document catalog vs JSON diary)
+- `withCpmo` + `assertCompanyWrite` for company-write surfaces
+- `auditLog` after successful repo write only; INSERT+SELECT repo contract with source-scan
+
+### Key Lessons
+1. Do not store spec fiscal data in v1 `budget_items`; keep a parallel ledger.
+2. Stage-change checklist generate must use `project.company_id`, not `actor.company_id`.
+3. Audit specialized actions (`code_change`) after the DB write, not before.
+
+### Cost Observations
+- Model mix: Grok 4.6 for plan/check; Composer 2.5 for research/execute/verify/review
+- Isolation: sequential on main checkout (no worktrees)
+- Notable: last phase (18) was three plans; lifecycle audit status `tech_debt` not `gaps_found`
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -47,7 +87,9 @@
 | Milestone | What changed |
 |-----------|----------------|
 | v1.0 | First GSD-tracked reorg; autonomous close after Phase 8 filled the INTG-08 gap |
+| v2.0 | Spec compliance on the layered stack; server tests as gate (`ui_phase` false); leftover ops/admin still carved out |
 
 ### Recurring Issues
 
 - Operator-gated env/DB evidence (cutover script, TEST_DATABASE_URL) slips past the phase that introduced it
+- Nyquist VALIDATION.md left `draft` unless `$gsd-validate-phase` is run explicitly

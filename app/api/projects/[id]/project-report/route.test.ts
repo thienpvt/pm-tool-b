@@ -4,10 +4,12 @@ import { IntegrationError } from '@/lib/integrations/errors';
 
 const {
   projectAccessRow,
+  hasActivePmAssignment,
   createMessage,
   resolveAnthropicCredentials,
 } = vi.hoisted(() => ({
   projectAccessRow: vi.fn(),
+  hasActivePmAssignment: vi.fn(),
   createMessage: vi.fn(),
   resolveAnthropicCredentials: vi.fn(),
 }));
@@ -20,6 +22,7 @@ vi.mock('@/lib/repositories/projects.repo', () => ({
     start_date: '2026-01-01', end_date: '2026-12-31',
   }),
 }));
+vi.mock('@/lib/repositories/pm-assignments.repo', () => ({ hasActivePmAssignment }));
 vi.mock('@/lib/repositories/activities.repo', () => ({
   listForProjectReport: vi.fn().mockResolvedValue([]),
 }));
@@ -62,6 +65,7 @@ import { GET, POST } from './route';
 describe('GET/POST /api/projects/[id]/project-report', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    hasActivePmAssignment.mockResolvedValue(true);
   });
 
   const params = (id = '7') => ({ params: Promise.resolve({ id }) });
@@ -82,6 +86,9 @@ describe('GET/POST /api/projects/[id]/project-report', () => {
     company_name: 'Acme',
     is_admin: 0,
     onboarding_completed: 1,
+    roles: ['pm'],
+    status: 'active',
+    email: 'ava@example.com',
   };
 
   const foreignSession = { ...ownerSession, company_id: 9, username: 'bob' };

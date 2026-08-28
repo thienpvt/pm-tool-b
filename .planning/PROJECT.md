@@ -1,18 +1,30 @@
-# PM Tool B — Layer Reorg & Hardening
+# PM Tool B — Portfolio One View
 
 ## What This Is
 
-Multi-tenant project/portfolio management app (Next.js 16 App Router, React 19, PostgreSQL) with Jira import, AI-generated reports, and Excel/PPT/Word export. v1.0 was a structural reorg of a messy codebase: real layers front to back, then the security and integration concerns the codebase map surfaced. Feature work resumes after `$gsd-new-milestone`.
+Multi-tenant project/portfolio management app (Next.js 16 App Router, React 19, PostgreSQL) used as a centralized PPM for CPMO, PMs, and viewers. v1.0 established layers, tenant isolation, Jira/AI/export clients, and decomposed god pages. v2.0 brings the product into compliance with the GuiIT Portfolio One View business spec (PR-01..PR-15) while keeping Jira import, AI reports, and Excel/PPT/Word export.
 
 ## Core Value
 
-Every project-scoped request is tenant-isolated and every layer has one job — so a new route or page cannot silently reintroduce IDOR or a 2000-line god component.
+One source of truth for projects, milestones, RAID, and weekly reports — role- and project-scoped — so CPMO and PMs act on highlights, nearest milestones, open risks/issues, and items that need leadership support.
+
+## Current Milestone: v2.0 Portfolio One View
+
+**Goal:** Bring the existing PPM app into compliance with the GuiIT Portfolio One View spec (PR-01..PR-15), keep Jira/AI/export, and put `company_id` on the four mapping tables left from v1.0.
+
+**Target features:**
+- Users, roles, login, and server-side authorization (CPMO / PM / Viewer)
+- Project master data, PM assignment, stakeholders, dependencies, milestones
+- Budget & value, RAID register as master with weekly snapshots
+- Weekly-report period config, PM submit/versioning, CPMO tracking/export
+- Portfolio and PM dashboards
+- Project documents: templates + Confluence checklist (no file upload)
 
 ## Requirements
 
 ### Validated
 
-<!-- Inferred from existing code — shipped and relied upon. Behavior must survive the reorg. -->
+<!-- Shipped and relied upon. Spec-compliant replacements land in Active; these must not regress tenant isolation or integrations. -->
 
 - ✓ Multi-tenant auth: scrypt password hash, DB-backed sessions, company scoping — `lib/auth.ts`
 - ✓ Project CRUD + nested resources (activities, risks, issues, meetings, escalations, team, documents, bugs, holidays, milestones, budget)
@@ -32,60 +44,82 @@ Every project-scoped request is tenant-isolated and every layer has one job — 
 - ✓ Zod validation at Jira and Anthropic client boundaries
 - ✓ Seven god pages split into hooks + feature modules (UI-01..11)
 - ✓ `withProjectAccess` on project-scoped, import, and export routes; 401/403 tests (ROUTE-03, 04, 08–11)
-- ✓ Vitest 4 harness + layer tests including cross-company 403 and mocked integration clients (727 passing)
+- ✓ Vitest 4 harness + layer tests including cross-company 403 and mocked integration clients (1019 passing after Phase 10)
+- ✓ TENANT-01 — `company_id` on `timeline_import_mappings`, `bug_import_mappings`, `jira_jql_presets`, `jira_sync_mappings`; multi-company CROSS JOIN backfill; cross-company 403 — Phase 9
+- ✓ PR-01 / USER-01..06 — CPMO user admin: unique username+email, multi-role union, Active/Inactive/Locked, lock/unlock with actor+time, soft-delete only — Phase 10
+- ✓ PR-02 / AUTH-01..06 — SessionUser.roles is authorization truth; company-scoped CPMO; PM write follows assignment windows (Phase 11 replaced interim email/name lookup); Viewer mutators 403; Inactive/Locked cannot obtain or keep a session — Phase 10–11
+- ✓ PR-03 / PROJ-01..08 — Company-scoped unique `project_code`, L0–L5 governance with JSON warnings, live `progress_pct`, weekly-report flag — Phase 11
+- ✓ PR-04 / PMAS-01..04 — Assignment windows (`project_pm_assignments`); one active primary or none; collaborators cascade when primary ends; write access follows the window — Phase 11
+- ✓ PR-07 / MS-01..03, MS-05 — Milestone master: cancel-in-place (no physical delete), upcoming 7-day and overdue helpers — Phase 12
+- ✓ RAID-01, RAID-04..06 — RAID master: unique codes, deactivate-in-place, due-date history, High-open record counts, tech-council list — Phase 12
+- ✓ PR-10 / PERD-01..03 — CPMO weekly periods, frozen due/config snapshot, overdue computed, obligated shells only — Phase 13
+- ✓ PR-11 / WKRP-01..06, MS-04, RAID-02..03 — PM draft/submit/correct with versioned snapshots; RAID writes on submit only; progress_pct copy-never-write-back — Phase 13
+- ✓ PR-12 / CPMO-01..04 — Period tracking counts/filters and snapshot-only consolidated xlsx/docx/pptx export — Phase 14
+- ✓ PR-06 / DEP-01..03 — Bidirectional cross-project dependencies (write on from, access on to, soft-end, no physical DELETE) — Phase 15
+- ✓ PR-08 / BUDG-01..06 — Parallel fiscal budget (integer VND, append-only adjustments), financial/non-financial benefits, honest ROI — Phase 15
+- ✓ PR-13 / PDSH-01..06 — Spec CPMO portfolio KPIs, AND session filters, drill-downs, xlsx/pdf export on `/api/dashboards/portfolio` — Phase 16
+- ✓ PR-14 / MDSH-01..05 — Assignment-scoped PM dashboard with weekly/milestone/RAID action queues and deep-link hrefs — Phase 16
+- ✓ PR-15 / DOC-01..06 — Document catalog, URL-only templates, Confluence HTTPS checklist (no project binaries), CPMO compliance — Phase 17
+- ✓ AUDIT-01 — Governed mutations append actor/time/entity/before-after on `audit_logs`; INSERT+SELECT only; CPMO GET `/api/audit` company-scoped — Phase 18
 
-Remainder (ops/admin/config routes still repo-direct, proxy HTML-307 for API callers) is accepted v1.0 tech debt — see `.planning/milestones/v1.0-MILESTONE-AUDIT.md`.
+Remainder (ops/admin/config routes still repo-direct, proxy HTML-307 for API callers) is accepted v1.0 tech debt — see `.planning/milestones/v1.0-MILESTONE-AUDIT.md`. D-23 leftover: `app/api/operations/**` and platform `/api/admin/companies` stay session+tenant this milestone until later phases.
 
 ### Active
 
-**Next milestone** — not defined. Run `$gsd-new-milestone` to gather goals.
+v2.0 product scope is shipped. Candidates for a later milestone (not started):
 
-Carried-forward debt candidates:
-
-- [ ] Service-layer remaining ops/admin/config/import-mapping routes (SVC-01 / ROUTE-05 remainder)
-- [ ] Confirm Anthropic malformed-output 502 vs old 500 with operators (HYG-02)
-- [ ] JSON 401 from `proxy.ts` for API callers (currently HTML 307)
-- [ ] Remove Jira search debug `console.log` / guard `req.json()`
-
-**Deferred to a later milestone (tracked, not in this scope):**
-
-- [ ] Move schema init + migration loop out of `getDb()` into an external migrate job
+- [ ] Leftover ops/admin/config/import-mapping service thinning (D-23 remainder)
+- [ ] proxy.ts JSON 401 for API callers (v1.0 HTML-307)
+- [ ] HYG-02 Anthropic 502 operator confirm
+- [ ] Optional UI for v2 dashboards, weekly reports, document checklist, and audit GET (`ui_phase` was false this milestone)
+- [ ] DATA-01..03, ENF-01..02, PERF-01..03 (still deferred)
 
 ### Out of Scope
 
-- New product features — this milestone is structural; feature work resumes after
-- API/UI redesign — refactor + opportunistic bug fixes only, not a redesign; endpoint shapes and screens stay recognizable
-- Replacing the stack (Next/React/Postgres/`pg`) — the mess is organization, not technology choice
-- Rewriting `lib/db.ts` PostgresClient dialect bridge — fragile but working; touch only where a repository requires it
-- Perf work (grid virtualization, server components for chrome) — follows the UI sweep, not part of it
+- DATA-01..03 (migrations out of `getDb()`, versioned migration files, data-fix scripts) — still deferred; cold-start slowness is not this milestone
+- ENF-01..02 (ESLint wrapper gate, Kysely) — still deferred
+- PERF-01..03 (grid virtualization, RSC chrome, cold-start budget) — still deferred
+- Remaining ops/admin/config/import-mapping service thinning, proxy JSON 401, Anthropic 502 operator confirm, Jira search debug log — leftover v1.0 debt, not this milestone
+- Replacing Jira import, AI report generation, or Excel/PPT/Word export — keep them alongside spec work
+- Uploading project document binaries into the app — spec stores Confluence links only
+- Replacing the stack (Next/React/Postgres/`pg`)
+- Rewriting `lib/db.ts` PostgresClient dialect bridge
+- Committing the GuiIT Word spec — local reference only (`docs/GuiIT_2008_Portfolio One View_Yeu cau nghiep vu (1).docx`)
 
 ## Current State
 
 **Shipped:** v1.0 Layer Reorg & Hardening (2026-08-25) — 8 phases, 35 plans. Archive: `.planning/milestones/`.
 
-The brownfield mess listed at kickoff is largely gone on the project-scoped path: tests exist (Vitest, 727 passing), SQL lives in repositories, Jira/Anthropic/Resend go through clients + one credential resolver, services own tenant checks, wrappers enforce access, and the seven named god pages are decomposed.
+**Now:** v2.0 Portfolio One View shipped 2026-08-26 — Phases 9–18, 40 plans. Archive: `.planning/milestones/`. Audit: `tech_debt` (79/79 requirements, UI deferred).
+
+The brownfield mess listed at kickoff is largely gone on the project-scoped path: tests exist (Vitest), SQL lives in repositories, Jira/Anthropic/Resend go through clients + one credential resolver, services own tenant checks, wrappers enforce access, and the seven named god pages are decomposed.
+
+CPMO/PM/Viewer is enforced on spec APIs. Weekly, fiscal, dashboards, Confluence checklist, and company-scoped append-only audit are server-gated. Remaining work is leftover v1.0 debt and optional UI for the new APIs.
 
 ## Next Milestone Goals
 
-Undefined. Start with `$gsd-new-milestone`. Likely inputs: remaining admin/ops service thinning, proxy API 401, operator confirm of Anthropic 502.
+Not started. Likely: leftover v1.0 debt (ops-route thinning, proxy JSON 401, HYG-02 confirm), optional v2 UI surfaces, and DATA/ENF/PERF.
 
 ## Context
 
 Brownfield, post-reorg. Codebase map still in `.planning/codebase/` (dated 2026-08-07; structure has moved).
 
-Still true:
+Business spec (reference only, not in git): `docs/GuiIT_2008_Portfolio One View_Yeu cau nghiep vu (1).docx` — Draft 1.0, 20/08/2026. General principles: one master data source; least-privilege by role and project; actionable data first.
 
-- **Migrations in app code.** `getDb()` still runs schema init + migrate on cold start (deferred).
+Still true and still not this milestone:
+
+- **Migrations in app code.** `getDb()` still runs schema init + migrate on cold start.
 - **Non-core routes.** operations/admin/config/import-mapping still call repos directly.
 
 ## Constraints
 
 - **Tech stack**: Next.js 16.2.4 / React 19.2.4 / TypeScript strict / PostgreSQL via `pg` — no framework swaps
-- **Compatibility**: Behavior freeze except intentional security changes (new 403s) and opportunistic bug fixes; existing endpoints and screens keep working
-- **Migration strategy**: Layer-by-layer sweep — establish target structure, move backend layers in one pass, UI in the next. Fewer half-states, larger blast radius per phase, so tests land with each layer
-- **Testing**: Vitest 4 is the gate; a layer is not done until its tests exist and pass (HYG-03)
+- **Spec authority**: GuiIT Portfolio One View is source of truth for product behavior; keep Jira/AI/export
+- **Layers**: New work follows route → service → repository; tenant isolation is not optional
+- **Testing**: Vitest 4 is the gate; a capability is not done until its tests exist and pass (HYG-03)
 - **Deployment**: Docker/GHCR + Railway + K8s must keep building; `output: 'standalone'` and `serverExternalPackages` (`exceljs`, `pptxgenjs`) preserved
-- **Security**: Multi-tenant — tenant isolation is not optional; every project-scoped path must assert company access
+- **Security**: Multi-tenant company scoping plus spec roles (CPMO / PM / Viewer); hiding UI is not access control; passwords/tokens follow bank ATTT expectations in the spec
+- **Documents**: Templates live in-app; actual project files live on Confluence (link + metadata only)
 - **Import convention**: `@/` alias for all app-root imports
 
 ## Key Decisions
@@ -98,8 +132,19 @@ Still true:
 | Security first among concerns | IDOR + mass-assignment SQL are live tenant-isolation holes; migrations and perf are not | Shipped on project-scoped routes; two live IDORs closed in Phase 4 |
 | Tests alongside reorg, not a pre-built safety net | Contract snapshots over endpoints that are about to move by design would mostly re-encode the mess | Vitest 4 + 727 tests; HYG-03 held |
 | Refactor + opportunistic fixes, not pure freeze | Moving code surfaces real bugs; leaving them in place to preserve a bug-for-bug freeze wastes the pass | HYG-02: Anthropic 500→502 still needs operator confirm |
-| Migrations-out-of-`getDb()` deferred | Real problem, but cold-start slowness is not a correctness or isolation risk | Still deferred |
+| Migrations-out-of-`getDb()` deferred | Real problem, but cold-start slowness is not a correctness or isolation risk | Still deferred (not v2.0) |
 | INTG-08 evidence before deleting dead Jira helpers | Resolver live paths already matched; deletion gated on `verify-credential-cutover.ts` | Closed Phase 8 (`e0b2cea`) |
+| Spec as source of truth for v2.0 | Bank PPM requirements are the product; existing screens that already match stay, mismatches change | Shipped Phases 9–18 (PR-01..15 + AUDIT-01) |
+| Keep Jira / AI / Excel-PPT-Word export | Spec does not replace those integrations; they remain differentiators beside One View | Kept — not rewritten |
+| Keep existing `audit_logs` + INSERT `auditLog` | Second table would dual-write; column `company_id` already existed | Shipped Phase 18 (D-01, D-10 skip migrate) |
+| GET `/api/audit` withCpmo + `assertCompanyWrite` | Company-scoped SELECT; PM/Viewer/null-company 403; INSERT+SELECT only | Shipped Phase 18 (D-04..D-07) |
+| RAID audit entity_type stays `risk` / `issue` | Do not invent a unified `raid` string; fill create/update gaps only | Shipped Phase 18 (D-02) |
+| v2.0 deferred pack is TENANT-01 only | User pointed at the four mapping-table `company_id` follow-up, not DATA/ENF/PERF or leftover route debt | Shipped Phase 9 |
+| Mapping tenancy via `migrateMappingTableTenancy` | Nullable column → duplicate-per-company backfill → NOT NULL+FK → `UNIQUE(company_id, name)` (JQL adds `context`); never collapse to company 1 | Shipped Phase 9 |
+| Authorization truth is `roles[]`, not `is_admin` | Backfilled admins stay `is_admin=1` for leftover platform routes; product checks must not use that flag as a cross-tenant bypass (D-03, D-13) | Shipped Phase 10 |
+| Interim PM match via `pm_email` then `pm_name` | Phase 11 replaces the lookup only; `assertPmWriteAccess` is the seam (D-14) | Shipped Phase 10 |
+| AUTH-05 leftover carve-out (D-23) | `operations/**` and platform `/api/admin/companies` stay session+tenant; product mutators including AI POSTs and mapping tables are role-gated | Shipped Phase 10 |
+| Word spec stays local, not committed | Reference document only; do not add the `.docx` to git | — Pending |
 
 ## Evolution
 
@@ -119,4 +164,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-08-25 after v1.0 milestone complete*
+*Last updated: 2026-08-26 after v2.0 milestone*

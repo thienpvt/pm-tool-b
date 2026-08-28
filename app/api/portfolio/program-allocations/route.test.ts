@@ -26,6 +26,7 @@ describe('POST /api/portfolio/program-allocations', () => {
   const session = {
     id: 2, username: 'ava', display_name: 'Ava', company_id: 5, company_name: 'Acme',
     is_admin: 0, onboarding_completed: 1,
+    roles: ['cpmo'], status: 'active', email: 'ava@example.com',
   };
 
   const params = () => ({ params: Promise.resolve({}) });

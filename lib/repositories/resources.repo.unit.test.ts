@@ -15,7 +15,7 @@ beforeEach(() => {
 
 describe('resources.repo', () => {
   it('uses the company and customer ownership paths for a tenant', async () => {
-    await expect(listResourceMembers(7, false)).resolves.toEqual([{ id: 1, name: 'Ava' }]);
+    await expect(listResourceMembers(7)).resolves.toEqual([{ id: 1, name: 'Ava' }]);
 
     expect(db.all).toHaveBeenCalledWith(
       expect.stringContaining('WHERE (p.company_id = ? OR c.company_id = ?)'),
@@ -25,7 +25,7 @@ describe('resources.repo', () => {
   });
 
   it('uses the strict unassigned-project predicate for a null-company user', async () => {
-    await listResourceMembers(null, false);
+    await listResourceMembers(null);
 
     const sql = String(db.all.mock.calls[0][0]).replace(/\s+/g, ' ').trim();
     expect(sql).toContain(
@@ -34,9 +34,11 @@ describe('resources.repo', () => {
     expect(db.all).toHaveBeenCalledWith(expect.any(String));
   });
 
-  it('keeps the admin branch unfiltered', async () => {
-    await listResourceMembers(null, true);
+  it('company 5 scopes with company WHERE clause (D-24)', async () => {
+    await listResourceMembers(5);
 
-    expect(db.all).toHaveBeenCalledWith(expect.not.stringContaining('WHERE'));
+    const sql = String(db.all.mock.calls[0][0]);
+    expect(sql).toContain('WHERE (p.company_id = ? OR c.company_id = ?)');
+    expect(db.all).toHaveBeenCalledWith(expect.stringContaining('WHERE'), 5, 5);
   });
 });

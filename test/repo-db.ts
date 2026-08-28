@@ -1,5 +1,6 @@
 import type { Pool } from 'pg';
 import type { DbClient } from '@/lib/db';
+import { txQueryTarget } from '@/lib/db-tx';
 import { testPool } from './db';
 
 /**
@@ -28,13 +29,17 @@ class TestDbClient implements DbClient {
     return result.replace(/\?/g, () => `$${++i}`);
   }
 
+  private querier() {
+    return txQueryTarget(this.pool);
+  }
+
   async get<T>(sql: string, ...params: unknown[]): Promise<T | undefined> {
-    const { rows } = await this.pool.query(this.toPositional(sql), params.length ? params : undefined);
+    const { rows } = await this.querier().query(this.toPositional(sql), params.length ? params : undefined);
     return rows[0] as T | undefined;
   }
 
   async all<T>(sql: string, ...params: unknown[]): Promise<T[]> {
-    const { rows } = await this.pool.query(this.toPositional(sql), params.length ? params : undefined);
+    const { rows } = await this.querier().query(this.toPositional(sql), params.length ? params : undefined);
     return rows as T[];
   }
 
@@ -44,19 +49,19 @@ class TestDbClient implements DbClient {
    */
   private needsReturningId(sql: string): boolean {
     const table = /INSERT\s+(?:OR\s+\w+\s+)?INTO\s+(\w+)/i.exec(sql)?.[1]?.toLowerCase();
-    return !!table && !['settings', 'company_jira_config', 'company_rag_config'].includes(table);
+    return !!table && !['settings', 'company_jira_config', 'company_rag_config', 'company_weekly_config', 'user_roles', 'dashboard_filter_state'].includes(table);
   }
 
   async run(sql: string, ...params: unknown[]): Promise<{ lastInsertRowid: number | bigint; changes: number }> {
     let pgSql = this.toPositional(sql);
     if (/^\s*INSERT\s/i.test(sql) && this.needsReturningId(sql)) pgSql += ' RETURNING id';
-    const result = await this.pool.query(pgSql, params.length ? params : undefined);
+    const result = await this.querier().query(pgSql, params.length ? params : undefined);
     return { lastInsertRowid: result.rows[0]?.id ?? 0, changes: result.rowCount ?? 0 };
   }
 
   async exec(sql: string): Promise<void> {
     for (const stmt of sql.split(';').map(s => s.trim()).filter(Boolean)) {
-      await this.pool.query(stmt);
+      await this.querier().query(stmt);
     }
   }
 }
@@ -78,7 +83,31 @@ CREATE TABLE IF NOT EXISTS projects (
   start_date TEXT, end_date TEXT, status TEXT, current_phase TEXT, description TEXT,
   objective TEXT, project_owner TEXT, budget NUMERIC, budget_currency TEXT,
   headcount_quota INTEGER, budget_status TEXT,
+  project_code TEXT, portfolio_year INTEGER, stage TEXT, status_reason TEXT, rag TEXT,
+  progress_pct INTEGER DEFAULT 0, weekly_report_enabled BOOLEAN DEFAULT FALSE,
+  weekly_report_start_period TEXT, plan_end TEXT, adjusted_end TEXT, actual_end TEXT,
+  classification TEXT, governance TEXT,
   customer_id INTEGER, company_id INTEGER, created_at TIMESTAMPTZ DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS project_pm_assignments (
+  id SERIAL PRIMARY KEY,
+  project_id INTEGER NOT NULL REFERENCES projects(id),
+  user_id INTEGER NOT NULL REFERENCES users(id),
+  role TEXT NOT NULL CHECK (role IN ('primary','collaborator')),
+  effective_from DATE NOT NULL,
+  effective_to DATE,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS project_stakeholders (
+  id SERIAL PRIMARY KEY,
+  project_id INTEGER NOT NULL REFERENCES projects(id),
+  stakeholder_role TEXT NOT NULL CHECK (stakeholder_role IN ('sponsor','psc_chair','psc_member','project_director','key_stakeholder')),
+  user_id INTEGER REFERENCES users(id),
+  external_name TEXT,
+  external_email TEXT,
+  effective_from DATE NOT NULL,
+  effective_to DATE,
+  created_at TIMESTAMPTZ DEFAULT now()
 );
 CREATE TABLE IF NOT EXISTS customers (
   id SERIAL PRIMARY KEY, name TEXT, industry TEXT, contact_name TEXT,
@@ -98,7 +127,26 @@ CREATE TABLE IF NOT EXISTS companies (
 );
 CREATE TABLE IF NOT EXISTS users (
   id SERIAL PRIMARY KEY, username TEXT, password_hash TEXT, display_name TEXT,
-  company_id INTEGER, is_admin INTEGER DEFAULT 0, created_at TIMESTAMPTZ DEFAULT now()
+  company_id INTEGER, is_admin INTEGER DEFAULT 0, created_at TIMESTAMPTZ DEFAULT now(),
+  email TEXT, status TEXT NOT NULL DEFAULT 'active', locked_at TIMESTAMPTZ,
+  locked_by INTEGER REFERENCES users(id), deleted_at TIMESTAMPTZ
+);
+CREATE TABLE IF NOT EXISTS user_roles (
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  role TEXT NOT NULL CHECK (role IN ('cpmo', 'pm', 'viewer')),
+  company_id INTEGER REFERENCES companies(id),
+  PRIMARY KEY (user_id, role)
+);
+CREATE TABLE IF NOT EXISTS audit_logs (
+  id BIGSERIAL PRIMARY KEY,
+  company_id INTEGER REFERENCES companies(id),
+  actor_id INTEGER REFERENCES users(id),
+  entity_type TEXT,
+  entity_id TEXT,
+  action TEXT,
+  before JSONB,
+  after JSONB,
+  created_at TIMESTAMPTZ DEFAULT now()
 );
 CREATE TABLE IF NOT EXISTS activities (
   id SERIAL PRIMARY KEY, project_id INTEGER, phase TEXT, no TEXT, activity TEXT,
@@ -111,13 +159,20 @@ CREATE TABLE IF NOT EXISTS activities (
 CREATE TABLE IF NOT EXISTS risks (
   id SERIAL PRIMARY KEY, project_id INTEGER, risk_id TEXT, description TEXT,
   category TEXT, owner TEXT, trigger TEXT, mitigation TEXT, due_date TEXT,
-  status TEXT, priority TEXT, impact TEXT, affected_activity_id INTEGER
+  status TEXT, priority TEXT, impact TEXT, affected_activity_id INTEGER,
+  code TEXT, deactivated_at TIMESTAMPTZ
 );
+ALTER TABLE risks ADD COLUMN IF NOT EXISTS code TEXT;
+ALTER TABLE risks ADD COLUMN IF NOT EXISTS deactivated_at TIMESTAMPTZ;
 CREATE TABLE IF NOT EXISTS issues (
   id SERIAL PRIMARY KEY, project_id INTEGER, issue_id TEXT, description TEXT,
   root_cause TEXT, category TEXT, owner TEXT, trigger TEXT, mitigation TEXT,
-  due_date TEXT, status TEXT, priority TEXT, impact TEXT, affected_activity_id INTEGER
+  due_date TEXT, status TEXT, priority TEXT, impact TEXT, affected_activity_id INTEGER,
+  code TEXT, technology_council BOOLEAN DEFAULT FALSE, deactivated_at TIMESTAMPTZ
 );
+ALTER TABLE issues ADD COLUMN IF NOT EXISTS code TEXT;
+ALTER TABLE issues ADD COLUMN IF NOT EXISTS technology_council BOOLEAN DEFAULT FALSE;
+ALTER TABLE issues ADD COLUMN IF NOT EXISTS deactivated_at TIMESTAMPTZ;
 CREATE TABLE IF NOT EXISTS meetings (
   id SERIAL PRIMARY KEY, project_id INTEGER, name TEXT, frequency TEXT,
   content TEXT, participants TEXT, method TEXT, type TEXT
@@ -131,7 +186,23 @@ CREATE TABLE IF NOT EXISTS escalation_levels (
   channel TEXT, participants TEXT, input TEXT, output TEXT
 );
 CREATE TABLE IF NOT EXISTS milestones (
-  id SERIAL PRIMARY KEY, project_id INTEGER, name TEXT, start_date TEXT, end_date TEXT
+  id SERIAL PRIMARY KEY, project_id INTEGER, name TEXT, start_date TEXT, end_date TEXT,
+  status TEXT NOT NULL DEFAULT 'planned', plan_end TEXT, adjusted_end TEXT,
+  cancelled_at TIMESTAMPTZ, cancelled_by INTEGER REFERENCES users(id)
+);
+ALTER TABLE milestones ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'planned';
+ALTER TABLE milestones ADD COLUMN IF NOT EXISTS plan_end TEXT;
+ALTER TABLE milestones ADD COLUMN IF NOT EXISTS adjusted_end TEXT;
+ALTER TABLE milestones ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMPTZ;
+ALTER TABLE milestones ADD COLUMN IF NOT EXISTS cancelled_by INTEGER REFERENCES users(id);
+CREATE TABLE IF NOT EXISTS raid_due_date_history (
+  id BIGSERIAL PRIMARY KEY,
+  entity_type TEXT NOT NULL CHECK (entity_type IN ('risk','issue')),
+  entity_id TEXT NOT NULL,
+  old_due TEXT,
+  new_due TEXT,
+  changed_at TIMESTAMPTZ DEFAULT now(),
+  changed_by INTEGER REFERENCES users(id)
 );
 -- Mirrors lib/db.ts: SERIAL id plus a UNIQUE pair, NOT a composite primary key.
 -- The id column is load-bearing here: lib/db.ts appends RETURNING id to every
@@ -208,6 +279,31 @@ CREATE TABLE IF NOT EXISTS operations_incidents (
   description TEXT, reported_at DATE, resolved_at DATE, cost_impact NUMERIC DEFAULT 0,
   status TEXT DEFAULT 'Open'
 );
+CREATE TABLE IF NOT EXISTS timeline_import_mappings (
+  id SERIAL PRIMARY KEY, name TEXT NOT NULL, mappings_json TEXT NOT NULL,
+  company_id INTEGER REFERENCES companies(id),
+  created_at TIMESTAMP DEFAULT now(),
+  UNIQUE (company_id, name)
+);
+CREATE TABLE IF NOT EXISTS bug_import_mappings (
+  id SERIAL PRIMARY KEY, name TEXT NOT NULL, mappings_json TEXT NOT NULL,
+  company_id INTEGER REFERENCES companies(id),
+  created_at TIMESTAMP DEFAULT now(),
+  UNIQUE (company_id, name)
+);
+CREATE TABLE IF NOT EXISTS jira_jql_presets (
+  id SERIAL PRIMARY KEY, name TEXT NOT NULL, jql TEXT NOT NULL,
+  context TEXT DEFAULT '',
+  company_id INTEGER REFERENCES companies(id),
+  created_at TIMESTAMP DEFAULT now(),
+  UNIQUE (company_id, name, context)
+);
+CREATE TABLE IF NOT EXISTS jira_sync_mappings (
+  id SERIAL PRIMARY KEY, mappings_json TEXT NOT NULL,
+  company_id INTEGER REFERENCES companies(id),
+  created_at TIMESTAMP DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_jira_sync_mappings_company_id ON jira_sync_mappings (company_id);
 `;
 
 /** Advisory lock key serialising DDL across parallel vitest worker processes. */

@@ -32,7 +32,7 @@ export default function NewProjectPage() {
   const [saving, setSaving] = useState(false);
   const [programs, setPrograms] = useState<Program[]>([]);
   const [form, setForm] = useState({
-    name: '', client: '', customer_id: '', description: '',
+    name: '', project_code: '', portfolio_year: '', client: '', customer_id: '', description: '',
     objective: '', project_owner: '', budget: '', budget_currency: 'VND',
     pm_name: '', pm_email: '',
     start_date: '', end_date: '',
@@ -49,11 +49,19 @@ export default function NewProjectPage() {
 
   const handleSubmit = async () => {
     if (!form.name.trim()) { toast.error('Project name is required'); return; }
+    if (!form.project_code.trim()) { toast.error('Project code is required'); return; }
+    if (!form.portfolio_year.trim() || !Number.isInteger(Number(form.portfolio_year))) {
+      toast.error('Portfolio year is required');
+      return;
+    }
+    if (!form.customer_id) { toast.error('Program is required'); return; }
     setSaving(true);
     try {
       const payload = {
         ...form,
-        customer_id: form.customer_id ? Number(form.customer_id) : null,
+        project_code: form.project_code.trim(),
+        portfolio_year: Number(form.portfolio_year),
+        customer_id: Number(form.customer_id),
         client: selectedProgram?.name || form.client,
         budget: form.budget ? Number(form.budget) : 0,
       };
@@ -137,6 +145,16 @@ export default function NewProjectPage() {
                 )}
               </div>
 
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="project_code">Project Code *</Label>
+                  <Input id="project_code" className="mt-1.5" placeholder="e.g. PRJ-2026-001" value={form.project_code} onChange={e => set('project_code', e.target.value)} />
+                </div>
+                <div>
+                  <Label htmlFor="portfolio_year">Portfolio Year *</Label>
+                  <Input id="portfolio_year" className="mt-1.5" type="number" min="2000" max="2100" placeholder="2026" value={form.portfolio_year} onChange={e => set('portfolio_year', e.target.value)} />
+                </div>
+              </div>
               <div>
                 <Label htmlFor="name">Project Name *</Label>
                 <Input id="name" className="mt-1.5" placeholder="e.g. Bank Platform Optimization" value={form.name} onChange={e => set('name', e.target.value)} />
@@ -226,6 +244,8 @@ export default function NewProjectPage() {
                 {selectedProgram && (
                   <div className="flex gap-2"><span className="text-slate-500 w-36 shrink-0">Program:</span><span className="font-medium text-blue-700">{selectedProgram.name}</span></div>
                 )}
+                <div className="flex gap-2"><span className="text-slate-500 w-36 shrink-0">Code:</span><span className="font-medium">{form.project_code}</span></div>
+                <div className="flex gap-2"><span className="text-slate-500 w-36 shrink-0">Portfolio Year:</span><span>{form.portfolio_year}</span></div>
                 <div className="flex gap-2"><span className="text-slate-500 w-36 shrink-0">Project Name:</span><span className="font-medium">{form.name}</span></div>
                 <div className="flex gap-2"><span className="text-slate-500 w-36 shrink-0">Phase:</span><span>{form.current_phase}</span></div>
                 <div className="flex gap-2"><span className="text-slate-500 w-36 shrink-0">PM:</span><span>{form.pm_name || '—'} {form.pm_email ? `(${form.pm_email})` : ''}</span></div>

@@ -1,14 +1,28 @@
 import {
+  cancelMilestone as cancelMilestoneRepo,
   createMilestone as createMilestoneRepo,
-  deleteMilestone as deleteMilestoneRepo,
+  getMilestone as getMilestoneRepo,
   linkEpic as linkEpicRepo,
   listEpics as listEpicsRepo,
   listMilestones as listMilestonesRepo,
   unlinkEpic as unlinkEpicRepo,
   updateMilestone as updateMilestoneRepo,
 } from '@/lib/repositories/milestones.repo';
-import { assertProjectAccess, type AccessActor } from './access';
+import { assertProjectAccess, assertProjectWriteAccess, type AccessActor } from './access';
+import { auditLog } from './audit.service';
 import { NotFoundError } from './errors';
+
+function auditSnapshot(row: Record<string, unknown> | null | undefined) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    name: row.name,
+    status: row.status,
+    start_date: row.start_date,
+    end_date: row.end_date,
+    plan_end: row.plan_end,
+  };
+}
 
 export async function listMilestones(projectId: number | string, actor: AccessActor) {
   await assertProjectAccess(projectId, actor);
@@ -20,8 +34,18 @@ export async function createMilestone(
   actor: AccessActor,
   body: Record<string, unknown>,
 ) {
-  await assertProjectAccess(projectId, actor);
-  return createMilestoneRepo(projectId, body);
+  await assertProjectWriteAccess(projectId, actor);
+  const created = await createMilestoneRepo(projectId, body);
+  await auditLog({
+    actor_id: actor.user_id,
+    company_id: actor.company_id,
+    entity_type: 'milestone',
+    entity_id: String(created.id),
+    action: 'create',
+    before: null,
+    after: auditSnapshot(created),
+  });
+  return created;
 }
 
 /**
@@ -34,23 +58,41 @@ export async function updateMilestone(
   milestoneId: number | string,
   body: Record<string, unknown>,
 ) {
-  await assertProjectAccess(projectId, actor);
+  await assertProjectWriteAccess(projectId, actor);
+  const prior = await getMilestoneRepo(projectId, milestoneId);
   const updated = await updateMilestoneRepo(projectId, milestoneId, body);
   if (!updated) throw new NotFoundError('Not found', 'milestone');
+  await auditLog({
+    actor_id: actor.user_id,
+    company_id: actor.company_id,
+    entity_type: 'milestone',
+    entity_id: String(milestoneId),
+    action: 'update',
+    before: auditSnapshot(prior),
+    after: auditSnapshot(updated),
+  });
   return updated;
 }
 
-export async function deleteMilestone(
+export async function cancelMilestone(
   projectId: number | string,
   actor: AccessActor,
   milestoneId: number | string,
 ) {
-  await assertProjectAccess(projectId, actor);
-  const result = await deleteMilestoneRepo(projectId, milestoneId);
-  if (!result || Number(result.changes ?? 0) === 0) {
-    throw new NotFoundError('Not found', 'milestone');
-  }
-  return result;
+  await assertProjectWriteAccess(projectId, actor);
+  const prior = await getMilestoneRepo(projectId, milestoneId);
+  const updated = await cancelMilestoneRepo(projectId, milestoneId, actor.user_id);
+  if (!updated) throw new NotFoundError('Not found', 'milestone');
+  await auditLog({
+    actor_id: actor.user_id,
+    company_id: actor.company_id,
+    entity_type: 'milestone',
+    entity_id: String(milestoneId),
+    action: 'cancel',
+    before: { status: prior?.status ?? null },
+    after: { status: 'cancelled' },
+  });
+  return updated;
 }
 
 /**
@@ -73,7 +115,7 @@ export async function linkEpic(
   milestoneId: number | string,
   activityId: number | string,
 ) {
-  await assertProjectAccess(projectId, actor);
+  await assertProjectWriteAccess(projectId, actor);
   try {
     await linkEpicRepo(milestoneId, activityId);
   } catch {
@@ -88,7 +130,7 @@ export async function unlinkEpic(
   milestoneId: number | string,
   activityId: number | string,
 ) {
-  await assertProjectAccess(projectId, actor);
+  await assertProjectWriteAccess(projectId, actor);
   await unlinkEpicRepo(milestoneId, activityId);
   return { ok: true as const };
 }

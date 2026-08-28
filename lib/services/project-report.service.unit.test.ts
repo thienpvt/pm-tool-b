@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const {
   assertProjectAccess,
+  assertProjectWriteAccess,
   getProjectWithCustomer,
   getProjectForReport,
   listDoneBetween,
@@ -22,6 +23,7 @@ const {
   companyRagConfig,
 } = vi.hoisted(() => ({
   assertProjectAccess: vi.fn(),
+  assertProjectWriteAccess: vi.fn(),
   getProjectWithCustomer: vi.fn(),
   getProjectForReport: vi.fn(),
   listDoneBetween: vi.fn(),
@@ -42,7 +44,7 @@ const {
   companyRagConfig: vi.fn(),
 }));
 
-vi.mock('@/lib/services/access', () => ({ assertProjectAccess }));
+vi.mock('@/lib/services/access', () => ({ assertProjectAccess, assertProjectWriteAccess }));
 vi.mock('@/lib/repositories/projects.repo', () => ({
   getProjectWithCustomer,
   getProjectForReport,
@@ -85,6 +87,7 @@ const foreign = { company_id: 9 as number | null, is_admin: 0 as number | boolea
 beforeEach(() => {
   vi.clearAllMocks();
   assertProjectAccess.mockResolvedValue(undefined);
+  assertProjectWriteAccess.mockResolvedValue(undefined);
   listDoneBetween.mockResolvedValue([]);
   listByStatuses.mockResolvedValue([]);
   listPlannedBetweenExcludingStatuses.mockResolvedValue([]);

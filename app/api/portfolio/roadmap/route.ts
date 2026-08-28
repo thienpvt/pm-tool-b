@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionFromRequest } from '@/lib/auth';
 import { serviceErrorResponse } from '@/lib/api-errors';
+import { toAccessActor } from '@/lib/services/access';
 import { getRoadmap } from '@/lib/services/roadmap.service';
 
 export async function GET(req: NextRequest) {
@@ -9,7 +10,7 @@ export async function GET(req: NextRequest) {
 
   try {
     return NextResponse.json(
-      await getRoadmap({ company_id: user.company_id, is_admin: user.is_admin }),
+      await getRoadmap(toAccessActor(user)),
     );
   } catch (e) {
     return serviceErrorResponse(e);

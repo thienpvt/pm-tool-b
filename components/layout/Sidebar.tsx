@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
+import type { AppRole } from '@/lib/services/access';
 
 const NAV = [
   { href: '/', icon: LayoutDashboard, label: 'Portfolio' },
@@ -43,7 +44,13 @@ const PROJECT_NAV = [
   { href: '/report', icon: BarChart2, label: 'Project Report' },
 ];
 
-type Me = { username: string; display_name: string; company_name: string | null; is_admin: number };
+type Me = {
+  username: string;
+  display_name: string;
+  company_name: string | null;
+  is_admin: number;
+  roles?: AppRole[];
+};
 type ProjectItem = { id: number; name: string; current_phase: string };
 
 const PHASE_DOT: Record<string, string> = {
@@ -210,7 +217,7 @@ function SidebarNav({
           </div>
         )}
 
-        {me?.is_admin ? (
+        {(me?.is_admin || me?.roles?.includes('cpmo')) ? (
           <Link
             href="/admin"
             onClick={onNavClick}

@@ -5,7 +5,7 @@ import {
   listSnapshotDates as listSnapshotDatesRepo,
   replaceSnapshot as replaceSnapshotRepo,
 } from '@/lib/repositories/bugs.repo';
-import { assertProjectAccess, type AccessActor } from './access';
+import { assertProjectAccess, assertProjectWriteAccess, type AccessActor } from './access';
 import { ValidationError } from './errors';
 
 export async function listSnapshotDates(projectId: number | string, actor: AccessActor) {
@@ -28,7 +28,7 @@ export async function replaceSnapshot(
   bugs: unknown,
   snapshotDate?: string,
 ) {
-  await assertProjectAccess(projectId, actor);
+  await assertProjectWriteAccess(projectId, actor);
   if (!Array.isArray(bugs)) throw new ValidationError('bugs must be array', 'bugs');
   const date = snapshotDate || new Date().toISOString().split('T')[0];
   const inserted = await replaceSnapshotRepo(projectId, bugs as Record<string, unknown>[], date);
@@ -40,7 +40,7 @@ export async function deleteBugs(
   actor: AccessActor,
   date?: string | null,
 ) {
-  await assertProjectAccess(projectId, actor);
+  await assertProjectWriteAccess(projectId, actor);
   if (date) await deleteSnapshotRepo(projectId, date);
   else await deleteAllBugsRepo(projectId);
   return { ok: true as const };

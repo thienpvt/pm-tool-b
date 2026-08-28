@@ -1,8 +1,9 @@
 import { NextRequest } from 'next/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { projectAccessRow, listExpensesByItemRepo, getBudgetItemInProjectRepo, createExpenseRepo } = vi.hoisted(() => ({
+const { projectAccessRow, hasActivePmAssignment, listExpensesByItemRepo, getBudgetItemInProjectRepo, createExpenseRepo } = vi.hoisted(() => ({
   projectAccessRow: vi.fn(),
+  hasActivePmAssignment: vi.fn(),
   listExpensesByItemRepo: vi.fn(),
   getBudgetItemInProjectRepo: vi.fn(),
   createExpenseRepo: vi.fn(),
@@ -10,6 +11,7 @@ const { projectAccessRow, listExpensesByItemRepo, getBudgetItemInProjectRepo, cr
 
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
 vi.mock('@/lib/repositories/projects.repo', () => ({ projectAccessRow }));
+vi.mock('@/lib/repositories/pm-assignments.repo', () => ({ hasActivePmAssignment }));
 vi.mock('@/lib/repositories/budget.repo', () => ({
   listExpensesByItem: listExpensesByItemRepo,
   getBudgetItemInProject: getBudgetItemInProjectRepo,
@@ -27,6 +29,7 @@ import { GET, POST } from './route';
 describe('GET/POST /api/projects/[id]/budget/[itemId]/expenses access control', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    hasActivePmAssignment.mockResolvedValue(true);
   });
 
   const params = (itemId = '2') => ({ params: Promise.resolve({ id: '1', itemId }) });
@@ -42,6 +45,7 @@ describe('GET/POST /api/projects/[id]/budget/[itemId]/expenses access control', 
   const ownerSession = {
     id: 2, username: 'ava', display_name: 'Ava', company_id: 5, company_name: 'Acme',
     is_admin: 0, onboarding_completed: 1,
+    roles: ['pm'], status: 'active', email: 'ava@example.com',
   };
   const foreignSession = { ...ownerSession, company_id: 9, username: 'bob' };
 

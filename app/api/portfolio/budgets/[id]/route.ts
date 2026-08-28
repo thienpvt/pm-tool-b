@@ -1,13 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionFromRequest } from '@/lib/auth';
 import { serviceErrorResponse } from '@/lib/api-errors';
+import { toAccessActor } from '@/lib/services/access';
 import { deleteBudget, getBudget, updateBudget } from '@/lib/services/portfolio.service';
 
 type Params = { params: Promise<{ id: string }> };
-
-function actorOf(user: { company_id: number | null; is_admin: number }) {
-  return { company_id: user.company_id, is_admin: user.is_admin };
-}
 
 export async function GET(req: NextRequest, { params }: Params) {
   const user = await getSessionFromRequest(req);
@@ -15,7 +12,7 @@ export async function GET(req: NextRequest, { params }: Params) {
 
   const { id } = await params;
   try {
-    return NextResponse.json(await getBudget(id, actorOf(user)));
+    return NextResponse.json(await getBudget(id, toAccessActor(user)));
   } catch (e) {
     return serviceErrorResponse(e);
   }
@@ -28,7 +25,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
   const { id } = await params;
   const body = await req.json();
   try {
-    const updated = await updateBudget(id, actorOf(user), body);
+    const updated = await updateBudget(id, toAccessActor(user), body);
     return NextResponse.json(updated);
   } catch (e) {
     return serviceErrorResponse(e);
@@ -41,7 +38,7 @@ export async function DELETE(req: NextRequest, { params }: Params) {
 
   const { id } = await params;
   try {
-    await deleteBudget(id, actorOf(user));
+    await deleteBudget(id, toAccessActor(user));
     return NextResponse.json({ ok: true });
   } catch (e) {
     return serviceErrorResponse(e);
