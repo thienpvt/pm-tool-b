@@ -63,20 +63,20 @@ One source of truth for projects, milestones, RAID, and weekly reports — role-
 - ✓ PR-15 / DOC-01..06 — Document catalog, URL-only templates, Confluence HTTPS checklist (no project binaries), CPMO compliance — Phase 17
 - ✓ AUDIT-01 — Governed mutations append actor/time/entity/before-after on `audit_logs`; INSERT+SELECT only; CPMO GET `/api/audit` company-scoped — Phase 18
 
-v2.0 remainder (ops/admin still repo-direct, proxy HTML-307, no React consumers of v2 APIs) is **this milestone's Active set**, not accepted leftover. See `.planning/milestones/v1.0-MILESTONE-AUDIT.md` and `v2.0-MILESTONE-AUDIT.md`.
+v2.0 remainder (no React consumers of v2 APIs, no repo-wide module split, Kysely, RSC chrome) is **this milestone's remaining Active set**. See `.planning/milestones/v1.0-MILESTONE-AUDIT.md` and `v2.0-MILESTONE-AUDIT.md`.
 
 ### Active
 
 - [ ] MOD-01 — Every feature module in the repo has backend (routes, services, repos) and UI (pages, hooks, components) in separate directories; existing areas included, not only new v2 screens
 - ✓ DATA-01..03 — External versioned SQL migrate + checksum ledger; `getDb()` connects, asserts ledger, seeds only; data-fixes under `scripts/data-fixes/` — Phase 19
-- [ ] ENF-01 — CI/ESLint fails when a project-scoped `route.ts` handler is not wrapped by the sanctioned helper
+- ✓ PROXY-01 — Unauthenticated `/api/*` JSON 401 `{ error: 'Unauthorized' }`; pages still redirect to login — Phase 20
+- ✓ JIRA-01 — Jira search drops field dump; malformed JSON → 400 `{ error: 'Invalid JSON' }` — Phase 20
+- ✓ ENF-01 — ESLint `require-auth-wrapper` + allowlist file; `npm run lint` in CI — Phase 20
+- ✓ THIN-01 — Ops/admin/config/import-mapping through services; D-23 break-glass unchanged — Phase 20
 - [ ] ENF-02 — Repositories adopt Kysely over raw `pg.Pool` so column allowlists are compile-time
 - [ ] PERF-01 — Large grids are virtualized
 - [ ] PERF-02 — Static page chrome moves to server components
 - [ ] PERF-03 — Cold-start time is measured and budgeted
-- [ ] THIN-01 — Ops/admin/config/import-mapping routes go through services (D-23 / SVC-01 / ROUTE-05 remainder)
-- [ ] PROXY-01 — `proxy.ts` returns JSON 401 for API callers instead of HTML 307
-- [ ] JIRA-01 — Jira search drops debug `console.log` and guards `req.json()`
 - [ ] HYG-02 — Operator confirms Anthropic malformed-output 502 vs old 500 (checkpoint, not a rewrite unless rejected)
 - [ ] UI-DASH / UI-WEEK / UI-DOC / UI-AUDIT — React consumers for portfolio/PM dashboards, weekly reports, document checklist, audit viewer, each in that module's UI dir
 - [ ] NIT-01 — Wire or remove unused `listPeriodShells` / `listOpenProjectDependencies`
@@ -98,9 +98,9 @@ v2.0 remainder (ops/admin still repo-direct, proxy HTML-307, no React consumers 
 
 **Shipped:** v2.0 Portfolio One View (2026-08-26) — Phases 9–18, 40 plans. Archive: `.planning/milestones/`. Audit: `tech_debt` (79/79 requirements, UI deferred).
 
-**Now:** v2.1 Hardening & Deferred Debt — defining requirements. Phase numbering continues from 18.
+**Now:** v2.1 Hardening & Deferred Debt — Phase 21 Portfolio & PM Dashboard Pages.
 
-CPMO/PM/Viewer is enforced on spec APIs. Weekly, fiscal, dashboards, Confluence checklist, and company-scoped append-only audit are server-gated. `getDb()` still runs schema init on cold start. Non-core ops/admin/config routes still call repos. v2 APIs have no React consumers. Feature code is not yet split backend-vs-UI per module across the repo.
+CPMO/PM/Viewer is enforced on spec APIs. Weekly, fiscal, dashboards, Confluence checklist, and company-scoped append-only audit are server-gated. Schema evolution is an external `npm run migrate` job; `getDb()` connects, asserts the ledger, and seeds only. Ops/admin/config/import-mapping routes go through services. v2 dashboard APIs still have no React consumers. Feature code is not yet split backend-vs-UI per module across the repo.
 
 ## Next Milestone Goals
 
@@ -146,6 +146,8 @@ This milestone:
 | Migrations-out-of-`getDb()` deferred in v1–v2 | Cold-start slowness was not a correctness risk then | Reopened — single DATA task in v2.1 |
 | DATA-01..03 as one task | Origin `gsd/quick-260826-ded-data-layer-migrations` already shipped them together; splitting into three phases adds ceremony | Shipped Phase 19 |
 | Replay DATA branch, do not merge | Branch baseline is post-v1.0 / pre-v2.0; merge would omit weekly/fiscal/roles/RAID/dashboard/checklist/audit tables | Shipped Phase 19 (pattern-only; regenerated 0001) |
+| API vs page by `/api/` prefix | Accept-header detection would 401 HTML navigations that send `application/json` | Shipped Phase 20 |
+| ENF-01 allowlist file, not comments | Comment exemptions drift; posix path list is the D-23 carve-out | Shipped Phase 20 |
 | Repo-wide backend/UI split per module | Not only new v2 screens — every existing feature area gets separate backend and UI dirs | — Pending |
 | Kysely in v2.1 (ENF-02) | Allowlists stay; compile-time column safety. Still no Prisma / second ORM / Postgres replacement | — Pending |
 | INTG-08 evidence before deleting dead Jira helpers | Resolver live paths already matched; deletion gated on `verify-credential-cutover.ts` | Closed Phase 8 (`e0b2cea`) |
@@ -179,4 +181,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-08-28 after starting milestone v2.1*
+*Last updated: 2026-08-28 after Phase 20*
