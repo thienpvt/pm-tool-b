@@ -1,10 +1,22 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { catalogFixture, emptyCatalogFixture } from '../shared/documents.fixture';
 import DocumentCatalogPage from './DocumentCatalogPage';
 
-vi.mock('next/navigation', () => ({ usePathname: () => '/documents/catalog' }));
+vi.mock('next/navigation', () => ({
+  usePathname: () => '/documents/catalog',
+  useSearchParams: () => new URLSearchParams(),
+}));
 vi.mock('@/components/layout/Sidebar', () => ({ default: () => <nav data-testid="sidebar" /> }));
+
+const toastError = vi.fn();
+const toastSuccess = vi.fn();
+vi.mock('sonner', () => ({
+  toast: {
+    error: (...args: unknown[]) => toastError(...args),
+    success: (...args: unknown[]) => toastSuccess(...args),
+  },
+}));
 
 let resolveCatalog: ((value: unknown) => void) | null = null;
 
@@ -45,6 +57,8 @@ function setupStatusFetch(status: number, body: unknown = []) {
 
 beforeEach(() => {
   resolveCatalog = null;
+  toastError.mockClear();
+  toastSuccess.mockClear();
   setupDeferredFetch();
 });
 
@@ -151,6 +165,143 @@ describe('DocumentCatalogPage', () => {
       expect(
         screen.getByText('Select a catalog item to manage templates.'),
       ).toBeInTheDocument();
+    });
+  });
+
+  describe('create catalog item', () => {
+    const newItem = {
+      id: 3,
+      company_id: 1,
+      name: 'Risk Register',
+      purpose: 'Project risks',
+      stage: 'L3',
+      mandatory: false,
+      active: true,
+      created_at: '2026-08-28T00:00:00.000Z',
+      updated_at: '2026-08-28T00:00:00.000Z',
+    };
+
+    it('POSTs name and apply_to_in_flight then toasts success and reloads list', async () => {
+      let posted = false;
+      const fetchMock = vi.fn((url: string, init?: RequestInit) => {
+        if (url === '/api/document-catalog' && init?.method === 'POST') {
+          const body = JSON.parse(String(init.body));
+          expect(body.name).toBe('Risk Register');
+          expect(body).toHaveProperty('apply_to_in_flight');
+          posted = true;
+          return Promise.resolve({
+            ok: true,
+            status: 201,
+            json: () => Promise.resolve(newItem),
+          });
+        }
+        if (url === '/api/document-catalog' && (!init || init.method === undefined)) {
+          const list = posted ? [...catalogFixture, newItem] : catalogFixture;
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: () => Promise.resolve(list),
+          });
+        }
+        return Promise.reject(new Error(`unexpected fetch: ${url} ${init?.method ?? 'GET'}`));
+      });
+      vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch);
+
+      render(<DocumentCatalogPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('catalog-create-form')).toBeInTheDocument();
+      });
+
+      fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Risk Register' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Add catalog item' }));
+
+      await waitFor(() => {
+        expect(fetchMock).toHaveBeenCalledWith(
+          '/api/document-catalog',
+          expect.objectContaining({ method: 'POST' }),
+        );
+        expect(toastSuccess).toHaveBeenCalledWith('Catalog item added');
+        expect(screen.getByText('Risk Register')).toBeInTheDocument();
+      });
+    });
+
+    it('toasts create error when POST fails', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn((url: string, init?: RequestInit) => {
+          if (url === '/api/document-catalog' && init?.method === 'POST') {
+            return Promise.resolve({ ok: false, status: 400, json: () => Promise.resolve({}) });
+          }
+          if (url === '/api/document-catalog' && (!init || init.method === undefined)) {
+            return Promise.resolve({
+              ok: true,
+              status: 200,
+              json: () => Promise.resolve(catalogFixture),
+            });
+          }
+          return Promise.reject(new Error(`unexpected fetch: ${url}`));
+        }) as unknown as typeof fetch,
+      );
+
+      render(<DocumentCatalogPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('catalog-create-form')).toBeInTheDocument();
+      });
+
+      fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Bad Item' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Add catalog item' }));
+
+      await waitFor(() => {
+        expect(toastError).toHaveBeenCalledWith(
+          "Couldn't add catalog item. Check the fields and try again.",
+        );
+      });
+    });
+
+    it('disables Add catalog item while POST is in-flight', async () => {
+      let resolvePost: ((value: unknown) => void) | null = null;
+      vi.stubGlobal(
+        'fetch',
+        vi.fn((url: string, init?: RequestInit) => {
+          if (url === '/api/document-catalog' && init?.method === 'POST') {
+            return new Promise((resolve) => {
+              resolvePost = (value) =>
+                resolve({
+                  ok: true,
+                  status: 201,
+                  json: () => Promise.resolve(newItem),
+                  ...(value as object),
+                });
+            });
+          }
+          if (url === '/api/document-catalog' && (!init || init.method === undefined)) {
+            return Promise.resolve({
+              ok: true,
+              status: 200,
+              json: () => Promise.resolve(catalogFixture),
+            });
+          }
+          return Promise.reject(new Error(`unexpected fetch: ${url}`));
+        }) as unknown as typeof fetch,
+      );
+
+      render(<DocumentCatalogPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('catalog-create-form')).toBeInTheDocument();
+      });
+
+      fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Risk Register' } });
+      const addBtn = screen.getByRole('button', { name: 'Add catalog item' });
+      fireEvent.click(addBtn);
+
+      await waitFor(() => {
+        expect(addBtn).toBeDisabled();
+      });
+
+      resolvePost!({});
     });
   });
 });
