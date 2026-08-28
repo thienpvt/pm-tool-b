@@ -28,6 +28,7 @@ export function proxy(req: NextRequest) {
 
   if (!session?.value) {
     if (pathname === '/') return NextResponse.redirect(new URL('/landing', req.url));
+    if (isApi) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const url = new URL('/login', req.url);
     url.searchParams.set('from', pathname);
     return NextResponse.redirect(url);
