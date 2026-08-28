@@ -33,7 +33,7 @@ DATA-01..03 is **one migration task** (replay origin `gsd/quick-260826-ded-data-
 
 ### Leftover route debt
 
-- [ ] **THIN-01**: Ops, admin, config, and import-mapping routes call services rather than repositories; D-23 session+tenant vs platform break-glass semantics stay
+- [x] **THIN-01**: Ops, admin, config, and import-mapping routes call services rather than repositories; D-23 session+tenant vs platform break-glass semantics stay
 - [x] **PROXY-01**: An unauthenticated request to `/api/*` receives JSON `{ error: 'Unauthorized' }` with status 401; an unauthenticated page request still redirects to login
 - [x] **JIRA-01**: Jira search does not log issue custom fields and returns 400 for a malformed JSON body
 
@@ -100,7 +100,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PROXY-01 | Phase 20 | Complete |
 | JIRA-01 | Phase 20 | Complete |
 | ENF-01 | Phase 20 | Complete |
-| THIN-01 | Phase 20 | Pending |
+| THIN-01 | Phase 20 | Complete |
 | PDSH-07 | Phase 21 | Pending |
 | MDSH-06 | Phase 21 | Pending |
 | NIT-04 | Phase 21 | Pending |
