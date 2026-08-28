@@ -126,14 +126,14 @@ describe('portfolio module split contract (24-05)', () => {
     }
   });
 
-  it('D-03: lib/services/roi.service.ts imports fiscal-budget.repo from module path', () => {
-    const source = readUtf8('lib/services/roi.service.ts');
+  it('D-03: roi.service imports fiscal-budget.repo from module path', () => {
+    const source = readUtf8('modules/projects/backend/services/roi.service.ts');
     expect(source).toContain('@/modules/portfolio/backend/repositories/fiscal-budget.repo');
     expect(source).not.toContain('@/lib/repositories/fiscal-budget.repo');
   });
 
-  it('D-03: lib/services/projects.service.ts imports programs.repo from module path', () => {
-    const source = readUtf8('lib/services/projects.service.ts');
+  it('D-03: projects.service imports programs.repo from module path', () => {
+    const source = readUtf8('modules/projects/backend/services/projects.service.ts');
     expect(source).toContain('@/modules/portfolio/backend/repositories/programs.repo');
     expect(source).not.toContain('@/lib/repositories/programs.repo');
   });
