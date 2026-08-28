@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { periodsFixture } from '../shared/weekly.fixture';
+import { emptyPeriodsFixture, periodsFixture } from '../shared/weekly.fixture';
 import WeeklyPeriodsPage from './WeeklyPeriodsPage';
 
 vi.mock('next/navigation', () => ({ usePathname: () => '/weekly/periods' }));
@@ -80,5 +80,59 @@ describe('WeeklyPeriodsPage', () => {
       expect(screen.getByText("You don't have access to this page.")).toBeInTheDocument();
     });
     expect(screen.queryByRole('heading', { name: 'Weekly periods' })).not.toBeInTheDocument();
+  });
+
+  it('shows 401 session expired copy in-page', async () => {
+    setupStatusFetch(401);
+    render(<WeeklyPeriodsPage />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText('Session expired — refresh the page and sign in again.'),
+      ).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId('weekly-period-list')).not.toBeInTheDocument();
+  });
+
+  it('shows empty state copy when no periods', async () => {
+    setupStatusFetch(200, emptyPeriodsFixture());
+    render(<WeeklyPeriodsPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('No weekly periods yet')).toBeInTheDocument();
+    });
+    expect(
+      screen.getByText('Create the first period for your company using an ISO week above.'),
+    ).toBeInTheDocument();
+    expect(screen.getByText('0 periods')).toBeInTheDocument();
+  });
+
+  it('uses singular subtitle for one period', async () => {
+    setupStatusFetch(200, [periodsFixture[0]]);
+    render(<WeeklyPeriodsPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('1 period')).toBeInTheDocument();
+    });
+  });
+
+  it('uses plural subtitle for two periods', async () => {
+    setupStatusFetch(200, periodsFixture);
+    render(<WeeklyPeriodsPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('2 periods')).toBeInTheDocument();
+    });
+  });
+
+  it('wraps period list in overflow-x-auto container', async () => {
+    setupStatusFetch(200, periodsFixture);
+    render(<WeeklyPeriodsPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('weekly-period-list')).toBeInTheDocument();
+    });
+    const list = screen.getByTestId('weekly-period-list');
+    expect(list.querySelector('.overflow-x-auto')).toBeTruthy();
   });
 });
