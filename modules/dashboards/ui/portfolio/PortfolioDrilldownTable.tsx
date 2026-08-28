@@ -136,6 +136,7 @@ export function PortfolioDrilldownTable({ activeKey, drilldowns }: Props) {
           </p>
         </div>
       ) : (
+        <div className="overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
@@ -162,6 +163,7 @@ export function PortfolioDrilldownTable({ activeKey, drilldowns }: Props) {
             {activeKey === 'technology_council' && <TechCouncilRows rows={rows} />}
           </TableBody>
         </Table>
+        </div>
       )}
     </section>
   );

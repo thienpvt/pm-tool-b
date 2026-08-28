@@ -67,8 +67,8 @@ export default function PortfolioDashboardPage() {
           </div>
           <div className="flex gap-2">
             <Button
-              variant="outline"
               size="sm"
+              className="bg-blue-600 text-white hover:bg-blue-700"
               disabled={exporting}
               onClick={() => exportDashboard('xlsx')}
             >

@@ -36,6 +36,7 @@ export function PortfolioProjectTable({ list }: Props) {
   return (
     <section data-testid="portfolio-project-list" className="mt-6">
       <h2 className="text-base font-semibold mb-2">Projects</h2>
+      <div className="overflow-x-auto">
       <Table>
         <TableHeader>
           <TableRow>
@@ -87,6 +88,7 @@ export function PortfolioProjectTable({ list }: Props) {
           )}
         </TableBody>
       </Table>
+      </div>
     </section>
   );
 }
