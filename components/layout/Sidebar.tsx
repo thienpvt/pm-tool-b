@@ -19,10 +19,13 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import type { AppRole } from '@/lib/services/access';
 
-const NAV = [
+const NAV_PRIMARY = [
   { href: '/', icon: LayoutDashboard, label: 'Portfolio' },
   { href: '/portfolio/roadmap', icon: Map, label: 'Portfolio Roadmap' },
   { href: '/portfolio/report', icon: FileBarChart2, label: 'Portfolio Report' },
+];
+
+const NAV_SECONDARY = [
   { href: '/portfolio/budget', icon: DollarSign, label: 'Portfolio Budget' },
   { href: '/resources', icon: UserCog, label: 'Resource Management' },
   { href: '/operations', icon: ShieldCheck, label: 'Operations' },
@@ -138,7 +141,56 @@ function SidebarNav({
 
       {/* Main nav */}
       <nav className="p-3 flex flex-col gap-1">
-        {NAV.map(({ href, icon: Icon, label }) => (
+        {NAV_PRIMARY.map(({ href, icon: Icon, label }) => (
+          <Link
+            key={href}
+            href={href}
+            onClick={onNavClick}
+            className={cn(
+              'flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors',
+              pathname === href
+                ? 'bg-blue-600 text-white'
+                : 'text-slate-300 hover:bg-slate-700 hover:text-white'
+            )}
+          >
+            <Icon className="h-4 w-4 shrink-0" />
+            {label}
+          </Link>
+        ))}
+
+        {me?.roles?.includes('cpmo') ? (
+          <Link
+            href="/dashboards/portfolio"
+            onClick={onNavClick}
+            className={cn(
+              'flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors',
+              pathname === '/dashboards/portfolio'
+                ? 'bg-blue-600 text-white'
+                : 'text-slate-300 hover:bg-slate-700 hover:text-white'
+            )}
+          >
+            <LayoutDashboard className="h-4 w-4 shrink-0" />
+            Spec dashboard
+          </Link>
+        ) : null}
+
+        {(me?.roles?.includes('pm') || me?.roles?.includes('cpmo')) ? (
+          <Link
+            href="/dashboards/pm"
+            onClick={onNavClick}
+            className={cn(
+              'flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors',
+              pathname === '/dashboards/pm'
+                ? 'bg-blue-600 text-white'
+                : 'text-slate-300 hover:bg-slate-700 hover:text-white'
+            )}
+          >
+            <ClipboardList className="h-4 w-4 shrink-0" />
+            My dashboard
+          </Link>
+        ) : null}
+
+        {NAV_SECONDARY.map(({ href, icon: Icon, label }) => (
           <Link
             key={href}
             href={href}
