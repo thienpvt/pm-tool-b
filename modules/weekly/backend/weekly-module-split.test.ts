@@ -83,4 +83,18 @@ describe('weekly module split contract (24-03)', () => {
     expect(source).toContain('@/modules/weekly/backend/repositories/weekly-periods.repo');
     expect(source).not.toContain('@/lib/repositories/weekly-periods.repo');
   });
+
+  const p3WeeklyRoutes = [
+    'app/api/projects/[id]/weekly-reports/route.ts',
+    'app/api/projects/[id]/weekly-reports/[reportId]/route.ts',
+    'app/api/projects/[id]/weekly-reports/[reportId]/submit/route.ts',
+    'app/api/projects/[id]/weekly-reports/[reportId]/correct/route.ts',
+    'app/api/export/weekly-report/[id]/route.ts',
+  ] as const;
+
+  it.each(p3WeeklyRoutes)('P3 ENF-01: %s contains withProjectAccess( and module handler import', (routePath) => {
+    const source = readUtf8(routePath);
+    expect(source).toContain('withProjectAccess(');
+    expect(source).toContain('modules/weekly/backend/routes');
+  });
 });
