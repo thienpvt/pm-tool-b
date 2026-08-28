@@ -5,16 +5,16 @@ milestone_name: Hardening & Deferred Debt
 current_phase: 22
 current_phase_name: Weekly Workflow Surfaces
 status: executing
-stopped_at: Completed 22-03-PLAN.md
-last_updated: "2026-08-28T10:10:32.355Z"
+stopped_at: Completed 22-05-PLAN.md
+last_updated: "2026-08-28T10:16:14.937Z"
 last_activity: 2026-08-28
 last_activity_desc: Phase 22 execution started
-state_head: 85934d06ab3054659925cf462457725d697721c9
+state_head: 63396594ec3423b650518f05855ab5b5d15c704b
 progress:
   total_phases: 9
   completed_phases: 3
   total_plans: 20
-  completed_plans: 18
+  completed_plans: 19
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-08-28)
 ## Current Position
 
 Phase: 22 (Weekly Workflow Surfaces) — EXECUTING
-Plan: 4 of 5
+Plan: 5 of 5
 Status: Ready to execute
 Last activity: 2026-08-28 — Phase 22 execution started
 
@@ -113,6 +113,7 @@ Progress: [██░░░░░░░░] 25%
 | Phase 22 P01 | 8 | 3 tasks | 13 files |
 | Phase 22 P02 | 4min | 3 tasks | 4 files |
 | Phase 22 P03 | 12min | 3 tasks | 7 files |
+| Phase 22 P05 | 18 | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -224,6 +225,8 @@ Recent decisions affecting current work:
 - [Phase 22]: createPeriod reloads via load() after 201; 409 is toast-only not page error
 - [Phase 22]: Native HTML checkbox for technology_council filter — shadcn Checkbox not installed
 - [Phase 22]: Selection clears on period or filter change only, not on every data refetch
+- [Phase 22]: Submit POST uses no JSON body to match rawBody route
+- [Phase 22]: Sticky bottom Card for Submit report and Open correction CTAs
 
 ### Pending Todos
 
@@ -247,8 +250,8 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-08-28T10:10:31.909Z
-Stopped at: Completed 22-03-PLAN.md
+Last session: 2026-08-28T10:16:14.514Z
+Stopped at: Completed 22-05-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
