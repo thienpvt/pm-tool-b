@@ -5,16 +5,16 @@ milestone_name: Hardening & Deferred Debt
 current_phase: 20
 current_phase_name: API Contract & Leftover Routes
 status: executing
-stopped_at: Completed 20-06-PLAN.md
-last_updated: "2026-08-28T07:32:28.196Z"
+stopped_at: Completed 20-07-PLAN.md
+last_updated: "2026-08-28T07:35:28.385Z"
 last_activity: 2026-08-28
 last_activity_desc: Phase 20 execution started
-state_head: d1b7120dd290324848de734d5b459ac8f387c5d3
+state_head: 553b4010966708f54a3c5cb638ebb1e0c5bf8490
 progress:
   total_phases: 9
   completed_phases: 1
   total_plans: 11
-  completed_plans: 9
+  completed_plans: 10
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-08-28)
 ## Current Position
 
 Phase: 20 (API Contract & Leftover Routes) — EXECUTING
-Plan: 6 of 7
+Plan: 7 of 7
 Status: Ready to execute
 Last activity: 2026-08-28 — Phase 20 execution started
 
@@ -104,6 +104,7 @@ Progress: [██░░░░░░░░] 25%
 | Phase 20-api-contract-leftover-routes P03 | 5min | 2 tasks | 9 files |
 | Phase 20-api-contract-leftover-routes P04 | 5min | 3 tasks | 6 files |
 | Phase 20 P06 | 5min | 3 tasks | 8 files |
+| Phase 20-api-contract-leftover-routes P07 | 5min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -200,6 +201,8 @@ Recent decisions affecting current work:
 - [Phase 20]: operations.service exports nested budget/expense/incident helpers for 20-05
 - [Phase 20]: D-23 preserved: companies route uses requireAdmin; withCpmo not added
 - [Phase 20]: D-24 preserved: assertCompanyWrite stays in resource-audit POST route
+- [Phase 20]: D-05 split: settings/jira-config/rag-config as separate domain services (20-07)
+- [Phase 20]: D-06 verify-only: import-mapping family already service-backed — no rewrite (20-07)
 
 ### Pending Todos
 
@@ -223,8 +226,8 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-08-28T07:32:28.097Z
-Stopped at: Completed 20-06-PLAN.md
+Last session: 2026-08-28T07:35:28.283Z
+Stopped at: Completed 20-07-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
