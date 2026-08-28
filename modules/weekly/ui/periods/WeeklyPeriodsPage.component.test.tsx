@@ -264,10 +264,12 @@ describe('WeeklyPeriodsPage', () => {
     };
 
     it('POSTs iso_week and toasts Period created on 201', async () => {
+      let posted = false;
       const fetchMock = vi.fn((url: string, init?: RequestInit) => {
         if (url === '/api/weekly-periods' && init?.method === 'POST') {
           const body = JSON.parse(String(init.body));
           expect(body).toEqual({ iso_week: '2026-W40' });
+          posted = true;
           return Promise.resolve({
             ok: true,
             status: 201,
@@ -275,10 +277,11 @@ describe('WeeklyPeriodsPage', () => {
           });
         }
         if (url === '/api/weekly-periods' && (!init || init.method === undefined)) {
+          const list = posted ? [newPeriod, ...periodsFixture] : periodsFixture;
           return Promise.resolve({
             ok: true,
             status: 200,
-            json: () => Promise.resolve(periodsFixture),
+            json: () => Promise.resolve(list),
           });
         }
         if (url === '/api/weekly-periods/config' && (!init || init.method === undefined)) {

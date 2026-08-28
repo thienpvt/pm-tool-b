@@ -1,6 +1,11 @@
 'use client';
 
+import { useState } from 'react';
 import { AlertTriangle } from 'lucide-react';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import Sidebar from '@/components/layout/Sidebar';
 import { WeeklyConfigForm } from './WeeklyConfigForm';
 import { WeeklyPeriodList } from './WeeklyPeriodList';
@@ -13,7 +18,9 @@ const ERROR_COPY = {
 } as const;
 
 export default function WeeklyPeriodsPage() {
-  const { data, config, loading, savingConfig, error, saveConfig } = useWeeklyPeriods();
+  const { data, config, loading, savingConfig, creatingPeriod, error, saveConfig, createPeriod } =
+    useWeeklyPeriods();
+  const [isoWeek, setIsoWeek] = useState('');
 
   if (loading) {
     return (
@@ -59,6 +66,31 @@ export default function WeeklyPeriodsPage() {
         </div>
 
         <WeeklyConfigForm config={config} saving={savingConfig} onSave={saveConfig} />
+
+        <Card size="sm" data-testid="weekly-create-form" className="mb-6 px-4">
+          <div className="flex flex-wrap gap-4 items-end">
+            <div className="space-y-1.5">
+              <Label htmlFor="iso-week-input" className="text-xs font-semibold text-slate-600">
+                ISO week
+              </Label>
+              <Input
+                id="iso-week-input"
+                className="h-8 text-sm w-[160px]"
+                placeholder="2026-W05"
+                value={isoWeek}
+                onChange={(e) => setIsoWeek(e.target.value)}
+              />
+            </div>
+            <Button
+              size="sm"
+              disabled={creatingPeriod}
+              className="bg-blue-600 text-white hover:bg-blue-700"
+              onClick={() => createPeriod(isoWeek)}
+            >
+              Create period
+            </Button>
+          </div>
+        </Card>
 
         <WeeklyPeriodList periods={data} />
       </main>
