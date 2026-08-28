@@ -197,7 +197,6 @@ describe('WeeklyPeriodsPage', () => {
       });
       vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch);
 
-      setupStatusFetch(200, periodsFixture);
       render(<WeeklyPeriodsPage />);
 
       await waitFor(() => {

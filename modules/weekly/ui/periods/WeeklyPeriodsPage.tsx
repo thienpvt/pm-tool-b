@@ -2,6 +2,7 @@
 
 import { AlertTriangle } from 'lucide-react';
 import Sidebar from '@/components/layout/Sidebar';
+import { WeeklyConfigForm } from './WeeklyConfigForm';
 import { WeeklyPeriodList } from './WeeklyPeriodList';
 import { useWeeklyPeriods } from './useWeeklyPeriods';
 
@@ -12,7 +13,7 @@ const ERROR_COPY = {
 } as const;
 
 export default function WeeklyPeriodsPage() {
-  const { data, loading, error } = useWeeklyPeriods();
+  const { data, config, loading, savingConfig, error, saveConfig } = useWeeklyPeriods();
 
   if (loading) {
     return (
@@ -56,6 +57,8 @@ export default function WeeklyPeriodsPage() {
             {count} period{count === 1 ? '' : 's'}
           </p>
         </div>
+
+        <WeeklyConfigForm config={config} saving={savingConfig} onSave={saveConfig} />
 
         <WeeklyPeriodList periods={data} />
       </main>
