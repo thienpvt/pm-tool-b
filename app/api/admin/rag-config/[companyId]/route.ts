@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionFromRequest, unauthorized, forbidden } from '@/lib/auth';
 import { DEFAULT_RAG_CONFIG, RagConfig } from '@/lib/rag';
-import { companyRagConfig, setCompanyRagConfig } from '@/lib/repositories/rag-config.repo';
+import {
+  getCompanyRagConfigOrDefault,
+  setCompanyRagConfigValues,
+} from '@/lib/services/rag-config.service';
 import { ragConfigSchema } from './schema';
 
 type Params = { params: Promise<{ companyId: string }> };
@@ -18,8 +21,8 @@ export async function GET(req: NextRequest, { params }: Params) {
   if (err) return err;
 
   const { companyId } = await params;
-  const row = await companyRagConfig(Number(companyId));
-  return NextResponse.json(row ?? DEFAULT_RAG_CONFIG);
+  const row = await getCompanyRagConfigOrDefault(Number(companyId));
+  return NextResponse.json(row);
 }
 
 export async function POST(req: NextRequest, { params }: Params) {
@@ -43,6 +46,6 @@ export async function POST(req: NextRequest, { params }: Params) {
     low_progress_amber:  Number(body.low_progress_amber  ?? DEFAULT_RAG_CONFIG.low_progress_amber),
   };
 
-  await setCompanyRagConfig(Number(companyId), cfg);
+  await setCompanyRagConfigValues(Number(companyId), cfg);
   return NextResponse.json({ ok: true });
 }

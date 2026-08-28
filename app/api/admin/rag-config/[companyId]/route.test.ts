@@ -2,8 +2,8 @@ import { NextRequest } from 'next/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_RAG_CONFIG } from '@/lib/rag';
 
-const { companyRagConfig, getSessionFromRequest } = vi.hoisted(() => ({
-  companyRagConfig: vi.fn(),
+const { getCompanyRagConfigOrDefault, getSessionFromRequest } = vi.hoisted(() => ({
+  getCompanyRagConfigOrDefault: vi.fn(),
   getSessionFromRequest: vi.fn(),
 }));
 
@@ -12,9 +12,9 @@ vi.mock('@/lib/auth', () => ({
   getSessionFromRequest,
   unauthorized: vi.fn(),
 }));
-vi.mock('@/lib/repositories/rag-config.repo', () => ({
-  companyRagConfig,
-  setCompanyRagConfig: vi.fn(),
+vi.mock('@/lib/services/rag-config.service', () => ({
+  getCompanyRagConfigOrDefault,
+  setCompanyRagConfigValues: vi.fn(),
 }));
 
 import { GET } from './route';
@@ -35,7 +35,7 @@ describe('GET /api/admin/rag-config/[companyId]', () => {
   }
 
   it('returns the stable eight-field shape for a stored config', async () => {
-    companyRagConfig.mockResolvedValue({
+    getCompanyRagConfigOrDefault.mockResolvedValue({
       ...DEFAULT_RAG_CONFIG,
       spi_red_threshold: 0.42,
     });
@@ -49,7 +49,7 @@ describe('GET /api/admin/rag-config/[companyId]', () => {
   });
 
   it('returns the same shape when falling back to defaults', async () => {
-    companyRagConfig.mockResolvedValue(undefined);
+    getCompanyRagConfigOrDefault.mockResolvedValue(DEFAULT_RAG_CONFIG);
 
     const body = await responseBody();
 
