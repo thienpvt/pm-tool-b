@@ -40,7 +40,7 @@ DATA-01..03 is **one migration task** (replay origin `gsd/quick-260826-ded-data-
 ### v2 UI — dashboards
 
 - [x] **PDSH-07**: CPMO can open a portfolio dashboard page with spec KPIs, AND filters, drill-downs, and export
-- [ ] **MDSH-06**: An assigned PM can open a PM dashboard page with weekly, milestone, and RAID action queues and deep links
+- [x] **MDSH-06**: An assigned PM can open a PM dashboard page with weekly, milestone, and RAID action queues and deep links
 
 ### v2 UI — weekly
 
@@ -102,7 +102,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ENF-01 | Phase 20 | Complete |
 | THIN-01 | Phase 20 | Complete |
 | PDSH-07 | Phase 21 | Complete |
-| MDSH-06 | Phase 21 | Pending |
+| MDSH-06 | Phase 21 | Complete |
 | NIT-04 | Phase 21 | Pending |
 | PERD-04 | Phase 22 | Pending |
 | WKRP-07 | Phase 22 | Pending |

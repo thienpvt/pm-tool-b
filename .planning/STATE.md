@@ -5,16 +5,16 @@ milestone_name: Hardening & Deferred Debt
 current_phase: 21
 current_phase_name: Portfolio & PM Dashboard Pages
 status: executing
-stopped_at: Completed 21-02-PLAN.md
-last_updated: "2026-08-28T08:46:46.877Z"
+stopped_at: Completed 21-04-PLAN.md
+last_updated: "2026-08-28T08:52:13.796Z"
 last_activity: 2026-08-28
 last_activity_desc: Phase 21 execution started
-state_head: d1f5cfa11c48793e2d10a063b0216182eb64510c
+state_head: e5744fee3db7ea9d85d99c0102271438ce9b3bbc
 progress:
   total_phases: 9
   completed_phases: 2
   total_plans: 15
-  completed_plans: 13
+  completed_plans: 14
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-08-28)
 ## Current Position
 
 Phase: 21 (Portfolio & PM Dashboard Pages) — EXECUTING
-Plan: 3 of 4
+Plan: 4 of 4
 Status: Ready to execute
 Last activity: 2026-08-28 — Phase 21 execution started
 
@@ -108,6 +108,7 @@ Progress: [██░░░░░░░░] 25%
 | Phase 20-api-contract-leftover-routes P05 | 3min | 3 tasks | 9 files |
 | Phase 21-portfolio-pm-dashboard-pages P01 | 8min | 3 tasks | 9 files |
 | Phase 21-portfolio-pm-dashboard-pages P02 | 6min | 3 tasks | 5 files |
+| Phase 21-portfolio-pm-dashboard-pages P04 | 4 | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -210,6 +211,8 @@ Recent decisions affecting current work:
 - [Phase 21]: Phase 21 tracer uses modules/dashboards/ui with thin app re-export; v1 / and /dashboard unchanged
 - [Phase 21]: Filter refetch uses refreshing not loading so KPI row stays visible during Apply
 - [Phase 21]: 403/401/5xx in-page Copywriting only; no client role skip before GET (D-09)
+- [Phase 21]: PmFiltersBar duplicated from portfolio with pm-filter-bar test id and /api/dashboards/pm/filters routes
+- [Phase 21]: visibilitychange visible triggers load(true) so resolved queue rows drop after deep-link return (D-11)
 
 ### Pending Todos
 
@@ -233,8 +236,8 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-08-28T08:46:46.586Z
-Stopped at: Completed 21-02-PLAN.md
+Last session: 2026-08-28T08:52:13.521Z
+Stopped at: Completed 21-04-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
