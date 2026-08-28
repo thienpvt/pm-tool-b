@@ -3,13 +3,13 @@ import {
   listDocumentCatalog as listDocumentCatalogRepo,
   getDocumentCatalog,
   updateDocumentCatalog as updateDocumentCatalogRepo,
-} from '@/lib/repositories/document-catalog.repo';
+} from '@/modules/documents/backend/repositories/document-catalog.repo';
 import { insertChecklistRowIfMissing } from '@/lib/repositories/project-document-checklist.repo';
 import { listProjects } from '@/lib/repositories/projects.repo';
-import type { AccessActor } from './access';
-import { assertCompanyWrite, hasRole } from './access';
+import type { AccessActor } from '@/lib/services/access';
+import { assertCompanyWrite, hasRole } from '@/lib/services/access';
 import { auditLog } from '@/modules/audit/backend/services/audit.service';
-import { ForbiddenError, NotFoundError, ValidationError } from './errors';
+import { ForbiddenError, NotFoundError, ValidationError } from '@/lib/services/errors';
 
 const VALID_STAGES = new Set(['L0', 'L1', 'L2', 'L3', 'L4', 'L5', 'ALL']);
 

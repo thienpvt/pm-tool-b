@@ -21,9 +21,9 @@ describe('documents module split contract (24-04)', () => {
     );
   });
 
-  it('P3: app/api/projects/[id]/document-checklist/route.ts contains withProjectAccess(', () => {
+  it('P3: app/api/projects/[id]/document-checklist/route.ts contains withProjectAccess wrapper', () => {
     const source = readUtf8('app/api/projects/[id]/document-checklist/route.ts');
-    expect(source).toContain('withProjectAccess(');
+    expect(source).toMatch(/withProjectAccess[\(<]/);
     expect(source).not.toMatch(
       /export\s*\{\s*GET\s*\}\s*from\s*['"]@\/modules\/documents\/backend\/routes\/projects\/\[id\]\/document-checklist\/route['"]/,
     );

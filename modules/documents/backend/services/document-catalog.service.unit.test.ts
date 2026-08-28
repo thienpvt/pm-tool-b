@@ -22,12 +22,12 @@ const {
   insertChecklistRowIfMissing: vi.fn(),
 }));
 
-vi.mock('./access', () => ({
+vi.mock('@/lib/services/access', () => ({
   assertCompanyWrite,
   hasRole: (actor: { roles: string[] }, role: string) => actor.roles.includes(role),
 }));
 
-vi.mock('@/lib/repositories/document-catalog.repo', () => ({
+vi.mock('@/modules/documents/backend/repositories/document-catalog.repo', () => ({
   insertDocumentCatalog,
   listDocumentCatalog: listDocumentCatalogRepo,
   getDocumentCatalog,
@@ -47,7 +47,7 @@ import {
   listDocumentCatalog,
   updateDocumentCatalogItem,
 } from './document-catalog.service';
-import { ForbiddenError } from './errors';
+import { ForbiddenError } from '@/lib/services/errors';
 
 beforeEach(() => vi.clearAllMocks());
 
