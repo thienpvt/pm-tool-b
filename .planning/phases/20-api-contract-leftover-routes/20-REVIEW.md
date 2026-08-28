@@ -1,6 +1,7 @@
 ---
 phase: 20-api-contract-leftover-routes
-reviewed: 2026-08-28T07:45:00Z
+reviewed: 2026-08-28T07:53:00Z
+re_reviewed: 2026-08-28T07:53:00Z
 depth: deep
 files_reviewed: 42
 files_reviewed_list:
@@ -49,100 +50,89 @@ files_reviewed_list:
   - proxy.ts
   - vitest.config.ts
 findings:
-  critical: 2
-  warning: 5
+  critical: 0
+  warning: 0
   info: 1
-  total: 8
-status: issues_found
+  total: 1
+status: clean
 ---
 
 # Phase 20: Code Review Report
 
 **Reviewed:** 2026-08-28T07:45:00Z
+**Re-reviewed:** 2026-08-28T07:53:00Z
 **Depth:** deep
 **Files Reviewed:** 42
-**Status:** issues_found
+**Status:** clean
+
+## Re-review Summary (post --fix)
+
+Quick re-review confirmed all in-scope Critical and Warning findings are fixed in source (not merely claimed in `20-REVIEW-FIX.md`):
+
+| ID | Verified in source |
+|----|-------------------|
+| CR-01 | `deleteBudgetItemForSystem` / `deleteExpenseForSystem` / `deleteIncidentForSystem` return `(result.changes ?? 0) > 0`; nested DELETE routes return 404 when `!deleted` |
+| CR-02 | `deleteOperationsSystemForUser` checks tenant guard + row count; `[id]/route.ts` DELETE returns 404 when `!deleted` |
+| WR-01 | `isUniqueViolation` gates `ConflictError`; other errors rethrow in `createCompanyPlatform` |
+| WR-02 | Shared `parseRequestJson` helper; no bare `req.json()` in D-23 session-gated operations/admin routes |
+| WR-03 | `parsePositiveIntRouteParam` rejects invalid ids; jira/rag config routes return 400 `{ error: 'Invalid company id' }` |
+| WR-04 | RAG config POST rejects `NaN` thresholds with 400 `{ error: 'Invalid threshold values' }` |
+| WR-05 | Resource audit GET returns 400 `{ error: 'Company context required' }` when `user.company_id === null` |
+
+Targeted Vitest (8 files, 34 tests) passed in main checkout.
+
+IN-01 (allowlist maintenance noise) remains informational and was out of fix scope.
 
 ## Summary
 
 Deep review of Phase 20 API contract work: proxy edge auth (D-01/D-02), Jira search `withAuth` migration, ESLint ENF-01 wrapper gate, operations/admin/config service extractions, and CI lint wiring. Auth layering (proxy 401, D-23 session gates, D-24 `assertCompanyWrite`) is generally consistent with locked decisions.
 
-Two critical API-contract defects remain in operations delete paths: nested deletes and system delete return `{ ok: true }` even when zero rows are affected. Several D-23 session-gated routes still lack the standardized malformed-JSON 400 handling that `withAuth` routes received in this phase.
+All Critical and Warning findings from the initial review have been remediated and verified.
 
 ## Narrative Findings (AI reviewer)
 
 ## Critical Issues
 
-### CR-01: Nested DELETE always returns 200 when parent system exists
+_None — CR-01 and CR-02 fixed and verified._
 
-**File:** `lib/services/operations.service.ts:97-105`, `124-132`, `162-170`
-**Issue:** `deleteBudgetItemForSystem`, `deleteExpenseForSystem`, and `deleteIncidentForSystem` return `true` whenever the parent system passes the tenant guard, without checking whether the nested row was actually deleted. Routes map only `null` (system miss) to 404; a wrong `itemId`/`expId`/`incId` still yields `200 { ok: true }`, violating the phase’s null→404 contract for misses.
-**Fix:**
-```typescript
-export async function deleteBudgetItemForSystem(
-  user: SessionUser,
-  id: number | string,
-  itemId: number | string,
-) {
-  const existing = await findOperationsSystemForUser(user, id);
-  if (!existing) return null;
-  const result = await deleteOperationsBudgetItemRepo(id, itemId);
-  return (result.changes ?? 0) > 0;
-}
-```
-Apply the same row-count check to expense and incident delete helpers; keep route `if (deleted === null)` for system miss and `if (!deleted)` for item miss.
+### CR-01: Nested DELETE always returns 200 when parent system exists *(resolved)*
 
-### CR-02: System DELETE ignores repository row count
+**File:** `lib/services/operations.service.ts:100-108`, `127-135`, `165-173`
+**Issue:** ~~Nested delete helpers returned `true` whenever parent system passed tenant guard.~~ Fixed: helpers now return `(result.changes ?? 0) > 0`; routes return 404 when `!deleted`.
 
-**File:** `app/api/operations/systems/[id]/route.ts:43-49`, `lib/services/operations.service.ts:66-68`
-**Issue:** `deleteOperationsSystemForUser` returns the raw `db.run` result, but the route discards it and always responds `{ ok: true }`. A cross-tenant or unknown `id` deletes zero rows (SQL guards `company_id`) yet still returns 200, so clients cannot distinguish success from not-found.
-**Fix:**
-```typescript
-// operations.service.ts
-export async function deleteOperationsSystemForUser(user: SessionUser, id: number | string) {
-  const existing = await findOperationsSystemForUser(user, id);
-  if (!existing) return false;
-  const result = await deleteOperationsSystemRepo(id, user.company_id, Boolean(user.is_admin));
-  return (result.changes ?? 0) > 0;
-}
+### CR-02: System DELETE ignores repository row count *(resolved)*
 
-// route.ts DELETE handler
-const deleted = await deleteOperationsSystemForUser(user, id);
-if (!deleted) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-return NextResponse.json({ ok: true });
-```
+**File:** `app/api/operations/systems/[id]/route.ts:51-52`, `lib/services/operations.service.ts:66-70`
+**Issue:** ~~Route always responded `{ ok: true }`.~~ Fixed: service checks row count; route returns 404 when `!deleted`.
 
 ## Warnings
 
-### WR-01: `createCompanyPlatform` maps every failure to 409 Conflict
+_None — WR-01 through WR-05 fixed and verified._
 
-**File:** `lib/services/admin-platform.service.ts:18-23`
-**Issue:** The bare `catch` converts any `createCompany` failure (connection loss, constraint other than unique name, driver errors) into `ConflictError('Company name already exists')`, surfacing 409 instead of 500 and hiding root causes.
-**Fix:** Catch only the unique-violation signal (e.g. Postgres `23505` / SQLite `SQLITE_CONSTRAINT`) and rethrow or wrap other errors for `serviceErrorResponse` to map to 500.
+### WR-01: `createCompanyPlatform` maps every failure to 409 Conflict *(resolved)*
 
-### WR-02: D-23 session routes lack standardized Invalid JSON handling
+**File:** `lib/services/admin-platform.service.ts:14-35`
+**Issue:** ~~Bare catch mapped all errors to ConflictError.~~ Fixed: `isUniqueViolation` gates 409; other errors rethrow.
 
-**File:** `app/api/operations/systems/route.ts:21`, `app/api/admin/companies/route.ts:27`, `app/api/admin/jira-config/[companyId]/route.ts:32` (and other operations/admin session-gated POST/PUT handlers)
-**Issue:** Phase 20 standardized malformed JSON as `400 { error: 'Invalid JSON' }` via `withAuth`, but D-23 carve-out routes still call bare `await req.json()`. Invalid JSON throws and becomes an unhandled 500, inconsistent with Jira search and `/api/config`.
-**Fix:** Wrap `req.json()` in try/catch returning `NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })`, or extract a small shared helper used by session-gated routes.
+### WR-02: D-23 session routes lack standardized Invalid JSON handling *(resolved)*
 
-### WR-03: Non-numeric `companyId` path coerced to `NaN`
+**File:** `lib/http/parse-request-json.ts`, D-23 session-gated POST/PUT routes
+**Issue:** ~~Bare `req.json()` caused unhandled 500 on malformed JSON.~~ Fixed: shared `parseRequestJson` returns 400 `{ error: 'Invalid JSON' }`.
 
-**File:** `app/api/admin/jira-config/[companyId]/route.ts:22-23`, `app/api/admin/rag-config/[companyId]/route.ts:23-24`
-**Issue:** `Number(companyId)` on values like `"abc"` yields `NaN`. GET returns empty defaults; POST attempts `setCompanyJiraConfig`/`setCompanyRagConfig` with `NaN`, risking driver/DB errors or silent no-ops instead of a 400.
-**Fix:** Validate with `Number.isFinite(Number(companyId))` (or Zod `z.coerce.number().int().positive()`) and return `400 { error: 'Invalid company id' }` before service calls.
+### WR-03: Non-numeric `companyId` path coerced to `NaN` *(resolved)*
 
-### WR-04: RAG config POST can persist `NaN` thresholds
+**File:** `lib/http/parse-route-param.ts`, jira/rag config routes
+**Issue:** ~~`Number(companyId)` accepted NaN.~~ Fixed: `parsePositiveIntRouteParam` + 400 on invalid id.
 
-**File:** `app/api/admin/rag-config/[companyId]/route.ts:38-47`
-**Issue:** `Number(body.spi_red_threshold ?? …)` accepts non-numeric strings (`Number('x') === NaN`) and persists them through `setCompanyRagConfigValues`, corrupting threshold config without validation feedback.
-**Fix:** After coercion, reject configs where any field is `Number.isNaN(...)`, or parse with `z.coerce.number()` in the schema and return 400 on failure.
+### WR-04: RAG config POST can persist `NaN` thresholds *(resolved)*
 
-### WR-05: Resource audit unusable for sessions with `company_id: null`
+**File:** `app/api/admin/rag-config/[companyId]/route.ts:61-63`
+**Issue:** ~~Non-numeric strings persisted as NaN.~~ Fixed: rejects configs with NaN values via 400.
 
-**File:** `app/api/admin/resource-audit/route.ts:14-15`, `lib/repositories/admin.repo.ts:112-116`
-**Issue:** GET uses `user.company_id` directly. Platform admins (or any user with `company_id: null`) query `WHERE id = NULL`, returning `company: null` and empty diff lists with 200 instead of a clear 400/403. POST is guarded by `assertCompanyWrite` (requires non-null company), but GET has no equivalent guard.
-**Fix:** If `user.company_id === null`, return `400 { error: 'Company context required' }` (or require admin + explicit `?companyId=` for break-glass admins).
+### WR-05: Resource audit unusable for sessions with `company_id: null` *(resolved)*
+
+**File:** `app/api/admin/resource-audit/route.ts:14-16`
+**Issue:** ~~GET queried with null company_id.~~ Fixed: returns 400 `{ error: 'Company context required' }`.
 
 ## Info
 
@@ -155,5 +145,6 @@ return NextResponse.json({ ok: true });
 ---
 
 _Reviewed: 2026-08-28T07:45:00Z_
+_Re-reviewed: 2026-08-28T07:53:00Z_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: deep_
