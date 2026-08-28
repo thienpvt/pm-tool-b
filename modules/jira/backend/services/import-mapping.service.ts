@@ -11,10 +11,10 @@ import {
   listBugMappings as listBugMappingsRepo,
   listTimelineMappings as listTimelineMappingsRepo,
   updateTimelineMapping as updateTimelineMappingRepo,
-} from '@/lib/repositories/import-mapping.repo';
-import type { AccessActor } from './access';
-import { assertCompanyWrite } from './access';
-import { ConflictError, ForbiddenError, NotFoundError } from './errors';
+} from '@/modules/jira/backend/repositories/import-mapping.repo';
+import type { AccessActor } from '@/lib/services/access';
+import { assertCompanyWrite } from '@/lib/services/access';
+import { ConflictError, ForbiddenError, NotFoundError } from '@/lib/services/errors';
 
 const MAX_BUG_TEMPLATES = 5;
 

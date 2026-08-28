@@ -7,7 +7,7 @@ const { listRecentJiraSyncMappings, saveJiraSyncMapping } = vi.hoisted(() => ({
 }));
 
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
-vi.mock('@/lib/services/jira-mapping.service', () => ({
+vi.mock('@/modules/jira/backend/services/jira-mapping.service', () => ({
   listRecentJiraSyncMappings,
   saveJiraSyncMapping,
 }));

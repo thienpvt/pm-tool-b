@@ -1,17 +1,17 @@
 import { NextRequest } from 'next/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { listBugMappings, createBugMapping, deleteBugMapping } = vi.hoisted(() => ({
-  listBugMappings: vi.fn(),
-  createBugMapping: vi.fn(),
-  deleteBugMapping: vi.fn(),
+const { listJqlPresets, createJqlPreset, deleteJqlPreset } = vi.hoisted(() => ({
+  listJqlPresets: vi.fn(),
+  createJqlPreset: vi.fn(),
+  deleteJqlPreset: vi.fn(),
 }));
 
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
-vi.mock('@/lib/services/import-mapping.service', () => ({
-  listBugMappings,
-  createBugMapping,
-  deleteBugMapping,
+vi.mock('@/modules/jira/backend/services/jira-mapping.service', () => ({
+  listJqlPresets,
+  createJqlPreset,
+  deleteJqlPreset,
 }));
 
 import { getSessionFromRequest } from '@/lib/auth';
@@ -20,11 +20,11 @@ import { GET, POST } from './route';
 import { DELETE } from './[id]/route';
 
 /**
- * Route-level proof of the withAuth session gate on bug-import-mapping.
- * These routes had NO session check before Phase 6 (T-06-05/T-06-06) —
- * the destructive bare-id DELETE wiped a tenant's template with no auth at all.
+ * Route-level proof of the withAuth session gate on jira/jql-presets.
+ * Had NO session check before Phase 6 — anonymous read/create + anonymous
+ * bare-id DELETE (T-06-05/T-06-06).
  */
-describe('GET/POST /api/bug-import-mapping', () => {
+describe('GET/POST /api/jira/jql-presets', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -36,7 +36,7 @@ describe('GET/POST /api/bug-import-mapping', () => {
 
   const params = (id = '1') => ({ params: Promise.resolve({ id }) });
 
-  function req(method: string, url = 'http://localhost/api/bug-import-mapping', body?: unknown) {
+  function req(method: string, url = 'http://localhost/api/jira/jql-presets', body?: unknown) {
     return new NextRequest(url, {
       method,
       body: body === undefined ? undefined : JSON.stringify(body),
@@ -49,75 +49,72 @@ describe('GET/POST /api/bug-import-mapping', () => {
     const res = await GET(req('GET'), params());
     expect(res.status).toBe(401);
     await expect(res.json()).resolves.toEqual({ error: 'Unauthorized' });
-    expect(listBugMappings).not.toHaveBeenCalled();
+    expect(listJqlPresets).not.toHaveBeenCalled();
   });
 
   it('POST returns 401 with no session, service not called', async () => {
     vi.mocked(getSessionFromRequest).mockResolvedValue(null);
-    const res = await POST(req('POST', undefined, { name: 'x', mappings_json: '{}' }), params());
+    const res = await POST(req('POST', undefined, { name: 'x', jql: 'project = A' }), params());
     expect(res.status).toBe(401);
     await expect(res.json()).resolves.toEqual({ error: 'Unauthorized' });
-    expect(createBugMapping).not.toHaveBeenCalled();
+    expect(createJqlPreset).not.toHaveBeenCalled();
   });
 
-  it('GET returns the prior list shape for an owner', async () => {
+  it('GET preserves the context query param for an owner', async () => {
     vi.mocked(getSessionFromRequest).mockResolvedValue(ownerSession as never);
-    const rows = [{ id: 1, name: 'tpl', mappings_json: '{}' }];
-    listBugMappings.mockResolvedValue(rows);
+    const rows = [{ id: 1, name: 'p', jql: 'project = A', context: 'timeline' }];
+    listJqlPresets.mockResolvedValue(rows);
 
-    const res = await GET(req('GET'), params());
+    const res = await GET(req('GET', 'http://localhost/api/jira/jql-presets?context=timeline'), params());
 
     expect(res.status).toBe(200);
     await expect(res.json()).resolves.toEqual(rows);
-    expect(listBugMappings).toHaveBeenCalledWith(expect.objectContaining({ company_id: 5 }));
+    expect(listJqlPresets).toHaveBeenCalledWith(
+      expect.objectContaining({ company_id: 5 }),
+      'timeline',
+    );
   });
 
   it('POST creates for an owner with 201', async () => {
     vi.mocked(getSessionFromRequest).mockResolvedValue(ownerSession as never);
-    const created = { id: 2, name: 'tpl2', mappings_json: '{}' };
-    createBugMapping.mockResolvedValue(created);
+    const created = { id: 2, name: 'p2', jql: 'project = B', context: '' };
+    createJqlPreset.mockResolvedValue(created);
 
-    const res = await POST(req('POST', undefined, { name: 'tpl2', mappings_json: '{}' }), params());
+    const res = await POST(req('POST', undefined, { name: 'p2', jql: 'project = B' }), params());
 
     expect(res.status).toBe(201);
     await expect(res.json()).resolves.toEqual(created);
-    expect(createBugMapping).toHaveBeenCalledWith(
+    expect(createJqlPreset).toHaveBeenCalledWith(
       expect.objectContaining({ company_id: 5 }),
-      'tpl2',
-      '{}',
+      'p2',
+      'project = B',
+      '',
+      10,
     );
   });
 
   it('POST ignores company_id in body and stamps session company', async () => {
     vi.mocked(getSessionFromRequest).mockResolvedValue(ownerSession as never);
-    const created = { id: 3, name: 'tpl3', mappings_json: '{}' };
-    createBugMapping.mockResolvedValue(created);
+    const created = { id: 3, name: 'p3', jql: 'project = C', context: '' };
+    createJqlPreset.mockResolvedValue(created);
 
     const res = await POST(
-      req('POST', undefined, { name: 'tpl3', mappings_json: '{}', company_id: 999 }),
+      req('POST', undefined, { name: 'p3', jql: 'project = C', company_id: 999 }),
       params(),
     );
 
     expect(res.status).toBe(201);
-    expect(createBugMapping).toHaveBeenCalledWith(
+    expect(createJqlPreset).toHaveBeenCalledWith(
       expect.objectContaining({ company_id: 5 }),
-      'tpl3',
-      '{}',
+      'p3',
+      'project = C',
+      '',
+      10,
     );
-  });
-
-  it('POST rejects invalid body with 400 Missing fields, before service call', async () => {
-    vi.mocked(getSessionFromRequest).mockResolvedValue(ownerSession as never);
-
-    const res = await POST(req('POST', undefined, { name: '' }), params());
-
-    expect(res.status).toBe(400);
-    await expect(res.json()).resolves.toEqual({ error: 'Missing fields' });
-    expect(createBugMapping).not.toHaveBeenCalled();
   });
 });
 
-describe('DELETE /api/bug-import-mapping/[id]', () => {
+describe('DELETE /api/jira/jql-presets/[id]', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -134,7 +131,7 @@ describe('DELETE /api/bug-import-mapping/[id]', () => {
 
   const params = (id = '1') => ({ params: Promise.resolve({ id }) });
 
-  function req(method: string, url = 'http://localhost/api/bug-import-mapping/1') {
+  function req(method: string, url = 'http://localhost/api/jira/jql-presets/1') {
     return new NextRequest(url, { method });
   }
 
@@ -143,27 +140,28 @@ describe('DELETE /api/bug-import-mapping/[id]', () => {
     const res = await DELETE(req('DELETE'), params());
     expect(res.status).toBe(401);
     await expect(res.json()).resolves.toEqual({ error: 'Unauthorized' });
-    expect(deleteBugMapping).not.toHaveBeenCalled();
+    expect(deleteJqlPreset).not.toHaveBeenCalled();
   });
 
-  it('returns 403 for a cross-company mapping', async () => {
+  it('returns 403 for a cross-company preset (TENANT-01)', async () => {
     vi.mocked(getSessionFromRequest).mockResolvedValue(foreignSession as never);
-    deleteBugMapping.mockRejectedValue(new ForbiddenError());
+    deleteJqlPreset.mockRejectedValue(new ForbiddenError());
 
     const res = await DELETE(req('DELETE'), params());
 
     expect(res.status).toBe(403);
     await expect(res.json()).resolves.toEqual({ error: 'Forbidden' });
+    expect(deleteJqlPreset).toHaveBeenCalledWith('1', expect.objectContaining({ company_id: 9 }));
   });
 
   it('returns { ok: true } for an authenticated caller (shape preserved)', async () => {
     vi.mocked(getSessionFromRequest).mockResolvedValue(ownerSession as never);
-    deleteBugMapping.mockResolvedValue({ changes: 1 });
+    deleteJqlPreset.mockResolvedValue({ changes: 1 });
 
     const res = await DELETE(req('DELETE'), params());
 
     expect(res.status).toBe(200);
     await expect(res.json()).resolves.toEqual({ ok: true });
-    expect(deleteBugMapping).toHaveBeenCalledWith('1', expect.objectContaining({ company_id: 5 }));
+    expect(deleteJqlPreset).toHaveBeenCalledWith('1', expect.objectContaining({ company_id: 5 }));
   });
 });

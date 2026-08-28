@@ -7,9 +7,9 @@ import {
   listRecentJiraSyncMappings as listRecentJiraSyncMappingsRepo,
   saveJiraSyncMapping as saveJiraSyncMappingRepo,
 } from '@/lib/repositories/jira-config.repo';
-import type { AccessActor } from './access';
-import { assertCompanyWrite } from './access';
-import { ConflictError, ForbiddenError, NotFoundError } from './errors';
+import type { AccessActor } from '@/lib/services/access';
+import { assertCompanyWrite } from '@/lib/services/access';
+import { ConflictError, ForbiddenError, NotFoundError } from '@/lib/services/errors';
 
 type CompanyRow = { company_id: number };
 

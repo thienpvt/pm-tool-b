@@ -28,7 +28,7 @@ const {
   deleteBugMappingRepo: vi.fn(),
 }));
 
-vi.mock('@/lib/repositories/import-mapping.repo', () => ({
+vi.mock('@/modules/jira/backend/repositories/import-mapping.repo', () => ({
   listTimelineMappings: listTimelineMappingsRepo,
   getTimelineMappingById,
   findTimelineMappingByName,
@@ -52,7 +52,7 @@ import {
   listTimelineMappings,
   updateTimelineMapping,
 } from './import-mapping.service';
-import { ConflictError, ForbiddenError, NotFoundError } from './errors';
+import { ConflictError, ForbiddenError, NotFoundError } from '@/lib/services/errors';
 
 beforeEach(() => {
   vi.clearAllMocks();

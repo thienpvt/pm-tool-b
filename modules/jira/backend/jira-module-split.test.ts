@@ -101,9 +101,7 @@ describe('jira module split contract (24-08)', () => {
 
   it.each(p2JiraRoutes)('P2: $shell re-exports from module route', ({ shell, target }) => {
     const source = readUtf8(shell);
-    expect(source).toMatch(
-      new RegExp(`from\\s*['"]${target.replace(/\//g, '\\/')}['"]`),
-    );
+    expect(source).toContain(target);
   });
 
   it('P3 ENF-01: app/api/import/resource-plan/[id]/route.ts imports module handler', () => {

@@ -35,7 +35,7 @@ import {
   listRecentJiraSyncMappings,
   saveJiraSyncMapping,
 } from './jira-mapping.service';
-import { ConflictError, ForbiddenError, NotFoundError } from './errors';
+import { ConflictError, ForbiddenError, NotFoundError } from '@/lib/services/errors';
 
 beforeEach(() => {
   vi.clearAllMocks();
