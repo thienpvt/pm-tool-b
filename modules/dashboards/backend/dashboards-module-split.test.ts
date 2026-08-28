@@ -35,4 +35,40 @@ describe('dashboards module split contract (24-01)', () => {
     const source = readUtf8('app/dashboards/pm/page.tsx');
     expect(source).toContain('modules/dashboards/ui/pm/PmDashboardPage');
   });
+
+  it('P2: app/api/dashboards/pm/route.ts re-exports GET from module route', () => {
+    const source = readUtf8('app/api/dashboards/pm/route.ts');
+    expect(source).toMatch(
+      /export\s*\{\s*GET\s*\}\s*from\s*['"]@\/modules\/dashboards\/backend\/routes\/dashboards\/pm\/route['"]/,
+    );
+  });
+
+  it('P2: app/api/dashboards/pm/filters/route.ts re-exports GET, PUT, POST from module route', () => {
+    const source = readUtf8('app/api/dashboards/pm/filters/route.ts');
+    expect(source).toMatch(
+      /export\s*\{\s*GET\s*,\s*PUT\s*,\s*POST\s*\}\s*from\s*['"]@\/modules\/dashboards\/backend\/routes\/dashboards\/pm\/filters\/route['"]/,
+    );
+  });
+
+  it('P2: app/api/dashboards/portfolio/filters/route.ts re-exports GET, PUT, POST from module route', () => {
+    const source = readUtf8('app/api/dashboards/portfolio/filters/route.ts');
+    expect(source).toMatch(
+      /export\s*\{\s*GET\s*,\s*PUT\s*,\s*POST\s*\}\s*from\s*['"]@\/modules\/dashboards\/backend\/routes\/dashboards\/portfolio\/filters\/route['"]/,
+    );
+  });
+
+  it('P2: app/api/dashboards/portfolio/export/route.ts re-exports POST from module route', () => {
+    const source = readUtf8('app/api/dashboards/portfolio/export/route.ts');
+    expect(source).toMatch(
+      /export\s*\{\s*POST\s*\}\s*from\s*['"]@\/modules\/dashboards\/backend\/routes\/dashboards\/portfolio\/export\/route['"]/,
+    );
+  });
+
+  it('Wave 4: document-compliance route stays at app/api path', () => {
+    const source = readUtf8('app/api/dashboards/document-compliance/route.ts');
+    expect(source.length).toBeGreaterThan(0);
+    expect(source).not.toMatch(
+      /export\s*\{\s*GET\s*\}\s*from\s*['"]@\/modules\/dashboards\/backend\/routes\/dashboards\/document-compliance\/route['"]/,
+    );
+  });
 });
