@@ -3,9 +3,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { reportShellFixture } from '../shared/weekly.fixture';
 import WeeklyReportEditorPage from './WeeklyReportEditorPage';
 
+const mockParams = vi.hoisted(() => ({ id: '7', reportId: '10' }));
+
 vi.mock('next/navigation', () => ({
-  useParams: () => ({ id: '7', reportId: '10' }),
-  usePathname: () => '/projects/7/weekly-reports/10',
+  useParams: () => mockParams,
+  usePathname: () => `/projects/${mockParams.id}/weekly-reports/${mockParams.reportId}`,
 }));
 vi.mock('@/components/layout/Sidebar', () => ({
   default: ({ projectId }: { projectId?: string }) => (
@@ -135,6 +137,8 @@ function setupSubmittedFetch() {
 }
 
 beforeEach(() => {
+  mockParams.id = '7';
+  mockParams.reportId = '10';
   resolveReport = null;
   toastError.mockClear();
   toastSuccess.mockClear();
@@ -225,6 +229,62 @@ describe('WeeklyReportEditorPage', () => {
       const body = onPatch.mock.calls[0][0] as Record<string, unknown>;
       expect(body.highlights).toBe('Updated highlights');
       expect(body).not.toHaveProperty('prev_week_rag');
+    });
+
+    it('does not PATCH a new report with pending edits from the previous report', async () => {
+      const onPatch = vi.fn();
+      vi.stubGlobal(
+        'fetch',
+        vi.fn((url: string, init?: RequestInit) => {
+          if (url.includes('/weekly-reports/') && init?.method === 'PATCH') {
+            onPatch(url, JSON.parse(String(init.body)));
+            return Promise.resolve({
+              ok: true,
+              status: 200,
+              json: () => Promise.resolve(reportShellFixture),
+            });
+          }
+          if (url === '/api/projects/7/weekly-reports/10' && (!init || init.method === undefined)) {
+            return Promise.resolve({
+              ok: true,
+              status: 200,
+              json: () => Promise.resolve(reportShellFixture),
+            });
+          }
+          if (url === '/api/projects/7/weekly-reports/11' && (!init || init.method === undefined)) {
+            return Promise.resolve({
+              ok: true,
+              status: 200,
+              json: () => Promise.resolve({ ...reportShellFixture, id: 11 }),
+            });
+          }
+          if (url === '/api/projects/7' && (!init || init.method === undefined)) {
+            return Promise.resolve({
+              ok: true,
+              status: 200,
+              json: () => Promise.resolve({ name: 'Alpha' }),
+            });
+          }
+          return Promise.reject(new Error(`unexpected fetch: ${url} ${init?.method ?? 'GET'}`));
+        }) as unknown as typeof fetch,
+      );
+
+      const { rerender } = render(<WeeklyReportEditorPage />);
+
+      await waitFor(() => {
+        expect(screen.getByLabelText('Highlights')).toBeInTheDocument();
+      });
+
+      fireEvent.change(screen.getByLabelText('Highlights'), {
+        target: { value: 'Report A edit' },
+      });
+
+      mockParams.reportId = '11';
+      rerender(<WeeklyReportEditorPage />);
+
+      await vi.advanceTimersByTimeAsync(300);
+
+      expect(onPatch).not.toHaveBeenCalled();
     });
 
     it('toasts submitted message on PATCH 409', async () => {

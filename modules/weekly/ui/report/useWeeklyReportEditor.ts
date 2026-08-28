@@ -27,6 +27,7 @@ export function useWeeklyReportEditor(projectId: string, reportId: string) {
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingPatchRef = useRef<Partial<Record<PatchKey, unknown>>>({});
+  const patchGenRef = useRef(0);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -76,15 +77,19 @@ export function useWeeklyReportEditor(projectId: string, reportId: string) {
   }, [load]);
 
   useEffect(() => {
+    patchGenRef.current += 1;
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    pendingPatchRef.current = {};
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, []);
+  }, [projectId, reportId]);
 
   const editable =
     shell !== null && (shell.status !== 'submitted' || shell.correction_open);
 
   const flushPatch = useCallback(async () => {
+    const gen = patchGenRef.current;
     const body = { ...pendingPatchRef.current };
     pendingPatchRef.current = {};
     if (Object.keys(body).length === 0) return;
@@ -95,6 +100,8 @@ export function useWeeklyReportEditor(projectId: string, reportId: string) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
+
+      if (gen !== patchGenRef.current) return;
 
       if (res.status === 409) {
         toast.error('Report is submitted — open a correction to edit.');
@@ -108,6 +115,7 @@ export function useWeeklyReportEditor(projectId: string, reportId: string) {
       const updated = (await res.json()) as WeeklyReportEditorShell;
       setShell(updated);
     } catch {
+      if (gen !== patchGenRef.current) return;
       toast.error("Couldn't save draft — try again.");
     }
   }, [projectId, reportId]);
