@@ -4,17 +4,17 @@ milestone: v2.1
 milestone_name: Hardening & Deferred Debt
 current_phase: 23
 current_phase_name: Document Checklist & Audit Viewer
-status: executing
-stopped_at: Completed 23-04-PLAN.md
-last_updated: "2026-08-28T11:33:01.831Z"
+status: verifying
+stopped_at: Completed 23-05-PLAN.md
+last_updated: "2026-08-28T11:38:19.425Z"
 last_activity: 2026-08-28
 last_activity_desc: Phase 23 execution started
-state_head: 86b0fbff2a432c437a41fbc48112c1a3a528a229
+state_head: 77e8105272137f3203dab0174626a5c6b06115e7
 progress:
   total_phases: 9
   completed_phases: 4
   total_plans: 25
-  completed_plans: 24
+  completed_plans: 25
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-08-28)
 
 Phase: 23 (Document Checklist & Audit Viewer) — EXECUTING
 Plan: 5 of 5
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-08-28 — Phase 23 execution started
 
 Progress: [██░░░░░░░░] 25%
@@ -119,6 +119,7 @@ Progress: [██░░░░░░░░] 25%
 | Phase 23 P02 | 18min | 3 tasks | 6 files |
 | Phase 23 P03 | 12 | 3 tasks | 8 files |
 | Phase 23 P04 | 4 | 3 tasks | 6 files |
+| Phase 23 P05 | 8 | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -241,6 +242,7 @@ Recent decisions affecting current work:
 - [Phase 23]: Hub Document checklist card uses ClipboardCheck after Documents entry
 - [Phase 23]: Reuse weekly VirtualRows for compliance lists over 100 rows
 - [Phase 23]: Compliance filters are GET-only with COMPLIANCE_FILTER_KEYS
+- [Phase 23]: Disable VirtualRows while a row is expanded so detail panels always render
 
 ### Pending Todos
 
@@ -264,8 +266,8 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-08-28T11:33:01.213Z
-Stopped at: Completed 23-04-PLAN.md
+Last session: 2026-08-28T11:38:18.807Z
+Stopped at: Completed 23-05-PLAN.md
 Resume file: None
 
 ## Operator Next Steps

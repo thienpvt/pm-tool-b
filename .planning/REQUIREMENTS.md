@@ -56,7 +56,7 @@ DATA-01..03 is **one migration task** (replay origin `gsd/quick-260826-ded-data-
 
 ### v2 UI — audit
 
-- [ ] **AUDIT-02**: CPMO can view the company-scoped audit log in the UI with filters and before/after snapshots
+- [x] **AUDIT-02**: CPMO can view the company-scoped audit log in the UI with filters and before/after snapshots
 
 ### Audit nits
 
@@ -111,7 +111,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DOC-07 | Phase 23 | Complete |
 | DOC-08 | Phase 23 | Complete |
 | DOC-09 | Phase 23 | Complete |
-| AUDIT-02 | Phase 23 | Pending |
+| AUDIT-02 | Phase 23 | Complete |
 | MOD-01 | Phase 24 | Pending |
 | MOD-02 | Phase 24 | Pending |
 | ENF-02 | Phase 25 | Pending |
