@@ -37,6 +37,24 @@ const SYNC_SPEC: MappingTableSpec = {
   payloadColumns: ['mappings_json'],
 };
 
+/** Additive column/index SQL for 0001 Part 3 — no CROSS JOIN backfill (D-03, D-08). */
+export const MAPPING_TENANT_DDL = [
+  `ALTER TABLE timeline_import_mappings ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id)`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS idx_timeline_import_mappings_company_unique
+   ON timeline_import_mappings (company_id, name)`,
+  `CREATE INDEX IF NOT EXISTS idx_timeline_import_mappings_company_id ON timeline_import_mappings (company_id)`,
+  `ALTER TABLE bug_import_mappings ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id)`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS idx_bug_import_mappings_company_unique
+   ON bug_import_mappings (company_id, name)`,
+  `CREATE INDEX IF NOT EXISTS idx_bug_import_mappings_company_id ON bug_import_mappings (company_id)`,
+  `ALTER TABLE jira_jql_presets ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id)`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS idx_jira_jql_presets_company_unique
+   ON jira_jql_presets (company_id, name, context)`,
+  `CREATE INDEX IF NOT EXISTS idx_jira_jql_presets_company_id ON jira_jql_presets (company_id)`,
+  `ALTER TABLE jira_sync_mappings ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id)`,
+  `CREATE INDEX IF NOT EXISTS idx_jira_sync_mappings_company_id ON jira_sync_mappings (company_id)`,
+];
+
 /**
  * Idempotent per-table mapping tenancy migration (D-01, D-02).
  * Order: nullable column → backfill → NOT NULL+FK → UNIQUE(company_id, name) → index.
