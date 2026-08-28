@@ -5,6 +5,8 @@ node_modules
 .env.*
 !.env.example
 *.sql
+!migrations/*.sql
+!scripts/migrate.ts
 dump-data.mjs
 mindmap.html
 mindmap.pdf
