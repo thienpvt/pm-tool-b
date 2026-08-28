@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { auditRowsFixture } from '@/modules/documents/ui/shared/documents.fixture';
+import { auditRowsFixture, auditRows150 } from '@/modules/documents/ui/shared/documents.fixture';
 import AuditLogPage from './AuditLogPage';
 
 vi.mock('next/navigation', () => ({ usePathname: () => '/audit' }));
@@ -139,6 +139,32 @@ describe('AuditLogPage', () => {
 
     await waitFor(() => {
       expect(document.querySelectorAll('pre').length).toBe(0);
+    });
+  });
+
+  it('virtualizes 150 audit rows to at most 30 audit-row nodes', async () => {
+    render(<AuditLogPage />);
+    resolveAudit!(auditRows150);
+
+    await waitFor(() => expect(screen.getByTestId('audit-table')).toBeInTheDocument());
+
+    expect(auditRows150.length).toBe(150);
+    expect(screen.getAllByTestId('audit-row').length).toBeLessThanOrEqual(30);
+  });
+
+  it('shows JSON panels when expanding a visible row in virtualized list', async () => {
+    render(<AuditLogPage />);
+    resolveAudit!(auditRows150);
+
+    await waitFor(() =>
+      expect(screen.getAllByRole('button', { name: 'Show audit details' }).length).toBeGreaterThan(0),
+    );
+
+    const detailsButton = screen.getAllByRole('button', { name: 'Show audit details' })[0]!;
+    fireEvent.click(detailsButton);
+
+    await waitFor(() => {
+      expect(document.querySelectorAll('pre').length).toBe(2);
     });
   });
 });
