@@ -1,6 +1,6 @@
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import PortfolioDashboard from './page';
+import PortfolioHomePage from './PortfolioHomePage';
 
 vi.mock('next/navigation', () => ({ useParams: () => ({}) }));
 vi.mock('@/components/layout/Sidebar', () => ({ default: () => <nav data-testid="sidebar" /> }));
@@ -58,16 +58,16 @@ beforeEach(() => {
   }) as unknown as typeof fetch);
 });
 
-describe('PortfolioDashboard', () => {
+describe('PortfolioHomePage', () => {
   it('renders after load', async () => {
-    render(<PortfolioDashboard />);
+    render(<PortfolioHomePage />);
     await waitFor(() => expect(screen.queryByText(/Loading portfolio/i)).not.toBeInTheDocument());
     expect(screen.getByTestId('sidebar')).toBeInTheDocument();
     expect(screen.getByText('Portfolio Health Check')).toBeInTheDocument();
   });
 
   it('toggles view mode from cards to list', async () => {
-    render(<PortfolioDashboard />);
+    render(<PortfolioHomePage />);
     await waitFor(() => expect(screen.queryByText(/Loading portfolio/i)).not.toBeInTheDocument());
 
     expect(screen.queryByText('Alerts')).not.toBeInTheDocument();
@@ -86,7 +86,7 @@ describe('PortfolioDashboard', () => {
       return Promise.reject(new Error(`unexpected fetch: ${url}`));
     }) as unknown as typeof fetch);
 
-    render(<PortfolioDashboard />);
+    render(<PortfolioHomePage />);
     await waitFor(() => expect(screen.queryByText(/Loading portfolio/i)).not.toBeInTheDocument());
     expect(screen.getByTestId('sidebar')).toBeInTheDocument();
   });
