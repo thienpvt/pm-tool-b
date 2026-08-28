@@ -305,6 +305,125 @@ describe('DocumentCatalogPage', () => {
       resolvePost!({});
     });
   });
+
+  describe('edit and retire catalog item', () => {
+    it('pre-fills edit form and PATCHes on save', async () => {
+      let saved = false;
+      vi.stubGlobal(
+        'fetch',
+        vi.fn((url: string, init?: RequestInit) => {
+          if (url === '/api/document-catalog/1' && init?.method === 'PATCH') {
+            const body = JSON.parse(String(init.body));
+            expect(body.name).toBe('Charter Updated');
+            saved = true;
+            return Promise.resolve({
+              ok: true,
+              status: 200,
+              json: () =>
+                Promise.resolve({ ...catalogFixture[0], name: 'Charter Updated' }),
+            });
+          }
+          if (url === '/api/document-catalog' && (!init || init.method === undefined)) {
+            const list = saved
+              ? catalogFixture.map((r) =>
+                  r.id === 1 ? { ...r, name: 'Charter Updated' } : r,
+                )
+              : catalogFixture;
+            return Promise.resolve({
+              ok: true,
+              status: 200,
+              json: () => Promise.resolve(list),
+            });
+          }
+          return Promise.reject(new Error(`unexpected fetch: ${url} ${init?.method ?? 'GET'}`));
+        }) as unknown as typeof fetch,
+      );
+
+      render(<DocumentCatalogPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('catalog-list')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: 'Edit catalog item' }));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('catalog-edit-form')).toBeInTheDocument();
+        expect(screen.getByLabelText('Name')).toHaveValue('Charter');
+      });
+
+      fireEvent.change(screen.getByLabelText('Name'), {
+        target: { value: 'Charter Updated' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Save catalog item' }));
+
+      await waitFor(() => {
+        expect(toastSuccess).toHaveBeenCalledWith('Catalog item saved');
+      });
+    });
+
+    it('retire dialog PATCHes active false and toasts success', async () => {
+      let patched = false;
+      vi.stubGlobal(
+        'fetch',
+        vi.fn((url: string, init?: RequestInit) => {
+          if (url === '/api/document-catalog/1' && init?.method === 'PATCH') {
+            const body = JSON.parse(String(init.body));
+            if (body.active === false) {
+              patched = true;
+              return Promise.resolve({
+                ok: true,
+                status: 200,
+                json: () =>
+                  Promise.resolve({ ...catalogFixture[0], active: false }),
+              });
+            }
+            return Promise.resolve({
+              ok: true,
+              status: 200,
+              json: () => Promise.resolve(catalogFixture[0]),
+            });
+          }
+          if (url === '/api/document-catalog' && (!init || init.method === undefined)) {
+            const list = patched
+              ? catalogFixture.map((r) => (r.id === 1 ? { ...r, active: false } : r))
+              : catalogFixture;
+            return Promise.resolve({
+              ok: true,
+              status: 200,
+              json: () => Promise.resolve(list),
+            });
+          }
+          return Promise.reject(new Error(`unexpected fetch: ${url} ${init?.method ?? 'GET'}`));
+        }) as unknown as typeof fetch,
+      );
+
+      render(<DocumentCatalogPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('catalog-list')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getAllByRole('button', { name: 'Retire item' })[0]);
+
+      await waitFor(() => {
+        expect(screen.getByText('Retire this catalog item?')).toBeInTheDocument();
+        expect(
+          screen.getByText(
+            "Existing checklist rows remain; new projects won't receive this item.",
+          ),
+        ).toBeInTheDocument();
+      });
+
+      const confirmButtons = screen.getAllByRole('button', { name: 'Retire item' });
+      fireEvent.click(confirmButtons[confirmButtons.length - 1]);
+
+      await waitFor(() => {
+        expect(patched).toBe(true);
+        expect(toastSuccess).toHaveBeenCalledWith('Catalog item retired');
+      });
+    });
+  });
 });
 
 describe('app/documents/catalog re-export', () => {
