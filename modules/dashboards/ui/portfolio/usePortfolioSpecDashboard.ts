@@ -1,31 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-
-export type PortfolioDashboardData = {
-  filters: Record<string, unknown>;
-  kpis: {
-    active_count: number;
-    on_track_count: number;
-    watch_act_count: number;
-    overdue_milestone_project_count: number;
-    high_open_raid_count: number;
-    technology_council_count: number;
-  };
-  charts: {
-    by_stage: Record<string, number>;
-    by_rag: { green: number; amber: number; red: number };
-  };
-  list: unknown[];
-  drilldowns: {
-    overdue_milestones: unknown[];
-    high_raid: unknown[];
-    technology_council: unknown[];
-  };
-};
+import type { PortfolioDashboardPayload } from '@/modules/dashboards/ui/shared/types';
 
 export function usePortfolioSpecDashboard() {
-  const [data, setData] = useState<PortfolioDashboardData | null>(null);
+  const [data, setData] = useState<PortfolioDashboardPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 

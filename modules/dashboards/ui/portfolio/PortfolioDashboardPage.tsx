@@ -1,5 +1,7 @@
 'use client';
 
+// NIT-04: fiscal KPIs live on /portfolio/budget, not spec tiles.
+
 import Sidebar from '@/components/layout/Sidebar';
 import { Card } from '@/components/ui/card';
 import { usePortfolioSpecDashboard } from './usePortfolioSpecDashboard';
@@ -57,6 +59,9 @@ export default function PortfolioDashboardPage() {
             </Card>
           ))}
         </div>
+        <p className="mt-4 text-xs text-muted-foreground">
+          Budget and fiscal metrics are on Portfolio Budget (/portfolio/budget).
+        </p>
       </main>
     </div>
   );
