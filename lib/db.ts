@@ -130,12 +130,16 @@ export async function getDb(): Promise<DbClient> {
     connectionString: process.env.DATABASE_URL,
     ssl: resolveSsl(process.env.DATABASE_URL),
   });
-  _pool = pool;
-  const client = new PostgresClient(pool);
-  await assertMigrated((sql) => pool.query(sql));
-  _client = client;
-  await seedAuthData(_client);
-  return _client;
+  try {
+    await assertMigrated((sql) => pool.query(sql));
+    _pool = pool;
+    _client = new PostgresClient(pool);
+    await seedAuthData(_client);
+    return _client;
+  } catch (err) {
+    await pool.end();
+    throw err;
+  }
 }
 
 // ── Types ──────────────────────────────────────────────────────────────────────
