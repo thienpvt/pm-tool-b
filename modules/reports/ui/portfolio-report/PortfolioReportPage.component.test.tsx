@@ -1,6 +1,6 @@
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import PortfolioReportPage from './page';
+import PortfolioReportPage from './PortfolioReportPage';
 
 vi.mock('next/navigation', () => ({ useParams: () => ({}) }));
 vi.mock('@/components/layout/Sidebar', () => ({ default: () => <nav data-testid="sidebar" /> }));

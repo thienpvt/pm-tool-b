@@ -67,7 +67,11 @@ vi.mock('@/modules/portfolio/backend/repositories/portfolio.repo', () => ({
 vi.mock('@/modules/portfolio/backend/repositories/programs.repo', () => ({ listCompanyPrograms }));
 vi.mock('@/lib/repositories/rag-config.repo', () => ({ companyRagConfig }));
 
-import { getPortfolioReport, assertPortfolioCpmoWrite, monSunWeekBounds } from './portfolio-report.service';
+import {
+  getPortfolioReport,
+  assertPortfolioCpmoWrite,
+  monSunWeekBounds,
+} from '@/modules/reports/backend/services/portfolio-report.service';
 import { ForbiddenError } from '@/lib/services/errors';
 
 const scoped = {

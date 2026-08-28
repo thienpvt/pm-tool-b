@@ -5,7 +5,7 @@ import { seedCompany, seedProject, setupRepoTables, testDb } from '../../test/re
 vi.mock('@/lib/db', () => ({ getDb: vi.fn(async () => testDb()) }));
 
 import { getBudget, getPortfolioSummary, listBudgets } from '@/modules/portfolio/backend/services/portfolio.service';
-import { getPortfolioReport } from './portfolio-report.service';
+import { getPortfolioReport } from '@/modules/reports/backend/services/portfolio-report.service';
 import { getRoadmap } from '@/modules/portfolio/backend/services/roadmap.service';
 import { listPortfolioBudgets } from '@/modules/portfolio/backend/repositories/portfolio.repo';
 import { NotFoundError } from '@/lib/services/errors';

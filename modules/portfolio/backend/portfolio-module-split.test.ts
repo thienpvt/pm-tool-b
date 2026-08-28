@@ -33,9 +33,11 @@ describe('portfolio module split contract (24-05)', () => {
     expect(source).toContain('withProgramAccess(');
   });
 
-  it('D-11: app/portfolio/report/page.tsx is not yet a modules/reports re-export', () => {
+  it('D-11: app/portfolio/report/page.tsx re-exports from modules/reports (Wave 7)', () => {
     const source = readUtf8('app/portfolio/report/page.tsx');
-    expect(source).not.toContain('modules/reports/ui');
+    expect(source).toMatch(
+      /export\s*\{\s*default\s*\}\s*from\s*['"]@\/modules\/reports\/ui\/portfolio-report\/PortfolioReportPage['"]/,
+    );
   });
 
   const p1PortfolioPages = [
@@ -70,10 +72,10 @@ describe('portfolio module split contract (24-05)', () => {
     );
   });
 
-  it('D-11: app/portfolio/report/page.tsx still contains local page logic', () => {
+  it('D-11: app/portfolio/report/page.tsx is a thin P1 shell (Wave 7)', () => {
     const source = readUtf8('app/portfolio/report/page.tsx');
-    expect(source).toContain('export default function PortfolioReportPage');
-    expect(source).not.toMatch(
+    expect(source).not.toContain('export default function PortfolioReportPage');
+    expect(source).toMatch(
       /export\s*\{\s*default\s*\}\s*from\s*['"]@\/modules\/reports\/ui/,
     );
   });
@@ -92,10 +94,10 @@ describe('portfolio module split contract (24-05)', () => {
     );
   });
 
-  it('D-11: app/api/portfolio/report/route.ts is not yet a modules/reports re-export', () => {
+  it('D-11: app/api/portfolio/report/route.ts re-exports from modules/reports (Wave 7)', () => {
     const source = readUtf8('app/api/portfolio/report/route.ts');
-    expect(source).not.toMatch(
-      /export\s*\{\s*GET\s*\}\s*from\s*['"]@\/modules\/reports\/backend/,
+    expect(source).toMatch(
+      /export\s*\{\s*GET\s*,\s*POST\s*\}\s*from\s*['"]@\/modules\/reports\/backend\/routes\/portfolio\/report\/route['"]/,
     );
   });
 
@@ -137,7 +139,7 @@ describe('portfolio module split contract (24-05)', () => {
   });
 
   it('D-03: portfolio-report.service and export/portfolio/members use module repo paths', () => {
-    const reportSource = readUtf8('lib/services/portfolio-report.service.ts');
+    const reportSource = readUtf8('modules/reports/backend/services/portfolio-report.service.ts');
     expect(reportSource).toContain('@/modules/portfolio/backend/repositories/portfolio.repo');
     expect(reportSource).toContain('@/modules/portfolio/backend/repositories/programs.repo');
     expect(reportSource).not.toContain('@/lib/repositories/portfolio.repo');
