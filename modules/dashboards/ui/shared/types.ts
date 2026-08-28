@@ -1,6 +1,6 @@
 import type { DashboardFilters } from '@/lib/dashboards/filters';
 import type { PortfolioCharts, PortfolioKpis } from '@/lib/dashboards/kpi';
-import type { PortfolioDashboardListRow } from '@/lib/services/spec-dashboards.service';
+import type { PortfolioDashboardListRow } from '@/modules/dashboards/backend/services/spec-dashboards.service';
 
 export type { PortfolioCharts, PortfolioKpis, DashboardFilters, PortfolioDashboardListRow };
 
