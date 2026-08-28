@@ -139,4 +139,21 @@ describe('operations module split contract (24-10)', () => {
     expect(source).not.toContain('@/lib/http/with-role');
     expect(source).not.toContain('withCpmo');
   });
+
+  const operationsRouteTests = [
+    'modules/operations/backend/routes/operations/systems/route.test.ts',
+    'modules/operations/backend/routes/operations/systems/[id]/route.test.ts',
+    'modules/operations/backend/routes/operations/systems/[id]/budget-items/route.test.ts',
+    'modules/operations/backend/routes/operations/systems/[id]/expenses/route.test.ts',
+    'modules/operations/backend/routes/operations/systems/[id]/incidents/route.test.ts',
+  ] as const;
+
+  it.each(operationsRouteTests)(
+    'D-09: %s mocks operations.service from module path',
+    (testPath) => {
+      const source = readUtf8(testPath);
+      expect(source).toContain("vi.mock('@/modules/operations/backend/services/operations.service'");
+      expect(source).not.toContain("vi.mock('@/lib/services/operations.service'");
+    },
+  );
 });

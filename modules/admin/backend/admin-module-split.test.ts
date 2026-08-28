@@ -77,4 +77,19 @@ describe('admin module split contract (24-09)', () => {
     const source = readUtf8(shell);
     expect(source).toContain(target);
   });
+
+  const adminRouteTests = [
+    'modules/admin/backend/routes/admin/companies/route.test.ts',
+    'modules/admin/backend/routes/admin/demo-requests/route.test.ts',
+    'modules/admin/backend/routes/admin/resource-audit/route.access.test.ts',
+  ] as const;
+
+  it.each(adminRouteTests)(
+    'D-09: %s mocks admin-platform.service from module path',
+    (testPath) => {
+      const source = readUtf8(testPath);
+      expect(source).toContain("vi.mock('@/modules/admin/backend/services/admin-platform.service'");
+      expect(source).not.toContain("vi.mock('@/lib/services/admin-platform.service'");
+    },
+  );
 });
