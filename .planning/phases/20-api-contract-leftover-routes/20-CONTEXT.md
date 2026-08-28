@@ -27,13 +27,21 @@ Unauthenticated API callers get JSON, leftover ops/admin/config/import-mapping r
 <decisions>
 ## Implementation Decisions
 
+- **D-01:** Detect API vs page by pathname prefix `/api/` (not Accept header). API → JSON 401. Pages → existing login redirect.
+- **D-02:** Reuse `{ error: 'Unauthorized' }` already used by `withAuth`.
+- **D-03:** Jira malformed JSON → 400 `{ error: 'Invalid JSON' }` via `withAuth` catch. Do not invent a new envelope. Do not change Jira credential resolution.
+- **D-04:** ESLint rule plus explicit allowlist file (paths, not comments); wire `npm run lint` into CI. List public health if exempt.
+- **D-05:** Split leftover admin/ops/config services like `users.service` (operations, admin-platform, settings, jira-config, rag-config).
+- **D-06:** Import-mapping already through services — verify, do not rewrite if already THIN.
+- **D-23:** `operations/**` and `/api/admin/companies` keep existing break-glass; do not add `withCpmo`/`withRole` there.
+
 ### PROXY-01 JSON vs redirect
 - Detect API by pathname prefix `/api/` (not Accept header). API → JSON 401 `{ error: 'Unauthorized' }`. Pages → existing login redirect.
 - Reuse the same error string already used by `withAuth` (`Unauthorized`) so clients and tests stay consistent.
 - Cover with a unit/integration test on the proxy matcher (existing `proxy.matcher.test.mjs` analog).
 
 ### JIRA-01 hygiene
-- Remove debug `console.log` of Jira issue custom fields from search path.
+- Remove debug dump of Jira issue custom fields from search path.
 - Malformed `req.json()` → 400 with existing ValidationError / `{ error: ... }` shape used by other POST APIs — do not invent a new envelope.
 - Do not change Jira credential resolution (INTG-08 already shipped).
 
