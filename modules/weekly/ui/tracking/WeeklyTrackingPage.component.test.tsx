@@ -94,6 +94,9 @@ describe('WeeklyTrackingPage', () => {
   it('renders title Weekly tracking after GET 200', async () => {
     render(<WeeklyTrackingPage />);
     resolvePeriods!(periodsFixture);
+    await waitFor(() => {
+      expect(resolveTracking).toBeTypeOf('function');
+    });
     resolveTracking!(trackingPayload);
 
     await waitFor(() => {
@@ -213,6 +216,9 @@ describe('WeeklyTrackingPage', () => {
   it('calls router.replace when period Select changes', async () => {
     render(<WeeklyTrackingPage />);
     resolvePeriods!(periodsFixture);
+    await waitFor(() => {
+      expect(resolveTracking).toBeTypeOf('function');
+    });
     resolveTracking!(trackingPayload);
 
     await waitFor(() => {
