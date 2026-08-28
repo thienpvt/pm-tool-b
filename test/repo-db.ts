@@ -6,11 +6,10 @@ import { testPool } from './db';
 /**
  * A `DbClient` over the Phase 1 test pool.
  *
- * Repository tests must NOT call `getDb()` — that runs `initPostgresSchema`,
- * the migration loop, and `seedAuthData`, which would write default admin
- * credentials into the test database. This adapter gives repositories a real
- * Postgres connection with the same `?` → `$n` placeholder convention
- * `lib/db.ts` uses, and nothing else.
+ * Repository tests must NOT call `getDb()` — that asserts the migration ledger
+ * and runs `seedAuthData`, which would write default admin credentials into the
+ * test database. This adapter gives repositories a real Postgres connection with
+ * the same `?` → `$n` placeholder convention `lib/db.ts` uses, and nothing else.
  */
 class TestDbClient implements DbClient {
   constructor(private pool: Pool) {}
