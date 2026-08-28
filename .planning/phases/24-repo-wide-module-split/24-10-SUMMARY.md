@@ -107,7 +107,7 @@ status: complete
 3. **Task 2 RED:** Move remaining operations nested routes with D-07 sweep — `fa104db` (test)
 4. **Task 2 GREEN:** Move remaining operations nested routes with D-07 sweep — `fce2025` (feat)
 
-**Plan metadata:** pending (docs commit)
+**Plan metadata:** `0002e62` (docs: complete plan)
 
 ## Files Created/Modified
 
