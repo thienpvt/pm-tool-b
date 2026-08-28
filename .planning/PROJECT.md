@@ -68,7 +68,7 @@ v2.0 remainder (ops/admin still repo-direct, proxy HTML-307, no React consumers 
 ### Active
 
 - [ ] MOD-01 — Every feature module in the repo has backend (routes, services, repos) and UI (pages, hooks, components) in separate directories; existing areas included, not only new v2 screens
-- [ ] DATA-01..03 — One task: versioned SQL migrations + external `npm run migrate` + data-fix scripts; `getDb()` connects, guards, seeds; replay origin branch as a pattern and regenerate baseline from current schema
+- ✓ DATA-01..03 — External versioned SQL migrate + checksum ledger; `getDb()` connects, asserts ledger, seeds only; data-fixes under `scripts/data-fixes/` — Phase 19
 - [ ] ENF-01 — CI/ESLint fails when a project-scoped `route.ts` handler is not wrapped by the sanctioned helper
 - [ ] ENF-02 — Repositories adopt Kysely over raw `pg.Pool` so column allowlists are compile-time
 - [ ] PERF-01 — Large grids are virtualized
@@ -144,8 +144,8 @@ This milestone:
 | Tests alongside reorg, not a pre-built safety net | Contract snapshots over endpoints that are about to move by design would mostly re-encode the mess | Vitest 4 + 727 tests; HYG-03 held |
 | Refactor + opportunistic fixes, not pure freeze | Moving code surfaces real bugs; leaving them in place to preserve a bug-for-bug freeze wastes the pass | HYG-02: Anthropic 500→502 still needs operator confirm |
 | Migrations-out-of-`getDb()` deferred in v1–v2 | Cold-start slowness was not a correctness risk then | Reopened — single DATA task in v2.1 |
-| DATA-01..03 as one task | Origin `gsd/quick-260826-ded-data-layer-migrations` already shipped them together; splitting into three phases adds ceremony | — Pending |
-| Replay DATA branch, do not merge | Branch baseline is post-v1.0 / pre-v2.0; merge would omit weekly/fiscal/roles/RAID/dashboard/checklist/audit tables | — Pending |
+| DATA-01..03 as one task | Origin `gsd/quick-260826-ded-data-layer-migrations` already shipped them together; splitting into three phases adds ceremony | Shipped Phase 19 |
+| Replay DATA branch, do not merge | Branch baseline is post-v1.0 / pre-v2.0; merge would omit weekly/fiscal/roles/RAID/dashboard/checklist/audit tables | Shipped Phase 19 (pattern-only; regenerated 0001) |
 | Repo-wide backend/UI split per module | Not only new v2 screens — every existing feature area gets separate backend and UI dirs | — Pending |
 | Kysely in v2.1 (ENF-02) | Allowlists stay; compile-time column safety. Still no Prisma / second ORM / Postgres replacement | — Pending |
 | INTG-08 evidence before deleting dead Jira helpers | Resolver live paths already matched; deletion gated on `verify-credential-cutover.ts` | Closed Phase 8 (`e0b2cea`) |

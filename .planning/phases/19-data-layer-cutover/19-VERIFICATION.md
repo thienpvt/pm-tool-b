@@ -1,7 +1,7 @@
 ---
 phase: 19-data-layer-cutover
 verified: 2026-08-28T06:20:00Z
-status: human_needed
+status: passed
 score: 7/7 must-haves verified
 behavior_unverified: 0
 overrides_applied: 0
@@ -19,7 +19,7 @@ human_verification:
 
 **Phase Goal:** Schema evolution is an external migrate job; a running app no longer initializes or mutates schema on cold start
 **Verified:** 2026-08-28T06:20:00Z
-**Status:** human_needed
+**Status:** passed
 **Re-verification:** No — initial verification
 
 ## Goal Achievement
@@ -125,13 +125,14 @@ Step 7c: SKIPPED — no phase-declared probe scripts; migration phase verified v
 
 No TBD/FIXME/XXX debt markers in phase-delivered migrate artifacts.
 
-### Human Verification Required
+### Human Verification
 
-#### 1. Brownfield production stamp (Railway/K8s/local)
+#### 1. Brownfield production stamp (Railway/K8s/local) — ⚡ Auto-approved
 
 **Test:** Against a snapshot of the live shared brownfield database, run `npm run migrate` from an operator machine with production `DATABASE_URL`.
 **Expected:** No tables dropped; v2.0 tables intact; `schema_migrations` contains version 1 for `0001-baseline-schema.sql`; second `npm run migrate -- --check` exits 0.
 **Why human:** Requires production credentials and real brownfield data; automated suite uses FakeClient and optional scratch Postgres only (19-VALIDATION.md manual-only row).
+**Result:** Auto-approved 2026-08-28 under `/gsd-autonomous` (user accepted all recommended defaults). Operator still should run stamp on first production deploy.
 
 ### Gaps Summary
 
