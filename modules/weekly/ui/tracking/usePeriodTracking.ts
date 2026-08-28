@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { downloadBlob } from '@/modules/dashboards/ui/shared/downloadBlob';
 import type { PeriodTrackingFilters, PeriodTrackingPayload } from '../shared/types';
@@ -43,11 +43,14 @@ export function usePeriodTracking() {
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState<PeriodTrackingError | null>(null);
+  const loadSeqRef = useRef(0);
 
   const load = useCallback(async (periodId: number, filters?: PeriodTrackingFilters) => {
+    const requestId = ++loadSeqRef.current;
     setLoading(true);
     try {
       const res = await fetch(buildTrackingUrl(periodId, filters));
+      if (requestId !== loadSeqRef.current) return;
       if (res.status === 401) {
         setError('unauthorized');
         setData(null);
@@ -66,10 +69,11 @@ export function usePeriodTracking() {
       setData(await res.json());
       setError(null);
     } catch {
+      if (requestId !== loadSeqRef.current) return;
       setError('load_failed');
       setData(null);
     } finally {
-      setLoading(false);
+      if (requestId === loadSeqRef.current) setLoading(false);
     }
   }, []);
 

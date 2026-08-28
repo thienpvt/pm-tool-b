@@ -38,6 +38,7 @@ vi.mock('sonner', () => ({
 
 let resolvePeriods: ((value: unknown) => void) | null = null;
 let resolveTracking: ((value: unknown) => void) | null = null;
+const trackingResolvers: Array<(value: unknown) => void> = [];
 
 function setupDeferredFetch() {
   vi.stubGlobal(
@@ -55,12 +56,14 @@ function setupDeferredFetch() {
       }
       if (url.startsWith('/api/weekly-periods/') && url.endsWith('/tracking')) {
         return new Promise((resolve) => {
-          resolveTracking = (value) =>
+          const resolver = (value: unknown) =>
             resolve({
               ok: true,
               status: 200,
               json: () => Promise.resolve(value),
             });
+          trackingResolvers.push(resolver);
+          resolveTracking = resolver;
         });
       }
       return Promise.reject(new Error(`unexpected fetch: ${url}`));
@@ -96,6 +99,7 @@ beforeEach(() => {
   replaceMock.mockClear();
   resolvePeriods = null;
   resolveTracking = null;
+  trackingResolvers.length = 0;
   downloadBlobMock.mockClear();
   toastError.mockClear();
   toastSuccess.mockClear();
@@ -146,6 +150,70 @@ describe('WeeklyTrackingPage', () => {
       'href',
       '/weekly/periods',
     );
+  });
+
+  it('ignores stale tracking GET when period changes before earlier fetch settles', async () => {
+    const pendingResolvers = new Map<string, (value: unknown) => void>();
+    const period1Payload = {
+      ...trackingPayload,
+      counts: { ...trackingPayload.counts, obligated: 99 },
+    };
+    const period2Payload = {
+      ...trackingPayload,
+      counts: { ...trackingPayload.counts, obligated: 42 },
+    };
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) => {
+        if (url === '/api/weekly-periods') {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: () => Promise.resolve(periodsFixture),
+          });
+        }
+        if (url.startsWith('/api/weekly-periods/') && url.endsWith('/tracking')) {
+          return new Promise((resolve) => {
+            pendingResolvers.set(url, (value) =>
+              resolve({
+                ok: true,
+                status: 200,
+                json: () => Promise.resolve(value),
+              }),
+            );
+          });
+        }
+        return Promise.reject(new Error(`unexpected fetch: ${url}`));
+      }) as unknown as typeof fetch,
+    );
+
+    searchParams = new URLSearchParams('periodId=1');
+    const { rerender } = render(<WeeklyTrackingPage />);
+
+    await waitFor(() => {
+      expect(pendingResolvers.has('/api/weekly-periods/1/tracking')).toBe(true);
+    });
+
+    searchParams = new URLSearchParams('periodId=2');
+    rerender(<WeeklyTrackingPage />);
+
+    await waitFor(() => {
+      expect(pendingResolvers.has('/api/weekly-periods/2/tracking')).toBe(true);
+    });
+
+    pendingResolvers.get('/api/weekly-periods/2/tracking')!(period2Payload);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('tracking-counts-bar')).toHaveTextContent('42');
+    });
+
+    pendingResolvers.get('/api/weekly-periods/1/tracking')!(period1Payload);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('tracking-counts-bar')).toHaveTextContent('42');
+      expect(screen.getByTestId('tracking-counts-bar')).not.toHaveTextContent('99');
+    });
   });
 
   it('falls back to latest iso_week when periodId is invalid', async () => {
