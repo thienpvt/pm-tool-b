@@ -5,6 +5,8 @@ import { useParams } from 'next/navigation';
 import { AlertTriangle } from 'lucide-react';
 import Sidebar from '@/components/layout/Sidebar';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import type { WeeklyRag } from '../shared/types';
 import { WeeklyReportForm } from './WeeklyReportForm';
 import { useWeeklyReportEditor } from './useWeeklyReportEditor';
@@ -54,8 +56,19 @@ export default function WeeklyReportEditorPage() {
   const params = useParams<{ id?: string; projectId?: string; reportId: string }>();
   const projectId = params.id ?? params.projectId ?? '';
   const reportId = params.reportId;
-  const { shell, projectName, loading, error, editable, fieldErrors, patchField } =
-    useWeeklyReportEditor(projectId, reportId);
+  const {
+    shell,
+    projectName,
+    loading,
+    error,
+    editable,
+    fieldErrors,
+    submitting,
+    correcting,
+    patchField,
+    submitReport,
+    correctReport,
+  } = useWeeklyReportEditor(projectId, reportId);
 
   if (loading) {
     return (
@@ -140,6 +153,33 @@ export default function WeeklyReportEditorPage() {
           fieldErrors={fieldErrors}
           onPatchField={patchField}
         />
+
+        <Card size="sm" className="mt-6 px-4 sticky bottom-4" data-testid="weekly-report-actions">
+          <div className="flex flex-wrap gap-3">
+            {(shell.status === 'draft' || shell.status === 'not_submitted') && (
+              <Button
+                size="sm"
+                disabled={submitting}
+                aria-busy={submitting}
+                className="bg-blue-600 text-white hover:bg-blue-700"
+                onClick={() => void submitReport()}
+              >
+                Submit report
+              </Button>
+            )}
+            {shell.status === 'submitted' && (
+              <Button
+                size="sm"
+                disabled={correcting}
+                aria-busy={correcting}
+                className="bg-blue-600 text-white hover:bg-blue-700"
+                onClick={() => void correctReport()}
+              >
+                Open correction
+              </Button>
+            )}
+          </div>
+        </Card>
       </main>
     </div>
   );
