@@ -20,7 +20,7 @@ const {
   auditLogService: vi.fn(),
 }));
 
-vi.mock('./access', () => ({
+vi.mock('@/lib/services/access', () => ({
   assertCompanyWrite,
 }));
 vi.mock('@/modules/weekly/backend/repositories/weekly-reports.repo', () => ({
