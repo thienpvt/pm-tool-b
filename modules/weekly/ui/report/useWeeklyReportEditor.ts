@@ -105,10 +105,12 @@ export function useWeeklyReportEditor(projectId: string, reportId: string) {
 
       if (res.status === 409) {
         toast.error('Report is submitted — open a correction to edit.');
+        await load();
         return;
       }
       if (!res.ok) {
         toast.error("Couldn't save draft — try again.");
+        await load();
         return;
       }
 
@@ -117,8 +119,9 @@ export function useWeeklyReportEditor(projectId: string, reportId: string) {
     } catch {
       if (gen !== patchGenRef.current) return;
       toast.error("Couldn't save draft — try again.");
+      await load();
     }
-  }, [projectId, reportId]);
+  }, [projectId, reportId, load]);
 
   const patchField = useCallback(
     (partial: Partial<Record<PatchKey, unknown>>) => {
