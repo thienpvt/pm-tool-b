@@ -188,7 +188,14 @@ describe('ProjectChecklistPage PATCH editor', () => {
   });
 
   it('shows approved fields when status is approved', async () => {
-    setupChecklistFetch({ items: [checklistFixture[0]] });
+    const approvedItem = {
+      ...checklistFixture[0],
+      status: 'approved' as const,
+      approved_at: '2026-01-15',
+      approved_by: 'user1',
+      confluence_url: 'https://example.com/confluence/123',
+    };
+    setupChecklistFetch({ items: [approvedItem] });
     render(<ProjectChecklistPage />);
 
     await waitFor(() => {
@@ -196,8 +203,6 @@ describe('ProjectChecklistPage PATCH editor', () => {
     });
 
     fireEvent.click(screen.getByRole('button', { name: 'Edit checklist item' }));
-    fireEvent.click(screen.getByLabelText('Status'));
-    fireEvent.click(screen.getByRole('option', { name: 'Approved' }));
 
     await waitFor(() => {
       expect(screen.getByLabelText('Approved date')).toBeInTheDocument();
@@ -206,7 +211,12 @@ describe('ProjectChecklistPage PATCH editor', () => {
   });
 
   it('shows N/A reason when status is not applicable', async () => {
-    setupChecklistFetch({ items: [checklistFixture[0]] });
+    const naItem = {
+      ...checklistFixture[0],
+      status: 'not_applicable' as const,
+      na_reason: 'Not required for this project type',
+    };
+    setupChecklistFetch({ items: [naItem] });
     render(<ProjectChecklistPage />);
 
     await waitFor(() => {
@@ -214,8 +224,6 @@ describe('ProjectChecklistPage PATCH editor', () => {
     });
 
     fireEvent.click(screen.getByRole('button', { name: 'Edit checklist item' }));
-    fireEvent.click(screen.getByLabelText('Status'));
-    fireEvent.click(screen.getByRole('option', { name: 'Not applicable' }));
 
     await waitFor(() => {
       expect(screen.getByLabelText('N/A reason')).toBeInTheDocument();
