@@ -32,6 +32,7 @@ type ProgramOption = { id: number; name: string };
 type ComplianceFiltersBarProps = {
   filters: ComplianceFilters;
   refreshing: boolean;
+  filterError?: string | null;
   onApply: (filters: ComplianceFilters) => void | Promise<void>;
   onClear: () => void | Promise<void>;
 };
@@ -55,6 +56,7 @@ function buildPayload(draft: ComplianceFilters): ComplianceFilters {
 export function ComplianceFiltersBar({
   filters,
   refreshing,
+  filterError,
   onApply,
   onClear,
 }: ComplianceFiltersBarProps) {
@@ -178,6 +180,11 @@ export function ComplianceFiltersBar({
           Clear filters
         </Button>
       </div>
+      {filterError ? (
+        <p className="text-red-600 text-xs mt-2" data-testid="compliance-filter-error">
+          {filterError}
+        </p>
+      ) : null}
     </Card>
   );
 }

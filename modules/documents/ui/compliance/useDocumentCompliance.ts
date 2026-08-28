@@ -23,6 +23,7 @@ export function useDocumentCompliance() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<DocumentComplianceError | null>(null);
+  const [filterError, setFilterError] = useState<string | null>(null);
   const loadSeqRef = useRef(0);
 
   const load = useCallback(async (filters: ComplianceFilters = {}, isRefresh = false) => {
@@ -47,6 +48,7 @@ export function useDocumentCompliance() {
       }
       if (res.status === 400) {
         toast.error('Invalid filter — check your selections.');
+        setFilterError('Invalid filter — check your selections.');
         return { ok: false as const, status: 400 };
       }
       if (!res.ok) {
@@ -58,6 +60,7 @@ export function useDocumentCompliance() {
       if (requestId !== loadSeqRef.current) return { ok: false as const, status: 0 };
       setData(payload);
       setError(null);
+      setFilterError(null);
       return { ok: true as const, status: 200 };
     } catch {
       if (requestId !== loadSeqRef.current) return { ok: false as const, status: 0 };
@@ -79,5 +82,5 @@ export function useDocumentCompliance() {
     load({}, false);
   }, [load]);
 
-  return { data, loading, refreshing, error, load };
+  return { data, loading, refreshing, error, filterError, load };
 }

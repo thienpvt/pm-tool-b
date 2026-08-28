@@ -13,7 +13,7 @@ const ERROR_COPY = {
 } as const;
 
 export default function DocumentCompliancePage() {
-  const { data, loading, refreshing, error, load } = useDocumentCompliance();
+  const { data, loading, refreshing, error, filterError, load } = useDocumentCompliance();
 
   if (loading) {
     return (
@@ -60,6 +60,7 @@ export default function DocumentCompliancePage() {
         <ComplianceFiltersBar
           filters={data.filters}
           refreshing={refreshing}
+          filterError={filterError}
           onApply={(filters) => load(filters, true)}
           onClear={() => load({}, true)}
         />

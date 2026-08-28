@@ -144,7 +144,11 @@ describe('DocumentCompliancePage', () => {
 
     await waitFor(() => {
       expect(toastError).toHaveBeenCalledWith('Invalid filter — check your selections.');
+      expect(screen.getByTestId('compliance-filter-error')).toHaveTextContent(
+        'Invalid filter — check your selections.',
+      );
     });
+    expect(screen.getByText('Alpha Project')).toBeInTheDocument();
   });
 
   it('ignores stale compliance GET when filters change quickly', async () => {
