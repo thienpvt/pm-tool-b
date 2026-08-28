@@ -3,7 +3,7 @@ import { withProjectAccess } from '@/lib/http/with-project-access';
 import {
   getWeeklyReportShell,
   saveWeeklyReportDraft,
-} from '@/lib/services/weekly-reports.service';
+} from '@/modules/weekly/backend/services/weekly-reports.service';
 import { weeklyReportDraftSchema } from './schema';
 
 export const GET = withProjectAccess<{ id: string; reportId: string }>(

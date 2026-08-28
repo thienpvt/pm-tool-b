@@ -3,7 +3,7 @@ import { withCpmo } from '@/lib/http/with-role';
 import {
   getCompanyWeeklyConfig,
   upsertCompanyWeeklyConfig,
-} from '@/lib/services/weekly-reports.service';
+} from '@/modules/weekly/backend/services/weekly-reports.service';
 import { weeklyConfigSchema } from './schema';
 
 export const GET = withCpmo(async (_req, { actor }) =>

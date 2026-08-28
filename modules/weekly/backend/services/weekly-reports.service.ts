@@ -3,7 +3,7 @@ import {
   getCompanyWeeklyConfig as getCompanyWeeklyConfigRepo,
   listWeeklyPeriods as listWeeklyPeriodsRepo,
   upsertCompanyWeeklyConfig as upsertCompanyWeeklyConfigRepo,
-} from '@/lib/repositories/weekly-periods.repo';
+} from '@/modules/weekly/backend/repositories/weekly-periods.repo';
 import {
   finalizeWeeklyReportSubmit,
   getLatestVersionSnapshot,
@@ -24,18 +24,18 @@ import { getProject, updateProject } from '@/lib/repositories/projects.repo';
 import { getMilestone } from '@/lib/repositories/milestones.repo';
 import { getRisk } from '@/lib/repositories/risks.repo';
 import { getIssue } from '@/lib/repositories/issues.repo';
-import { createRisk, updateRisk } from './risks.service';
-import { createIssue, updateIssue } from './issues.service';
+import { createRisk, updateRisk } from '@/lib/services/risks.service';
+import { createIssue, updateIssue } from '@/lib/services/issues.service';
 import { ISO_WEEK_PATTERN } from '@/lib/iso-week';
 import {
   assertCompanyWrite,
   assertProjectAccess,
   assertProjectWriteAccess,
   type AccessActor,
-} from './access';
+} from '@/lib/services/access';
 import { auditLog } from '@/modules/audit/backend/services/audit.service';
 import { runInTransaction } from '@/lib/db';
-import { ConflictError, ForbiddenError, NotFoundError, SubmitValidationError, ValidationError } from './errors';
+import { ConflictError, ForbiddenError, NotFoundError, SubmitValidationError, ValidationError } from '@/lib/services/errors';
 
 const DEFAULT_CONFIG = { due_weekday: 5, due_time_utc: '18:00:00' };
 

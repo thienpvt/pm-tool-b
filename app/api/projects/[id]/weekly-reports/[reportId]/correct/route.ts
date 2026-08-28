@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { withProjectAccess } from '@/lib/http/with-project-access';
-import { openWeeklyReportCorrection } from '@/lib/services/weekly-reports.service';
+import { openWeeklyReportCorrection } from '@/modules/weekly/backend/services/weekly-reports.service';
 import { weeklyReportCorrectionSchema } from '../schema';
 
 export const POST = withProjectAccess<{ id: string; reportId: string }>(

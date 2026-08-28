@@ -5,7 +5,7 @@ import {
   isoWeekBoundsUtc,
   materializeDueAtUtc,
 } from '@/lib/iso-week';
-import { insertShell, type WeeklyReportShellRow } from './weekly-reports.repo';
+import { insertShell, type WeeklyReportShellRow } from '@/lib/repositories/weekly-reports.repo';
 
 export type CompanyWeeklyConfigRow = {
   due_weekday: number;

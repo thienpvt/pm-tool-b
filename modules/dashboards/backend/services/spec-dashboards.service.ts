@@ -21,7 +21,7 @@ import {
   listTechnologyCouncilIssues,
   listUpcomingMilestones,
 } from '@/lib/services/raid-masters.service';
-import { isWeeklyReportOverdue } from '@/lib/services/weekly-reports.service';
+import { isWeeklyReportOverdue } from '@/modules/weekly/backend/services/weekly-reports.service';
 import { assertCompanyWrite, hasRole, type AccessActor } from '@/lib/services/access';
 import { auditLog } from '@/modules/audit/backend/services/audit.service';
 import { ForbiddenError } from '@/lib/services/errors';

@@ -7,7 +7,7 @@ const { getCompanyWeeklyConfig, upsertCompanyWeeklyConfig } = vi.hoisted(() => (
 }));
 
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
-vi.mock('@/lib/services/weekly-reports.service', () => ({
+vi.mock('@/modules/weekly/backend/services/weekly-reports.service', () => ({
   getCompanyWeeklyConfig,
   upsertCompanyWeeklyConfig,
 }));

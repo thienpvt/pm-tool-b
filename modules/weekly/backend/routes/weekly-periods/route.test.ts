@@ -7,7 +7,7 @@ const { listWeeklyPeriods, createWeeklyPeriod } = vi.hoisted(() => ({
 }));
 
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
-vi.mock('@/lib/services/weekly-reports.service', () => ({ listWeeklyPeriods, createWeeklyPeriod }));
+vi.mock('@/modules/weekly/backend/services/weekly-reports.service', () => ({ listWeeklyPeriods, createWeeklyPeriod }));
 
 import { getSessionFromRequest } from '@/lib/auth';
 import { GET, POST } from './route';

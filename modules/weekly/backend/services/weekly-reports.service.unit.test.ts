@@ -66,13 +66,13 @@ const {
   runInTransaction: vi.fn(async (fn: (client: unknown) => Promise<unknown>) => fn({})),
 }));
 
-vi.mock('./access', () => ({
+vi.mock('@/lib/services/access', () => ({
   assertCompanyWrite,
   assertProjectAccess: (...args: unknown[]) => assertProjectAccess(...args),
   assertProjectWriteAccess: (...args: unknown[]) => assertProjectWriteAccess(...args),
   isCpmo: (actor: { roles?: string[] }) => actor.roles?.includes('cpmo') ?? false,
 }));
-vi.mock('@/lib/repositories/weekly-periods.repo', () => ({
+vi.mock('@/modules/weekly/backend/repositories/weekly-periods.repo', () => ({
   getCompanyWeeklyConfig: getCompanyWeeklyConfigRepo,
   upsertCompanyWeeklyConfig: upsertCompanyWeeklyConfigRepo,
   createPeriodWithShells: createPeriodWithShellsRepo,
@@ -110,11 +110,11 @@ vi.mock('@/lib/repositories/issues.repo', () => ({
   getIssue: getIssueRepo,
 }));
 vi.mock('@/modules/audit/backend/services/audit.service', () => ({ auditLog: auditLogFn }));
-vi.mock('./risks.service', () => ({
+vi.mock('@/lib/services/risks.service', () => ({
   createRisk: createRiskFn,
   updateRisk: updateRiskFn,
 }));
-vi.mock('./issues.service', () => ({
+vi.mock('@/lib/services/issues.service', () => ({
   createIssue: createIssueFn,
   updateIssue: updateIssueFn,
 }));
@@ -132,8 +132,8 @@ import {
   submitWeeklyReport,
   upsertCompanyWeeklyConfig,
 } from './weekly-reports.service';
-import { ConflictError, ForbiddenError, NotFoundError, SubmitValidationError } from './errors';
-import type { AccessActor } from './access';
+import { ConflictError, ForbiddenError, NotFoundError, SubmitValidationError } from '@/lib/services/errors';
+import type { AccessActor } from '@/lib/services/access';
 
 const cpmoActor: AccessActor = {
   company_id: 5,

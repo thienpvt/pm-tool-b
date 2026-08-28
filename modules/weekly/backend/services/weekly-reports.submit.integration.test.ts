@@ -29,9 +29,9 @@ vi.mock('@/lib/repositories/weekly-reports.repo', async (importOriginal) => {
   };
 });
 
-import { createPeriodWithShells } from '@/lib/repositories/weekly-periods.repo';
+import { createPeriodWithShells } from '@/modules/weekly/backend/repositories/weekly-periods.repo';
 import { submitWeeklyReport } from './weekly-reports.service';
-import type { AccessActor } from './access';
+import type { AccessActor } from '@/lib/services/access';
 
 describe.skipIf(!hasTestDb)('submitWeeklyReport transaction', () => {
   let companyId: number;
