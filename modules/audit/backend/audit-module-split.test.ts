@@ -25,4 +25,10 @@ describe('audit module split contract (24-02)', () => {
     const source = readUtf8('app/audit/page.tsx');
     expect(source).toContain('modules/audit/ui/AuditLogPage');
   });
+
+  it('D-09: spec-dashboards.service.ts imports audit.service from module path', () => {
+    const source = readUtf8('modules/dashboards/backend/services/spec-dashboards.service.ts');
+    expect(source).toContain('@/modules/audit/backend/services/audit.service');
+    expect(source).not.toContain('@/lib/services/audit.service');
+  });
 });
