@@ -1,13 +1,13 @@
 import { NextRequest } from 'next/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { listSettings, setSetting } = vi.hoisted(() => ({
+const { listSettings, setSettings } = vi.hoisted(() => ({
   listSettings: vi.fn(),
-  setSetting: vi.fn(),
+  setSettings: vi.fn(),
 }));
 
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
-vi.mock('@/lib/repositories/settings.repo', () => ({ listSettings, setSetting }));
+vi.mock('@/lib/services/settings.service', () => ({ listSettings, setSettings }));
 
 import { getSessionFromRequest } from '@/lib/auth';
 import { GET, POST } from './route';
@@ -87,7 +87,7 @@ describe('POST /api/config', () => {
     const res = await POST(req(), params());
     expect(res.status).toBe(401);
     await expect(res.json()).resolves.toEqual({ error: 'Unauthorized' });
-    expect(setSetting).not.toHaveBeenCalled();
+    expect(setSettings).not.toHaveBeenCalled();
   });
 
   it('returns 403 for a non-admin session (in-handler gate preserved)', async () => {
@@ -95,7 +95,7 @@ describe('POST /api/config', () => {
     const res = await POST(req(), params());
     expect(res.status).toBe(403);
     await expect(res.json()).resolves.toEqual({ error: 'Forbidden' });
-    expect(setSetting).not.toHaveBeenCalled();
+    expect(setSettings).not.toHaveBeenCalled();
   });
 
   it('persists settings for an admin session', async () => {
@@ -103,6 +103,6 @@ describe('POST /api/config', () => {
     const res = await POST(req({ some_key: 'value' }), params());
     expect(res.status).toBe(200);
     await expect(res.json()).resolves.toEqual({ ok: true });
-    expect(setSetting).toHaveBeenCalledWith('some_key', 'value');
+    expect(setSettings).toHaveBeenCalledWith({ some_key: 'value' });
   });
 });

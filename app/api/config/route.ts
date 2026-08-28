@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { withAuth } from '@/lib/http/with-auth';
-import { listSettings, setSetting } from '@/lib/repositories/settings.repo';
+import { listSettings, setSettings } from '@/lib/services/settings.service';
 import { configSchema } from './schema';
 
 // HYG-02: GET was previously anonymous (no session check) — now session-gated
@@ -29,8 +29,6 @@ export const POST = withAuth(async (_req, { user, body }) => {
   // Shape guard only — no per-field frozen validation exists to preserve.
   const parsed = configSchema.safeParse(body);
   const parsedBody = parsed.success ? parsed.data : (body as Record<string, unknown>);
-  for (const [key, value] of Object.entries(parsedBody)) {
-    await setSetting(key, String(value));
-  }
+  await setSettings(parsedBody);
   return NextResponse.json({ ok: true });
 });
