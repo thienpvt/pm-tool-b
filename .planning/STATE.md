@@ -5,16 +5,16 @@ milestone_name: Hardening & Deferred Debt
 current_phase: 24
 current_phase_name: Repo-wide Module Split
 status: executing
-stopped_at: Completed 24-01-PLAN.md
-last_updated: "2026-08-28T12:46:10.082Z"
+stopped_at: Completed 24-02-PLAN.md
+last_updated: "2026-08-28T12:55:24.271Z"
 last_activity: 2026-08-28
 last_activity_desc: Phase 24 execution started
-state_head: 0651a6e8c8acfe9c8f35b0d72e964029356c876c
+state_head: 2d5fba72f28de899bb3d80492b083b9651203d69
 progress:
   total_phases: 9
   completed_phases: 5
   total_plans: 35
-  completed_plans: 26
+  completed_plans: 27
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-08-28)
 ## Current Position
 
 Phase: 24 (Repo-wide Module Split) — EXECUTING
-Plan: 2 of 10
+Plan: 3 of 10
 Status: Ready to execute
 Last activity: 2026-08-28 — Phase 24 execution started
 
@@ -121,6 +121,7 @@ Progress: [██░░░░░░░░] 25%
 | Phase 23 P04 | 4 | 3 tasks | 6 files |
 | Phase 23 P05 | 8 | 3 tasks | 6 files |
 | Phase 24 P01 | 12min | 3 tasks | 22 files |
+| Phase 24 P02 | 7 | 2 tasks | 53 files |
 
 ## Accumulated Context
 
@@ -245,6 +246,8 @@ Recent decisions affecting current work:
 - [Phase 23]: Compliance filters are GET-only with COMPLIANCE_FILTER_KEYS
 - [Phase 23]: Disable VirtualRows while a row is expanded so detail panels always render
 - [Phase 24]: Wave 1 dashboards tracer: git mv service/repo/routes; P2 shells at app/api; document-compliance deferred Wave 4
+- [Phase 24]: Mechanical git mv only — withCpmo wrapper stays inside moved audit route body (T-24-03)
+- [Phase 24]: Exhaustive retarget of audit.service importers in lib/services and dashboards spec
 
 ### Pending Todos
 
@@ -268,8 +271,8 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-08-28T12:46:09.320Z
-Stopped at: Completed 24-01-PLAN.md
+Last session: 2026-08-28T12:55:23.479Z
+Stopped at: Completed 24-02-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
