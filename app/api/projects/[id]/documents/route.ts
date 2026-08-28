@@ -4,8 +4,8 @@ import { documentInputSchema, documentUpdateSchema } from '@/modules/projects/ba
 
 export const GET = withProjectAccess(getDocumentsHandler);
 
-export const POST = withProjectAccess(postDocumentsHandler);
+export const POST = withProjectAccess(postDocumentsHandler, { schema: documentInputSchema });
 
-export const PUT = withProjectAccess(putDocumentsHandler);
+export const PUT = withProjectAccess(putDocumentsHandler, { schema: documentUpdateSchema });
 
 export const DELETE = withProjectAccess(deleteDocumentsHandler);

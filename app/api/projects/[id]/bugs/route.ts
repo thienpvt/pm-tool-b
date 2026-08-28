@@ -4,6 +4,6 @@ import { bugsInputSchema } from '@/modules/projects/backend/routes/projects/[id]
 
 export const GET = withProjectAccess(getBugsHandler);
 
-export const POST = withProjectAccess(postBugsHandler);
+export const POST = withProjectAccess(postBugsHandler, { schema: bugsInputSchema });
 
 export const DELETE = withProjectAccess(deleteBugsHandler);

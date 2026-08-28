@@ -4,6 +4,6 @@ import { holidayInputSchema } from '@/modules/projects/backend/routes/projects/[
 
 export const GET = withProjectAccess(getHolidaysHandler);
 
-export const POST = withProjectAccess(postHolidaysHandler);
+export const POST = withProjectAccess(postHolidaysHandler, { schema: holidayInputSchema });
 
 export const DELETE = withProjectAccess(deleteHolidaysHandler);

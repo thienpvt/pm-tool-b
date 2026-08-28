@@ -4,4 +4,4 @@ import { escalationUpdateSchema } from '@/modules/projects/backend/routes/projec
 
 export const GET = withProjectAccess(getEscalationsHandler);
 
-export const PUT = withProjectAccess(putEscalationsHandler);
+export const PUT = withProjectAccess(putEscalationsHandler, { schema: escalationUpdateSchema });

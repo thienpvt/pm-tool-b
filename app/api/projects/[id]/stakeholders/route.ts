@@ -6,4 +6,4 @@ export const GET = withProjectAccess(getStakeholdersHandler);
 
 export const POST = withProjectAccess(postStakeholdersHandler, { schema: stakeholderCreateSchema });
 
-export const PATCH = withProjectAccess(patchStakeholdersHandler);
+export const PATCH = withProjectAccess(patchStakeholdersHandler, { schema: stakeholderEndSchema });

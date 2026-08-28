@@ -6,4 +6,4 @@ export const GET = withProjectAccess(getBenefitsHandler);
 
 export const POST = withProjectAccess(postBenefitsHandler, { schema: benefitCreateSchema });
 
-export const PATCH = withProjectAccess(patchBenefitsHandler);
+export const PATCH = withProjectAccess(patchBenefitsHandler, { schema: benefitPatchSchema });

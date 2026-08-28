@@ -6,4 +6,4 @@ export const GET = withProjectAccess(getDependenciesHandler);
 
 export const POST = withProjectAccess(postDependenciesHandler, { schema: dependencyCreateSchema });
 
-export const PATCH = withProjectAccess(patchDependenciesHandler);
+export const PATCH = withProjectAccess(patchDependenciesHandler, { schema: dependencyEndSchema });

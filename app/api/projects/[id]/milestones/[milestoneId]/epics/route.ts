@@ -4,6 +4,6 @@ import { epicInputSchema } from '@/modules/projects/backend/routes/projects/[id]
 
 export const GET = withProjectAccess(getMilestonesMilestoneIdEpicsHandler);
 
-export const POST = withProjectAccess(postMilestonesMilestoneIdEpicsHandler);
+export const POST = withProjectAccess(postMilestonesMilestoneIdEpicsHandler, { schema: epicInputSchema });
 
 export const DELETE = withProjectAccess(deleteMilestonesMilestoneIdEpicsHandler);
