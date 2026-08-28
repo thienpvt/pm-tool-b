@@ -1,0 +1,15 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { getSessionFromRequest } from '@/lib/auth';
+import { toAccessActor } from '@/lib/services/access';
+import { listPortfolioMilestones } from '@/modules/portfolio/backend/services/portfolio.service';
+
+// Danh sách milestone của toàn bộ project mà user xem được (kèm tên project).
+// Dùng cho selector "Theo Milestone" trong Portfolio Roadmap.
+export async function GET(req: NextRequest) {
+  const user = await getSessionFromRequest(req);
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const milestones = await listPortfolioMilestones(toAccessActor(user));
+
+  return NextResponse.json(milestones);
+}

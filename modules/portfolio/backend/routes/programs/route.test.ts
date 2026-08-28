@@ -7,7 +7,7 @@ const { listProgramsWithCounts, createProgram } = vi.hoisted(() => ({
 }));
 
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
-vi.mock('@/lib/services/programs.service', () => ({ listProgramsWithCounts, createProgram }));
+vi.mock('@/modules/portfolio/backend/services/programs.service', () => ({ listProgramsWithCounts, createProgram }));
 
 import { getSessionFromRequest } from '@/lib/auth';
 import { ValidationError } from '@/lib/services/errors';

@@ -64,7 +64,7 @@ const {
   upsertPortfolioProgramAllocation: vi.fn(),
 }));
 
-vi.mock('@/lib/repositories/portfolio.repo', () => ({
+vi.mock('@/modules/portfolio/backend/repositories/portfolio.repo', () => ({
   listPortfolioProjects,
   riskCountsByProject,
   issueCountsByProject,
@@ -95,7 +95,7 @@ vi.mock('@/lib/repositories/portfolio.repo', () => ({
   updatePortfolioProgramAllocation,
   upsertPortfolioProgramAllocation,
 }));
-vi.mock('@/lib/repositories/programs.repo', () => ({ listPrograms }));
+vi.mock('@/modules/portfolio/backend/repositories/programs.repo', () => ({ listPrograms }));
 
 import {
   createBudget,
@@ -123,8 +123,8 @@ import {
   updateMember,
   updateProgramAllocation,
   updateQuota,
-} from './portfolio.service';
-import { ForbiddenError, NotFoundError, ValidationError } from './errors';
+} from '@/modules/portfolio/backend/services/portfolio.service';
+import { ForbiddenError, NotFoundError, ValidationError } from '@/lib/services/errors';
 
 const FIXED_NOW = new Date('2026-06-15T12:00:00Z').getTime();
 

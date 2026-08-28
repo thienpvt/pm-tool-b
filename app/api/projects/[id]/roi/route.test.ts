@@ -18,7 +18,7 @@ const {
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
 vi.mock('@/lib/repositories/projects.repo', () => ({ projectAccessRow }));
 vi.mock('@/lib/repositories/pm-assignments.repo', () => ({ hasActivePmAssignment }));
-vi.mock('@/lib/repositories/fiscal-budget.repo', () => ({
+vi.mock('@/modules/portfolio/backend/repositories/fiscal-budget.repo', () => ({
   listFiscalBudgets: listFiscalBudgetsRepo,
 }));
 vi.mock('@/lib/repositories/budget-adjustments.repo', () => ({

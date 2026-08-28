@@ -14,7 +14,7 @@ const {
 }));
 
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
-vi.mock('@/lib/repositories/programs.repo', () => ({
+vi.mock('@/modules/portfolio/backend/repositories/programs.repo', () => ({
   getProgram: getProgramRepo,
   programProjectAllocations: vi.fn(async () => ({ program: { name: 'P', allocated_headcount: 0 }, projects: [] })),
   upsertProgramProjectAllocation,

@@ -7,7 +7,7 @@ const { listPortfolioMembers, companyNameAndQuota } = vi.hoisted(() => ({
 }));
 
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
-vi.mock('@/lib/repositories/portfolio.repo', () => ({ listPortfolioMembers, companyNameAndQuota }));
+vi.mock('@/modules/portfolio/backend/repositories/portfolio.repo', () => ({ listPortfolioMembers, companyNameAndQuota }));
 
 import { getSessionFromRequest } from '@/lib/auth';
 import { GET } from './route';

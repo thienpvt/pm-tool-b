@@ -18,7 +18,7 @@ const {
   createProgramRepo: vi.fn(),
 }));
 
-vi.mock('@/lib/repositories/programs.repo', () => ({
+vi.mock('@/modules/portfolio/backend/repositories/programs.repo', () => ({
   getProgram: getProgramRepo,
   listProgramProjects,
   updateProgram: updateProgramRepo,
@@ -36,7 +36,7 @@ import {
   listProgramsWithCounts,
   updateProgram,
 } from './programs.service';
-import { ForbiddenError, NotFoundError, ValidationError } from './errors';
+import { ForbiddenError, NotFoundError, ValidationError } from '@/lib/services/errors';
 
 beforeEach(() => {
   vi.clearAllMocks();

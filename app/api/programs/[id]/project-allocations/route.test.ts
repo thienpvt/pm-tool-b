@@ -12,7 +12,7 @@ const { getProgramRepo, projectAccessRow, getProjectPmIdentity, programProjectAl
 
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
 vi.mock('@/lib/repositories/projects.repo', () => ({ projectAccessRow, getProjectPmIdentity }));
-vi.mock('@/lib/repositories/programs.repo', () => ({
+vi.mock('@/modules/portfolio/backend/repositories/programs.repo', () => ({
   getProgram: getProgramRepo,
   listProgramProjects: vi.fn(),
   updateProgram: vi.fn(),

@@ -29,8 +29,8 @@ import {
   updatePortfolioMember,
   updatePortfolioProgramAllocation,
   upsertPortfolioProgramAllocation,
-} from '@/lib/repositories/portfolio.repo';
-import { listPrograms } from '@/lib/repositories/programs.repo';
+} from '@/modules/portfolio/backend/repositories/portfolio.repo';
+import { listPrograms } from '@/modules/portfolio/backend/repositories/programs.repo';
 import type { AccessActor } from '@/lib/services/access';
 import { assertCompanyWrite } from '@/lib/services/access';
 import { NotFoundError, ValidationError } from '@/lib/services/errors';

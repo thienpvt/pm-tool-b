@@ -11,7 +11,7 @@ const { db } = vi.hoisted(() => ({
 
 vi.mock('@/lib/db', () => ({ getDb: vi.fn(async () => db) }));
 
-import { portfolioMilestoneSelection } from './portfolio.repo';
+import { portfolioMilestoneSelection } from '@/modules/portfolio/backend/repositories/portfolio.repo';
 
 beforeEach(() => {
   vi.clearAllMocks();

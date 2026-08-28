@@ -16,16 +16,16 @@ const {
   listCompanyPrograms: vi.fn(),
 }));
 
-vi.mock('@/lib/repositories/portfolio.repo', () => ({
+vi.mock('@/modules/portfolio/backend/repositories/portfolio.repo', () => ({
   listPortfolioProjects,
   riskCountsByProject,
   issueCountsByProject,
   roadmapActivityTotals,
   roadmapPhaseStats,
 }));
-vi.mock('@/lib/repositories/programs.repo', () => ({ listCompanyPrograms }));
+vi.mock('@/modules/portfolio/backend/repositories/programs.repo', () => ({ listCompanyPrograms }));
 
-import { getRoadmap } from './roadmap.service';
+import { getRoadmap } from '@/modules/portfolio/backend/services/roadmap.service';
 
 const FIXED_NOW = new Date('2026-06-15T12:00:00Z').getTime();
 

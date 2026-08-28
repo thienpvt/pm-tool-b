@@ -42,7 +42,7 @@ vi.mock('@/lib/repositories/projects.repo', () => ({
   createProject: createProjectRepo,
   findProjectByCompanyCode,
 }));
-vi.mock('@/lib/repositories/programs.repo', () => ({
+vi.mock('@/modules/portfolio/backend/repositories/programs.repo', () => ({
   getProgram,
 }));
 vi.mock('@/modules/audit/backend/services/audit.service', () => ({
@@ -57,7 +57,7 @@ vi.mock('@/modules/documents/backend/repositories/project-document-checklist.rep
 
 import { UnknownColumnError } from '@/lib/repositories/_helpers';
 import { createProject, deleteProject, getProject, listProjects, updateProject } from './projects.service';
-import { ConflictError, ForbiddenError, MandatoryIncompleteError, NotFoundError, ValidationError } from './errors';
+import { ConflictError, ForbiddenError, MandatoryIncompleteError, NotFoundError, ValidationError } from '@/lib/services/errors';
 
 beforeEach(() => {
   vi.clearAllMocks();

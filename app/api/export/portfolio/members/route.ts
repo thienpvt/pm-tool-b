@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import ExcelJS from 'exceljs';
 import { withAuth } from '@/lib/http/with-auth';
-import { companyNameAndQuota, listPortfolioMembers } from '@/lib/repositories/portfolio.repo';
+import { companyNameAndQuota, listPortfolioMembers } from '@/modules/portfolio/backend/repositories/portfolio.repo';
 
 const NAVY     = 'FF1E293B';
 const WHITE    = 'FFFFFFFF';

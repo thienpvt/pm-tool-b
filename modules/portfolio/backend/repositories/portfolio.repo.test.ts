@@ -1,10 +1,10 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest';
-import { hasTestDb } from '../../test/db';
-import { seedCompany, seedProject, setupRepoTables, testDb } from '../../test/repo-db';
+import { hasTestDb } from '../../../../test/db';
+import { seedCompany, seedProject, setupRepoTables, testDb } from '../../../../test/repo-db';
 
 vi.mock('@/lib/db', () => ({ getDb: vi.fn(async () => testDb()) }));
 
-import { listPortfolioProjects } from './portfolio.repo';
+import { listPortfolioProjects } from '@/modules/portfolio/backend/repositories/portfolio.repo';
 
 describe.skipIf(!hasTestDb)('portfolio.repo', () => {
   let companyA: number;

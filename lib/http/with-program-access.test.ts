@@ -9,7 +9,7 @@ const { assertProgramAccess } = vi.hoisted(() => ({
 }));
 
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest }));
-vi.mock('@/lib/services/programs.service', () => ({ assertProgramAccess }));
+vi.mock('@/modules/portfolio/backend/services/programs.service', () => ({ assertProgramAccess }));
 
 import { withProgramAccess } from './with-program-access';
 

@@ -7,7 +7,7 @@ const { getProgramRepo, listProgramProjects } = vi.hoisted(() => ({
 }));
 
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
-vi.mock('@/lib/repositories/programs.repo', () => ({
+vi.mock('@/modules/portfolio/backend/repositories/programs.repo', () => ({
   getProgram: getProgramRepo,
   listProgramProjects,
   updateProgram: vi.fn(),

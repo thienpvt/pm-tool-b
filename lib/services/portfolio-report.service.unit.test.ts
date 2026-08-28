@@ -44,7 +44,7 @@ const {
   portfolioReportMilestones: vi.fn(),
 }));
 
-vi.mock('@/lib/repositories/portfolio.repo', () => ({
+vi.mock('@/modules/portfolio/backend/repositories/portfolio.repo', () => ({
   listPortfolioReportProjects,
   riskCountsByProject,
   issueCountsByProject,
@@ -64,11 +64,11 @@ vi.mock('@/lib/repositories/portfolio.repo', () => ({
   portfolioProgramFillRates,
   portfolioReportMilestones,
 }));
-vi.mock('@/lib/repositories/programs.repo', () => ({ listCompanyPrograms }));
+vi.mock('@/modules/portfolio/backend/repositories/programs.repo', () => ({ listCompanyPrograms }));
 vi.mock('@/lib/repositories/rag-config.repo', () => ({ companyRagConfig }));
 
 import { getPortfolioReport, assertPortfolioCpmoWrite, monSunWeekBounds } from './portfolio-report.service';
-import { ForbiddenError } from './errors';
+import { ForbiddenError } from '@/lib/services/errors';
 
 const scoped = {
   company_id: 5 as number | null,

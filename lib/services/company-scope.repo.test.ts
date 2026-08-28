@@ -4,11 +4,11 @@ import { seedCompany, seedProject, setupRepoTables, testDb } from '../../test/re
 
 vi.mock('@/lib/db', () => ({ getDb: vi.fn(async () => testDb()) }));
 
-import { getBudget, getPortfolioSummary, listBudgets } from './portfolio.service';
+import { getBudget, getPortfolioSummary, listBudgets } from '@/modules/portfolio/backend/services/portfolio.service';
 import { getPortfolioReport } from './portfolio-report.service';
-import { getRoadmap } from './roadmap.service';
-import { listPortfolioBudgets } from '@/lib/repositories/portfolio.repo';
-import { NotFoundError } from './errors';
+import { getRoadmap } from '@/modules/portfolio/backend/services/roadmap.service';
+import { listPortfolioBudgets } from '@/modules/portfolio/backend/repositories/portfolio.repo';
+import { NotFoundError } from '@/lib/services/errors';
 
 /**
  * SVC-05 proof: aggregate services exclude another company's rows from lists

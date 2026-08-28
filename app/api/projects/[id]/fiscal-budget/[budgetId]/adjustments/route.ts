@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { withProjectAccess } from '@/lib/http/with-project-access';
-import { addBudgetAdjustment } from '@/lib/services/fiscal-budget.service';
+import { addBudgetAdjustment } from '@/modules/portfolio/backend/services/fiscal-budget.service';
 
 type Params = { id: string; budgetId: string };
 

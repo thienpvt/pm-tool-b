@@ -2,7 +2,7 @@
 import { statusWeight, DONE_STATUSES } from '@/lib/status-weights';
 import { calculateRAG, DEFAULT_RAG_CONFIG } from '@/lib/rag';
 import { companyRagConfig } from '@/lib/repositories/rag-config.repo';
-import { listCompanyPrograms } from '@/lib/repositories/programs.repo';
+import { listCompanyPrograms } from '@/modules/portfolio/backend/repositories/programs.repo';
 import {
   completedPortfolioActivitiesBetween,
   internalPortfolioMembers as listInternalPortfolioMembers,
@@ -22,9 +22,9 @@ import {
   topPortfolioRisks,
   upcomingPortfolioActivities,
   companyNameAndQuota,
-} from '@/lib/repositories/portfolio.repo';
-import { isCpmo, type AccessActor } from './access';
-import { ForbiddenError } from './errors';
+} from '@/modules/portfolio/backend/repositories/portfolio.repo';
+import { isCpmo, type AccessActor } from '@/lib/services/access';
+import { ForbiddenError } from '@/lib/services/errors';
 
 export type PortfolioReportQuery = {
   start?: string | null;

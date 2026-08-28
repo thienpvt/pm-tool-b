@@ -1,9 +1,9 @@
-import { listFiscalBudgets } from '@/lib/repositories/fiscal-budget.repo';
+import { listFiscalBudgets } from '@/modules/portfolio/backend/repositories/fiscal-budget.repo';
 import { sumAdjustmentsVnd } from '@/lib/repositories/budget-adjustments.repo';
 import { listFinancialBenefitsForYear } from '@/lib/repositories/financial-benefits.repo';
 import { computeActualRoi, computeExpectedRoi } from '@/lib/fiscal/roi';
 import { coerceVndSafe } from '@/lib/fiscal/vnd';
-import { assertProjectAccess, type AccessActor } from './access';
+import { assertProjectAccess, type AccessActor } from '@/lib/services/access';
 
 export async function getProjectRoi(
   projectId: number | string,

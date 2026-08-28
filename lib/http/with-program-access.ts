@@ -1,6 +1,6 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
-import { assertProgramAccess } from '@/lib/services/programs.service';
+import { assertProgramAccess } from '@/modules/portfolio/backend/services/programs.service';
 import { ForbiddenError, NotFoundError } from '@/lib/services/errors';
 import {
   isAccessShadowMode,

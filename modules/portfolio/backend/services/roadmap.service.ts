@@ -5,9 +5,9 @@ import {
   riskCountsByProject,
   roadmapActivityTotals,
   roadmapPhaseStats,
-} from '@/lib/repositories/portfolio.repo';
-import { listCompanyPrograms } from '@/lib/repositories/programs.repo';
-import type { AccessActor } from './access';
+} from '@/modules/portfolio/backend/repositories/portfolio.repo';
+import { listCompanyPrograms } from '@/modules/portfolio/backend/repositories/programs.repo';
+import type { AccessActor } from '@/lib/services/access';
 
 const ROADMAP_DONE_STATUSES = [
   'ANBM', 'Deployed', 'Done', 'UAT', 'QC Done', 'READY TO RELEASE', 'Passed QC', 'READY FOR RELEASE',

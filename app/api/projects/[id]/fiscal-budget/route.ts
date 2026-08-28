@@ -5,7 +5,7 @@ import {
   createFiscalBudget,
   getFiscalBudgetOverview,
   patchFiscalBudgetActual,
-} from '@/lib/services/fiscal-budget.service';
+} from '@/modules/portfolio/backend/services/fiscal-budget.service';
 
 const fiscalBudgetCreateSchema = z.object({}).passthrough();
 const fiscalBudgetPatchSchema = z.object({}).passthrough();

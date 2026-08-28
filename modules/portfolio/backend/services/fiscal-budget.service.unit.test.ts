@@ -29,7 +29,7 @@ const {
 }));
 
 vi.mock('@/lib/services/access', () => ({ assertProjectAccess, assertProjectWriteAccess }));
-vi.mock('@/lib/repositories/fiscal-budget.repo', () => ({
+vi.mock('@/modules/portfolio/backend/repositories/fiscal-budget.repo', () => ({
   insertFiscalBudget: insertFiscalBudgetRepo,
   listFiscalBudgets: listFiscalBudgetsRepo,
   findFiscalBudgetByKey: findFiscalBudgetByKeyRepo,
@@ -49,8 +49,8 @@ import {
   getFiscalBudgetOverview,
   patchFiscalBudgetActual,
 } from './fiscal-budget.service';
-import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors';
-import type { AccessActor } from './access';
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '@/lib/services/errors';
+import type { AccessActor } from '@/lib/services/access';
 
 beforeEach(() => {
   vi.clearAllMocks();

@@ -6,10 +6,10 @@ import {
   listProgramProjects,
   projectCountsByProgram,
   updateProgram as updateProgramRepo,
-} from '@/lib/repositories/programs.repo';
-import type { AccessActor } from './access';
-import { assertCompanyWrite } from './access';
-import { ForbiddenError, NotFoundError, ValidationError } from './errors';
+} from '@/modules/portfolio/backend/repositories/programs.repo';
+import type { AccessActor } from '@/lib/services/access';
+import { assertCompanyWrite } from '@/lib/services/access';
+import { ForbiddenError, NotFoundError, ValidationError } from '@/lib/services/errors';
 
 /**
  * Programs map to the customers table. Ownership is company_id on the program row,

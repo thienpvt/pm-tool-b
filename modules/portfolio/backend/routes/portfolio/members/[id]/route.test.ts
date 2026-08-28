@@ -7,7 +7,7 @@ const { updatePortfolioMember, deletePortfolioMember } = vi.hoisted(() => ({
 }));
 
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
-vi.mock('@/lib/repositories/portfolio.repo', () => ({
+vi.mock('@/modules/portfolio/backend/repositories/portfolio.repo', () => ({
   updatePortfolioMember,
   deletePortfolioMember,
 }));

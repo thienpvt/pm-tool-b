@@ -7,14 +7,14 @@ import {
   updateProject as updateProjectRepo,
 } from '@/lib/repositories/projects.repo';
 import { listChecklistByProject } from '@/modules/documents/backend/repositories/project-document-checklist.repo';
-import { getProgram } from '@/lib/repositories/programs.repo';
+import { getProgram } from '@/modules/portfolio/backend/repositories/programs.repo';
 import {
   assertProjectAccess,
   assertProjectWriteAccess,
   hasRole,
   isCpmo,
   type AccessActor,
-} from './access';
+} from '@/lib/services/access';
 import { auditLog } from '@/modules/audit/backend/services/audit.service';
 import { generateProjectChecklist } from '@/modules/documents/backend/services/document-checklist-generate';
 import {
@@ -23,7 +23,7 @@ import {
   MandatoryIncompleteError,
   NotFoundError,
   ValidationError,
-} from './errors';
+} from '@/lib/services/errors';
 import { applyProjectGovernance } from './project-governance';
 
 function auditSnapshot(row: Record<string, unknown> | null | undefined) {

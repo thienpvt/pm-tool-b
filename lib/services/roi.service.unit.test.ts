@@ -15,7 +15,7 @@ const {
 }));
 
 vi.mock('@/lib/services/access', () => ({ assertProjectAccess }));
-vi.mock('@/lib/repositories/fiscal-budget.repo', () => ({
+vi.mock('@/modules/portfolio/backend/repositories/fiscal-budget.repo', () => ({
   listFiscalBudgets: listFiscalBudgetsRepo,
 }));
 vi.mock('@/lib/repositories/budget-adjustments.repo', () => ({
@@ -26,7 +26,7 @@ vi.mock('@/lib/repositories/financial-benefits.repo', () => ({
 }));
 
 import { getProjectRoi } from './roi.service';
-import type { AccessActor } from './access';
+import type { AccessActor } from '@/lib/services/access';
 
 beforeEach(() => {
   vi.clearAllMocks();
