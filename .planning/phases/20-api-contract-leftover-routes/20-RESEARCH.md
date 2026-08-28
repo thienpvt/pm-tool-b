@@ -399,14 +399,11 @@ export const POST = withAuth(async (req, { user, body }) => {
 
 ## Open Questions
 
-1. **Single vs split admin service modules**
-   - What we know: 5 admin routes touch `admin.repo`, `jira-config.repo`, `rag-config.repo`
-   - What's unclear: One `admin-platform.service.ts` vs `jira-config.service.ts` + `settings.service.ts`
-   - Recommendation: Split by domain (`settings.service`, `operations.service`, `admin-platform.service` for companies/demo/resource-audit) — matches existing `users.service` granularity
+All resolved during planning (2026-08-28).
 
-2. **ESLint vs standalone script for ENF-01**
-   - What we know: CONTEXT gives discretion; STACK prefers ESLint
-   - Recommendation: Local ESLint plugin primary; keep `scripts/check-route-wrappers.ts` as optional fallback only if plugin wiring fails in CI
+1. **Single vs split admin service modules** — RESOLVED: Split by domain. `operations.service.ts` (20-04/05), `admin-platform.service.ts` for companies/demo-requests/resource-audit (20-06), `settings.service.ts` + `jira-config.service.ts` + `rag-config.service.ts` (20-07). Matches existing `users.service` granularity (D-05). Do not fold jira/rag/settings into admin-platform.
+
+2. **ESLint vs standalone script for ENF-01** — RESOLVED: Local ESLint plugin (`eslint/plugin.mjs` + `eslint/rules/require-auth-wrapper.mjs` via `@typescript-eslint/utils@8.68.0`). Standalone `scripts/check-route-wrappers.ts` is not in phase scope unless plugin wiring fails in CI.
 
 ## Environment Availability
 
