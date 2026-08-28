@@ -5,16 +5,16 @@ milestone_name: Hardening & Deferred Debt
 current_phase: 23
 current_phase_name: Document Checklist & Audit Viewer
 status: executing
-stopped_at: Completed 23-01-PLAN.md
-last_updated: "2026-08-28T11:13:34.367Z"
+stopped_at: Completed 23-02-PLAN.md
+last_updated: "2026-08-28T11:20:52.547Z"
 last_activity: 2026-08-28
 last_activity_desc: Phase 23 execution started
-state_head: 66ada9c6145e4bddac7d837aeac83dd9658c5e03
+state_head: 340c90e8876082076a2d167a09ec1caf6eee3434
 progress:
   total_phases: 9
   completed_phases: 4
   total_plans: 25
-  completed_plans: 21
+  completed_plans: 22
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-08-28)
 ## Current Position
 
 Phase: 23 (Document Checklist & Audit Viewer) — EXECUTING
-Plan: 2 of 5
+Plan: 3 of 5
 Status: Ready to execute
 Last activity: 2026-08-28 — Phase 23 execution started
 
@@ -116,6 +116,7 @@ Progress: [██░░░░░░░░] 25%
 | Phase 22 P05 | 18 | 3 tasks | 6 files |
 | Phase 22 P04 | 12 | 2 tasks | 4 files |
 | Phase 23 P01 | 15 | 3 tasks | 10 files |
+| Phase 23 P02 | 18min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -232,6 +233,8 @@ Recent decisions affecting current work:
 - [Phase 22]: Single ExportToolbar in tracking header; dedupe project_ids by first-seen order before POST
 - [Phase 23]: Purpose shown as truncated subtitle under catalog name (max-w-[200px], title tooltip)
 - [Phase 23]: Templates no-selection prompt is static placeholder until 23-02 implements templates panel
+- [Phase 23]: Edit and retire actions on catalog rows; retire hidden when already retired
+- [Phase 23]: Template URL client HTTPS gate before POST; server field errors inline
 
 ### Pending Todos
 
@@ -255,8 +258,8 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-08-28T11:13:33.744Z
-Stopped at: Completed 23-01-PLAN.md
+Last session: 2026-08-28T11:20:51.945Z
+Stopped at: Completed 23-02-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
