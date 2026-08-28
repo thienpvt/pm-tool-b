@@ -36,7 +36,7 @@ vi.mock('@/modules/portfolio/backend/repositories/fiscal-budget.repo', () => ({
   getFiscalBudgetInProject: getFiscalBudgetInProjectRepo,
   updateFiscalBudgetActual: updateFiscalBudgetActualRepo,
 }));
-vi.mock('@/lib/repositories/budget-adjustments.repo', () => ({
+vi.mock('@/modules/projects/backend/repositories/budget-adjustments.repo', () => ({
   sumAdjustmentsVnd: sumAdjustmentsVndRepo,
   listBudgetAdjustments: listBudgetAdjustmentsRepo,
   insertBudgetAdjustment: insertBudgetAdjustmentRepo,

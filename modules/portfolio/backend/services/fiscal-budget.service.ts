@@ -9,7 +9,7 @@ import {
   insertBudgetAdjustment,
   listBudgetAdjustments,
   sumAdjustmentsVnd,
-} from '@/lib/repositories/budget-adjustments.repo';
+} from '@/modules/projects/backend/repositories/budget-adjustments.repo';
 import { computeFiscalBudgetMetrics } from '@/lib/fiscal/budget-metrics';
 import { parseIsoDate } from '@/lib/fiscal/iso-date';
 import {

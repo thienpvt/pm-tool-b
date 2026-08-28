@@ -20,12 +20,12 @@ import {
   updateWeeklyReportDraft,
   type DraftUpdateFields,
 } from '@/modules/weekly/backend/repositories/weekly-reports.repo';
-import { getProject, updateProject } from '@/lib/repositories/projects.repo';
-import { getMilestone } from '@/lib/repositories/milestones.repo';
-import { getRisk } from '@/lib/repositories/risks.repo';
-import { getIssue } from '@/lib/repositories/issues.repo';
-import { createRisk, updateRisk } from '@/lib/services/risks.service';
-import { createIssue, updateIssue } from '@/lib/services/issues.service';
+import { getProject, updateProject } from '@/modules/projects/backend/repositories/projects.repo';
+import { getMilestone } from '@/modules/projects/backend/repositories/milestones.repo';
+import { getRisk } from '@/modules/projects/backend/repositories/risks.repo';
+import { getIssue } from '@/modules/projects/backend/repositories/issues.repo';
+import { createRisk, updateRisk } from '@/modules/projects/backend/services/risks.service';
+import { createIssue, updateIssue } from '@/modules/projects/backend/services/issues.service';
 import { ISO_WEEK_PATTERN } from '@/lib/iso-week';
 import {
   assertCompanyWrite,

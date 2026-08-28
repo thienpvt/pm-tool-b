@@ -96,25 +96,25 @@ vi.mock('@/modules/weekly/backend/repositories/weekly-reports.repo', () => ({
 vi.mock('@/lib/db', () => ({
   runInTransaction,
 }));
-vi.mock('@/lib/repositories/projects.repo', () => ({
+vi.mock('@/modules/projects/backend/repositories/projects.repo', () => ({
   getProject: getProjectRepo,
   updateProject: updateProjectRepo,
 }));
-vi.mock('@/lib/repositories/milestones.repo', () => ({
+vi.mock('@/modules/projects/backend/repositories/milestones.repo', () => ({
   getMilestone: getMilestoneRepo,
 }));
-vi.mock('@/lib/repositories/risks.repo', () => ({
+vi.mock('@/modules/projects/backend/repositories/risks.repo', () => ({
   getRisk: getRiskRepo,
 }));
-vi.mock('@/lib/repositories/issues.repo', () => ({
+vi.mock('@/modules/projects/backend/repositories/issues.repo', () => ({
   getIssue: getIssueRepo,
 }));
 vi.mock('@/modules/audit/backend/services/audit.service', () => ({ auditLog: auditLogFn }));
-vi.mock('@/lib/services/risks.service', () => ({
+vi.mock('@/modules/projects/backend/services/risks.service', () => ({
   createRisk: createRiskFn,
   updateRisk: updateRiskFn,
 }));
-vi.mock('@/lib/services/issues.service', () => ({
+vi.mock('@/modules/projects/backend/services/issues.service', () => ({
   createIssue: createIssueFn,
   updateIssue: updateIssueFn,
 }));

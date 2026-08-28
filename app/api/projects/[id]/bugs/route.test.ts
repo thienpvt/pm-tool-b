@@ -7,8 +7,8 @@ const { projectAccessRow, listBugsRepo } = vi.hoisted(() => ({
 }));
 
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
-vi.mock('@/lib/repositories/projects.repo', () => ({ projectAccessRow }));
-vi.mock('@/lib/repositories/bugs.repo', () => ({
+vi.mock('@/modules/projects/backend/repositories/projects.repo', () => ({ projectAccessRow }));
+vi.mock('@/modules/projects/backend/repositories/bugs.repo', () => ({
   listBugs: listBugsRepo,
   listSnapshotDates: vi.fn(),
   replaceSnapshot: vi.fn(),

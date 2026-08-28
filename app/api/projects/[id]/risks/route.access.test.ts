@@ -7,8 +7,8 @@ const { projectAccessRow, createRiskRepo } = vi.hoisted(() => ({
 }));
 
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
-vi.mock('@/lib/repositories/projects.repo', () => ({ projectAccessRow }));
-vi.mock('@/lib/repositories/risks.repo', () => ({
+vi.mock('@/modules/projects/backend/repositories/projects.repo', () => ({ projectAccessRow }));
+vi.mock('@/modules/projects/backend/repositories/risks.repo', () => ({
   listRisks: vi.fn(),
   createRisk: createRiskRepo,
   updateRisk: vi.fn(),

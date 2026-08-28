@@ -32,35 +32,35 @@ const {
 }));
 
 vi.mock('@/lib/services/access', () => ({ assertProjectAccess }));
-vi.mock('@/lib/repositories/projects.repo', () => ({
+vi.mock('@/modules/projects/backend/repositories/projects.repo', () => ({
   getProjectWithCustomer,
   getProjectForReport: vi.fn(),
 }));
-vi.mock('@/lib/repositories/activities.repo', () => ({
+vi.mock('@/modules/projects/backend/repositories/activities.repo', () => ({
   listDoneBetween,
   listByStatuses,
   listPlannedBetweenExcludingStatuses,
   listStatusAndPhase,
   listForProjectReport: vi.fn(),
 }));
-vi.mock('@/lib/repositories/risks.repo', () => ({
+vi.mock('@/modules/projects/backend/repositories/risks.repo', () => ({
   listOpenRisks,
   listNotClosedByPriority: vi.fn(),
 }));
-vi.mock('@/lib/repositories/issues.repo', () => ({
+vi.mock('@/modules/projects/backend/repositories/issues.repo', () => ({
   listOpenIssues,
   listNotClosedByPriority: vi.fn(),
 }));
-vi.mock('@/lib/repositories/milestones.repo', () => ({
+vi.mock('@/modules/projects/backend/repositories/milestones.repo', () => ({
   listMilestones: vi.fn(),
   listEpicActivityIds: vi.fn(),
 }));
-vi.mock('@/lib/repositories/bugs.repo', () => ({
+vi.mock('@/modules/projects/backend/repositories/bugs.repo', () => ({
   maxSnapshotDate: vi.fn(),
   snapshotDateOnOrBefore: vi.fn(),
   countsBySnapshot: vi.fn(),
 }));
-vi.mock('@/lib/repositories/team.repo', () => ({ listForReport: vi.fn() }));
+vi.mock('@/modules/projects/backend/repositories/team.repo', () => ({ listForReport: vi.fn() }));
 vi.mock('@/lib/repositories/rag-config.repo', () => ({ companyRagConfig: vi.fn() }));
 
 import { getWeeklyProjectReport } from './project-report.service';

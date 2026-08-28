@@ -14,13 +14,13 @@ const { projectAccessRow, getProject, listActivities, listTeam, listMeetings, li
   }));
 
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
-vi.mock('@/lib/repositories/projects.repo', () => ({ projectAccessRow, getProject }));
-vi.mock('@/lib/repositories/activities.repo', () => ({ listActivities }));
-vi.mock('@/lib/repositories/team.repo', () => ({ listTeam }));
-vi.mock('@/lib/repositories/meetings.repo', () => ({ listMeetings }));
-vi.mock('@/lib/repositories/escalations.repo', () => ({ listEscalationsForExport }));
-vi.mock('@/lib/repositories/risks.repo', () => ({ listRisks }));
-vi.mock('@/lib/repositories/issues.repo', () => ({ listIssues }));
+vi.mock('@/modules/projects/backend/repositories/projects.repo', () => ({ projectAccessRow, getProject }));
+vi.mock('@/modules/projects/backend/repositories/activities.repo', () => ({ listActivities }));
+vi.mock('@/modules/projects/backend/repositories/team.repo', () => ({ listTeam }));
+vi.mock('@/modules/projects/backend/repositories/meetings.repo', () => ({ listMeetings }));
+vi.mock('@/modules/projects/backend/repositories/escalations.repo', () => ({ listEscalationsForExport }));
+vi.mock('@/modules/projects/backend/repositories/risks.repo', () => ({ listRisks }));
+vi.mock('@/modules/projects/backend/repositories/issues.repo', () => ({ listIssues }));
 
 import { getSessionFromRequest } from '@/lib/auth';
 import { GET } from './route';

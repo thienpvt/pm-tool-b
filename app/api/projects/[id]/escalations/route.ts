@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { withProjectAccess } from '@/lib/http/with-project-access';
-import { listEscalations, updateEscalation } from '@/lib/services/escalations.service';
+import { listEscalations, updateEscalation } from '@/modules/projects/backend/services/escalations.service';
 import { escalationUpdateSchema } from './schema';
 
 export const GET = withProjectAccess(async (_req, { params, actor }) =>

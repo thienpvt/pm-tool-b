@@ -21,13 +21,13 @@ const {
 }));
 
 vi.mock('@/lib/services/access', () => ({ assertProjectAccess }));
-vi.mock('@/lib/repositories/projects.repo', () => ({ getProject }));
-vi.mock('@/lib/repositories/activities.repo', () => ({ listActivities }));
-vi.mock('@/lib/repositories/team.repo', () => ({ listTeam }));
-vi.mock('@/lib/repositories/meetings.repo', () => ({ listMeetings }));
-vi.mock('@/lib/repositories/escalations.repo', () => ({ listEscalationsForExport }));
-vi.mock('@/lib/repositories/risks.repo', () => ({ listRisks }));
-vi.mock('@/lib/repositories/issues.repo', () => ({ listIssues }));
+vi.mock('@/modules/projects/backend/repositories/projects.repo', () => ({ getProject }));
+vi.mock('@/modules/projects/backend/repositories/activities.repo', () => ({ listActivities }));
+vi.mock('@/modules/projects/backend/repositories/team.repo', () => ({ listTeam }));
+vi.mock('@/modules/projects/backend/repositories/meetings.repo', () => ({ listMeetings }));
+vi.mock('@/modules/projects/backend/repositories/escalations.repo', () => ({ listEscalationsForExport }));
+vi.mock('@/modules/projects/backend/repositories/risks.repo', () => ({ listRisks }));
+vi.mock('@/modules/projects/backend/repositories/issues.repo', () => ({ listIssues }));
 
 import { generateProjectPlan } from './excel';
 import { ForbiddenError } from '@/lib/services/errors';

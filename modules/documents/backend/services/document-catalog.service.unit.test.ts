@@ -36,7 +36,7 @@ vi.mock('@/modules/documents/backend/repositories/document-catalog.repo', () => 
 
 vi.mock('@/modules/audit/backend/services/audit.service', () => ({ auditLog }));
 
-vi.mock('@/lib/repositories/projects.repo', () => ({ listProjects }));
+vi.mock('@/modules/projects/backend/repositories/projects.repo', () => ({ listProjects }));
 
 vi.mock('@/modules/documents/backend/repositories/project-document-checklist.repo', () => ({
   insertChecklistRowIfMissing,

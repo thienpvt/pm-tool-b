@@ -5,7 +5,7 @@ import {
   deleteMeeting,
   listMeetings,
   updateMeeting,
-} from '@/lib/services/meetings.service';
+} from '@/modules/projects/backend/services/meetings.service';
 import { meetingInputSchema, meetingUpdateSchema } from './schema';
 
 export const GET = withProjectAccess(async (_req, { params, actor }) =>

@@ -9,11 +9,11 @@ const { getSessionFromRequest, updateBudgetItem, projectAccessRow, getProjectPmI
 }));
 
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest }));
-vi.mock('@/lib/repositories/budget.repo', () => ({
+vi.mock('@/modules/projects/backend/repositories/budget.repo', () => ({
   deleteBudgetItem: vi.fn(),
   updateBudgetItem,
 }));
-vi.mock('@/lib/repositories/projects.repo', () => ({ projectAccessRow, getProjectPmIdentity }));
+vi.mock('@/modules/projects/backend/repositories/projects.repo', () => ({ projectAccessRow, getProjectPmIdentity }));
 
 import { PUT } from './route';
 

@@ -15,35 +15,35 @@ const {
 }));
 
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
-vi.mock('@/lib/repositories/projects.repo', () => ({
+vi.mock('@/modules/projects/backend/repositories/projects.repo', () => ({
   projectAccessRow,
   getProjectForReport: vi.fn().mockResolvedValue({
     id: 7, name: 'P', company_id: 5, current_phase: 'Execution',
     start_date: '2026-01-01', end_date: '2026-12-31',
   }),
 }));
-vi.mock('@/lib/repositories/pm-assignments.repo', () => ({ hasActivePmAssignment }));
-vi.mock('@/lib/repositories/activities.repo', () => ({
+vi.mock('@/modules/projects/backend/repositories/pm-assignments.repo', () => ({ hasActivePmAssignment }));
+vi.mock('@/modules/projects/backend/repositories/activities.repo', () => ({
   listForProjectReport: vi.fn().mockResolvedValue([]),
 }));
-vi.mock('@/lib/repositories/milestones.repo', () => ({
+vi.mock('@/modules/projects/backend/repositories/milestones.repo', () => ({
   listMilestones: vi.fn().mockResolvedValue([]),
   listEpicActivityIds: vi.fn().mockResolvedValue([]),
 }));
-vi.mock('@/lib/repositories/bugs.repo', () => ({
+vi.mock('@/modules/projects/backend/repositories/bugs.repo', () => ({
   maxSnapshotDate: vi.fn().mockResolvedValue(null),
   snapshotDateOnOrBefore: vi.fn().mockResolvedValue(null),
   countsBySnapshot: vi.fn().mockResolvedValue([]),
 }));
-vi.mock('@/lib/repositories/risks.repo', () => ({
+vi.mock('@/modules/projects/backend/repositories/risks.repo', () => ({
   listOpenRisks: vi.fn().mockResolvedValue([]),
   listNotClosedByPriority: vi.fn().mockResolvedValue([]),
 }));
-vi.mock('@/lib/repositories/issues.repo', () => ({
+vi.mock('@/modules/projects/backend/repositories/issues.repo', () => ({
   listOpenIssues: vi.fn().mockResolvedValue([]),
   listNotClosedByPriority: vi.fn().mockResolvedValue([]),
 }));
-vi.mock('@/lib/repositories/team.repo', () => ({
+vi.mock('@/modules/projects/backend/repositories/team.repo', () => ({
   listForReport: vi.fn().mockResolvedValue([]),
 }));
 vi.mock('@/lib/repositories/rag-config.repo', () => ({

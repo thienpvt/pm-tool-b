@@ -4,7 +4,7 @@ import {
   listPeriodShellsRepo,
   type PeriodShellListRow,
 } from '@/modules/weekly/backend/repositories/weekly-reports.repo';
-import { listTechnologyCouncilIssues } from '@/lib/repositories/issues.repo';
+import { listTechnologyCouncilIssues } from '@/modules/projects/backend/repositories/issues.repo';
 import { assertCompanyWrite, type AccessActor } from '@/lib/services/access';
 import { isWeeklyReportOverdue } from '@/modules/weekly/backend/services/weekly-reports.service';
 import { ForbiddenError, NotFoundError, SubmitValidationError } from '@/lib/services/errors';

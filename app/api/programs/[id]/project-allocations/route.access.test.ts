@@ -19,7 +19,7 @@ vi.mock('@/modules/portfolio/backend/repositories/programs.repo', () => ({
   programProjectAllocations: vi.fn(async () => ({ program: { name: 'P', allocated_headcount: 0 }, projects: [] })),
   upsertProgramProjectAllocation,
 }));
-vi.mock('@/lib/repositories/projects.repo', () => ({
+vi.mock('@/modules/projects/backend/repositories/projects.repo', () => ({
   projectAccessRow,
   getProjectPmIdentity,
 }));

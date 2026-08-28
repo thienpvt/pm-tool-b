@@ -20,7 +20,7 @@ import {
   insertBudgetAdjustment,
   listBudgetAdjustments,
   sumAdjustmentsVnd,
-} from '@/lib/repositories/budget-adjustments.repo';
+} from '@/modules/projects/backend/repositories/budget-adjustments.repo';
 
 describe.skipIf(!hasTestDb)('fiscal-budget.repo', () => {
   let projectId: number;

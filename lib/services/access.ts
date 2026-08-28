@@ -1,5 +1,5 @@
-import { projectAccessRow, type ProjectAccessRow } from '@/lib/repositories/projects.repo';
-import { hasActivePmAssignment } from '@/lib/repositories/pm-assignments.repo';
+import { projectAccessRow, type ProjectAccessRow } from '@/modules/projects/backend/repositories/projects.repo';
+import { hasActivePmAssignment } from '@/modules/projects/backend/repositories/pm-assignments.repo';
 import { ForbiddenError, NotFoundError } from './errors';
 
 export type AppRole = 'cpmo' | 'pm' | 'viewer';

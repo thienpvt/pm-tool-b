@@ -36,13 +36,13 @@ vi.mock('@/lib/services/access', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/services/access')>();
   return { ...actual, assertCompanyWrite };
 });
-vi.mock('@/lib/repositories/projects.repo', () => ({ listProjects }));
+vi.mock('@/modules/projects/backend/repositories/projects.repo', () => ({ listProjects }));
 vi.mock('@/modules/dashboards/backend/repositories/dashboard-filter-state.repo', () => ({
   getDashboardFilters,
   upsertDashboardFilters,
 }));
-vi.mock('@/lib/repositories/pm-assignments.repo', () => ({ getActivePrimaryAssignment }));
-vi.mock('@/lib/services/raid-masters.service', () => ({
+vi.mock('@/modules/projects/backend/repositories/pm-assignments.repo', () => ({ getActivePrimaryAssignment }));
+vi.mock('@/modules/projects/backend/services/raid-masters.service', () => ({
   listOverdueMilestones,
   listHighOpenRaid,
   listTechnologyCouncilIssues,

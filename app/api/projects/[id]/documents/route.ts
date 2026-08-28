@@ -5,7 +5,7 @@ import {
   listDocuments,
   updateDocument,
   upsertDocument,
-} from '@/lib/services/documents.service';
+} from '@/modules/projects/backend/services/documents.service';
 import { documentInputSchema, documentUpdateSchema } from './schema';
 
 export const GET = withProjectAccess(async (_req, { params, actor }) =>

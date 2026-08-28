@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { withProjectAccess } from '@/lib/http/with-project-access';
-import { cancelMilestone, updateMilestone } from '@/lib/services/milestones.service';
+import { cancelMilestone, updateMilestone } from '@/modules/projects/backend/services/milestones.service';
 import { milestoneUpdateSchema } from '../schema';
 
 type Params = { id: string; milestoneId: string };

@@ -3,8 +3,8 @@ import {
   Table, TableRow, TableCell, WidthType, BorderStyle,
   AlignmentType, ShadingType,
 } from 'docx';
-import { getDocumentForExport } from '@/lib/repositories/documents.repo';
-import { getProject } from '@/lib/repositories/projects.repo';
+import { getDocumentForExport } from '@/modules/projects/backend/repositories/documents.repo';
+import { getProject } from '@/modules/projects/backend/repositories/projects.repo';
 import type { AccessActor } from '@/lib/services/access';
 import { assertProjectAccess } from '@/lib/services/access';
 

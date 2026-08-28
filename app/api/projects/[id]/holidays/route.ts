@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { withProjectAccess } from '@/lib/http/with-project-access';
-import { createHoliday, deleteHoliday, listHolidays } from '@/lib/services/holidays.service';
+import { createHoliday, deleteHoliday, listHolidays } from '@/modules/projects/backend/services/holidays.service';
 import { holidayInputSchema } from './schema';
 
 export const GET = withProjectAccess(async (_req, { params, actor }) =>

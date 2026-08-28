@@ -28,7 +28,7 @@ vi.mock('@/modules/weekly/backend/repositories/weekly-reports.repo', () => ({
   listPeriodShellsRepo,
   getLatestVersionSnapshot: getLatestVersionSnapshotRepo,
 }));
-vi.mock('@/lib/repositories/issues.repo', () => ({
+vi.mock('@/modules/projects/backend/repositories/issues.repo', () => ({
   listTechnologyCouncilIssues: listTechnologyCouncilIssuesRepo,
 }));
 vi.mock('@/lib/export/consolidated-weekly', () => ({

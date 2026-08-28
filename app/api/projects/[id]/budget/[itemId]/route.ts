@@ -4,7 +4,7 @@ import {
   deleteBudgetItem,
   updateBudgetItem,
   type BudgetItemBody,
-} from '@/lib/services/budget-items.service';
+} from '@/modules/projects/backend/services/budget-items.service';
 import { budgetItemUpdateSchema } from './schema';
 
 type Params = { id: string; itemId: string };

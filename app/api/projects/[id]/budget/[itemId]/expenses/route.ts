@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { withProjectAccess } from '@/lib/http/with-project-access';
-import { createExpense, listExpenses, type ExpenseBody } from '@/lib/services/budget-items.service';
+import { createExpense, listExpenses, type ExpenseBody } from '@/modules/projects/backend/services/budget-items.service';
 import { expenseInputSchema } from './schema';
 
 type Params = { id: string; itemId: string };

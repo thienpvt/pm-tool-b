@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { withProjectAccess } from '@/lib/http/with-project-access';
-import { linkEpic, listEpics, unlinkEpic } from '@/lib/services/milestones.service';
+import { linkEpic, listEpics, unlinkEpic } from '@/modules/projects/backend/services/milestones.service';
 import { epicInputSchema } from './schema';
 
 type Params = { id: string; milestoneId: string };

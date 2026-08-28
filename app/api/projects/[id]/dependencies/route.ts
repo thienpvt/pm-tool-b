@@ -4,7 +4,7 @@ import {
   createProjectDependency,
   endProjectDependency,
   listProjectDependenciesForProject,
-} from '@/lib/services/project-dependencies.service';
+} from '@/modules/projects/backend/services/project-dependencies.service';
 import { dependencyCreateSchema, dependencyEndSchema } from './schema';
 
 export const GET = withProjectAccess(async (_req, { params, actor }) =>

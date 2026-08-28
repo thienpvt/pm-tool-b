@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { withProjectAccess } from '@/lib/http/with-project-access';
-import { createRisk, deactivateRisk, listRisks, updateRisk } from '@/lib/services/risks.service';
+import { createRisk, deactivateRisk, listRisks, updateRisk } from '@/modules/projects/backend/services/risks.service';
 import { riskInputSchema, riskUpdateSchema } from './schema';
 
 export const GET = withProjectAccess(async (_req, { params, actor }) =>

@@ -1,11 +1,11 @@
 import ExcelJS from 'exceljs';
-import { listActivities } from '@/lib/repositories/activities.repo';
-import { listEscalationsForExport } from '@/lib/repositories/escalations.repo';
-import { listIssues } from '@/lib/repositories/issues.repo';
-import { listMeetings } from '@/lib/repositories/meetings.repo';
-import { getProject } from '@/lib/repositories/projects.repo';
-import { listRisks } from '@/lib/repositories/risks.repo';
-import { listTeam } from '@/lib/repositories/team.repo';
+import { listActivities } from '@/modules/projects/backend/repositories/activities.repo';
+import { listEscalationsForExport } from '@/modules/projects/backend/repositories/escalations.repo';
+import { listIssues } from '@/modules/projects/backend/repositories/issues.repo';
+import { listMeetings } from '@/modules/projects/backend/repositories/meetings.repo';
+import { getProject } from '@/modules/projects/backend/repositories/projects.repo';
+import { listRisks } from '@/modules/projects/backend/repositories/risks.repo';
+import { listTeam } from '@/modules/projects/backend/repositories/team.repo';
 import type { AccessActor } from '@/lib/services/access';
 import { assertProjectAccess } from '@/lib/services/access';
 import { NotFoundError } from '@/lib/services/errors';

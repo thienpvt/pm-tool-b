@@ -4,7 +4,7 @@ import {
   createProjectStakeholder,
   endProjectStakeholder,
   listProjectStakeholders,
-} from '@/lib/services/stakeholders.service';
+} from '@/modules/projects/backend/services/stakeholders.service';
 import { stakeholderCreateSchema, stakeholderEndSchema } from './schema';
 
 export const GET = withProjectAccess(async (_req, { params, actor }) =>

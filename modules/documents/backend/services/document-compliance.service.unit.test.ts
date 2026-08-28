@@ -9,7 +9,7 @@ const { assertCompanyWriteFn, listProjectsRepoFn, listChecklistByProjectFn } = v
 vi.mock('@/lib/services/access', () => ({
   assertCompanyWrite: assertCompanyWriteFn,
 }));
-vi.mock('@/lib/repositories/projects.repo', () => ({
+vi.mock('@/modules/projects/backend/repositories/projects.repo', () => ({
   listProjects: listProjectsRepoFn,
 }));
 vi.mock('@/modules/documents/backend/repositories/project-document-checklist.repo', () => ({

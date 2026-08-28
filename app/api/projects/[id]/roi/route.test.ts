@@ -16,15 +16,15 @@ const {
 }));
 
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
-vi.mock('@/lib/repositories/projects.repo', () => ({ projectAccessRow }));
-vi.mock('@/lib/repositories/pm-assignments.repo', () => ({ hasActivePmAssignment }));
+vi.mock('@/modules/projects/backend/repositories/projects.repo', () => ({ projectAccessRow }));
+vi.mock('@/modules/projects/backend/repositories/pm-assignments.repo', () => ({ hasActivePmAssignment }));
 vi.mock('@/modules/portfolio/backend/repositories/fiscal-budget.repo', () => ({
   listFiscalBudgets: listFiscalBudgetsRepo,
 }));
-vi.mock('@/lib/repositories/budget-adjustments.repo', () => ({
+vi.mock('@/modules/projects/backend/repositories/budget-adjustments.repo', () => ({
   sumAdjustmentsVnd: sumAdjustmentsVndRepo,
 }));
-vi.mock('@/lib/repositories/financial-benefits.repo', () => ({
+vi.mock('@/modules/projects/backend/repositories/financial-benefits.repo', () => ({
   listFinancialBenefitsForYear: listFinancialBenefitsForYearRepo,
 }));
 

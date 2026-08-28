@@ -9,9 +9,9 @@ const { projectAccessRow, hasActivePmAssignment, updateBudgetItemRepo, deleteBud
 }));
 
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
-vi.mock('@/lib/repositories/projects.repo', () => ({ projectAccessRow }));
-vi.mock('@/lib/repositories/pm-assignments.repo', () => ({ hasActivePmAssignment }));
-vi.mock('@/lib/repositories/budget.repo', () => ({
+vi.mock('@/modules/projects/backend/repositories/projects.repo', () => ({ projectAccessRow }));
+vi.mock('@/modules/projects/backend/repositories/pm-assignments.repo', () => ({ hasActivePmAssignment }));
+vi.mock('@/modules/projects/backend/repositories/budget.repo', () => ({
   updateBudgetItem: updateBudgetItemRepo,
   deleteBudgetItem: deleteBudgetItemRepo,
 }));

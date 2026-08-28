@@ -5,7 +5,7 @@ import {
   updateDocumentCatalog as updateDocumentCatalogRepo,
 } from '@/modules/documents/backend/repositories/document-catalog.repo';
 import { insertChecklistRowIfMissing } from '@/modules/documents/backend/repositories/project-document-checklist.repo';
-import { listProjects } from '@/lib/repositories/projects.repo';
+import { listProjects } from '@/modules/projects/backend/repositories/projects.repo';
 import type { AccessActor } from '@/lib/services/access';
 import { assertCompanyWrite, hasRole } from '@/lib/services/access';
 import { auditLog } from '@/modules/audit/backend/services/audit.service';

@@ -1,7 +1,7 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { assertProjectAccess } from '@/lib/services/access';
-import type { ProjectAccessRow } from '@/lib/repositories/projects.repo';
+import type { ProjectAccessRow } from '@/modules/projects/backend/repositories/projects.repo';
 import { ForbiddenError, NotFoundError } from '@/lib/services/errors';
 import {
   isAccessShadowMode,

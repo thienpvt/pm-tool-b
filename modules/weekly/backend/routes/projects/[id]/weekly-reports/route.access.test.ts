@@ -33,11 +33,11 @@ const {
 
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
 vi.mock('@/modules/audit/backend/services/audit.service', () => ({ auditLog: vi.fn().mockResolvedValue(undefined) }));
-vi.mock('@/lib/repositories/projects.repo', () => ({
+vi.mock('@/modules/projects/backend/repositories/projects.repo', () => ({
   projectAccessRow,
   getProject: getProjectRepo,
 }));
-vi.mock('@/lib/repositories/pm-assignments.repo', () => ({ hasActivePmAssignment }));
+vi.mock('@/modules/projects/backend/repositories/pm-assignments.repo', () => ({ hasActivePmAssignment }));
 vi.mock('@/modules/weekly/backend/repositories/weekly-reports.repo', () => ({
   listProjectWeeklyHistoryRepo,
   getWeeklyReportFullRow,

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { withProjectAccess } from '@/lib/http/with-project-access';
-import { createMilestone, listMilestones } from '@/lib/services/milestones.service';
+import { createMilestone, listMilestones } from '@/modules/projects/backend/services/milestones.service';
 import { milestoneInputSchema } from './schema';
 
 export const GET = withProjectAccess(async (_req, { params, actor }) =>

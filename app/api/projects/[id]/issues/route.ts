@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { withProjectAccess } from '@/lib/http/with-project-access';
-import { createIssue, deactivateIssue, listIssues, updateIssue } from '@/lib/services/issues.service';
+import { createIssue, deactivateIssue, listIssues, updateIssue } from '@/modules/projects/backend/services/issues.service';
 import { issueInputSchema, issueUpdateSchema } from './schema';
 
 export const GET = withProjectAccess(async (_req, { params, actor }) =>

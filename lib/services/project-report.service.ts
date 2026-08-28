@@ -5,18 +5,18 @@ import {
   listForProjectReport,
   listPlannedBetweenExcludingStatuses,
   listStatusAndPhase,
-} from '@/lib/repositories/activities.repo';
+} from '@/modules/projects/backend/repositories/activities.repo';
 import {
   countsBySnapshot,
   maxSnapshotDate,
   snapshotDateOnOrBefore,
-} from '@/lib/repositories/bugs.repo';
-import { listNotClosedByPriority as issuesNotClosed, listOpenIssues } from '@/lib/repositories/issues.repo';
-import { listEpicActivityIds, listMilestones } from '@/lib/repositories/milestones.repo';
-import { getProjectForReport, getProjectWithCustomer } from '@/lib/repositories/projects.repo';
+} from '@/modules/projects/backend/repositories/bugs.repo';
+import { listNotClosedByPriority as issuesNotClosed, listOpenIssues } from '@/modules/projects/backend/repositories/issues.repo';
+import { listEpicActivityIds, listMilestones } from '@/modules/projects/backend/repositories/milestones.repo';
+import { getProjectForReport, getProjectWithCustomer } from '@/modules/projects/backend/repositories/projects.repo';
 import { companyRagConfig } from '@/lib/repositories/rag-config.repo';
-import { listNotClosedByPriority as risksNotClosed, listOpenRisks } from '@/lib/repositories/risks.repo';
-import { listForReport as teamForReport } from '@/lib/repositories/team.repo';
+import { listNotClosedByPriority as risksNotClosed, listOpenRisks } from '@/modules/projects/backend/repositories/risks.repo';
+import { listForReport as teamForReport } from '@/modules/projects/backend/repositories/team.repo';
 import { calculateRAG, DEFAULT_RAG_CONFIG } from '@/lib/rag';
 import { assertProjectAccess, type AccessActor } from './access';
 import { NotFoundError } from './errors';

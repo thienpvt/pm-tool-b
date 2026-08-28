@@ -7,12 +7,12 @@ import {
   PORTFOLIO_EXPORT_CONTENT_TYPE,
   PORTFOLIO_EXPORT_FILENAME,
 } from '@/lib/export/dashboard-portfolio';
-import { getActivePrimaryAssignment } from '@/lib/repositories/pm-assignments.repo';
+import { getActivePrimaryAssignment } from '@/modules/projects/backend/repositories/pm-assignments.repo';
 import {
   getDashboardFilters,
   upsertDashboardFilters,
 } from '@/modules/dashboards/backend/repositories/dashboard-filter-state.repo';
-import { listProjects } from '@/lib/repositories/projects.repo';
+import { listProjects } from '@/modules/projects/backend/repositories/projects.repo';
 import { listWeeklyPeriods } from '@/modules/weekly/backend/repositories/weekly-periods.repo';
 import { listPeriodShellsRepo } from '@/modules/weekly/backend/repositories/weekly-reports.repo';
 import {
@@ -20,7 +20,7 @@ import {
   listOverdueMilestones,
   listTechnologyCouncilIssues,
   listUpcomingMilestones,
-} from '@/lib/services/raid-masters.service';
+} from '@/modules/projects/backend/services/raid-masters.service';
 import { isWeeklyReportOverdue } from '@/modules/weekly/backend/services/weekly-reports.service';
 import { assertCompanyWrite, hasRole, type AccessActor } from '@/lib/services/access';
 import { auditLog } from '@/modules/audit/backend/services/audit.service';

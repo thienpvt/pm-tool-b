@@ -5,7 +5,7 @@ import {
   listBugs,
   listSnapshotDates,
   replaceSnapshot,
-} from '@/lib/services/bugs.service';
+} from '@/modules/projects/backend/services/bugs.service';
 import { bugsInputSchema } from './schema';
 
 export const GET = withProjectAccess(async (req, { params, actor }) => {

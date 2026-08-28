@@ -5,7 +5,7 @@ import {
   type FilterableProjectRow,
 } from '@/lib/dashboards/filters';
 import { listChecklistByProject } from '@/modules/documents/backend/repositories/project-document-checklist.repo';
-import { listProjects } from '@/lib/repositories/projects.repo';
+import { listProjects } from '@/modules/projects/backend/repositories/projects.repo';
 import { assertCompanyWrite, type AccessActor } from '@/lib/services/access';
 import { ValidationError } from '@/lib/services/errors';
 

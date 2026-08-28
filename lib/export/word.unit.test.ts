@@ -7,8 +7,8 @@ const { assertProjectAccess, getProject, getDocumentForExport } = vi.hoisted(() 
 }));
 
 vi.mock('@/lib/services/access', () => ({ assertProjectAccess }));
-vi.mock('@/lib/repositories/projects.repo', () => ({ getProject }));
-vi.mock('@/lib/repositories/documents.repo', () => ({ getDocumentForExport }));
+vi.mock('@/modules/projects/backend/repositories/projects.repo', () => ({ getProject }));
+vi.mock('@/modules/projects/backend/repositories/documents.repo', () => ({ getDocumentForExport }));
 
 import { generateWordDoc } from './word';
 import { ForbiddenError } from '@/lib/services/errors';

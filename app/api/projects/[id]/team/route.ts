@@ -5,7 +5,7 @@ import {
   deleteTeamMember,
   listTeam,
   updateTeamMember,
-} from '@/lib/services/team.service';
+} from '@/modules/projects/backend/services/team.service';
 import { teamInputSchema, teamUpdateSchema } from './schema';
 
 export const GET = withProjectAccess(async (_req, { params, actor }) =>

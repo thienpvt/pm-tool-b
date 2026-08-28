@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import ExcelJS from 'exceljs';
 import type { HandlerContext } from '@/lib/http/with-auth';
-import type { ProjectAccessRow } from '@/lib/repositories/projects.repo';
+import type { ProjectAccessRow } from '@/modules/projects/backend/repositories/projects.repo';
 
 type Activity = { id: number; activity: string; deliverable: string; completion_pct: number; plan_end: string; actual_end: string; status: string; };
 type RiskIssue = { id: number; description: string; priority: string; mitigation: string; };

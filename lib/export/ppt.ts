@@ -1,10 +1,10 @@
 import PptxGenJS from 'pptxgenjs';
-import { listActivities } from '@/lib/repositories/activities.repo';
-import { getDocumentForExport } from '@/lib/repositories/documents.repo';
-import { listMeetings } from '@/lib/repositories/meetings.repo';
-import { getProject } from '@/lib/repositories/projects.repo';
-import { listRisks } from '@/lib/repositories/risks.repo';
-import { listTeam } from '@/lib/repositories/team.repo';
+import { listActivities } from '@/modules/projects/backend/repositories/activities.repo';
+import { getDocumentForExport } from '@/modules/projects/backend/repositories/documents.repo';
+import { listMeetings } from '@/modules/projects/backend/repositories/meetings.repo';
+import { getProject } from '@/modules/projects/backend/repositories/projects.repo';
+import { listRisks } from '@/modules/projects/backend/repositories/risks.repo';
+import { listTeam } from '@/modules/projects/backend/repositories/team.repo';
 import type { AccessActor } from '@/lib/services/access';
 import { assertProjectAccess } from '@/lib/services/access';
 import { NotFoundError } from '@/lib/services/errors';

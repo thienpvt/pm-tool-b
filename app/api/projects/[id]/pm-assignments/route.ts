@@ -4,7 +4,7 @@ import {
   createPmAssignment,
   endPmAssignment,
   listPmAssignments,
-} from '@/lib/services/pm-assignments.service';
+} from '@/modules/projects/backend/services/pm-assignments.service';
 import { pmAssignmentCreateSchema, pmAssignmentEndSchema } from './schema';
 
 export const GET = withProjectAccess(async (_req, { params, actor }) =>

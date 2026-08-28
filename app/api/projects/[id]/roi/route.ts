@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { withProjectAccess } from '@/lib/http/with-project-access';
 import { parseFiscalYear } from '@/lib/fiscal/vnd';
-import { getProjectRoi } from '@/lib/services/roi.service';
+import { getProjectRoi } from '@/modules/projects/backend/services/roi.service';
 import { ValidationError } from '@/lib/services/errors';
 import { serviceErrorResponse } from '@/lib/api-errors';
 

@@ -22,9 +22,9 @@ const {
 }));
 
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
-vi.mock('@/lib/repositories/projects.repo', () => ({ projectAccessRow }));
-vi.mock('@/lib/repositories/pm-assignments.repo', () => ({ hasActivePmAssignment }));
-vi.mock('@/lib/repositories/project-dependencies.repo', () => ({
+vi.mock('@/modules/projects/backend/repositories/projects.repo', () => ({ projectAccessRow }));
+vi.mock('@/modules/projects/backend/repositories/pm-assignments.repo', () => ({ hasActivePmAssignment }));
+vi.mock('@/modules/projects/backend/repositories/project-dependencies.repo', () => ({
   insertProjectDependency: insertProjectDependencyRepo,
   listProjectDependencies: listProjectDependenciesRepo,
   hasOverlappingEquivalentDependency: hasOverlappingEquivalentDependencyRepo,

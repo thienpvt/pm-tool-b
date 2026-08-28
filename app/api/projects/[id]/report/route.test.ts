@@ -10,19 +10,19 @@ const { projectAccessRow, hasActivePmAssignment, createMessage, resolveAnthropic
 }));
 
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
-vi.mock('@/lib/repositories/projects.repo', () => ({
+vi.mock('@/modules/projects/backend/repositories/projects.repo', () => ({
   projectAccessRow,
   getProjectWithCustomer: vi.fn().mockResolvedValue({ id: 7, name: 'P', company_id: 5, current_phase: 'Execution' }),
 }));
-vi.mock('@/lib/repositories/pm-assignments.repo', () => ({ hasActivePmAssignment }));
-vi.mock('@/lib/repositories/activities.repo', () => ({
+vi.mock('@/modules/projects/backend/repositories/pm-assignments.repo', () => ({ hasActivePmAssignment }));
+vi.mock('@/modules/projects/backend/repositories/activities.repo', () => ({
   listDoneBetween: vi.fn().mockResolvedValue([]),
   listByStatuses: vi.fn().mockResolvedValue([]),
   listPlannedBetweenExcludingStatuses: vi.fn().mockResolvedValue([]),
   listStatusAndPhase: vi.fn().mockResolvedValue([]),
 }));
-vi.mock('@/lib/repositories/risks.repo', () => ({ listOpenRisks: vi.fn().mockResolvedValue([]) }));
-vi.mock('@/lib/repositories/issues.repo', () => ({ listOpenIssues: vi.fn().mockResolvedValue([]) }));
+vi.mock('@/modules/projects/backend/repositories/risks.repo', () => ({ listOpenRisks: vi.fn().mockResolvedValue([]) }));
+vi.mock('@/modules/projects/backend/repositories/issues.repo', () => ({ listOpenIssues: vi.fn().mockResolvedValue([]) }));
 vi.mock('@/lib/integrations/credentials', () => ({ resolveAnthropicCredentials }));
 vi.mock('@/lib/integrations/anthropic/client', () => ({ createMessage }));
 

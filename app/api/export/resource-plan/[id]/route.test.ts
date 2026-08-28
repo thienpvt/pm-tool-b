@@ -8,8 +8,8 @@ const { projectAccessRow, getProject, listForExport } = vi.hoisted(() => ({
 }));
 
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
-vi.mock('@/lib/repositories/projects.repo', () => ({ projectAccessRow, getProject }));
-vi.mock('@/lib/repositories/team.repo', () => ({ listForExport }));
+vi.mock('@/modules/projects/backend/repositories/projects.repo', () => ({ projectAccessRow, getProject }));
+vi.mock('@/modules/projects/backend/repositories/team.repo', () => ({ listForExport }));
 
 import { getSessionFromRequest } from '@/lib/auth';
 import { GET } from './route';

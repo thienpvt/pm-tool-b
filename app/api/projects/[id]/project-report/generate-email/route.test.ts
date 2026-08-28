@@ -10,8 +10,8 @@ const { projectAccessRow, hasActivePmAssignment, createMessage, resolveAnthropic
 }));
 
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
-vi.mock('@/lib/repositories/projects.repo', () => ({ projectAccessRow }));
-vi.mock('@/lib/repositories/pm-assignments.repo', () => ({ hasActivePmAssignment }));
+vi.mock('@/modules/projects/backend/repositories/projects.repo', () => ({ projectAccessRow }));
+vi.mock('@/modules/projects/backend/repositories/pm-assignments.repo', () => ({ hasActivePmAssignment }));
 vi.mock('@/lib/integrations/credentials', () => ({ resolveAnthropicCredentials }));
 vi.mock('@/lib/integrations/anthropic/client', () => ({ createMessage }));
 

@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import ExcelJS from 'exceljs';
 import { withProjectAccess } from '@/lib/http/with-project-access';
-import { getProject } from '@/lib/repositories/projects.repo';
-import { listForExport } from '@/lib/repositories/team.repo';
+import { getProject } from '@/modules/projects/backend/repositories/projects.repo';
+import { listForExport } from '@/modules/projects/backend/repositories/team.repo';
 
 const NAVY     = 'FF1E293B';
 const WHITE    = 'FFFFFFFF';

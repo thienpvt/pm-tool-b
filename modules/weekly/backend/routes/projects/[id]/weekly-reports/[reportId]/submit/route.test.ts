@@ -27,9 +27,9 @@ const {
 
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
 vi.mock('@/modules/audit/backend/services/audit.service', () => ({ auditLog: vi.fn().mockResolvedValue(undefined) }));
-vi.mock('@/lib/repositories/projects.repo', () => ({ projectAccessRow, getProject: getProjectRepo }));
-vi.mock('@/lib/repositories/pm-assignments.repo', () => ({ hasActivePmAssignment }));
-vi.mock('@/lib/repositories/risks.repo', () => ({ getRisk: getRiskRepo }));
+vi.mock('@/modules/projects/backend/repositories/projects.repo', () => ({ projectAccessRow, getProject: getProjectRepo }));
+vi.mock('@/modules/projects/backend/repositories/pm-assignments.repo', () => ({ hasActivePmAssignment }));
+vi.mock('@/modules/projects/backend/repositories/risks.repo', () => ({ getRisk: getRiskRepo }));
 vi.mock('@/lib/db', () => ({
   runInTransaction: async (fn: (client: unknown) => Promise<unknown>) => fn({}),
 }));

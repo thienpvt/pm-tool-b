@@ -7,8 +7,8 @@ const { projectAccessRow, listHolidaysRepo } = vi.hoisted(() => ({
 }));
 
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
-vi.mock('@/lib/repositories/projects.repo', () => ({ projectAccessRow }));
-vi.mock('@/lib/repositories/holidays.repo', () => ({
+vi.mock('@/modules/projects/backend/repositories/projects.repo', () => ({ projectAccessRow }));
+vi.mock('@/modules/projects/backend/repositories/holidays.repo', () => ({
   listHolidays: listHolidaysRepo,
   findHolidayByDate: vi.fn(),
   createHoliday: vi.fn(),

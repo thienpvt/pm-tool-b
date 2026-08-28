@@ -6,7 +6,7 @@ const { projectAccessRow } = vi.hoisted(() => ({
 }));
 
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
-vi.mock('@/lib/repositories/projects.repo', () => ({ projectAccessRow }));
+vi.mock('@/modules/projects/backend/repositories/projects.repo', () => ({ projectAccessRow }));
 
 import { getSessionFromRequest } from '@/lib/auth';
 import { POST } from '@/app/api/export/weekly-report/[id]/route';
