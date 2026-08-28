@@ -12,7 +12,7 @@ const {
 }));
 
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
-vi.mock('@/lib/services/spec-dashboards.service', () => ({
+vi.mock('@/modules/dashboards/backend/services/spec-dashboards.service', () => ({
   getPmDashboardFilters,
   savePmDashboardFilters,
   clearPmDashboardFilters,
