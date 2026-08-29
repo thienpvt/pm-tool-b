@@ -4,7 +4,6 @@ import { configFixture, emptyPeriodsFixture, periodsFixture } from '../shared/we
 import WeeklyPeriodsPage from './WeeklyPeriodsPage';
 
 vi.mock('next/navigation', () => ({ usePathname: () => '/weekly/periods' }));
-vi.mock('@/components/layout/Sidebar', () => ({ default: () => <nav data-testid="sidebar" /> }));
 
 const toastError = vi.fn();
 const toastSuccess = vi.fn();
@@ -74,9 +73,8 @@ beforeEach(() => {
 });
 
 describe('WeeklyPeriodsPage', () => {
-  it('shows sidebar and loading copy before fetch settles', () => {
+  it('shows loading copy before fetch settles', () => {
     render(<WeeklyPeriodsPage />);
-    expect(screen.getByTestId('sidebar')).toBeInTheDocument();
     expect(screen.getByText('Loading weekly periods…')).toBeInTheDocument();
   });
 

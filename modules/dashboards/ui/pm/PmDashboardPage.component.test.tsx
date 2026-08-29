@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import PmDashboardPage from './PmDashboardPage';
 
 vi.mock('next/navigation', () => ({ usePathname: () => '/dashboards/pm' }));
-vi.mock('@/components/layout/Sidebar', () => ({ default: () => <nav data-testid="sidebar" /> }));
 
 const toastError = vi.fn();
 vi.mock('sonner', () => ({
@@ -128,7 +127,6 @@ beforeEach(() => {
 describe('PmDashboardPage', () => {
   it('shows loading shell before fetch settles', () => {
     render(<PmDashboardPage />);
-    expect(screen.getByTestId('sidebar')).toBeInTheDocument();
     expect(screen.getByText('Loading dashboard…')).toBeInTheDocument();
   });
 

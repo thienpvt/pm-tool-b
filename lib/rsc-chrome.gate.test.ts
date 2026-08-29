@@ -26,10 +26,20 @@ const CHROME_ROUTES: { route: string; moduleImport: string }[] = [
     route: 'app/dashboards/portfolio/page.tsx',
     moduleImport: 'modules/dashboards/ui/portfolio/PortfolioDashboardPage',
   },
+  {
+    route: 'app/dashboards/pm/page.tsx',
+    moduleImport: 'modules/dashboards/ui/pm/PmDashboardPage',
+  },
+  {
+    route: 'app/weekly/periods/page.tsx',
+    moduleImport: 'modules/weekly/ui/periods/WeeklyPeriodsPage',
+  },
 ];
 
 const MODULE_PAGES_NO_SIDEBAR: { path: string; label: string }[] = [
   { path: 'modules/dashboards/ui/portfolio/PortfolioDashboardPage.tsx', label: 'PortfolioDashboardPage' },
+  { path: 'modules/dashboards/ui/pm/PmDashboardPage.tsx', label: 'PmDashboardPage' },
+  { path: 'modules/weekly/ui/periods/WeeklyPeriodsPage.tsx', label: 'WeeklyPeriodsPage' },
 ];
 
 export const PILOT_LOADING: { path: string; message: string }[] = [];
