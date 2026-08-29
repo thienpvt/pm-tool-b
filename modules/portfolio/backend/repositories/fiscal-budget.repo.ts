@@ -1,4 +1,4 @@
-import { getDb } from '@/lib/db';
+import { getKysely } from '@/lib/db/kysely';
 
 export type FiscalBudgetRow = {
   id: number;
@@ -10,23 +10,44 @@ export type FiscalBudgetRow = {
   created_at: string;
 };
 
+type FiscalBudgetDbRow = {
+  id: number;
+  project_id: number;
+  fiscal_year: number;
+  cost_type: string;
+  approved_amount_vnd: number;
+  actual_amount_vnd: number;
+  created_at: Date | string;
+};
+
+function mapFiscalBudgetRow(row: FiscalBudgetDbRow): FiscalBudgetRow {
+  return {
+    ...row,
+    created_at: row.created_at instanceof Date ? row.created_at.toISOString() : String(row.created_at),
+  };
+}
+
 export async function listFiscalBudgets(projectId: number | string) {
-  const db = await getDb();
-  return db.all<FiscalBudgetRow>(
-    `SELECT * FROM project_fiscal_budgets
-     WHERE project_id = ?
-     ORDER BY fiscal_year DESC, cost_type`,
-    projectId,
-  );
+  const db = await getKysely();
+  const rows = await db
+    .selectFrom('project_fiscal_budgets')
+    .selectAll()
+    .where('project_id', '=', Number(projectId))
+    .orderBy('fiscal_year', 'desc')
+    .orderBy('cost_type')
+    .execute();
+  return rows.map(mapFiscalBudgetRow);
 }
 
 export async function getFiscalBudgetInProject(projectId: number | string, budgetId: number | string) {
-  const db = await getDb();
-  return db.get<FiscalBudgetRow>(
-    'SELECT * FROM project_fiscal_budgets WHERE id = ? AND project_id = ?',
-    budgetId,
-    projectId,
-  );
+  const db = await getKysely();
+  const row = await db
+    .selectFrom('project_fiscal_budgets')
+    .selectAll()
+    .where('id', '=', Number(budgetId))
+    .where('project_id', '=', Number(projectId))
+    .executeTakeFirst();
+  return row ? mapFiscalBudgetRow(row) : undefined;
 }
 
 export async function findFiscalBudgetByKey(
@@ -34,14 +55,15 @@ export async function findFiscalBudgetByKey(
   fiscalYear: number,
   costType: string,
 ) {
-  const db = await getDb();
-  return db.get<FiscalBudgetRow>(
-    `SELECT * FROM project_fiscal_budgets
-     WHERE project_id = ? AND fiscal_year = ? AND cost_type = ?`,
-    projectId,
-    fiscalYear,
-    costType,
-  );
+  const db = await getKysely();
+  const row = await db
+    .selectFrom('project_fiscal_budgets')
+    .selectAll()
+    .where('project_id', '=', Number(projectId))
+    .where('fiscal_year', '=', fiscalYear)
+    .where('cost_type', '=', costType)
+    .executeTakeFirst();
+  return row ? mapFiscalBudgetRow(row) : undefined;
 }
 
 export async function insertFiscalBudget(
@@ -53,18 +75,20 @@ export async function insertFiscalBudget(
     actual_amount_vnd?: number;
   },
 ) {
-  const db = await getDb();
-  const result = await db.run(
-    `INSERT INTO project_fiscal_budgets
-       (project_id, fiscal_year, cost_type, approved_amount_vnd, actual_amount_vnd)
-     VALUES (?, ?, ?, ?, ?)`,
-    projectId,
-    body.fiscal_year,
-    body.cost_type,
-    body.approved_amount_vnd,
-    body.actual_amount_vnd ?? 0,
-  );
-  return db.get<FiscalBudgetRow>('SELECT * FROM project_fiscal_budgets WHERE id = ?', result.lastInsertRowid);
+  const db = await getKysely();
+  const row = await db
+    .insertInto('project_fiscal_budgets')
+    .values({
+      project_id: Number(projectId),
+      fiscal_year: body.fiscal_year,
+      cost_type: body.cost_type,
+      approved_amount_vnd: body.approved_amount_vnd,
+      actual_amount_vnd: body.actual_amount_vnd ?? 0,
+      created_at: new Date(),
+    })
+    .returningAll()
+    .executeTakeFirstOrThrow();
+  return mapFiscalBudgetRow(row);
 }
 
 /** Spend reporting only — approved baseline is never updated here (D-04). */
@@ -73,13 +97,13 @@ export async function updateFiscalBudgetActual(
   budgetId: number | string,
   actualAmountVnd: number,
 ) {
-  const db = await getDb();
-  return db.get<FiscalBudgetRow>(
-    `UPDATE project_fiscal_budgets SET actual_amount_vnd = ?
-     WHERE id = ? AND project_id = ?
-     RETURNING *`,
-    actualAmountVnd,
-    budgetId,
-    projectId,
-  );
+  const db = await getKysely();
+  const row = await db
+    .updateTable('project_fiscal_budgets')
+    .set({ actual_amount_vnd: actualAmountVnd })
+    .where('id', '=', Number(budgetId))
+    .where('project_id', '=', Number(projectId))
+    .returningAll()
+    .executeTakeFirst();
+  return row ? mapFiscalBudgetRow(row) : undefined;
 }
