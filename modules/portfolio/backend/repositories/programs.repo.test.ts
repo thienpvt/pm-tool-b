@@ -1,8 +1,12 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { hasTestDb } from '../../../../test/db';
-import { seedCompany, setupRepoTables, testDb } from '../../../../test/repo-db';
+import { seedCompany, setupRepoTables, testDb, testKysely } from '../../../../test/repo-db';
 
 vi.mock('@/lib/db', () => ({ getDb: vi.fn(async () => testDb()) }));
+
+vi.mock('@/lib/db/kysely', () => ({
+  getKysely: vi.fn(async () => testKysely()),
+}));
 
 import { listPrograms } from './programs.repo';
 
@@ -32,5 +36,11 @@ describe.skipIf(!hasTestDb)('programs.repo', () => {
   it('does not return other-company programs even when scoped to company A (D-13)', async () => {
     const rows = await listPrograms(companyA) as { id: number }[];
     expect(rows.map(row => row.id)).not.toContain(programB);
+  });
+
+  it('loads via getKysely', async () => {
+    const { getKysely } = await import('@/lib/db/kysely');
+    await listPrograms(companyA);
+    expect(getKysely).toHaveBeenCalled();
   });
 });
