@@ -109,6 +109,7 @@ describe('milestones.service', () => {
       plan_end: '2026-06-30',
     });
     await createMilestone(7, owner, { name: 'M1', start_date: '2026-01-01', end_date: '2026-06-30' });
+    expect(auditLog).toHaveBeenCalledTimes(1);
     expect(auditLog).toHaveBeenCalledWith({
       actor_id: owner.user_id,
       company_id: owner.company_id,
@@ -162,7 +163,10 @@ describe('milestones.service', () => {
       plan_end: '2026-06-30',
     });
     await updateMilestone(7, owner, 3, { name: 'Renamed' });
+    expect(assertProjectWriteAccess).toHaveBeenCalledWith(7, owner);
     expect(getMilestoneRepo).toHaveBeenCalledWith(7, 3);
+    expect(updateMilestoneRepo).toHaveBeenCalledWith(7, 3, { name: 'Renamed' });
+    expect(auditLog).toHaveBeenCalledTimes(1);
     expect(auditLog).toHaveBeenCalledWith({
       actor_id: owner.user_id,
       company_id: owner.company_id,
@@ -231,6 +235,7 @@ describe('milestones.service', () => {
       expect(assertProjectWriteAccess).toHaveBeenCalledWith(7, owner);
       expect(getMilestoneRepo).toHaveBeenCalledWith(7, 3);
       expect(cancelMilestoneRepo).toHaveBeenCalledWith(7, 3, owner.user_id);
+      expect(auditLog).toHaveBeenCalledTimes(1);
       expect(auditLog).toHaveBeenCalledWith({
         actor_id: owner.user_id,
         company_id: owner.company_id,
