@@ -1,8 +1,12 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { hasTestDb } from '@/test/db';
-import { setupRepoTables, testDb } from '@/test/repo-db';
+import { setupRepoTables, testDb, testKysely } from '@/test/repo-db';
 
 vi.mock('@/lib/db', () => ({ getDb: vi.fn(async () => testDb()) }));
+
+vi.mock('@/lib/db/kysely', () => ({
+  getKysely: vi.fn(async () => testKysely()),
+}));
 
 import { companyRagConfig } from './rag-config.repo';
 
@@ -36,5 +40,11 @@ describe.skipIf(!hasTestDb)('rag-config.repo', () => {
 
   it('handles a null companyId without throwing', async () => {
     await expect(companyRagConfig(null)).resolves.toBeUndefined();
+  });
+
+  it('loads via getKysely', async () => {
+    const { getKysely } = await import('@/lib/db/kysely');
+    await companyRagConfig(8801);
+    expect(getKysely).toHaveBeenCalled();
   });
 });
