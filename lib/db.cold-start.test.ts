@@ -73,16 +73,25 @@ describe.skipIf(!hasTestDb)('getDb cold start (PERF-03)', () => {
 
   it(`p95 connect+assert ≤ ${P95_FAIL_MS}ms`, async () => {
     const samples: number[] = [];
+    const previousDatabaseUrl = process.env.DATABASE_URL;
 
-    for (let i = 0; i < SAMPLE_COUNT; i++) {
-      vi.resetModules();
-      process.env.DATABASE_URL = TEST_DATABASE_URL!;
-      const t0 = performance.now();
-      const { getDb, getPool } = await import('./db');
-      await getDb();
-      samples.push(performance.now() - t0);
-      const pool = await getPool();
-      await pool.end();
+    try {
+      for (let i = 0; i < SAMPLE_COUNT; i++) {
+        vi.resetModules();
+        process.env.DATABASE_URL = TEST_DATABASE_URL!;
+        const t0 = performance.now();
+        const { getDb, getPool } = await import('./db');
+        await getDb();
+        samples.push(performance.now() - t0);
+        const pool = await getPool();
+        await pool.end();
+      }
+    } finally {
+      if (previousDatabaseUrl === undefined) {
+        delete process.env.DATABASE_URL;
+      } else {
+        process.env.DATABASE_URL = previousDatabaseUrl;
+      }
     }
 
     const warmCount = samples.filter((ms) => ms < WARM_CACHE_THRESHOLD_MS).length;
@@ -95,6 +104,16 @@ describe.skipIf(!hasTestDb)('getDb cold start (PERF-03)', () => {
     expect(measured).toBeLessThan(P95_FAIL_MS);
     writeColdStartArtifact(samples, measured);
   }, 120_000);
+});
+
+describe('cold-start source gate (D-05)', () => {
+  it('uses getDb/getPool only — no direct Pool construction', () => {
+    const source = readFileSync(resolve(__dirname, 'db.cold-start.test.ts'), 'utf8');
+    expect(source).not.toMatch(/\bnew\s+Pool\s*\(/);
+    expect(source).not.toMatch(/from\s+['"]pg['"]/);
+    expect(source).toContain('getDb');
+    expect(source).toContain('getPool');
+  });
 });
 
 describe('COLD-START.md budget artifact (PERF-03)', () => {

@@ -77,8 +77,7 @@ v2.0 remainder (no React consumers of v2 APIs, no repo-wide module split, Kysely
 - ✓ PERD-04 / WKRP-07 / CPMO-05 / PERF-01 — Weekly periods, PM editor, tracking/export, in-repo VirtualRows in `modules/weekly/ui/` — Phase 22
 - ✓ DOC-07 / DOC-08 / DOC-09 / AUDIT-02 — Catalog, Confluence checklist, compliance, audit viewer in `modules/documents/ui/` and `modules/audit/ui/` — Phase 23
 - ✓ ENF-02 — Repositories query through Kysely on the existing `pg.Pool`; runtime `pickAllowed` / `UnknownColumnError` mass-assignment stays — Phase 25
-- [ ] PERF-02 — Static page chrome moves to server components
-- [ ] PERF-03 — Cold-start time is measured and budgeted
+- ✓ PERF-02 / PERF-03 — Server `PageChrome` on v2 Sidebar routes; `getDb()` cold-start p95 budget recorded — Phase 26
 - [ ] HYG-02 — Operator confirms Anthropic malformed-output 502 vs old 500 (checkpoint, not a rewrite unless rejected)
 - [ ] NIT-01 — Wire or remove unused `listPeriodShells` / `listOpenProjectDependencies`
 - [ ] NIT-02 — Fiscal KPIs on portfolio dashboard if they belong; no-op milestone PATCH audit noise; v1 `budget_items` coexistence resolved or documented
@@ -99,9 +98,9 @@ v2.0 remainder (no React consumers of v2 APIs, no repo-wide module split, Kysely
 
 **Shipped:** v2.0 Portfolio One View (2026-08-26) — Phases 9–18, 40 plans. Archive: `.planning/milestones/`. Audit: `tech_debt` (79/79 requirements, UI deferred).
 
-**Now:** v2.1 Hardening & Deferred Debt — Phase 26 RSC Chrome & Cold Start.
+**Now:** v2.1 Hardening & Deferred Debt — Phase 27 Nits, Validation & Operator Gate.
 
-CPMO/PM/Viewer is enforced on spec APIs. Feature areas live under `modules/<feature>/{backend,ui}/` with thin `app/` re-exports. Repositories query through Kysely on the existing `pg.Pool` with runtime mass-assignment guards. Static chrome is still client-rendered; cold-start connect time is not yet budgeted (Phase 26).
+CPMO/PM/Viewer is enforced on spec APIs. Feature areas live under `modules/<feature>/{backend,ui}/` with thin `app/` re-exports. Repositories query through Kysely on the existing `pg.Pool`. v2 Sidebar routes use server `PageChrome`. Remaining: nits, Nyquist remainder, operator confirm of Anthropic 502.
 
 ## Next Milestone Goals
 

@@ -7,6 +7,10 @@ const root = resolve(__dirname, '..');
 
 const CLIENT_DIRECTIVE = /^['"]use client['"]/m;
 
+function stripBom(source: string): string {
+  return source.charCodeAt(0) === 0xfeff ? source.slice(1) : source;
+}
+
 /** Non-comment lines only — ignore // and block-comment * prefixes. */
 function codeLines(source: string): string[] {
   return source
@@ -166,6 +170,16 @@ const MODULE_SHELL_IMPORTS = [
   '@/components/layout/PageErrorShell',
 ] as const;
 
+/** Tailwind font-weight utilities outside D-06 allowlist (400/600 only). */
+const FORBIDDEN_FONT_WEIGHTS =
+  /\bfont-(thin|extralight|light|medium|bold|extrabold|black)\b/;
+
+const PROJECT_ID_ROUTES = CHROME_ROUTES.filter(
+  r => /\/\[id\](?:\/|$)/.test(r.route),
+).map(r => r.route);
+
+const WEEKLY_REPORT_PROJECT_ROUTE = 'app/weekly/reports/[projectId]/[reportId]/page.tsx';
+
 const MODULE_PAGES_NO_SIDEBAR: { path: string; label: string }[] = [
   { path: 'modules/dashboards/ui/portfolio/PortfolioDashboardPage.tsx', label: 'PortfolioDashboardPage' },
   { path: 'modules/dashboards/ui/pm/PmDashboardPage.tsx', label: 'PmDashboardPage' },
@@ -233,6 +247,52 @@ describe('rsc-chrome gates (26-01–26-02, PERF-02, D-01, D-02, D-03, D-05, D-06
   it('D-02: Sidebar.tsx remains a Client Component', () => {
     const source = readFileSync(join(root, 'components/layout/Sidebar.tsx'), 'utf8');
     expect(source).toMatch(CLIENT_DIRECTIVE);
+  });
+
+  it('D-02: Sidebar fetches /api/auth/me on the client', () => {
+    const source = readFileSync(join(root, 'components/layout/Sidebar.tsx'), 'utf8');
+    expect(source).toMatch(/fetch\s*\(\s*['"]\/api\/auth\/me['"]/);
+  });
+
+  it('PERF-02: PortfolioKpiTiles stays a Client Component', () => {
+    const source = readFileSync(
+      join(root, 'modules/dashboards/ui/portfolio/PortfolioKpiTiles.tsx'),
+      'utf8',
+    );
+    expect(source).toMatch(CLIENT_DIRECTIVE);
+  });
+
+  it('PERF-02: chrome module pages remain Client Components with hooks', () => {
+    for (const { path: rel, label } of MODULE_PAGES_NO_SIDEBAR) {
+      const source = stripBom(readFileSync(join(root, rel), 'utf8'));
+      expect(source, `${label} must stay a Client Component`).toMatch(CLIENT_DIRECTIVE);
+    }
+  });
+
+  it('D-02: project-scoped routes await params and forward projectId', () => {
+    for (const route of PROJECT_ID_ROUTES) {
+      const source = readFileSync(join(root, route), 'utf8');
+      const rel = relative(root, join(root, route)).replace(/\\/g, '/');
+      expect(source, `${rel} must await params`).toMatch(/await\s+params/);
+      expect(source, `${rel} must forward projectId to PageChrome`).toContain('projectId');
+    }
+    const weeklySource = readFileSync(join(root, WEEKLY_REPORT_PROJECT_ROUTE), 'utf8');
+    expect(weeklySource).toMatch(/await\s+params/);
+    expect(weeklySource).toContain('projectId');
+  });
+
+  it('D-06: PageChrome outer shell uses exact preserve-existing className', () => {
+    const source = readFileSync(join(root, 'components/layout/PageChrome.tsx'), 'utf8');
+    expect(source).toContain('flex flex-col lg:flex-row min-h-screen bg-slate-50');
+  });
+
+  it('D-06: layout shells use only font weights 400 and 600 (no forbidden utilities)', () => {
+    for (const rel of LAYOUT_SHELLS) {
+      const source = readFileSync(join(root, rel), 'utf8');
+      expect(source, `${rel} must not use forbidden font-weight utilities`).not.toMatch(
+        FORBIDDEN_FONT_WEIGHTS,
+      );
+    }
   });
 
   it('D-05: package.json has no APM packages (datadog, newrelic)', () => {
