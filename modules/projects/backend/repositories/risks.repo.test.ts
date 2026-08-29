@@ -1,8 +1,14 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { hasTestDb } from '../../test/db';
-import { seedProject, setupRepoTables, testDb } from '../../test/repo-db';
+import { hasTestDb } from '@/test/db';
+import { seedProject, setupRepoTables, testDb, testKysely } from '@/test/repo-db';
 
-vi.mock('@/lib/db', () => ({ getDb: vi.fn(async () => testDb()) }));
+vi.mock('@/lib/db', () => ({
+  getDb: vi.fn(async () => testDb()),
+}));
+
+vi.mock('@/lib/db/kysely', () => ({
+  getKysely: vi.fn(async () => testKysely()),
+}));
 
 import { UnknownColumnError } from '@/lib/repositories/_helpers';
 import {
@@ -22,6 +28,12 @@ describe.skipIf(!hasTestDb)('risks.repo', () => {
   beforeAll(async () => {
     await setupRepoTables();
     projectId = await seedProject('risks Suite');
+  });
+
+  it('loads via getKysely', async () => {
+    const { getKysely } = await import('@/lib/db/kysely');
+    await listRisks(projectId);
+    expect(getKysely).toHaveBeenCalled();
   });
 
   it('creates a row and reads it back', async () => {
