@@ -276,7 +276,7 @@ Plans:
   2. Runtime mass-assignment tests still reject extra fields; allowlists are not abandoned
   3. The app still uses a single connection pool (no second ORM and no second pool)
 
-**Plans:** 6/15 plans executed
+**Plans:** 7/15 plans executed
 
 Plans:
 **Wave 1**
@@ -305,7 +305,7 @@ Plans:
 
 **Wave 7** *(blocked on Wave 6)*
 
-- [ ] 25-07-PLAN.md — programs, fiscal-budget, resources
+- [x] 25-07-PLAN.md — programs, fiscal-budget, resources
 
 **Wave 8** *(blocked on Wave 7)*
 
@@ -382,6 +382,6 @@ v1.0 Phases 1–8 and v2.0 Phases 9–18 are complete (see milestone archives ab
 | 22. Weekly Workflow Surfaces | 5/5 | Complete    | 2026-08-28 |
 | 23. Document Checklist & Audit Viewer | 5/5 | Complete    | 2026-08-28 |
 | 24. Repo-wide Module Split | 10/10 | Complete    | 2026-08-28 |
-| 25. Kysely Repositories | 6/15 | In Progress|  |
+| 25. Kysely Repositories | 7/15 | In Progress|  |
 | 26. RSC Chrome & Cold Start | 0/TBD | Not started | - |
 | 27. Nits, Validation & Operator Gate | 0/TBD | Not started | - |
