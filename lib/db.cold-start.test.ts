@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { afterAll, describe, expect, it, vi } from 'vitest';
 import { closeTestPool, hasTestDb, TEST_DATABASE_URL } from '@/test/db';
 
@@ -6,6 +8,11 @@ const P95_FAIL_MS = 5000;
 /** Cached singleton returns in ~0ms; real connect+assert on localhost is typically ≥5ms. */
 const WARM_CACHE_THRESHOLD_MS = 1;
 const WARM_CACHE_MAX_SAMPLES = 18;
+
+const COLD_START_MD_PATH = resolve(
+  __dirname,
+  '../.planning/phases/26-rsc-chrome-cold-start/COLD-START.md',
+);
 
 function p95(values: number[]): number {
   const sorted = [...values].sort((a, b) => a - b);
@@ -41,4 +48,13 @@ describe.skipIf(!hasTestDb)('getDb cold start (PERF-03)', () => {
     const measured = p95(samples);
     expect(measured).toBeLessThan(P95_FAIL_MS);
   }, 120_000);
+});
+
+describe('COLD-START.md budget artifact (PERF-03)', () => {
+  it('records PERF-03 target 2000ms and CI fail threshold 5000ms', () => {
+    const content = readFileSync(COLD_START_MD_PATH, 'utf8');
+    expect(content).toContain('PERF-03');
+    expect(content).toContain('2000');
+    expect(content).toContain('5000');
+  });
 });
