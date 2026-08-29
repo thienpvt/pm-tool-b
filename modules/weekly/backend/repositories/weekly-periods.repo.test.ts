@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { hasTestDb, testPool } from '@/test/db';
-import { seedCompany, seedProject, setupRepoTables, testDb } from '@/test/repo-db';
+import { seedCompany, seedProject, setupRepoTables, testDb, testKysely } from '@/test/repo-db';
 import { migrateWeeklyReports } from '@/lib/db-weekly-reports';
 import { runInTransactionOnPool } from '@/lib/db-tx';
 
@@ -10,12 +10,17 @@ vi.mock('@/lib/db', () => ({
     runInTransactionOnPool(testPool(), fn),
 }));
 
+vi.mock('@/lib/db/kysely', () => ({
+  getKysely: vi.fn(async () => testKysely()),
+}));
+
 import {
   createPeriodWithShells,
   getCompanyWeeklyConfig,
   listObligatedProjectIds,
   upsertCompanyWeeklyConfig,
 } from './weekly-periods.repo';
+import * as weeklyReportsRepo from './weekly-reports.repo';
 
 describe.skipIf(!hasTestDb)('weekly-periods.repo', () => {
   let companyId: number;
@@ -73,6 +78,24 @@ describe.skipIf(!hasTestDb)('weekly-periods.repo', () => {
     expect(period.shells.find((s) => s.project_id === p2)).toBeUndefined();
   });
 
+  it('createPeriodWithShells rolls back period when insertShell throws (D-06)', async () => {
+    await insertProject({ name: 'p1' });
+    const spy = vi
+      .spyOn(weeklyReportsRepo, 'insertShell')
+      .mockRejectedValueOnce(new Error('shell-fail'));
+    try {
+      await expect(createPeriodWithShells(companyId, '2026-W02', 1)).rejects.toThrow('shell-fail');
+
+      const { rows } = await testPool().query<{ count: number }>(
+        'SELECT COUNT(*)::int AS count FROM weekly_periods WHERE company_id = $1 AND iso_week = $2',
+        [companyId, '2026-W02'],
+      );
+      expect(rows[0].count).toBe(0);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
   it('upsertCompanyWeeklyConfig does not UPDATE existing period due_at (D-03, PERD-02)', async () => {
     await insertProject({ name: 'p1' });
     const period = await createPeriodWithShells(companyId, '2026-W01', 1);
@@ -95,5 +118,11 @@ describe.skipIf(!hasTestDb)('weekly-periods.repo', () => {
   it('getCompanyWeeklyConfig returns null when no row', async () => {
     const config = await getCompanyWeeklyConfig(companyId);
     expect(config).toBeNull();
+  });
+
+  it('loads via getKysely', async () => {
+    const { getKysely } = await import('@/lib/db/kysely');
+    await getCompanyWeeklyConfig(companyId);
+    expect(getKysely).toHaveBeenCalled();
   });
 });
