@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { hasTestDb, testPool } from '@/test/db';
-import { setupRepoTables, testDb } from '@/test/repo-db';
+import { setupRepoTables, testDb, testKysely } from '@/test/repo-db';
 import { migrateDashboards } from '@/lib/db-dashboards';
 import { runInTransactionOnPool } from '@/lib/db-tx';
 
@@ -8,6 +8,10 @@ vi.mock('@/lib/db', () => ({
   getDb: vi.fn(async () => testDb()),
   runInTransaction: (fn: (client: import('pg').PoolClient) => Promise<unknown>) =>
     runInTransactionOnPool(testPool(), fn),
+}));
+
+vi.mock('@/lib/db/kysely', () => ({
+  getKysely: vi.fn(async () => testKysely()),
 }));
 
 import { readFileSync } from 'node:fs';
@@ -76,5 +80,11 @@ describe.skipIf(!hasTestDb)('dashboard-filter-state.repo', () => {
   it('repo module has no physical DELETE of dashboard_filter_state (D-15)', () => {
     const src = readFileSync(resolve(__dirname, 'dashboard-filter-state.repo.ts'), 'utf8');
     expect(src).not.toMatch(/DELETE\s+FROM\s+dashboard_filter_state/i);
+  });
+
+  it('loads via getKysely', async () => {
+    const { getKysely } = await import('@/lib/db/kysely');
+    await getDashboardFilters(userId, 'portfolio');
+    expect(getKysely).toHaveBeenCalled();
   });
 });
