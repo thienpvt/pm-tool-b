@@ -5,16 +5,16 @@ milestone_name: Hardening & Deferred Debt
 current_phase: 25
 current_phase_name: Kysely Repositories
 status: executing
-stopped_at: Completed 25-04-PLAN.md
-last_updated: "2026-08-29T00:38:41.399Z"
+stopped_at: Completed 25-05-PLAN.md
+last_updated: "2026-08-29T00:42:25.026Z"
 last_activity: 2026-08-29
 last_activity_desc: Phase 25 execution started
-state_head: e83e2442dd648569ae737e9b452e02016ad29faf
+state_head: 8204e58a76e4e24cf689a4b0600858bfc2148411
 progress:
   total_phases: 9
   completed_phases: 6
   total_plans: 50
-  completed_plans: 39
+  completed_plans: 40
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-08-28)
 ## Current Position
 
 Phase: 25 (Kysely Repositories) — EXECUTING
-Plan: 5 of 15
+Plan: 6 of 15
 Status: Ready to execute
 Last activity: 2026-08-29 — Phase 25 execution started
 
@@ -134,6 +134,7 @@ Progress: [██░░░░░░░░] 25%
 | Phase 25-kysely-repositories P02 | 10min | 2 tasks | 4 files |
 | Phase 25 P03 | 15 | 3 tasks | 6 files |
 | Phase 25 P04 | 25 | 3 tasks | 11 files |
+| Phase 25-kysely-repositories P05 | 8min | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -282,6 +283,8 @@ Recent decisions affecting current work:
 - [Phase 25]: auth.repo converts user CRUD only; lib/auth.ts session SQL stays untouched (D-05)
 - [Phase 25]: Complex admin/users queries use sql template on getKysely for ARRAY_AGG semantics
 - [Phase 25]: company_rag_config and company_jira_config upserts keyed by company_id PK without serial RETURNING
+- [Phase 25]: listEffectiveTemplates keeps DISTINCT ON via sql template on getKysely (D-05)
+- [Phase 25]: Document DDL added to setupRepoTables test harness only — not a schema migration
 
 ### Pending Todos
 
@@ -305,8 +308,8 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-08-29T00:38:40.954Z
-Stopped at: Completed 25-04-PLAN.md
+Last session: 2026-08-29T00:42:24.566Z
+Stopped at: Completed 25-05-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
