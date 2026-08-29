@@ -1,4 +1,4 @@
-import { getDb } from '@/lib/db';
+import { getKysely } from '@/lib/db/kysely';
 
 /**
  * The `settings` key/value table.
@@ -7,15 +7,19 @@ import { getDb } from '@/lib/db';
  * serial `id` column, so writes do not return a generated key.
  */
 export async function getSetting(key: string): Promise<string | undefined> {
-  const db = await getDb();
-  const row = await db.get<{ value: string }>('SELECT value FROM settings WHERE key = ?', key);
+  const db = await getKysely();
+  const row = await db
+    .selectFrom('settings')
+    .select('value')
+    .where('key', '=', key)
+    .executeTakeFirst();
   return row?.value;
 }
 
 /** Every key/value pair. The route masks secrets before returning them. */
 export async function listSettings() {
-  const db = await getDb();
-  return db.all<{ key: string; value: string }>('SELECT key, value FROM settings');
+  const db = await getKysely();
+  return db.selectFrom('settings').select(['key', 'value']).execute();
 }
 
 /**
@@ -23,9 +27,10 @@ export async function listSettings() {
  * returns nothing meaningful — callers must not expect a generated key.
  */
 export async function setSetting(key: string, value: string): Promise<void> {
-  const db = await getDb();
-  await db.run(
-    'INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value',
-    key, String(value),
-  );
+  const db = await getKysely();
+  await db
+    .insertInto('settings')
+    .values({ key, value: String(value) })
+    .onConflict((oc) => oc.column('key').doUpdateSet({ value: String(value) }))
+    .execute();
 }
