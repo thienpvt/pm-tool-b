@@ -24,6 +24,13 @@ function auditSnapshot(row: Record<string, unknown> | null | undefined) {
   };
 }
 
+function snapshotsEqual(
+  before: ReturnType<typeof auditSnapshot>,
+  after: ReturnType<typeof auditSnapshot>,
+): boolean {
+  return JSON.stringify(before) === JSON.stringify(after);
+}
+
 export async function listMilestones(projectId: number | string, actor: AccessActor) {
   await assertProjectAccess(projectId, actor);
   return listMilestonesRepo(projectId);
@@ -62,15 +69,19 @@ export async function updateMilestone(
   const prior = await getMilestoneRepo(projectId, milestoneId);
   const updated = await updateMilestoneRepo(projectId, milestoneId, body);
   if (!updated) throw new NotFoundError('Not found', 'milestone');
-  await auditLog({
-    actor_id: actor.user_id,
-    company_id: actor.company_id,
-    entity_type: 'milestone',
-    entity_id: String(milestoneId),
-    action: 'update',
-    before: auditSnapshot(prior),
-    after: auditSnapshot(updated),
-  });
+  const beforeSnap = auditSnapshot(prior);
+  const afterSnap = auditSnapshot(updated);
+  if (!snapshotsEqual(beforeSnap, afterSnap)) {
+    await auditLog({
+      actor_id: actor.user_id,
+      company_id: actor.company_id,
+      entity_type: 'milestone',
+      entity_id: String(milestoneId),
+      action: 'update',
+      before: beforeSnap,
+      after: afterSnap,
+    });
+  }
   return updated;
 }
 
