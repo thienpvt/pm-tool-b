@@ -1,23 +1,29 @@
-import { getDb } from '@/lib/db';
+import { sql } from 'kysely';
+import { getKysely } from '@/lib/db/kysely';
 
 export type DashboardSurface = 'portfolio' | 'pm';
 
 export async function getDashboardFilters(userId: number, surface: DashboardSurface) {
-  const db = await getDb();
-  const row = await db.get<{ filters_json: unknown; updated_at: string | null }>(
-    `SELECT filters_json, updated_at FROM dashboard_filter_state
-     WHERE user_id = ? AND surface = ?`,
-    userId,
-    surface,
-  );
+  const db = await getKysely();
+  const row = await db
+    .selectFrom('dashboard_filter_state')
+    .select(['filters_json', 'updated_at'])
+    .where('user_id', '=', userId)
+    .where('surface', '=', surface)
+    .executeTakeFirst();
   if (!row) {
     return { filters: {} as Record<string, unknown>, updated_at: null };
   }
+  const raw = row.filters_json;
   const filters =
-    row.filters_json && typeof row.filters_json === 'object' && !Array.isArray(row.filters_json)
-      ? (row.filters_json as Record<string, unknown>)
+    raw && typeof raw === 'object' && !Array.isArray(raw)
+      ? (raw as Record<string, unknown>)
       : {};
-  return { filters, updated_at: row.updated_at };
+  const updatedAt = row.updated_at;
+  return {
+    filters,
+    updated_at: updatedAt == null ? null : updatedAt instanceof Date ? updatedAt.toISOString() : String(updatedAt),
+  };
 }
 
 export async function upsertDashboardFilters(
@@ -25,15 +31,19 @@ export async function upsertDashboardFilters(
   surface: DashboardSurface,
   filtersJson: Record<string, unknown>,
 ): Promise<void> {
-  const db = await getDb();
-  await db.run(
-    `INSERT INTO dashboard_filter_state (user_id, surface, filters_json)
-     VALUES (?, ?, ?::jsonb)
-     ON CONFLICT (user_id, surface) DO UPDATE SET
-       filters_json = excluded.filters_json,
-       updated_at = now()`,
-    userId,
-    surface,
-    JSON.stringify(filtersJson),
-  );
+  const db = await getKysely();
+  await db
+    .insertInto('dashboard_filter_state')
+    .values({
+      user_id: userId,
+      surface,
+      filters_json: JSON.stringify(filtersJson),
+    })
+    .onConflict((oc) =>
+      oc.columns(['user_id', 'surface']).doUpdateSet({
+        filters_json: (eb) => eb.ref('excluded.filters_json'),
+        updated_at: sql`now()`,
+      }),
+    )
+    .execute();
 }
