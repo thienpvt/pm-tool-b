@@ -4,7 +4,6 @@
 
 import { useState } from 'react';
 import { AlertTriangle } from 'lucide-react';
-import Sidebar from '@/components/layout/Sidebar';
 import { Button } from '@/components/ui/button';
 import { PortfolioCharts } from './PortfolioCharts';
 import { PortfolioDrilldownTable } from './PortfolioDrilldownTable';
@@ -26,28 +25,22 @@ export default function PortfolioDashboardPage() {
 
   if (loading) {
     return (
-      <div className="flex flex-col lg:flex-row min-h-screen bg-slate-50">
-        <Sidebar />
-        <main className="flex-1 flex items-center justify-center">
-          <div className="flex flex-col items-center gap-3">
-            <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-            <p className="text-slate-400 text-sm">Loading dashboard…</p>
-          </div>
-        </main>
+      <div className="flex flex-1 items-center justify-center min-h-[50vh]">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+          <p className="text-slate-400 text-sm">Loading dashboard…</p>
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex flex-col lg:flex-row min-h-screen bg-slate-50">
-        <Sidebar />
-        <main className="flex-1 flex items-center justify-center">
-          <div className="flex flex-col items-center gap-3 text-center px-4">
-            <AlertTriangle className="h-8 w-8 text-muted-foreground" />
-            <p className="text-sm text-slate-600">{ERROR_COPY[error]}</p>
-          </div>
-        </main>
+      <div className="flex flex-1 items-center justify-center min-h-[50vh]">
+        <div className="flex flex-col items-center gap-3 text-center px-4">
+          <AlertTriangle className="h-8 w-8 text-muted-foreground" />
+          <p className="text-sm text-slate-600">{ERROR_COPY[error]}</p>
+        </div>
       </div>
     );
   }
@@ -55,55 +48,52 @@ export default function PortfolioDashboardPage() {
   if (!data) return null;
 
   return (
-    <div className="flex flex-col lg:flex-row min-h-screen bg-slate-50">
-      <Sidebar />
-      <main className="flex-1 p-4 lg:p-6 lg:p-8 overflow-auto">
-        <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
-          <div>
-            <h1 className="text-base font-semibold">Spec dashboard</h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              {data.list.length} project{data.list.length === 1 ? '' : 's'} matching filters
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Button
-              size="sm"
-              className="bg-blue-600 text-white hover:bg-blue-700"
-              disabled={exporting}
-              onClick={() => exportDashboard('xlsx')}
-            >
-              {exporting ? 'Exporting…' : 'Export Excel'}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={exporting}
-              onClick={() => exportDashboard('pdf')}
-            >
-              Export PDF
-            </Button>
-          </div>
+    <>
+      <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+        <div>
+          <h1 className="text-base font-semibold">Spec dashboard</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            {data.list.length} project{data.list.length === 1 ? '' : 's'} matching filters
+          </p>
         </div>
-        <PortfolioFiltersBar
-          filters={data.filters}
-          list={data.list}
-          refreshing={refreshing}
-          onApply={saveFilters}
-          onClear={() => clearFilters('clear')}
-          onReset={() => clearFilters('defaults')}
-        />
-        <PortfolioKpiTiles
-          kpis={data.kpis}
-          activeKey={activeKey}
-          onSelect={setActiveKey}
-        />
-        <PortfolioCharts charts={data.charts} />
-        <PortfolioProjectTable list={data.list} />
-        <PortfolioDrilldownTable activeKey={activeKey} drilldowns={data.drilldowns} />
-        <p className="mt-4 text-xs text-muted-foreground">
-          Budget and fiscal metrics are on Portfolio Budget (/portfolio/budget).
-        </p>
-      </main>
-    </div>
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            className="bg-blue-600 text-white hover:bg-blue-700"
+            disabled={exporting}
+            onClick={() => exportDashboard('xlsx')}
+          >
+            {exporting ? 'Exporting…' : 'Export Excel'}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={exporting}
+            onClick={() => exportDashboard('pdf')}
+          >
+            Export PDF
+          </Button>
+        </div>
+      </div>
+      <PortfolioFiltersBar
+        filters={data.filters}
+        list={data.list}
+        refreshing={refreshing}
+        onApply={saveFilters}
+        onClear={() => clearFilters('clear')}
+        onReset={() => clearFilters('defaults')}
+      />
+      <PortfolioKpiTiles
+        kpis={data.kpis}
+        activeKey={activeKey}
+        onSelect={setActiveKey}
+      />
+      <PortfolioCharts charts={data.charts} />
+      <PortfolioProjectTable list={data.list} />
+      <PortfolioDrilldownTable activeKey={activeKey} drilldowns={data.drilldowns} />
+      <p className="mt-4 text-xs text-muted-foreground">
+        Budget and fiscal metrics are on Portfolio Budget (/portfolio/budget).
+      </p>
+    </>
   );
 }
