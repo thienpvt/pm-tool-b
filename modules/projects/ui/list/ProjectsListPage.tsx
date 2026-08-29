@@ -1,7 +1,6 @@
 ﻿'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import Sidebar from '@/components/layout/Sidebar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -64,9 +63,7 @@ export default function ProjectsPage() {
   });
 
   return (
-    <div className="flex flex-col lg:flex-row min-h-screen">
-      <Sidebar />
-      <main className="flex-1 p-4 lg:p-8">
+    <>
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -170,7 +167,6 @@ export default function ProjectsPage() {
             ))}
           </div>
         )}
-      </main>
-    </div>
+    </>
   );
 }

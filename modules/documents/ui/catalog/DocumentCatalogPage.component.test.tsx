@@ -716,9 +716,14 @@ describe('DocumentCatalogPage', () => {
   });
 });
 
-describe('app/documents/catalog re-export', () => {
-  it('re-exports DocumentCatalogPage as default', async () => {
+describe('app/documents/catalog PageChrome wrapper', () => {
+  it('wraps DocumentCatalogPage with PageChrome', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
     const mod = await import('@/app/documents/catalog/page');
-    expect(mod.default).toBe(DocumentCatalogPage);
+    expect(typeof mod.default).toBe('function');
+    const source = readFileSync(resolve(process.cwd(), 'app/documents/catalog/page.tsx'), 'utf8');
+    expect(source).toContain('PageChrome');
+    expect(source).toContain('DocumentCatalogPage');
   });
 });

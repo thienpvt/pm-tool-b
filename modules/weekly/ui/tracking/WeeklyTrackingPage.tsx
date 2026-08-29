@@ -4,7 +4,6 @@ import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AlertTriangle } from 'lucide-react';
-import Sidebar from '@/components/layout/Sidebar';
 import type { PeriodTrackingFilters, WeeklyPeriodListItem } from '../shared/types';
 import { TrackingCountsBar } from './TrackingCountsBar';
 import { ExportToolbar } from './ExportToolbar';
@@ -114,37 +113,29 @@ function WeeklyTrackingContent() {
 
   if (loading) {
     return (
-      <div className="flex flex-col lg:flex-row min-h-screen bg-slate-50">
-        <Sidebar />
-        <main className="flex-1 flex items-center justify-center">
+      <div className="flex flex-1 items-center justify-center min-h-[50vh]">
           <div className="flex flex-col items-center gap-3">
             <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
             <p className="text-slate-400 text-sm">Loading tracking…</p>
           </div>
-        </main>
-      </div>
+    </div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex flex-col lg:flex-row min-h-screen bg-slate-50">
-        <Sidebar />
-        <main className="flex-1 flex items-center justify-center">
+      <div className="flex flex-1 items-center justify-center min-h-[50vh]">
           <div className="flex flex-col items-center gap-3 text-center px-4">
             <AlertTriangle className="h-8 w-8 text-muted-foreground" />
             <p className="text-sm text-slate-600">{ERROR_COPY[error]}</p>
           </div>
-        </main>
-      </div>
+    </div>
     );
   }
 
   if (periods && periods.length === 0) {
     return (
-      <div className="flex flex-col lg:flex-row min-h-screen bg-slate-50">
-        <Sidebar />
-        <main className="flex-1 flex items-center justify-center">
+      <div className="flex flex-1 items-center justify-center min-h-[50vh]">
           <div className="flex flex-col items-center gap-3 text-center px-4">
             <p className="font-semibold text-slate-600">No periods to track</p>
             <p className="text-sm text-muted-foreground">
@@ -154,17 +145,14 @@ function WeeklyTrackingContent() {
               Go to Weekly periods
             </Link>
           </div>
-        </main>
-      </div>
+    </div>
     );
   }
 
   if (!periods || selectedPeriodId === null) return null;
 
   return (
-    <div className="flex flex-col lg:flex-row min-h-screen bg-slate-50">
-      <Sidebar />
-      <main className="flex-1 p-4 lg:p-6 lg:p-8 overflow-auto">
+    <>
         <div className="mb-4 flex flex-wrap items-center gap-4">
           <h1 className="text-base font-semibold">Weekly tracking</h1>
           <select
@@ -204,8 +192,7 @@ function WeeklyTrackingContent() {
             </div>
           </>
         )}
-      </main>
-    </div>
+    </>
   );
 }
 

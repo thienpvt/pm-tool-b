@@ -1,7 +1,6 @@
 'use client';
 import { useState } from 'react';
 import { Sparkles, TrendingUp } from 'lucide-react';
-import Sidebar from '@/components/layout/Sidebar';
 import { usePortfolioReport } from './usePortfolioReport';
 import { useReportPageActions } from './useReportPageActions';
 import type { ProjectRow, SavedPrompt } from './types';
@@ -76,9 +75,7 @@ export default function PortfolioReportPage() {
   })();
 
   return (
-    <div className="flex flex-col lg:flex-row min-h-screen bg-slate-50">
-      <Sidebar />
-      <main className="flex-1 p-4 lg:p-6 overflow-auto">
+    <>
         <div className="max-w-6xl mx-auto space-y-5">
           <ReportHeaderKpi data={data} companyName={companyName} red={red} amber={amber} green={green} />
           <ReportConfigPanel
@@ -115,7 +112,6 @@ export default function PortfolioReportPage() {
             }
           </div>
         </div>
-      </main>
       <EmailModal
         data={data} companyName={companyName}
         showEmailModal={showEmailModal} setShowEmailModal={setShowEmailModal}
@@ -130,6 +126,6 @@ export default function PortfolioReportPage() {
         emailRecipients={emailRecipients} setEmailRecipients={setEmailRecipients}
         sendEmailViaApi={actions.sendEmailViaApi} sendingEmail={sendingEmail}
       />
-    </div>
+    </>
   );
 }

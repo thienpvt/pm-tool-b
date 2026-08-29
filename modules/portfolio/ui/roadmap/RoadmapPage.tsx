@@ -1,7 +1,6 @@
 'use client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toPng } from 'html-to-image';
-import Sidebar from '@/components/layout/Sidebar';
 import { statusPct, weightedProgress } from '@/lib/status-weights';
 import type { EpicDetailData, MilestoneItem, ProgramGroup, ProjectRow } from './types';
 import { useRoadmapPage } from './useRoadmapPage';
@@ -193,24 +192,19 @@ export default function RoadmapPage() {
 
   if (loading) {
     return (
-      <div className="flex flex-col lg:flex-row min-h-screen bg-slate-50">
-        <Sidebar />
-        <main className="flex-1 flex items-center justify-center">
+      <div className="flex flex-1 items-center justify-center min-h-[50vh]">
           <div className="flex flex-col items-center gap-3">
             <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
             <p className="text-slate-400 text-sm">Loading roadmap…</p>
           </div>
-        </main>
-      </div>
+    </div>
     );
   }
 
   const totalProjects = groups.reduce((s, g) => s + g.projects.length, 0);
 
   return (
-    <div className="flex flex-col lg:flex-row min-h-screen bg-slate-50">
-      <Sidebar />
-      <main className="flex-1 flex flex-col overflow-hidden">
+    <>
         <RoadmapToolbar
           viewMode={viewMode}
           onViewModeChange={setViewMode}
@@ -252,9 +246,7 @@ export default function RoadmapPage() {
           collapsedMsEpics={collapsedMsEpics}
           onToggleMsEpic={toggleMsEpic}
         />
-      </main>
-
       <EpicDetailDialog epicDetail={epicDetail} onClose={() => setEpicDetail(null)} />
-    </div>
+    </>
   );
 }

@@ -1,7 +1,6 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
-import Sidebar from '@/components/layout/Sidebar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -314,9 +313,7 @@ export default function ProgramsPage() {
   const totalProjects = programs.reduce((s, c) => s + c.project_count, 0);
 
   return (
-    <div className="flex flex-col lg:flex-row min-h-screen bg-slate-50">
-      <Sidebar />
-      <main className="flex-1 p-4 lg:p-8">
+    <>
         <div className="max-w-6xl mx-auto">
           {/* Header */}
           <div className="flex items-start justify-between gap-3 flex-wrap mb-8">
@@ -441,7 +438,6 @@ export default function ProgramsPage() {
             ))}
           </div>
         </div>
-      </main>
 
       {/* Resource allocation dialog */}
       {resourceProgram && (
@@ -526,6 +522,6 @@ export default function ProgramsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }

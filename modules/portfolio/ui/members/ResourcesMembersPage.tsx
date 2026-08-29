@@ -1,7 +1,6 @@
 'use client';
 import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
-import Sidebar from '@/components/layout/Sidebar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -668,9 +667,7 @@ export default function ResourcesMembersPage() {
   }).length;
 
   return (
-    <div className="flex flex-col lg:flex-row min-h-screen">
-      <Sidebar />
-      <main className="flex-1 p-4 lg:p-6 overflow-x-auto">
+    <>
         {/* Header */}
         <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
           <div>
@@ -945,9 +942,7 @@ export default function ResourcesMembersPage() {
             </table>
           </div>
         )}
-      </main>
-
       <PersonDetailDialog person={detailPerson} onClose={() => setDetailPerson(null)} />
-    </div>
+    </>
   );
 }

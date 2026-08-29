@@ -1,6 +1,5 @@
 ﻿'use client';
 import { useEffect, useState, useMemo } from 'react';
-import Sidebar from '@/components/layout/Sidebar';
 import OnboardingModal from '@/components/onboarding/OnboardingModal';
 import { usePortfolioDashboard } from './usePortfolioDashboard';
 import { projectHealthScore } from './_components/helpers';
@@ -87,15 +86,12 @@ export default function PortfolioHomePage() {
 
   if (loading) {
     return (
-      <div className="flex flex-col lg:flex-row min-h-screen bg-slate-50">
-        <Sidebar />
-        <main className="flex-1 flex items-center justify-center">
+      <div className="flex flex-1 items-center justify-center min-h-[50vh]">
           <div className="flex flex-col items-center gap-3">
             <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
             <p className="text-slate-400 text-sm">Loading portfolio...</p>
           </div>
-        </main>
-      </div>
+    </div>
     );
   }
   if (!data) return null;
@@ -108,7 +104,7 @@ export default function PortfolioHomePage() {
   const progSpark  = [30,38,45,52,60,analytics.avgCompletion || 55];
 
   return (
-    <div className="flex flex-col lg:flex-row min-h-screen bg-slate-50">
+    <>
       {showOnboarding && meUser && (
         <OnboardingModal
           userName={meUser.display_name || meUser.username || 'there'}
@@ -119,8 +115,6 @@ export default function PortfolioHomePage() {
           }}
         />
       )}
-      <Sidebar />
-      <main className="flex-1 p-4 lg:p-6 overflow-auto">
         <div className="max-w-7xl mx-auto space-y-5">
           <PortfolioHeader dateStr={dateStr} companyName={companyName} activeProgram={activeProgram} />
           <ProgramTabs data={data} selectedProgramId={selectedProgramId} onSelectProgram={setSelectedProgramId} />
@@ -138,7 +132,6 @@ export default function PortfolioHomePage() {
             onViewModeChange={setViewMode}
           />
         </div>
-      </main>
-    </div>
+    </>
   );
 }

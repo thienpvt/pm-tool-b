@@ -1,6 +1,5 @@
 'use client';
 import React, { useEffect, useState, useCallback } from 'react';
-import Sidebar from '@/components/layout/Sidebar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -655,9 +654,7 @@ export default function PortfolioResourcesPage() {
     .reduce((s, m) => s + overheadRemainingOf(m), 0);
 
   return (
-    <div className="flex flex-col lg:flex-row min-h-screen">
-      <Sidebar />
-      <main className="flex-1 p-4 lg:p-6 overflow-x-auto">
+    <>
         {/* Header */}
         <div className="flex items-start justify-between gap-3 flex-wrap mb-5">
           <div>
@@ -824,7 +821,6 @@ export default function PortfolioResourcesPage() {
         <p className="text-xs text-slate-400 mt-4">
           Nhân sự trong danh sách này có thể được chọn trực tiếp trong Resource Plan của từng project — gõ tên hoặc email để tìm kiếm.
         </p>
-      </main>
 
       {/* Import Dialog */}
       <PortfolioImportDialog
@@ -906,6 +902,6 @@ export default function PortfolioResourcesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }

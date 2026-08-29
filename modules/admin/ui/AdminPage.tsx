@@ -1,7 +1,6 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import Sidebar from '@/components/layout/Sidebar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -367,9 +366,7 @@ export default function AdminPage() {
   const showMutate = canMutateUsers(me);
 
   return (
-    <div className="flex flex-col lg:flex-row min-h-screen">
-      <Sidebar />
-      <main className="flex-1 p-4 lg:p-6">
+    <>
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">
           <div className="bg-blue-100 rounded-xl p-2.5">
@@ -644,8 +641,6 @@ export default function AdminPage() {
             </div>
           </div>
         )}
-      </main>
-
       {/* ΓöÇΓöÇ Note Dialog ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
       <Dialog open={noteOpen} onOpenChange={setNoteOpen}>
         <DialogContent className="max-w-sm">
@@ -919,6 +914,6 @@ export default function AdminPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }
