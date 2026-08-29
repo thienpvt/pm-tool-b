@@ -8,7 +8,7 @@ vi.mock('@/lib/db/kysely', () => ({
   getKysely: vi.fn(async () => testKysely()),
 }));
 
-import { listPortfolioProjects, createPortfolioBudget, listPortfolioBudgets } from '@/modules/portfolio/backend/repositories/portfolio.repo';
+import { listPortfolioProjects, createPortfolioBudget, listPortfolioBudgets, listPortfolioReportProjects } from '@/modules/portfolio/backend/repositories/portfolio.repo';
 
 describe.skipIf(!hasTestDb)('portfolio.repo', () => {
   let companyA: number;
@@ -73,5 +73,11 @@ describe.skipIf(!hasTestDb)('portfolio.repo', () => {
     });
     const rows = await listPortfolioBudgets(companyA) as { period_label: string }[];
     expect(rows.map(r => r.period_label)).toContain(label);
+  });
+
+  it('listPortfolioReportProjects is company-scoped (D-05)', async () => {
+    const rows = await listPortfolioReportProjects(companyA) as { id: number }[];
+    expect(rows.map(row => row.id)).toContain(projectA);
+    expect(rows.map(row => row.id)).not.toContain(projectB);
   });
 });
