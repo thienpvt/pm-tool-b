@@ -1,7 +1,6 @@
 'use client';
 
 import { AlertTriangle } from 'lucide-react';
-import Sidebar from '@/components/layout/Sidebar';
 import { PmActionQueues } from './PmActionQueues';
 import { PmFiltersBar } from './PmFiltersBar';
 import { usePmDashboard } from './usePmDashboard';
@@ -17,28 +16,22 @@ export default function PmDashboardPage() {
 
   if (loading) {
     return (
-      <div className="flex flex-col lg:flex-row min-h-screen bg-slate-50">
-        <Sidebar />
-        <main className="flex-1 flex items-center justify-center">
-          <div className="flex flex-col items-center gap-3">
-            <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-            <p className="text-slate-400 text-sm">Loading dashboard…</p>
-          </div>
-        </main>
+      <div className="flex flex-1 items-center justify-center min-h-[50vh]">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+          <p className="text-slate-400 text-sm">Loading dashboard…</p>
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex flex-col lg:flex-row min-h-screen bg-slate-50">
-        <Sidebar />
-        <main className="flex-1 flex items-center justify-center">
-          <div className="flex flex-col items-center gap-3 text-center px-4">
-            <AlertTriangle className="h-8 w-8 text-muted-foreground" />
-            <p className="text-sm text-slate-600">{ERROR_COPY[error]}</p>
-          </div>
-        </main>
+      <div className="flex flex-1 items-center justify-center min-h-[50vh]">
+        <div className="flex flex-col items-center gap-3 text-center px-4">
+          <AlertTriangle className="h-8 w-8 text-muted-foreground" />
+          <p className="text-sm text-slate-600">{ERROR_COPY[error]}</p>
+        </div>
       </div>
     );
   }
@@ -46,23 +39,20 @@ export default function PmDashboardPage() {
   if (!data) return null;
 
   return (
-    <div className="flex flex-col lg:flex-row min-h-screen bg-slate-50">
-      <Sidebar />
-      <main className="flex-1 p-4 lg:p-6 lg:p-8 overflow-auto">
-        <h1 className="text-base font-semibold mb-1">My dashboard</h1>
-        <p className="text-sm text-muted-foreground mb-4">
-          {data.projects.length} assigned project{data.projects.length === 1 ? '' : 's'}
-        </p>
-        <PmFiltersBar
-          filters={data.filters}
-          list={data.projects}
-          refreshing={refreshing}
-          onApply={saveFilters}
-          onClear={() => clearFilters('clear')}
-          onReset={() => clearFilters('defaults')}
-        />
-        <PmActionQueues projects={data.projects} actions={data.actions} />
-      </main>
-    </div>
+    <>
+      <h1 className="text-base font-semibold mb-1">My dashboard</h1>
+      <p className="text-sm text-muted-foreground mb-4">
+        {data.projects.length} assigned project{data.projects.length === 1 ? '' : 's'}
+      </p>
+      <PmFiltersBar
+        filters={data.filters}
+        list={data.projects}
+        refreshing={refreshing}
+        onApply={saveFilters}
+        onClear={() => clearFilters('clear')}
+        onReset={() => clearFilters('defaults')}
+      />
+      <PmActionQueues projects={data.projects} actions={data.actions} />
+    </>
   );
 }
