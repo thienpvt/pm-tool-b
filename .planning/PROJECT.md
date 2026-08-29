@@ -76,7 +76,7 @@ v2.0 remainder (no React consumers of v2 APIs, no repo-wide module split, Kysely
 - ✓ PDSH-07 / MDSH-06 / NIT-04 — Spec portfolio + PM dashboard pages in `modules/dashboards/ui/`; fiscal KPIs omitted (live on `/portfolio/budget`) — Phase 21
 - ✓ PERD-04 / WKRP-07 / CPMO-05 / PERF-01 — Weekly periods, PM editor, tracking/export, in-repo VirtualRows in `modules/weekly/ui/` — Phase 22
 - ✓ DOC-07 / DOC-08 / DOC-09 / AUDIT-02 — Catalog, Confluence checklist, compliance, audit viewer in `modules/documents/ui/` and `modules/audit/ui/` — Phase 23
-- [ ] ENF-02 — Repositories adopt Kysely over raw `pg.Pool` so column allowlists are compile-time
+- ✓ ENF-02 — Repositories query through Kysely on the existing `pg.Pool`; runtime `pickAllowed` / `UnknownColumnError` mass-assignment stays — Phase 25
 - [ ] PERF-02 — Static page chrome moves to server components
 - [ ] PERF-03 — Cold-start time is measured and budgeted
 - [ ] HYG-02 — Operator confirms Anthropic malformed-output 502 vs old 500 (checkpoint, not a rewrite unless rejected)
@@ -99,9 +99,9 @@ v2.0 remainder (no React consumers of v2 APIs, no repo-wide module split, Kysely
 
 **Shipped:** v2.0 Portfolio One View (2026-08-26) — Phases 9–18, 40 plans. Archive: `.planning/milestones/`. Audit: `tech_debt` (79/79 requirements, UI deferred).
 
-**Now:** v2.1 Hardening & Deferred Debt — Phase 25 Kysely Repositories.
+**Now:** v2.1 Hardening & Deferred Debt — Phase 26 RSC Chrome & Cold Start.
 
-CPMO/PM/Viewer is enforced on spec APIs. Weekly, fiscal, dashboards, Confluence checklist, and company-scoped append-only audit are server-gated. Schema evolution is an external `npm run migrate` job; `getDb()` connects, asserts the ledger, and seeds only. Ops/admin/config/import-mapping routes go through services. Spec portfolio, PM dashboards, weekly workflow, document catalog/checklist/compliance, and audit viewer have React consumers. Feature areas live under `modules/<feature>/{backend,ui}/` with thin `app/` re-exports. Repositories still issue string SQL through `DbClient` — Phase 25 adopts Kysely on the existing `pg.Pool`.
+CPMO/PM/Viewer is enforced on spec APIs. Feature areas live under `modules/<feature>/{backend,ui}/` with thin `app/` re-exports. Repositories query through Kysely on the existing `pg.Pool` with runtime mass-assignment guards. Static chrome is still client-rendered; cold-start connect time is not yet budgeted (Phase 26).
 
 ## Next Milestone Goals
 

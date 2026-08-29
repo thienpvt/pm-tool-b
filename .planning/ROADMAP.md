@@ -59,7 +59,7 @@ Phase artifacts: [.planning/milestones/v2.0-phases/](milestones/v2.0-phases/)
 - [x] **Phase 22: Weekly Workflow Surfaces** - Periods, PM submit/correct, CPMO tracking/export; tracking grid virtualized (completed 2026-08-28)
 - [x] **Phase 23: Document Checklist & Audit Viewer** - Catalog, Confluence checklist, compliance, company-scoped audit UI (completed 2026-08-28)
 - [x] **Phase 24: Repo-wide Module Split** - Every remaining feature area in `modules/<feature>/{backend,ui}` with thin `app/` re-exports (completed 2026-08-28)
-- [ ] **Phase 25: Kysely Repositories** - Repositories query through Kysely on the existing pool
+- [x] **Phase 25: Kysely Repositories** - Repositories query through Kysely on the existing pool (completed 2026-08-29)
 - [ ] **Phase 26: RSC Chrome & Cold Start** - Server Component chrome on v2 pages; measured post-migrate cold-start budget
 - [ ] **Phase 27: Nits, Validation & Operator Gate** - Orphan exports, audit noise, budget coexistence, Nyquist closeout, HYG-02 confirm
 
@@ -276,7 +276,7 @@ Plans:
   2. Runtime mass-assignment tests still reject extra fields; allowlists are not abandoned
   3. The app still uses a single connection pool (no second ORM and no second pool)
 
-**Plans:** 15/15 plans executed
+**Plans:** 15/15 plans complete
 
 Plans:
 **Wave 1**
@@ -382,6 +382,6 @@ v1.0 Phases 1–8 and v2.0 Phases 9–18 are complete (see milestone archives ab
 | 22. Weekly Workflow Surfaces | 5/5 | Complete    | 2026-08-28 |
 | 23. Document Checklist & Audit Viewer | 5/5 | Complete    | 2026-08-28 |
 | 24. Repo-wide Module Split | 10/10 | Complete    | 2026-08-28 |
-| 25. Kysely Repositories | 15/15 | In Progress|  |
+| 25. Kysely Repositories | 15/15 | Complete    | 2026-08-29 |
 | 26. RSC Chrome & Cold Start | 0/TBD | Not started | - |
 | 27. Nits, Validation & Operator Gate | 0/TBD | Not started | - |
