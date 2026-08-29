@@ -2,18 +2,18 @@
 gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: Hardening & Deferred Debt
-current_phase: 27
-status: completed
+status: Awaiting next milestone
 stopped_at: Phase 27 complete — all phases complete
-last_updated: "2026-08-29T03:05:48.685Z"
+last_updated: "2026-08-29T03:11:14.143Z"
 last_activity: 2026-08-29
-last_activity_desc: Phase 27 complete
-state_head: d5b4575e2df45bd59de420b88ddd097247679a02
+last_activity_desc: Milestone v2.1 completed and archived
+state_head: 744ff1e5ee80a954cd9ea014d6e0ac812fac6a0e
 progress:
   total_phases: 9
   completed_phases: 9
   total_plans: 56
   completed_plans: 56
+current_phase: 27
 ---
 
 # Project State
@@ -27,12 +27,10 @@ See: .planning/PROJECT.md (updated 2026-08-28)
 
 ## Current Position
 
-Phase: 27
-Plan: Not started
-Status: All phases complete
-Last activity: 2026-08-29 — Phase 27 complete
-
-Progress: [██░░░░░░░░] 25%
+Phase: Milestone v2.1 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-08-29 — Milestone v2.1 completed and archived
 
 ## Performance Metrics
 
@@ -351,4 +349,4 @@ Resume file: None
 
 ## Operator Next Steps
 
-- Review `.planning/ROADMAP.md` and approve, then `/gsd-plan-phase 19`
+- Start the next milestone with /gsd-new-milestone

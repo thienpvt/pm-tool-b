@@ -8,9 +8,11 @@ Multi-tenant project/portfolio management app (Next.js 16 App Router, React 19, 
 
 One source of truth for projects, milestones, RAID, and weekly reports — role- and project-scoped — so CPMO and PMs act on highlights, nearest milestones, open risks/issues, and items that need leadership support.
 
-## Current Milestone: v2.1 Hardening & Deferred Debt
+## Current Milestone: v2.1 Hardening & Deferred Debt (shipped)
 
 **Goal:** Close leftover v1.0/v2.0 debt, and reorganize the whole repo so each feature module keeps backend and UI in separate directories.
+
+**Shipped 2026-08-29.** Archive: `.planning/milestones/v2.1-*` and `.planning/milestones/v2.1-phases/`. Audit: `passed` (28/28).
 
 **Target features:**
 - Repo-wide per-module backend/UI split (every existing feature area, not only new v2 screens)
@@ -99,13 +101,15 @@ v2.0 remainder (no React consumers of v2 APIs, no repo-wide module split, Kysely
 
 **Shipped:** v2.0 Portfolio One View (2026-08-26) — Phases 9–18, 40 plans. Archive: `.planning/milestones/`. Audit: `tech_debt` (79/79 requirements, UI deferred).
 
-**Now:** v2.1 Hardening & Deferred Debt — all 9 phases (19–27) complete. Ready for milestone audit.
+**Shipped:** v2.1 Hardening & Deferred Debt (2026-08-29) — Phases 19–27, 56 plans. Archive: `.planning/milestones/`. Audit: `passed` (28/28).
+
+**Now:** Awaiting next milestone (`/gsd-new-milestone`).
 
 CPMO/PM/Viewer is enforced on spec APIs. Feature areas live under `modules/<feature>/{backend,ui}/` with thin `app/` re-exports. Repositories query through Kysely on the existing `pg.Pool`. v2 Sidebar routes use server `PageChrome`. Nits, Nyquist closeout, and HYG-02 502 accept are recorded.
 
 ## Next Milestone Goals
 
-This is the current milestone (v2.1). See Current Milestone above.
+None defined. Run `/gsd-new-milestone` when ready.
 
 ## Context
 
@@ -184,4 +188,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-08-29 after Phase 27*
+*Last updated: 2026-08-29 after v2.1 milestone complete*

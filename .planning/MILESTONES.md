@@ -1,5 +1,73 @@
 # Milestones
 
+## v2.1 Hardening & Deferred Debt (Shipped: 2026-08-29)
+
+**Phases completed:** 9 phases, 56 plans, 151 tasks
+
+**Key accomplishments:**
+
+- Checksum-ledger migrate engine with advisory lock, assertMigrated boot guard, and tsx CLI — origin pattern ported without v1.0 baseline SQL
+- Regenerated three-part 0001 baseline from live v2.0 schema with RAID backfill-before-indexes ordering and content integrity tests
+- Boot UPDATEs and v2.0 backfills relocated to tsx operator scripts with runFix runner and content integrity tests — not on getDb boot path
+- getDb connect-assert-seed only with Docker/CI/K8s migrate-before-start — dual writers eliminated
+- Jira search POST uses withAuth + schema for Invalid JSON 400 and drops the custom-field debug log (JIRA-01, D-03)
+- Local ESLint rule with JSON allowlist gates project-scoped route.ts handlers; CI runs scoped npm run lint after npm ci
+- Operations systems collection and [id] routes rewired through operations.service with D-23 session+tenant break-glass unchanged
+- Six nested budget/expense/incident operations routes rewired through 20-04 service helpers with D-23 session gate unchanged
+- admin-platform.service backs companies, demo-requests, and resource-audit with D-23 break-glass requireAdmin unchanged on companies
+- Domain services for settings, jira-config, and rag-config with thinned routes; import-mapping family verified already THIN (D-06)
+- Module-based Spec dashboard at `/dashboards/portfolio` with six Phase 16 KPI tiles, role-gated Sidebar links, and NIT-04 fiscal omission.
+- Portfolio spec dashboard AND filters persist via Phase 16 PUT/POST routes with Apply/Clear/Reset chrome, refreshing refetch, and in-page 401/403/5xx Copywriting panels.
+- Spec portfolio dashboard shows CSS stage/RAG charts, filtered project table, KPI tile drill-downs with id-based links, and server xlsx/pdf export via downloadBlob.
+- My dashboard at `/dashboards/pm` with weekly, milestone, and RAID queues deep-linking via server hrefs, AND filters, and live refetch on tab focus.
+- CPMO weekly periods list via module re-export, in-repo VirtualRows window, and role-gated Sidebar NAV links
+- CPMO can save company weekly due schedule and create ISO-week periods from /weekly/periods using existing config and POST APIs
+- CPMO tracking page with shareable periodId query, six count chips, filter bar, and VirtualRows grid with ordered checkbox selection
+- CPMO export pack POSTs checkbox-ordered project_ids via downloadBlob with xlsx/docx/pptx format Select and no preview UI
+- PM weekly report editor with Phase 16 path re-export, debounced draft PATCH, submit/correct POSTs, and single-column stacked form
+- CPMO document catalog GET page with module re-export, shared types/fixtures, and role-gated Sidebar Catalog/Compliance/Audit links
+- CPMO catalog mutations and URL-only template panel on /documents/catalog using existing API routes, apply_to_in_flight checkbox, and sonner toasts
+- PM checklist page with GET/PATCH against existing APIs, inline editor with singular field errors, and project-hub entry card.
+- CPMO document compliance UI with GET-only filters, checklist links, and weekly VirtualRows window above 100 projects
+- CPMO audit log at `/audit` with filterable GET, expandable before/after JSON as safe pre text, and VirtualRows above 100 collapsed rows
+- Dashboards backend module split with P2 API shells, S1/S2 service/repo moves, and contract tests proving P1/P2/P6 patterns for Wave 1
+- Audit backend module split with P2 GET /api/audit shell, S1/S2 service/repo moves, and exhaustive importer retargets preserving withCpmo auth
+- Weekly backend moved to modules/weekly/backend with P2 weekly-periods shells and P3 wrapper-stays for project-scoped weekly-reports and export routes.
+- Document catalog, templates, compliance dashboard, and project checklist APIs moved to modules/documents/backend with P2 re-exports and P3 wrapper-stays (ENF-01)
+- Portfolio v1 UI and backend moved to modules/portfolio with P1 page shells, P2 API re-exports, and P3 program-id wrappers preserving ENF-01
+- Projects UI and backend moved to modules/projects with P1 page shells, P2 list API shell, and P3 withProjectAccess wrappers on all owned project-scoped routes.
+- Reports module owns portfolio/project report UI and backend with D-11 /portfolio/report P1 shell, P2 portfolio APIs, and P3 withProjectAccess export wrappers
+- Jira sync/import dialogs and all jira/import APIs moved into `modules/jira` with P2 re-export shells and P3 resource-plan wrapper preserved in `app/api`.
+- Admin UI and all /api/admin handlers moved into `modules/admin` with P1 page shell, P4 companies auth preserved (D-07), and P2 re-export shells for remaining routes.
+- Operations UI and all /api/operations/
+- Single-pool Kysely factory with hand-authored Database types and audit repo tracer proving typed queries on the existing pg.Pool
+- Runtime pickAllowed allowlist mirroring UnknownColumnError plus ALS-bound Kysely joining runInTransactionOnPool BEGIN/ROLLBACK
+- Dashboard filter state, auth.repo user CRUD, and settings kv repos converted to getKysely with testKysely mocks
+- Five admin repos converted to getKysely with isAdmin scoping preserved and company_id PK upserts
+- Three documents module repositories converted to getKysely with colocated integration tests and company/project scoping preserved
+- Jira import-mapping and operations repositories converted to getKysely with company-scoped mappings and isAdmin operations list filter preserved
+- Three portfolio repos converted to getKysely with TDD red-green commits; company tenant filters preserved on programs and resources
+- 725-line portfolio.repo.ts converted to getKysely in three TDD slices with company-scope tests preserved
+- Weekly periods and export logs on getKysely with createPeriodWithShells still joining runInTransaction ALS (D-05, D-06, W8)
+- weekly-reports.repo.ts fully on getKysely with insertShell joining ALS inside createPeriodWithShells
+- Six non-allowlist project repositories (budget, bugs, documents, holidays, financial-benefits, milestones) query through getKysely with testKysely mocks
+- Six remaining W9a project repos converted to getKysely with overlap predicates, append-only raid history, and runInTransaction replacing ad-hoc Pool in pm-assignments
+- Three project write repos converted to getKysely with pickAllowed-guarded PATCH paths preserving UnknownColumnError mass-assignment semantics (ENF-02, D-04, W9b).
+- Four remaining allowlist writers converted to getKysely with pickAllowed PATCH guards; HTTP 400 UnknownColumnError chain verified via with-auth tests
+- Filesystem gate test proves all production repos use getKysely; buildUpdate SET helper removed while UnknownColumnError and pickAllowed remain
+- Server PageChrome owns static shell on four pilot routes; client Sidebar and module pages render content only (PERF-02)
+- Server PageChrome wrappers for 28 remaining Sidebar routes; login, landing, operations, and portfolio/budget unchanged
+- Vitest p95 benchmark for getDb() connect+assert+seed with recorded COLD-START.md budget (2000ms target, 5000ms CI fail)
+- Vitest node contract test locks listPeriodShells and listOpenProjectDependencies exports plus documented consumers via static imports and source scans (D-01, D-06).
+- Local snapshotsEqual guard on updateMilestone skips audit_logs on identical auditSnapshot; real field changes and create/cancel still audit
+- Budget coexistence documented, operator 502 accepted on record, and Phases 19/26/27 VALIDATION.md reconciled without report-route or milestone-archive edits.
+
+**Closeout type:** verified_closeout (9/9 phases verified, 28/28 requirements checked off)
+
+**Known tech debt (accepted at close):** D-23 leftover ops/admin session+tenant; PageChrome + inner `100vh` may double-scroll; `listOpenProjectDependencies` locked by tests not a dashboard. See [v2.1-MILESTONE-AUDIT.md](milestones/v2.1-MILESTONE-AUDIT.md).
+
+---
+
 ## v2.0 Portfolio One View (Shipped: 2026-08-26)
 
 **Phases completed:** 10 phases, 40 plans, 99 tasks
