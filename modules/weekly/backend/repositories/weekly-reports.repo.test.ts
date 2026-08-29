@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { hasTestDb, testPool } from '@/test/db';
-import { seedCompany, seedProject, setupRepoTables, testDb } from '@/test/repo-db';
+import { seedCompany, seedProject, setupRepoTables, testDb, testKysely } from '@/test/repo-db';
 import { migrateWeeklyReports } from '@/lib/db-weekly-reports';
 import { runInTransactionOnPool } from '@/lib/db-tx';
 
@@ -8,6 +8,10 @@ vi.mock('@/lib/db', () => ({
   getDb: vi.fn(async () => testDb()),
   runInTransaction: (fn: (client: import('pg').PoolClient) => Promise<unknown>) =>
     runInTransactionOnPool(testPool(), fn),
+}));
+
+vi.mock('@/lib/db/kysely', () => ({
+  getKysely: vi.fn(async () => testKysely()),
 }));
 
 import { getShellsForPeriod, listPeriodShellsRepo } from './weekly-reports.repo';
@@ -102,5 +106,13 @@ describe.skipIf(!hasTestDb)('weekly-reports.repo', () => {
     expect(shells).toHaveLength(2);
     const projectIds = shells.map((s) => s.project_id).sort();
     expect(new Set(projectIds).size).toBe(2);
+  });
+
+  it('loads via getKysely', async () => {
+    const { getKysely } = await import('@/lib/db/kysely');
+    await insertProject('p1');
+    const period = await createPeriodWithShells(companyId, '2026-W01', 1);
+    await listPeriodShellsRepo(companyId, period.id);
+    expect(getKysely).toHaveBeenCalled();
   });
 });
