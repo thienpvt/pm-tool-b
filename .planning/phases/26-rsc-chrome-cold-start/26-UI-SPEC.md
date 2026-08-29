@@ -1,7 +1,7 @@
 ---
 phase: 26
 slug: rsc-chrome-cold-start
-status: draft
+status: approved
 shadcn_initialized: true
 preset: b2fA (base-nova, neutral, geist, lucide)
 created: 2026-08-29
@@ -317,11 +317,11 @@ Applicable state considerations resolved: **16 covered, 0 backstop, 0 unresolved
 
 ## Checker Sign-Off
 
-- [ ] Dimension 1 Copywriting: PASS (preserve existing)
-- [ ] Dimension 2 Visuals: PASS (preserve existing — PageChrome shell regression gate)
-- [ ] Dimension 3 Color: PASS (preserve existing)
-- [ ] Dimension 4 Typography: PASS (2 weights, 4 sizes max, preserve existing)
-- [ ] Dimension 5 Spacing: PASS (preserve existing — per-route mainClassName)
-- [ ] Dimension 6 Registry Safety: PASS (no new installs)
+- [x] Dimension 1 Copywriting: PASS (preserve existing)
+- [x] Dimension 2 Visuals: PASS (preserve existing — PageChrome shell regression gate)
+- [x] Dimension 3 Color: PASS (preserve existing)
+- [x] Dimension 4 Typography: PASS (2 weights, 4 sizes max, preserve existing)
+- [x] Dimension 5 Spacing: PASS (preserve existing — per-route mainClassName)
+- [x] Dimension 6 Registry Safety: PASS (no new installs)
 
-**Approval:** pending
+**Approval:** approved 2026-08-29 (preserve-existing; consumed by plan-phase)

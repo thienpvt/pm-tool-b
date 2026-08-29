@@ -349,7 +349,25 @@ Plans:
   1. Static chrome (layout, nav, KPI shells) on v2 pages renders as Server Components
   2. Cold-start connect time is measured and has a recorded budget after the migrate cutover
 
-**Plans**: TBD
+**Plans:** 3 plans
+
+Plans:
+- [ ] 26-01-PLAN.md — Server PageChrome + four pilot routes
+- [ ] 26-02-PLAN.md — Remaining Sidebar chrome routes (exclude login, landing, operations, budget)
+- [ ] 26-03-PLAN.md — Cold-start p95 budget artifact
+
+**Wave 1**
+
+- [ ] 26-01-PLAN.md — chrome foundation + pilots
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [ ] 26-02-PLAN.md — remaining Sidebar routes
+
+**Wave 3** *(blocked on Wave 2; isolation none on main tree)*
+
+- [ ] 26-03-PLAN.md — getDb cold-start budget
+
 **UI hint**: yes
 
 ### Phase 27: Nits, Validation & Operator Gate
