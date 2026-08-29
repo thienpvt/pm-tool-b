@@ -29,7 +29,7 @@ DATA-01..03 is **one migration task** (replay origin `gsd/quick-260826-ded-data-
 
 - [x] **PERF-01**: Large grids (CPMO weekly tracking, long lists, audit) virtualize rows so the page stays usable past ~100 rows
 - [x] **PERF-02**: Static chrome (layout, nav, KPI shells) on v2 pages renders as Server Components
-- [ ] **PERF-03**: Cold-start connect time is measured and has a recorded budget after the migrate cutover
+- [x] **PERF-03**: Cold-start connect time is measured and has a recorded budget after the migrate cutover
 
 ### Leftover route debt
 
@@ -116,7 +116,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | MOD-02 | Phase 24 | Complete |
 | ENF-02 | Phase 25 | Complete |
 | PERF-02 | Phase 26 | Complete |
-| PERF-03 | Phase 26 | Pending |
+| PERF-03 | Phase 26 | Complete |
 | NIT-01 | Phase 27 | Pending |
 | NIT-02 | Phase 27 | Pending |
 | NIT-03 | Phase 27 | Pending |
