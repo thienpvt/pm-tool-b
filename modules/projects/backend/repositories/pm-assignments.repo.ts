@@ -1,5 +1,6 @@
-import { Pool } from 'pg';
-import { getDb } from '@/lib/db';
+import { sql } from 'kysely';
+import { runInTransaction } from '@/lib/db';
+import { getKysely } from '@/lib/db/kysely';
 
 export type PmAssignmentRole = 'primary' | 'collaborator';
 
@@ -16,62 +17,66 @@ export type ActivePrimaryAssignment = PmAssignmentRow & {
   display_name: string | null;
 };
 
-const ACTIVE_WINDOW = `
-  effective_from <= CURRENT_DATE
-  AND (effective_to IS NULL OR effective_to > CURRENT_DATE)
-`;
-
 /** Shared window predicate for access and list (D-13, PMAS-04). */
 export async function hasActivePmAssignment(
   projectId: number | string,
   userId: number,
 ): Promise<boolean> {
-  const db = await getDb();
-  const row = await db.get<{ ok: number }>(
-    `SELECT 1 AS ok FROM project_pm_assignments
-     WHERE project_id = ? AND user_id = ?
-       AND ${ACTIVE_WINDOW}
-     LIMIT 1`,
-    Number(projectId),
-    userId,
-  );
+  const db = await getKysely();
+  const row = await db
+    .selectFrom('project_pm_assignments')
+    .select(sql<number>`1`.as('ok'))
+    .where('project_id', '=', Number(projectId))
+    .where('user_id', '=', userId)
+    .where(sql<boolean>`effective_from <= CURRENT_DATE`)
+    .where(sql<boolean>`(effective_to IS NULL OR effective_to > CURRENT_DATE)`)
+    .executeTakeFirst();
   return !!row;
 }
 
 export async function listPmAssignments(projectId: number | string) {
-  const db = await getDb();
-  return db.all<PmAssignmentRow>(
-    `SELECT * FROM project_pm_assignments
-     WHERE project_id = ?
-     ORDER BY effective_from DESC, id DESC`,
-    Number(projectId),
-  );
+  const db = await getKysely();
+  return db
+    .selectFrom('project_pm_assignments')
+    .selectAll()
+    .where('project_id', '=', Number(projectId))
+    .orderBy('effective_from', 'desc')
+    .orderBy('id', 'desc')
+    .execute();
 }
 
 export async function getActivePrimaryAssignment(projectId: number | string) {
-  const db = await getDb();
-  return db.get<ActivePrimaryAssignment>(
-    `SELECT a.*, u.display_name
-     FROM project_pm_assignments a
-     LEFT JOIN users u ON u.id = a.user_id
-     WHERE a.project_id = ? AND a.role = 'primary'
-       AND a.effective_from <= CURRENT_DATE
-       AND (a.effective_to IS NULL OR a.effective_to > CURRENT_DATE)
-     LIMIT 1`,
-    Number(projectId),
-  );
+  const db = await getKysely();
+  return db
+    .selectFrom('project_pm_assignments as a')
+    .leftJoin('users as u', 'u.id', 'a.user_id')
+    .select([
+      'a.id',
+      'a.project_id',
+      'a.user_id',
+      'a.role',
+      'a.effective_from',
+      'a.effective_to',
+      'u.display_name',
+    ])
+    .where('a.project_id', '=', Number(projectId))
+    .where('a.role', '=', 'primary')
+    .where(sql<boolean>`a.effective_from <= CURRENT_DATE`)
+    .where(sql<boolean>`(a.effective_to IS NULL OR a.effective_to > CURRENT_DATE)`)
+    .executeTakeFirst();
 }
 
 export async function getPmAssignmentById(
   projectId: number | string,
   assignmentId: number | string,
 ) {
-  const db = await getDb();
-  return db.get<PmAssignmentRow>(
-    'SELECT * FROM project_pm_assignments WHERE id = ? AND project_id = ?',
-    assignmentId,
-    Number(projectId),
-  );
+  const db = await getKysely();
+  return db
+    .selectFrom('project_pm_assignments')
+    .selectAll()
+    .where('id', '=', Number(assignmentId))
+    .where('project_id', '=', Number(projectId))
+    .executeTakeFirst();
 }
 
 export async function hasOverlappingPmAssignment(
@@ -79,16 +84,16 @@ export async function hasOverlappingPmAssignment(
   userId: number,
   role: PmAssignmentRole,
 ): Promise<boolean> {
-  const db = await getDb();
-  const row = await db.get<{ ok: number }>(
-    `SELECT 1 AS ok FROM project_pm_assignments
-     WHERE project_id = ? AND user_id = ? AND role <> ?
-       AND ${ACTIVE_WINDOW}
-     LIMIT 1`,
-    Number(projectId),
-    userId,
-    role,
-  );
+  const db = await getKysely();
+  const row = await db
+    .selectFrom('project_pm_assignments')
+    .select(sql<number>`1`.as('ok'))
+    .where('project_id', '=', Number(projectId))
+    .where('user_id', '=', userId)
+    .where('role', '<>', role)
+    .where(sql<boolean>`effective_from <= CURRENT_DATE`)
+    .where(sql<boolean>`(effective_to IS NULL OR effective_to > CURRENT_DATE)`)
+    .executeTakeFirst();
   return !!row;
 }
 
@@ -97,16 +102,16 @@ export async function hasActivePmAssignmentForUserRole(
   userId: number,
   role: PmAssignmentRole,
 ): Promise<boolean> {
-  const db = await getDb();
-  const row = await db.get<{ ok: number }>(
-    `SELECT 1 AS ok FROM project_pm_assignments
-     WHERE project_id = ? AND user_id = ? AND role = ?
-       AND ${ACTIVE_WINDOW}
-     LIMIT 1`,
-    Number(projectId),
-    userId,
-    role,
-  );
+  const db = await getKysely();
+  const row = await db
+    .selectFrom('project_pm_assignments')
+    .select(sql<number>`1`.as('ok'))
+    .where('project_id', '=', Number(projectId))
+    .where('user_id', '=', userId)
+    .where('role', '=', role)
+    .where(sql<boolean>`effective_from <= CURRENT_DATE`)
+    .where(sql<boolean>`(effective_to IS NULL OR effective_to > CURRENT_DATE)`)
+    .executeTakeFirst();
   return !!row;
 }
 
@@ -115,18 +120,18 @@ export async function insertPmAssignment(
   userId: number,
   role: PmAssignmentRole,
 ) {
-  const db = await getDb();
-  const r = await db.run(
-    `INSERT INTO project_pm_assignments (project_id, user_id, role, effective_from, effective_to)
-     VALUES (?, ?, ?, CURRENT_DATE, NULL)`,
-    Number(projectId),
-    userId,
-    role,
-  );
-  return db.get<PmAssignmentRow>(
-    'SELECT * FROM project_pm_assignments WHERE id = ?',
-    r.lastInsertRowid,
-  );
+  const db = await getKysely();
+  return db
+    .insertInto('project_pm_assignments')
+    .values({
+      project_id: Number(projectId),
+      user_id: userId,
+      role,
+      effective_from: sql`CURRENT_DATE`,
+      effective_to: null,
+    })
+    .returningAll()
+    .executeTakeFirstOrThrow();
 }
 
 export async function softEndPmAssignment(
@@ -134,93 +139,78 @@ export async function softEndPmAssignment(
   assignmentId: number | string,
   effectiveTo?: string,
 ) {
-  const db = await getDb();
+  const db = await getKysely();
   if (effectiveTo === undefined) {
-    return db.get<PmAssignmentRow>(
-      `UPDATE project_pm_assignments SET effective_to = CURRENT_DATE
-       WHERE id = ? AND project_id = ? AND effective_to IS NULL
-       RETURNING *`,
-      assignmentId,
-      Number(projectId),
-    );
+    return db
+      .updateTable('project_pm_assignments')
+      .set({ effective_to: sql<string>`CURRENT_DATE` })
+      .where('id', '=', Number(assignmentId))
+      .where('project_id', '=', Number(projectId))
+      .where('effective_to', 'is', null)
+      .returningAll()
+      .executeTakeFirst();
   }
-  return db.get<PmAssignmentRow>(
-    `UPDATE project_pm_assignments SET effective_to = ?
-     WHERE id = ? AND project_id = ? AND effective_to IS NULL
-     RETURNING *`,
-    effectiveTo,
-    assignmentId,
-    Number(projectId),
-  );
+  return db
+    .updateTable('project_pm_assignments')
+    .set({ effective_to: effectiveTo })
+    .where('id', '=', Number(assignmentId))
+    .where('project_id', '=', Number(projectId))
+    .where('effective_to', 'is', null)
+    .returningAll()
+    .executeTakeFirst();
 }
 
 export async function softEndActivePrimary(
   projectId: number | string,
   effectiveTo?: string,
 ) {
-  const db = await getDb();
-  const endExpr = effectiveTo === undefined ? 'CURRENT_DATE' : '?';
-  const params =
-    effectiveTo === undefined ? [Number(projectId)] : [effectiveTo, Number(projectId)];
-  await db.run(
-    `UPDATE project_pm_assignments SET effective_to = ${endExpr}
-     WHERE project_id = ? AND role = 'primary' AND ${ACTIVE_WINDOW}`,
-    ...params,
-  );
+  const db = await getKysely();
+  let q = db
+    .updateTable('project_pm_assignments')
+    .set({
+      effective_to: effectiveTo === undefined ? sql<string>`CURRENT_DATE` : effectiveTo,
+    })
+    .where('project_id', '=', Number(projectId))
+    .where('role', '=', 'primary')
+    .where(sql<boolean>`effective_from <= CURRENT_DATE`)
+    .where(sql<boolean>`(effective_to IS NULL OR effective_to > CURRENT_DATE)`);
+  await q.execute();
 }
 
 export async function softEndActiveCollaborators(
   projectId: number | string,
   effectiveTo?: string,
 ) {
-  const db = await getDb();
-  const endExpr = effectiveTo === undefined ? 'CURRENT_DATE' : '?';
-  const params =
-    effectiveTo === undefined ? [Number(projectId)] : [effectiveTo, Number(projectId)];
-  await db.run(
-    `UPDATE project_pm_assignments SET effective_to = ${endExpr}
-     WHERE project_id = ? AND role = 'collaborator' AND ${ACTIVE_WINDOW}`,
-    ...params,
-  );
+  const db = await getKysely();
+  let q = db
+    .updateTable('project_pm_assignments')
+    .set({
+      effective_to: effectiveTo === undefined ? sql<string>`CURRENT_DATE` : effectiveTo,
+    })
+    .where('project_id', '=', Number(projectId))
+    .where('role', '=', 'collaborator')
+    .where(sql<boolean>`effective_from <= CURRENT_DATE`)
+    .where(sql<boolean>`(effective_to IS NULL OR effective_to > CURRENT_DATE)`);
+  await q.execute();
 }
 
 /** Denormalize projects.pm_name/pm_email from active primary user (D-14 display only). */
 export async function syncProjectPmDisplay(projectId: number | string) {
-  const db = await getDb();
+  const db = await getKysely();
   const primary = await getActivePrimaryAssignment(projectId);
   if (!primary) {
-    await db.run(
-      `UPDATE projects SET pm_name = '', pm_email = '' WHERE id = ?`,
-      Number(projectId),
-    );
+    await db
+      .updateTable('projects')
+      .set({ pm_name: '', pm_email: '' })
+      .where('id', '=', Number(projectId))
+      .execute();
     return;
   }
-  await db.run(
-    `UPDATE projects SET pm_name = u.display_name, pm_email = COALESCE(u.email, '')
-     FROM users u
-     WHERE projects.id = ? AND u.id = ?`,
-    Number(projectId),
-    primary.user_id,
-  );
-}
-
-async function withPgTransaction<T>(fn: (pool: Pool) => Promise<T>): Promise<T> {
-  const url = process.env.DATABASE_URL;
-  if (!url) throw new Error('DATABASE_URL is required');
-  const pool = new Pool({ connectionString: url });
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-    const result = await fn(pool);
-    await client.query('COMMIT');
-    return result;
-  } catch (err) {
-    await client.query('ROLLBACK');
-    throw err;
-  } finally {
-    client.release();
-    await pool.end();
-  }
+  await sql`
+    UPDATE projects SET pm_name = u.display_name, pm_email = COALESCE(u.email, '')
+    FROM users u
+    WHERE projects.id = ${Number(projectId)} AND u.id = ${primary.user_id}
+  `.execute(db);
 }
 
 /** Soft-end active primary and insert replacement in one transaction (D-12, WR-03). */
@@ -228,22 +218,28 @@ export async function replaceActivePrimary(
   projectId: number | string,
   userId: number,
 ): Promise<PmAssignmentRow | undefined> {
-  return withPgTransaction(async (pool) => {
-    await pool.query(
-      `UPDATE project_pm_assignments SET effective_to = CURRENT_DATE
-       WHERE project_id = $1 AND role = 'primary'
-         AND effective_from <= CURRENT_DATE
-         AND (effective_to IS NULL OR effective_to > CURRENT_DATE)`,
-      [Number(projectId)],
-    );
+  return runInTransaction(async () => {
+    const db = await getKysely();
+    await db
+      .updateTable('project_pm_assignments')
+      .set({ effective_to: sql<string>`CURRENT_DATE` })
+      .where('project_id', '=', Number(projectId))
+      .where('role', '=', 'primary')
+      .where(sql<boolean>`effective_from <= CURRENT_DATE`)
+      .where(sql<boolean>`(effective_to IS NULL OR effective_to > CURRENT_DATE)`)
+      .execute();
 
-    const insertRes = await pool.query(
-      `INSERT INTO project_pm_assignments (project_id, user_id, role, effective_from, effective_to)
-       VALUES ($1, $2, 'primary', CURRENT_DATE, NULL)
-       RETURNING *`,
-      [Number(projectId), userId],
-    );
-    return insertRes.rows[0] as PmAssignmentRow | undefined;
+    return db
+      .insertInto('project_pm_assignments')
+      .values({
+        project_id: Number(projectId),
+        user_id: userId,
+        role: 'primary',
+        effective_from: sql`CURRENT_DATE`,
+        effective_to: null,
+      })
+      .returningAll()
+      .executeTakeFirst();
   });
 }
 
@@ -253,28 +249,27 @@ export async function endPrimaryWithCollaboratorCascade(
   assignmentId: number | string,
   effectiveTo?: string,
 ) {
-  return withPgTransaction(async (pool) => {
-    const endVal = effectiveTo ?? null;
-    const endSql = endVal
-      ? `UPDATE project_pm_assignments SET effective_to = $1`
-      : `UPDATE project_pm_assignments SET effective_to = CURRENT_DATE`;
-    const endParams = endVal ? [endVal] : [];
+  return runInTransaction(async () => {
+    const db = await getKysely();
+    const endValue =
+      effectiveTo === undefined ? sql<string>`CURRENT_DATE` : effectiveTo;
 
-    await pool.query(
-      `${endSql}
-       WHERE project_id = $${endParams.length + 1} AND role = 'collaborator'
-         AND effective_from <= CURRENT_DATE
-         AND (effective_to IS NULL OR effective_to > CURRENT_DATE)`,
-      [...endParams, Number(projectId)],
-    );
+    await db
+      .updateTable('project_pm_assignments')
+      .set({ effective_to: endValue })
+      .where('project_id', '=', Number(projectId))
+      .where('role', '=', 'collaborator')
+      .where(sql<boolean>`effective_from <= CURRENT_DATE`)
+      .where(sql<boolean>`(effective_to IS NULL OR effective_to > CURRENT_DATE)`)
+      .execute();
 
-    const primaryRes = await pool.query(
-      `${endSql}
-       WHERE id = $${endParams.length + 1} AND project_id = $${endParams.length + 2}
-         AND effective_to IS NULL
-       RETURNING *`,
-      [...endParams, assignmentId, Number(projectId)],
-    );
-    return primaryRes.rows[0] as PmAssignmentRow | undefined;
+    return db
+      .updateTable('project_pm_assignments')
+      .set({ effective_to: endValue })
+      .where('id', '=', Number(assignmentId))
+      .where('project_id', '=', Number(projectId))
+      .where('effective_to', 'is', null)
+      .returningAll()
+      .executeTakeFirst();
   });
 }

@@ -1,4 +1,5 @@
-import { getDb } from '@/lib/db';
+import { sql } from 'kysely';
+import { getKysely } from '@/lib/db/kysely';
 
 export type StakeholderRole =
   | 'sponsor'
@@ -8,37 +9,40 @@ export type StakeholderRole =
   | 'key_stakeholder';
 
 export async function listStakeholders(projectId: number | string) {
-  const db = await getDb();
-  return db.all(
-    `SELECT * FROM project_stakeholders WHERE project_id = ? ORDER BY effective_from DESC, id DESC`,
-    Number(projectId),
-  );
+  const db = await getKysely();
+  return db
+    .selectFrom('project_stakeholders')
+    .selectAll()
+    .where('project_id', '=', Number(projectId))
+    .orderBy('effective_from', 'desc')
+    .orderBy('id', 'desc')
+    .execute();
 }
 
 export async function hasActiveStakeholderForRole(
   projectId: number | string,
   role: StakeholderRole,
 ) {
-  const db = await getDb();
-  const row = await db.get<{ ok: number }>(
-    `SELECT 1 AS ok FROM project_stakeholders
-     WHERE project_id = ? AND stakeholder_role = ?
-       AND effective_from <= CURRENT_DATE
-       AND (effective_to IS NULL OR effective_to > CURRENT_DATE)
-     LIMIT 1`,
-    Number(projectId),
-    role,
-  );
+  const db = await getKysely();
+  const row = await db
+    .selectFrom('project_stakeholders')
+    .select(sql<number>`1`.as('ok'))
+    .where('project_id', '=', Number(projectId))
+    .where('stakeholder_role', '=', role)
+    .where(sql<boolean>`effective_from <= CURRENT_DATE`)
+    .where(sql<boolean>`(effective_to IS NULL OR effective_to > CURRENT_DATE)`)
+    .executeTakeFirst();
   return !!row;
 }
 
 export async function getStakeholder(projectId: number | string, stakeholderId: number | string) {
-  const db = await getDb();
-  return db.get(
-    'SELECT * FROM project_stakeholders WHERE id = ? AND project_id = ?',
-    stakeholderId,
-    Number(projectId),
-  );
+  const db = await getKysely();
+  return db
+    .selectFrom('project_stakeholders')
+    .selectAll()
+    .where('id', '=', Number(stakeholderId))
+    .where('project_id', '=', Number(projectId))
+    .executeTakeFirst();
 }
 
 export type InsertStakeholderInput = {
@@ -52,18 +56,20 @@ export async function insertStakeholder(
   projectId: number | string,
   input: InsertStakeholderInput,
 ) {
-  const db = await getDb();
-  const r = await db.run(
-    `INSERT INTO project_stakeholders
-       (project_id, stakeholder_role, user_id, external_name, external_email, effective_from, effective_to)
-     VALUES (?, ?, ?, ?, ?, CURRENT_DATE, NULL)`,
-    Number(projectId),
-    input.stakeholder_role,
-    input.user_id ?? null,
-    input.external_name ?? null,
-    input.external_email ?? null,
-  );
-  return db.get('SELECT * FROM project_stakeholders WHERE id = ?', r.lastInsertRowid);
+  const db = await getKysely();
+  return db
+    .insertInto('project_stakeholders')
+    .values({
+      project_id: Number(projectId),
+      stakeholder_role: input.stakeholder_role,
+      user_id: input.user_id ?? null,
+      external_name: input.external_name ?? null,
+      external_email: input.external_email ?? null,
+      effective_from: sql`CURRENT_DATE`,
+      effective_to: null,
+    })
+    .returningAll()
+    .executeTakeFirstOrThrow();
 }
 
 export async function endStakeholder(
@@ -71,22 +77,23 @@ export async function endStakeholder(
   stakeholderId: number | string,
   effectiveTo?: string,
 ) {
-  const db = await getDb();
+  const db = await getKysely();
   if (effectiveTo === undefined) {
-    return db.get(
-      `UPDATE project_stakeholders SET effective_to = CURRENT_DATE
-       WHERE id = ? AND project_id = ? AND effective_to IS NULL
-       RETURNING *`,
-      stakeholderId,
-      Number(projectId),
-    );
+    return db
+      .updateTable('project_stakeholders')
+      .set({ effective_to: sql<string>`CURRENT_DATE` })
+      .where('id', '=', Number(stakeholderId))
+      .where('project_id', '=', Number(projectId))
+      .where('effective_to', 'is', null)
+      .returningAll()
+      .executeTakeFirst();
   }
-  return db.get(
-    `UPDATE project_stakeholders SET effective_to = ?
-     WHERE id = ? AND project_id = ? AND effective_to IS NULL
-     RETURNING *`,
-    effectiveTo,
-    stakeholderId,
-    Number(projectId),
-  );
+  return db
+    .updateTable('project_stakeholders')
+    .set({ effective_to: effectiveTo })
+    .where('id', '=', Number(stakeholderId))
+    .where('project_id', '=', Number(projectId))
+    .where('effective_to', 'is', null)
+    .returningAll()
+    .executeTakeFirst();
 }
