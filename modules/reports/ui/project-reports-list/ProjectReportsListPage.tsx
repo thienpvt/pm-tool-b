@@ -1,7 +1,6 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
-import Sidebar from '@/components/layout/Sidebar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -461,9 +460,7 @@ export default function ProjectReportsListPage() {
 
   // ─── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="flex flex-col lg:flex-row min-h-screen bg-slate-50">
-      <Sidebar projectId={id} />
-
+    <>
       {/* ── Saved Reports Panel ── */}
       <div className="w-60 bg-white border-r flex flex-col shrink-0 overflow-hidden">
         <div className="flex items-center justify-between px-3 py-3 border-b bg-slate-50">
@@ -923,7 +920,6 @@ export default function ProjectReportsListPage() {
             </div>
           </div>
         </div>
-      </main>
-    </div>
+    </>
   );
 }

@@ -36,11 +36,8 @@ describe('projects module split contract (24-06)', () => {
     expect(typeof mod.listProjects).toBe('function');
   });
 
-  it('P1: app/projects/page.tsx re-exports ProjectsListPage from module path', () => {
-    const source = readUtf8('app/projects/page.tsx');
-    expect(source).toMatch(
-      /export\s*\{\s*default\s*\}\s*from\s*['"]@\/modules\/projects\/ui\/list\/ProjectsListPage['"]/,
-    );
+  it('P1: app/projects/page.tsx wraps ProjectsListPage with PageChrome', () => {
+    expectPageChromeShell('app/projects/page.tsx', 'modules/projects/ui/list/ProjectsListPage');
   });
 
   it('P1: app/projects/[id]/page.tsx wraps ProjectHubPage with PageChrome', () => {

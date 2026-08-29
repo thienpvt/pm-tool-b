@@ -1,6 +1,6 @@
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import MilestonesPage from './page';
+import MilestonesPage from './MilestonesPage';
 
 vi.mock('next/navigation', () => ({ useParams: () => ({ id: '1' }) }));
 

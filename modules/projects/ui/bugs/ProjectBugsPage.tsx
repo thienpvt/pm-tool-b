@@ -1,7 +1,6 @@
 ﻿'use client';
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { useParams } from 'next/navigation';
-import Sidebar from '@/components/layout/Sidebar';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
@@ -390,9 +389,7 @@ export default function BugsPage() {
   }, [activeTab, id, selectedDate, projectName]);
 
   return (
-    <div className="flex h-screen bg-slate-50">
-      <Sidebar projectId={id} />
-      <main className="flex-1 overflow-auto">
+    <>
         <div className="max-w-7xl mx-auto px-6 py-6">
 
           {/* Header */}
@@ -952,8 +949,6 @@ export default function BugsPage() {
             </div>
           )}
         </div>
-      </main>
-
       <BugImportDialog
         open={importOpen}
         onOpenChange={setImportOpen}
@@ -967,6 +962,6 @@ export default function BugsPage() {
         mode="bug"
         onSynced={handleAfterImport}
       />
-    </div>
+    </>
   );
 }

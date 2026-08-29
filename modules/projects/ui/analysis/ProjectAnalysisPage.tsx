@@ -1,7 +1,6 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
-import Sidebar from '@/components/layout/Sidebar';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertTriangle, CheckCircle2, Clock, TrendingUp, User, Building2 } from 'lucide-react';
@@ -178,9 +177,8 @@ export default function AnalysisPage() {
 
   if (!activities.length && !projectName) {
     return (
-      <div className="flex flex-col lg:flex-row min-h-screen">
-        <Sidebar projectId={id} />
-        <main className="flex-1 p-4 lg:p-8"><p className="text-slate-400">Loading...</p></main>
+      <div className="flex flex-1 items-center justify-center min-h-[50vh]">
+        <p className="text-slate-400">Loading...</p>
       </div>
     );
   }
@@ -242,9 +240,7 @@ export default function AnalysisPage() {
   const maxOwnerDays = Math.max(1, ...ownerTotals.map(o => o.days));
 
   return (
-    <div className="flex flex-col lg:flex-row min-h-screen">
-      <Sidebar projectId={id} />
-      <main className="flex-1 p-4 lg:p-6 overflow-x-auto">
+    <>
         <div className="mb-6">
           <h1 className="text-xl font-bold text-slate-800">Delay Analysis</h1>
           <p className="text-xs text-slate-400 mt-0.5">{projectName}{clientName ? ` · ${clientName}` : ''}</p>
@@ -479,7 +475,6 @@ export default function AnalysisPage() {
         <p className="text-xs text-slate-400 mt-3">
           Lag = actual end − plan end (Done) · hoặc today − plan end (In Progress/Blocked). Client/Vendor days tính tổng lag của các activities được ghi nhận thuộc bên đó.
         </p>
-      </main>
-    </div>
+    </>
   );
 }

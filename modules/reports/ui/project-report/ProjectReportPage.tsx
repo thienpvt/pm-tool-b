@@ -1,7 +1,6 @@
 'use client';
 import { useState } from 'react';
 import { useParams } from 'next/navigation';
-import Sidebar from '@/components/layout/Sidebar';
 import { useProjectReport } from './useProjectReport';
 import { useProjectReportPageActions } from './useProjectReportPageActions';
 import { getThisMonday, getThisSunday } from './_components/helpers';
@@ -55,9 +54,7 @@ export default function ProjectReportPage() {
   });
 
   return (
-    <div className="flex flex-col lg:flex-row min-h-screen bg-slate-50">
-      <Sidebar projectId={id} />
-      <main className="flex-1 min-w-0">
+    <>
         <ReportHeaderKpi data={data} />
         <div className="flex flex-col lg:flex-row gap-0 flex-1">
           <ReportToolbar
@@ -84,8 +81,7 @@ export default function ProjectReportPage() {
             />
           </ReportToolbar>
         </div>
-      </main>
-      <EmailModal
+<EmailModal
         showEmailModal={showEmailModal} setShowEmailModal={setShowEmailModal}
         emailRecipients={emailRecipients} setEmailRecipients={setEmailRecipients}
         emailSubject={emailSubject} setEmailSubject={setEmailSubject}
@@ -97,6 +93,6 @@ export default function ProjectReportPage() {
         generateEmail={actions.generateEmail} generatingEmail={generatingEmail} apiKeySet={apiKeySet}
         generatedEmailHtml={generatedEmailHtml} sendEmail={actions.sendEmail} sendingEmail={sendingEmail}
       />
-    </div>
+    </>
   );
 }

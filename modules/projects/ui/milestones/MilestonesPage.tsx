@@ -1,7 +1,6 @@
 'use client';
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
-import Sidebar from '@/components/layout/Sidebar';
 import { weightedProgress } from '@/lib/status-weights';
 import type { Activity, ActivityItem, Milestone, PickerPhase } from './types';
 import { useMilestonesPage } from './useMilestonesPage';
@@ -161,9 +160,7 @@ export default function MilestonesPage() {
   }, [actions, displayByPhase, childrenByParent, itemPct, milestonePct]);
 
   return (
-    <div className="flex h-screen bg-slate-50">
-      <Sidebar projectId={id} />
-      <main className="flex-1 overflow-auto">
+    <>
         <MilestonePageHeader project={project} onCreate={actions.openCreate} />
 
         <div className="flex gap-0 h-[calc(100vh-73px)]">
@@ -223,7 +220,6 @@ export default function MilestonesPage() {
             )}
           </div>
         </div>
-      </main>
 
       <MilestoneEditDialog
         open={editOpen}
@@ -278,6 +274,6 @@ export default function MilestonesPage() {
         onConfirm={actions.confirmBulkAdd}
         onCancel={() => { setEpicConfirmOpen(false); setPendingEpic(null); }}
       />
-    </div>
+    </>
   );
 }

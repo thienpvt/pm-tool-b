@@ -51,14 +51,14 @@ describe('documents module split contract (24-04)', () => {
     expect(source).not.toMatch(/^['"]use client['"]/m);
   });
 
-  it('D-06: app/projects/[id]/documents/page.tsx is projects-owned thin shell, not documents module', () => {
+  it('D-06: app/projects/[id]/documents/page.tsx wraps ProjectDocumentsPage with PageChrome', () => {
     const source = readUtf8('app/projects/[id]/documents/page.tsx');
     expect(source).not.toMatch(
       /export\s*\{\s*default\s*\}\s*from\s*['"]@\/modules\/documents/,
     );
-    expect(source).toMatch(
-      /export\s*\{\s*default\s*\}\s*from\s*['"]@\/modules\/projects\/ui\/documents\/ProjectDocumentsPage['"]/,
-    );
+    expect(source).toContain('PageChrome');
+    expect(source).toContain('modules/projects/ui/documents/ProjectDocumentsPage');
+    expect(source).toContain('projectId');
   });
 
   it('P2: app/api/document-catalog/[id]/route.ts re-exports GET and PATCH from module route', () => {

@@ -2,7 +2,6 @@
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useParams } from 'next/navigation';
-import Sidebar from '@/components/layout/Sidebar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -328,9 +327,7 @@ export default function ResourcesPage() {
   };
 
   return (
-    <div className="flex flex-col lg:flex-row min-h-screen">
-      <Sidebar projectId={id} />
-      <main className="flex-1 p-4 lg:p-6 overflow-x-auto">
+    <>
         {/* Header */}
         <div className="flex items-start justify-between gap-3 flex-wrap mb-5">
           <div className="flex items-center gap-3 flex-wrap">
@@ -602,9 +599,7 @@ export default function ResourcesPage() {
         <p className="text-xs text-slate-400 mt-3">
           Capacity: 1.0 = 100% (full-time) · 0.5 = 50% · Red border = overloaded in this project · Bar shows <strong>total across all projects</strong> (matched by name) · ⚠ = overallocated globally · Gõ tên hoặc email để chọn nhân sự từ Portfolio
         </p>
-      </main>
-
-      {/* Import Dialog */}
+{/* Import Dialog */}
       <ResourceImportDialog
         projectId={id}
         open={importOpen}
@@ -673,6 +668,6 @@ export default function ResourcesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }

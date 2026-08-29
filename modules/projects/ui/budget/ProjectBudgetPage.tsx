@@ -2,7 +2,6 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import Sidebar from '@/components/layout/Sidebar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -363,13 +362,10 @@ export default function BudgetPage() {
 
   // ── Loading ───────────────────────────────────────────────────────────────────
   if (loading) return (
-    <div className="flex flex-col lg:flex-row min-h-screen bg-slate-50">
-      <Sidebar projectId={projectId} />
-      <main className="flex-1 flex items-center justify-center">
+      <div className="flex flex-1 items-center justify-center min-h-[50vh]">
         <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-      </main>
-    </div>
-  );
+      </div>
+    );
 
   const isOverBudget = totals.actual > totals.planned && totals.planned > 0;
   const isOverAllocation = allocation !== null && totals.planned > allocation.allocated_amount;
@@ -379,9 +375,7 @@ export default function BudgetPage() {
   const BUDGET_STATUS_COLORS: Record<string, string> = { draft: 'bg-gray-100 text-gray-700', submitted: 'bg-amber-100 text-amber-700', approved: 'bg-green-100 text-green-700' };
 
   return (
-    <div className="flex flex-col lg:flex-row min-h-screen bg-slate-50">
-      <Sidebar projectId={projectId} />
-      <main className="flex-1 p-4 lg:p-6 overflow-auto">
+    <>
         <div className="max-w-6xl mx-auto space-y-5">
 
           {/* ── Header ── */}
@@ -795,9 +789,7 @@ export default function BudgetPage() {
           )}
 
         </div>
-      </main>
-
-      {/* ── Add/Edit Dialog ── */}
+{/* ── Add/Edit Dialog ── */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
@@ -1039,6 +1031,6 @@ export default function BudgetPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }

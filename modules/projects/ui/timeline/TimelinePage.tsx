@@ -1,7 +1,6 @@
 'use client';
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useParams } from 'next/navigation';
-import Sidebar from '@/components/layout/Sidebar';
 import type { Activity, DateMode, ContextMenuState } from './types';
 import { useTimelinePage } from './useTimelinePage';
 import { useTimelineActions } from './useTimelineActions';
@@ -130,9 +129,7 @@ export default function TimelinePage() {
   };
 
   return (
-    <div className="flex flex-col lg:flex-row min-h-screen">
-      <Sidebar projectId={id} />
-      <main className="flex-1 p-4 lg:p-6 overflow-x-auto">
+    <>
         <TimelineToolbar
           project={project}
           overdueCount={overdueCount}
@@ -220,9 +217,7 @@ export default function TimelinePage() {
             toggleParent={toggleParent}
           />
         )}
-      </main>
-
-      <TimelineDialogs
+<TimelineDialogs
         id={id}
         teamMembers={teamMembers}
         holidays={holidays}
@@ -251,6 +246,6 @@ export default function TimelinePage() {
         duplicateActivity={actions.duplicateActivity}
         createChild={actions.createChild}
       />
-    </div>
+    </>
   );
 }

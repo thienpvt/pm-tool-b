@@ -2,7 +2,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import Sidebar from '@/components/layout/Sidebar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -623,9 +622,7 @@ export default function RisksPage() {
   const handleSaved = (_item: Risk | Issue, _type: ItemType, _isNew: boolean) => {};
 
   return (
-    <div className="flex flex-col lg:flex-row min-h-screen bg-slate-50">
-      <Sidebar projectId={id} />
-      <main className="flex-1 p-4 lg:p-6">
+    <>
         <div className="max-w-5xl mx-auto">
           <div className="mb-6">
             <h1 className="text-xl font-bold text-slate-800 flex items-center gap-2">
@@ -693,7 +690,6 @@ export default function RisksPage() {
             onSaved={handleSaved}
           />
         </div>
-      </main>
-    </div>
+    </>
   );
 }

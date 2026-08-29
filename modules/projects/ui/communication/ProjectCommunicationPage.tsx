@@ -1,7 +1,6 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
-import Sidebar from '@/components/layout/Sidebar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -44,9 +43,7 @@ export default function CommunicationPage() {
   };
 
   return (
-    <div className="flex flex-col lg:flex-row min-h-screen">
-      <Sidebar projectId={id} />
-      <main className="flex-1 p-4 lg:p-6 max-w-5xl">
+    <>
         <h1 className="text-xl font-bold text-slate-800 mb-6">Communication Plan</h1>
 
         {/* Meetings */}
@@ -122,7 +119,6 @@ export default function CommunicationPage() {
             ))}
           </div>
         </div>
-      </main>
-    </div>
+    </>
   );
 }

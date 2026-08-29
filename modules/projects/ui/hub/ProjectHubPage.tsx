@@ -2,7 +2,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import Sidebar from '@/components/layout/Sidebar';
 import PhaseTracker from './PhaseTracker';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -300,9 +299,8 @@ export default function ProjectPage() {
   const cpmo = isCpmoUser(me);
 
   if (!project) return (
-    <div className="flex flex-col lg:flex-row min-h-screen">
-      <Sidebar projectId={id} />
-      <main className="flex-1 p-4 lg:p-8"><p className="text-slate-400">Loading...</p></main>
+    <div className="flex flex-1 items-center justify-center min-h-[50vh]">
+      <p className="text-slate-400">Loading...</p>
     </div>
   );
 
@@ -311,10 +309,7 @@ export default function ProjectPage() {
     : null;
 
   return (
-    <div className="flex flex-col lg:flex-row min-h-screen">
-      <Sidebar projectId={id} />
-      <main className="flex-1 p-4 lg:p-8 max-w-5xl">
-
+    <>
         {/* ── Header ── */}
         <div className="flex items-start justify-between mb-6">
           <div className="flex-1 min-w-0">
@@ -505,9 +500,7 @@ export default function ProjectPage() {
             </Link>
           ))}
         </div>
-      </main>
-
-      {/* ── Edit Project Dialog ── */}
+{/* ── Edit Project Dialog ── */}
       <Dialog open={editOpen} onOpenChange={o => { if (!o) setEditOpen(false); }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -807,6 +800,6 @@ export default function ProjectPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }

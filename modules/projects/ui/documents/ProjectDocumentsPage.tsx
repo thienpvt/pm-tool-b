@@ -2,7 +2,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import Sidebar from '@/components/layout/Sidebar';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -829,10 +828,7 @@ export default function DocumentsPage() {
   const activeReportText = projReportView === 'ai' ? projReportAIText : projReportText;
 
   return (
-    <div className="flex flex-col lg:flex-row min-h-screen">
-      <Sidebar projectId={id} />
-      <main className="flex-1 p-4 lg:p-6">
-
+    <>
         {/* ── Kick-off PPT ───────────────────────────────────────────────── */}
         <div className="mb-8">
           <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-3">Presentation</h2>
@@ -1024,9 +1020,7 @@ export default function DocumentsPage() {
             );
           })}
         </div>
-      </main>
-
-      {/* ── PPT Config Dialog ──────────────────────────────────────────────── */}
+{/* ── PPT Config Dialog ──────────────────────────────────────────────── */}
       <Dialog open={pptOpen} onOpenChange={o => !o && setPptOpen(false)}>
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
@@ -1250,6 +1244,6 @@ export default function DocumentsPage() {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }

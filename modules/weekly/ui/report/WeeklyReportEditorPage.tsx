@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { AlertTriangle } from 'lucide-react';
-import Sidebar from '@/components/layout/Sidebar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -72,23 +71,18 @@ export default function WeeklyReportEditorPage() {
 
   if (loading) {
     return (
-      <div className="flex flex-col lg:flex-row min-h-screen bg-slate-50">
-        <Sidebar projectId={projectId} />
-        <main className="flex-1 flex items-center justify-center">
+      <div className="flex flex-1 items-center justify-center min-h-[50vh]">
           <div className="flex flex-col items-center gap-3">
             <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
             <p className="text-slate-400 text-sm">Loading report…</p>
           </div>
-        </main>
       </div>
     );
   }
 
   if (error === 'not_found') {
     return (
-      <div className="flex flex-col lg:flex-row min-h-screen bg-slate-50">
-        <Sidebar projectId={projectId} />
-        <main className="flex-1 flex items-center justify-center">
+      <div className="flex flex-1 items-center justify-center min-h-[50vh]">
           <div className="flex flex-col items-center gap-3 text-center px-4">
             <AlertTriangle className="h-8 w-8 text-muted-foreground" />
             <h1 className="text-base font-semibold">Weekly report not found</h1>
@@ -96,21 +90,17 @@ export default function WeeklyReportEditorPage() {
               This report may have been removed or you don&apos;t have access.
             </p>
           </div>
-        </main>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex flex-col lg:flex-row min-h-screen bg-slate-50">
-        <Sidebar projectId={projectId} />
-        <main className="flex-1 flex items-center justify-center">
+      <div className="flex flex-1 items-center justify-center min-h-[50vh]">
           <div className="flex flex-col items-center gap-3 text-center px-4">
             <AlertTriangle className="h-8 w-8 text-muted-foreground" />
             <p className="text-sm text-slate-600">{ERROR_COPY[error]}</p>
           </div>
-        </main>
       </div>
     );
   }
@@ -121,9 +111,7 @@ export default function WeeklyReportEditorPage() {
   const statusLabel = shell.status.replace(/_/g, ' ');
 
   return (
-    <div className="flex flex-col lg:flex-row min-h-screen bg-slate-50">
-      <Sidebar projectId={projectId} />
-      <main className="flex-1 p-4 lg:p-6 lg:p-8 overflow-auto">
+    <>
         <header className="mb-6 space-y-2">
           <h1 className="text-base font-semibold">Weekly report</h1>
           <p
@@ -180,7 +168,6 @@ export default function WeeklyReportEditorPage() {
             )}
           </div>
         </Card>
-      </main>
-    </div>
+    </>
   );
 }

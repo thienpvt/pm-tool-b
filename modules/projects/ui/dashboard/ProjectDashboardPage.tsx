@@ -2,7 +2,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import Sidebar from '@/components/layout/Sidebar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -305,15 +304,13 @@ export default function DashboardPage() {
   };
 
   if (!project) return (
-    <div className="flex flex-col lg:flex-row min-h-screen"><Sidebar projectId={id}/>
-      <main className="flex-1 flex items-center justify-center">
+      <div className="flex flex-1 items-center justify-center min-h-[50vh]">
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"/>
           <p className="text-slate-400 text-sm">Loading project...</p>
         </div>
-      </main>
-    </div>
-  );
+      </div>
+    );
 
   // ── Derived metrics (status-weight based) ────────────────────────────────
   const total    = activities.length;
@@ -374,10 +371,7 @@ export default function DashboardPage() {
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="flex flex-col lg:flex-row min-h-screen bg-slate-50">
-      <Sidebar projectId={id} />
-      <main className="flex-1 p-4 lg:p-6 overflow-x-auto space-y-5">
-
+    <>
         {/* ── Header ── */}
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
@@ -1049,10 +1043,7 @@ export default function DashboardPage() {
         <p className="text-[10px] text-slate-300 text-center pb-2">
           SPI = weighted progress % ÷ % timeline elapsed · &gt;1 ahead · &lt;0.8 at risk · weighted progress = avg(status weight) × 100
         </p>
-
-      </main>
-
-      {/* ── Edit Dialog ── */}
+{/* ── Edit Dialog ── */}
       <Dialog open={editOpen} onOpenChange={o=>!o&&setEditOpen(false)}>
         <DialogContent className="max-w-lg">
           <DialogHeader><DialogTitle>Edit Project Info</DialogTitle></DialogHeader>
@@ -1078,6 +1069,6 @@ export default function DashboardPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }
