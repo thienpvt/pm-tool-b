@@ -5,16 +5,16 @@ milestone_name: Hardening & Deferred Debt
 current_phase: 25
 current_phase_name: Kysely Repositories
 status: executing
-stopped_at: Completed 25-12-PLAN.md
-last_updated: "2026-08-29T01:12:11.473Z"
+stopped_at: Completed 25-13-PLAN.md
+last_updated: "2026-08-29T01:17:55.893Z"
 last_activity: 2026-08-29
 last_activity_desc: Phase 25 execution started
-state_head: f4146c333fdbcdd01e3c40d0517453ab30607461
+state_head: 3343f1c76b2a1ddccae09914c88b962af25132a5
 progress:
   total_phases: 9
   completed_phases: 6
   total_plans: 50
-  completed_plans: 47
+  completed_plans: 48
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-08-28)
 ## Current Position
 
 Phase: 25 (Kysely Repositories) — EXECUTING
-Plan: 13 of 15
+Plan: 14 of 15
 Status: Ready to execute
 Last activity: 2026-08-29 — Phase 25 execution started
 
@@ -142,6 +142,7 @@ Progress: [██░░░░░░░░] 25%
 | Phase 25 P10 | 5 | 2 tasks | 3 files |
 | Phase 25 P11 | 2min | 3 tasks | 12 files |
 | Phase 25 P12 | 15 | 3 tasks | 12 files |
+| Phase 25-kysely-repositories P13 | 15min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -304,6 +305,7 @@ Recent decisions affecting current work:
 - [Phase 25]: milestone_epics linkEpic uses onConflict doNothing
 - [Phase 25]: pm-assignments transactions use runInTransaction not ad-hoc Pool
 - [Phase 25]: project-dependencies direction CASE via sql template
+- [Phase 25]: W9b: projects/activities/risks on getKysely with pickAllowed PATCH guard (D-04, ENF-02)
 
 ### Pending Todos
 
@@ -327,8 +329,8 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-08-29T01:12:10.988Z
-Stopped at: Completed 25-12-PLAN.md
+Last session: 2026-08-29T01:17:55.401Z
+Stopped at: Completed 25-13-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
