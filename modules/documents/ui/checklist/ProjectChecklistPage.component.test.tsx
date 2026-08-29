@@ -13,12 +13,6 @@ vi.mock('next/navigation', () => ({
   useParams: () => mockParams,
   usePathname: () => `/projects/${mockParams.id}/document-checklist`,
 }));
-vi.mock('@/components/layout/Sidebar', () => ({
-  default: ({ projectId }: { projectId?: string }) => (
-    <nav data-testid="sidebar" data-project-id={projectId} />
-  ),
-}));
-
 const toastError = vi.fn();
 const toastSuccess = vi.fn();
 vi.mock('sonner', () => ({
@@ -136,9 +130,8 @@ afterEach(() => {
 });
 
 describe('ProjectChecklistPage GET shell', () => {
-  it('shows sidebar and loading copy before fetch settles', () => {
+  it('shows loading copy before fetch settles', () => {
     render(<ProjectChecklistPage />);
-    expect(screen.getByTestId('sidebar')).toHaveAttribute('data-project-id', '42');
     expect(screen.getByText('Loading checklist…')).toBeInTheDocument();
   });
 

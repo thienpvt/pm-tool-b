@@ -39,9 +39,20 @@ describe('weekly module split contract (24-03)', () => {
     expect(source).toContain('modules/weekly/ui/periods/WeeklyPeriodsPage');
   });
 
-  it('P1: app/projects/[id]/weekly-reports/[reportId]/page.tsx still points at WeeklyReportEditorPage', () => {
+  it('P1: app/projects/[id]/weekly-reports/[reportId]/page.tsx wraps WeeklyReportEditorPage with PageChrome', () => {
     const source = readUtf8('app/projects/[id]/weekly-reports/[reportId]/page.tsx');
+    expect(source).toContain('PageChrome');
     expect(source).toContain('modules/weekly/ui/report/WeeklyReportEditorPage');
+    expect(source).toContain('projectId');
+    expect(source).not.toMatch(/^['"]use client['"]/m);
+  });
+
+  it('P1: app/weekly/reports/[projectId]/[reportId]/page.tsx wraps WeeklyReportEditorPage with projectId param', () => {
+    const source = readUtf8('app/weekly/reports/[projectId]/[reportId]/page.tsx');
+    expect(source).toContain('PageChrome');
+    expect(source).toContain('modules/weekly/ui/report/WeeklyReportEditorPage');
+    expect(source).toContain('projectId={projectId}');
+    expect(source).not.toMatch(/^['"]use client['"]/m);
   });
 
   it('P2: app/api/weekly-periods/config/route.ts re-exports GET and PUT from module route', () => {

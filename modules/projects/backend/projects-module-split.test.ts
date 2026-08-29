@@ -4,8 +4,18 @@ import { describe, expect, it } from 'vitest';
 
 const root = resolve(__dirname, '../../..');
 
+const CLIENT_DIRECTIVE = /^['"]use client['"]/m;
+
 function readUtf8(relativePath: string): string {
   return readFileSync(resolve(root, relativePath), 'utf8');
+}
+
+function expectPageChromeShell(shell: string, target: string, projectId = false) {
+  const source = readUtf8(shell);
+  expect(source).toContain('PageChrome');
+  expect(source).toContain(target);
+  expect(source).not.toMatch(CLIENT_DIRECTIVE);
+  if (projectId) expect(source).toContain('projectId');
 }
 
 function listHandlerFiles(dir: string, acc: string[] = []): string[] {
@@ -33,11 +43,8 @@ describe('projects module split contract (24-06)', () => {
     );
   });
 
-  it('P1: app/projects/[id]/page.tsx re-exports ProjectHubPage from module path', () => {
-    const source = readUtf8('app/projects/[id]/page.tsx');
-    expect(source).toMatch(
-      /export\s*\{\s*default\s*\}\s*from\s*['"]@\/modules\/projects\/ui\/hub\/ProjectHubPage['"]/,
-    );
+  it('P1: app/projects/[id]/page.tsx wraps ProjectHubPage with PageChrome', () => {
+    expectPageChromeShell('app/projects/[id]/page.tsx', 'modules/projects/ui/hub/ProjectHubPage', true);
   });
 
   it('P2: app/api/projects/route.ts re-exports GET and POST from module route', () => {
@@ -53,67 +60,77 @@ describe('projects module split contract (24-06)', () => {
     expect(source).toContain('modules/projects/backend/routes');
   });
 
-  it('D-06: weekly-reports page still re-exports WeeklyReportEditorPage', () => {
-    const source = readUtf8('app/projects/[id]/weekly-reports/[reportId]/page.tsx');
-    expect(source).toContain('modules/weekly/ui/report/WeeklyReportEditorPage');
-  });
-
-  it('D-06: document-checklist page still re-exports ProjectChecklistPage', () => {
-    const source = readUtf8('app/projects/[id]/document-checklist/page.tsx');
-    expect(source).toContain('modules/documents/ui/checklist/ProjectChecklistPage');
-  });
-
-  const p1ProjectPages = [
-    { shell: 'app/projects/new/page.tsx', target: '@/modules/projects/ui/new/NewProjectPage' },
-    {
-      shell: 'app/projects/[id]/analysis/page.tsx',
-      target: '@/modules/projects/ui/analysis/ProjectAnalysisPage',
-    },
-    {
-      shell: 'app/projects/[id]/budget/page.tsx',
-      target: '@/modules/projects/ui/budget/ProjectBudgetPage',
-    },
-    { shell: 'app/projects/[id]/bugs/page.tsx', target: '@/modules/projects/ui/bugs/ProjectBugsPage' },
-    {
-      shell: 'app/projects/[id]/communication/page.tsx',
-      target: '@/modules/projects/ui/communication/ProjectCommunicationPage',
-    },
-    {
-      shell: 'app/projects/[id]/dashboard/page.tsx',
-      target: '@/modules/projects/ui/dashboard/ProjectDashboardPage',
-    },
-    {
-      shell: 'app/projects/[id]/documents/page.tsx',
-      target: '@/modules/projects/ui/documents/ProjectDocumentsPage',
-    },
-    {
-      shell: 'app/projects/[id]/resources/page.tsx',
-      target: '@/modules/projects/ui/resources/ProjectResourcesPage',
-    },
-    { shell: 'app/projects/[id]/risks/page.tsx', target: '@/modules/projects/ui/risks/ProjectRisksPage' },
-    {
-      shell: 'app/projects/[id]/milestones/page.tsx',
-      target: '@/modules/projects/ui/milestones/MilestonesPage',
-    },
-    {
-      shell: 'app/projects/[id]/timeline/page.tsx',
-      target: '@/modules/projects/ui/timeline/TimelinePage',
-    },
-  ] as const;
-
-  it.each(p1ProjectPages)('P1: $shell re-exports from module path', ({ shell, target }) => {
-    const source = readUtf8(shell);
-    expect(source).toMatch(
-      new RegExp(
-        `export\\s*\\{\\s*default\\s*\\}\\s*from\\s*['"]${target.replace(/\//g, '\\/')}['"]`,
-      ),
+  it('D-06: weekly-reports page wraps WeeklyReportEditorPage with PageChrome', () => {
+    expectPageChromeShell(
+      'app/projects/[id]/weekly-reports/[reportId]/page.tsx',
+      'modules/weekly/ui/report/WeeklyReportEditorPage',
+      true,
     );
   });
 
-  it('Wave 7: app/projects/[id]/report/page.tsx re-exports ProjectReportPage from modules/reports', () => {
-    const source = readUtf8('app/projects/[id]/report/page.tsx');
-    expect(source).toMatch(
-      /export\s*\{\s*default\s*\}\s*from\s*['"]@\/modules\/reports\/ui\/project-report\/ProjectReportPage['"]/,
+  it('D-06: document-checklist page wraps ProjectChecklistPage with PageChrome', () => {
+    expectPageChromeShell(
+      'app/projects/[id]/document-checklist/page.tsx',
+      'modules/documents/ui/checklist/ProjectChecklistPage',
+      true,
+    );
+  });
+
+  const p1ProjectPages = [
+    { shell: 'app/projects/new/page.tsx', target: 'modules/projects/ui/new/NewProjectPage' },
+    {
+      shell: 'app/projects/[id]/analysis/page.tsx',
+      target: 'modules/projects/ui/analysis/ProjectAnalysisPage',
+      projectId: true,
+    },
+    {
+      shell: 'app/projects/[id]/budget/page.tsx',
+      target: 'modules/projects/ui/budget/ProjectBudgetPage',
+      projectId: true,
+    },
+    { shell: 'app/projects/[id]/bugs/page.tsx', target: 'modules/projects/ui/bugs/ProjectBugsPage', projectId: true },
+    {
+      shell: 'app/projects/[id]/communication/page.tsx',
+      target: 'modules/projects/ui/communication/ProjectCommunicationPage',
+      projectId: true,
+    },
+    {
+      shell: 'app/projects/[id]/dashboard/page.tsx',
+      target: 'modules/projects/ui/dashboard/ProjectDashboardPage',
+      projectId: true,
+    },
+    {
+      shell: 'app/projects/[id]/documents/page.tsx',
+      target: 'modules/projects/ui/documents/ProjectDocumentsPage',
+      projectId: true,
+    },
+    {
+      shell: 'app/projects/[id]/resources/page.tsx',
+      target: 'modules/projects/ui/resources/ProjectResourcesPage',
+      projectId: true,
+    },
+    { shell: 'app/projects/[id]/risks/page.tsx', target: 'modules/projects/ui/risks/ProjectRisksPage', projectId: true },
+    {
+      shell: 'app/projects/[id]/milestones/page.tsx',
+      target: 'modules/projects/ui/milestones/MilestonesPage',
+      projectId: true,
+    },
+    {
+      shell: 'app/projects/[id]/timeline/page.tsx',
+      target: 'modules/projects/ui/timeline/TimelinePage',
+      projectId: true,
+    },
+  ] as const;
+
+  it.each(p1ProjectPages)('P1: $shell wraps module with PageChrome', ({ shell, target, projectId }) => {
+    expectPageChromeShell(shell, target, !!projectId);
+  });
+
+  it('Wave 7: app/projects/[id]/report/page.tsx wraps ProjectReportPage with PageChrome', () => {
+    expectPageChromeShell(
+      'app/projects/[id]/report/page.tsx',
+      'modules/reports/ui/project-report/ProjectReportPage',
+      true,
     );
   });
 

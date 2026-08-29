@@ -86,6 +86,70 @@ const CHROME_ROUTES: { route: string; moduleImport: string }[] = [
     route: 'app/weekly/tracking/page.tsx',
     moduleImport: 'modules/weekly/ui/tracking/WeeklyTrackingPage',
   },
+  {
+    route: 'app/projects/[id]/page.tsx',
+    moduleImport: 'modules/projects/ui/hub/ProjectHubPage',
+  },
+  {
+    route: 'app/projects/[id]/analysis/page.tsx',
+    moduleImport: 'modules/projects/ui/analysis/ProjectAnalysisPage',
+  },
+  {
+    route: 'app/projects/[id]/budget/page.tsx',
+    moduleImport: 'modules/projects/ui/budget/ProjectBudgetPage',
+  },
+  {
+    route: 'app/projects/[id]/bugs/page.tsx',
+    moduleImport: 'modules/projects/ui/bugs/ProjectBugsPage',
+  },
+  {
+    route: 'app/projects/[id]/communication/page.tsx',
+    moduleImport: 'modules/projects/ui/communication/ProjectCommunicationPage',
+  },
+  {
+    route: 'app/projects/[id]/dashboard/page.tsx',
+    moduleImport: 'modules/projects/ui/dashboard/ProjectDashboardPage',
+  },
+  {
+    route: 'app/projects/[id]/document-checklist/page.tsx',
+    moduleImport: 'modules/documents/ui/checklist/ProjectChecklistPage',
+  },
+  {
+    route: 'app/projects/[id]/documents/page.tsx',
+    moduleImport: 'modules/projects/ui/documents/ProjectDocumentsPage',
+  },
+  {
+    route: 'app/projects/[id]/milestones/page.tsx',
+    moduleImport: 'modules/projects/ui/milestones/MilestonesPage',
+  },
+  {
+    route: 'app/projects/[id]/report/page.tsx',
+    moduleImport: 'modules/reports/ui/project-report/ProjectReportPage',
+  },
+  {
+    route: 'app/projects/[id]/reports/page.tsx',
+    moduleImport: 'modules/reports/ui/project-reports-list/ProjectReportsListPage',
+  },
+  {
+    route: 'app/projects/[id]/resources/page.tsx',
+    moduleImport: 'modules/projects/ui/resources/ProjectResourcesPage',
+  },
+  {
+    route: 'app/projects/[id]/risks/page.tsx',
+    moduleImport: 'modules/projects/ui/risks/ProjectRisksPage',
+  },
+  {
+    route: 'app/projects/[id]/timeline/page.tsx',
+    moduleImport: 'modules/projects/ui/timeline/TimelinePage',
+  },
+  {
+    route: 'app/projects/[id]/weekly-reports/[reportId]/page.tsx',
+    moduleImport: 'modules/weekly/ui/report/WeeklyReportEditorPage',
+  },
+  {
+    route: 'app/weekly/reports/[projectId]/[reportId]/page.tsx',
+    moduleImport: 'modules/weekly/ui/report/WeeklyReportEditorPage',
+  },
 ];
 
 const MODULE_PAGES_NO_SIDEBAR: { path: string; label: string }[] = [
@@ -105,6 +169,21 @@ const MODULE_PAGES_NO_SIDEBAR: { path: string; label: string }[] = [
   { path: 'modules/projects/ui/list/ProjectsListPage.tsx', label: 'ProjectsListPage' },
   { path: 'modules/projects/ui/new/NewProjectPage.tsx', label: 'NewProjectPage' },
   { path: 'modules/weekly/ui/tracking/WeeklyTrackingPage.tsx', label: 'WeeklyTrackingPage' },
+  { path: 'modules/projects/ui/hub/ProjectHubPage.tsx', label: 'ProjectHubPage' },
+  { path: 'modules/projects/ui/analysis/ProjectAnalysisPage.tsx', label: 'ProjectAnalysisPage' },
+  { path: 'modules/projects/ui/budget/ProjectBudgetPage.tsx', label: 'ProjectBudgetPage' },
+  { path: 'modules/projects/ui/bugs/ProjectBugsPage.tsx', label: 'ProjectBugsPage' },
+  { path: 'modules/projects/ui/communication/ProjectCommunicationPage.tsx', label: 'ProjectCommunicationPage' },
+  { path: 'modules/projects/ui/dashboard/ProjectDashboardPage.tsx', label: 'ProjectDashboardPage' },
+  { path: 'modules/documents/ui/checklist/ProjectChecklistPage.tsx', label: 'ProjectChecklistPage' },
+  { path: 'modules/projects/ui/documents/ProjectDocumentsPage.tsx', label: 'ProjectDocumentsPage' },
+  { path: 'modules/projects/ui/milestones/MilestonesPage.tsx', label: 'MilestonesPage' },
+  { path: 'modules/reports/ui/project-report/ProjectReportPage.tsx', label: 'ProjectReportPage' },
+  { path: 'modules/reports/ui/project-reports-list/ProjectReportsListPage.tsx', label: 'ProjectReportsListPage' },
+  { path: 'modules/projects/ui/resources/ProjectResourcesPage.tsx', label: 'ProjectResourcesPage' },
+  { path: 'modules/projects/ui/risks/ProjectRisksPage.tsx', label: 'ProjectRisksPage' },
+  { path: 'modules/projects/ui/timeline/TimelinePage.tsx', label: 'TimelinePage' },
+  { path: 'modules/weekly/ui/report/WeeklyReportEditorPage.tsx', label: 'WeeklyReportEditorPage' },
 ];
 
 export const PILOT_LOADING: { path: string; message: string }[] = [

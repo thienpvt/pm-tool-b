@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import MilestonesPage from './page';
 
 vi.mock('next/navigation', () => ({ useParams: () => ({ id: '1' }) }));
-vi.mock('@/components/layout/Sidebar', () => ({ default: () => <nav data-testid="sidebar" /> }));
 
 const projectFixture = {
   id: 1,
@@ -91,7 +90,6 @@ describe('MilestonesPage', () => {
   it('renders after load with mocked milestones', async () => {
     render(<MilestonesPage />);
     await waitFor(() => expect(screen.getByText('Milestones')).toBeInTheDocument());
-    expect(screen.getByTestId('sidebar')).toBeInTheDocument();
     await waitFor(() => expect(screen.getByText('MVP Release')).toBeInTheDocument());
     expect(screen.getByText('Phase 2')).toBeInTheDocument();
   });

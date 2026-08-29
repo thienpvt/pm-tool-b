@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import TimelinePage from './page';
 
 vi.mock('next/navigation', () => ({ useParams: () => ({ id: '1' }) }));
-vi.mock('@/components/layout/Sidebar', () => ({ default: () => <nav data-testid="sidebar" /> }));
 vi.mock('@/modules/jira/ui/timeline-import/ImportMappingDialog', () => ({ default: () => null }));
 vi.mock('@/modules/jira/ui/JiraSyncDialog', () => ({ default: () => null }));
 
@@ -93,7 +92,6 @@ describe('TimelinePage', () => {
   it('renders after load with useParams id 1', async () => {
     render(<TimelinePage />);
     await waitFor(() => expect(screen.getByText('Project Timeline')).toBeInTheDocument());
-    expect(screen.getByTestId('sidebar')).toBeInTheDocument();
     expect(screen.getByText('Build API')).toBeInTheDocument();
     expect(screen.getByText('SIT')).toBeInTheDocument();
   });

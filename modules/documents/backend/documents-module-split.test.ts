@@ -43,9 +43,12 @@ describe('documents module split contract (24-04)', () => {
     expect(source).not.toMatch(/^['"]use client['"]/m);
   });
 
-  it('P1: app/projects/[id]/document-checklist/page.tsx still points at ProjectChecklistPage', () => {
+  it('P1: app/projects/[id]/document-checklist/page.tsx wraps ProjectChecklistPage with PageChrome', () => {
     const source = readUtf8('app/projects/[id]/document-checklist/page.tsx');
+    expect(source).toContain('PageChrome');
     expect(source).toContain('modules/documents/ui/checklist/ProjectChecklistPage');
+    expect(source).toContain('projectId');
+    expect(source).not.toMatch(/^['"]use client['"]/m);
   });
 
   it('D-06: app/projects/[id]/documents/page.tsx is projects-owned thin shell, not documents module', () => {

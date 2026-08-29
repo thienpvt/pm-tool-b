@@ -10,11 +10,12 @@ function readUtf8(relativePath: string): string {
   return readFileSync(resolve(root, relativePath), 'utf8');
 }
 
-function expectPageChromeShell(shell: string, target: string) {
+function expectPageChromeShell(shell: string, target: string, projectId = false) {
   const source = readUtf8(shell);
   expect(source).toContain('PageChrome');
   expect(source).toContain(target);
   expect(source).not.toMatch(CLIENT_DIRECTIVE);
+  if (projectId) expect(source).toContain('projectId');
 }
 
 describe('reports module split contract (24-07)', () => {
@@ -48,17 +49,19 @@ describe('reports module split contract (24-07)', () => {
     expect(typeof mod.getWeeklyProjectReport).toBe('function');
   });
 
-  it('P1: app/projects/[id]/report/page.tsx re-exports ProjectReportPage from module path', () => {
-    const source = readUtf8('app/projects/[id]/report/page.tsx');
-    expect(source).toMatch(
-      /export\s*\{\s*default\s*\}\s*from\s*['"]@\/modules\/reports\/ui\/project-report\/ProjectReportPage['"]/,
+  it('P1: app/projects/[id]/report/page.tsx wraps ProjectReportPage with PageChrome', () => {
+    expectPageChromeShell(
+      'app/projects/[id]/report/page.tsx',
+      'modules/reports/ui/project-report/ProjectReportPage',
+      true,
     );
   });
 
-  it('P1: app/projects/[id]/reports/page.tsx re-exports ProjectReportsListPage from module path', () => {
-    const source = readUtf8('app/projects/[id]/reports/page.tsx');
-    expect(source).toMatch(
-      /export\s*\{\s*default\s*\}\s*from\s*['"]@\/modules\/reports\/ui\/project-reports-list\/ProjectReportsListPage['"]/,
+  it('P1: app/projects/[id]/reports/page.tsx wraps ProjectReportsListPage with PageChrome', () => {
+    expectPageChromeShell(
+      'app/projects/[id]/reports/page.tsx',
+      'modules/reports/ui/project-reports-list/ProjectReportsListPage',
+      true,
     );
   });
 
