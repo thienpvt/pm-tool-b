@@ -33,7 +33,7 @@ Leftover nits resolved, every v2.1 phase has a reconciled VALIDATION.md, operato
 - **D-02 (NIT-02):** Skip `audit_logs` insert when a milestone PATCH payload is a no-op (before equals after). Keep audits for real field changes.
 - **D-03 (NIT-03):** Document coexistence: v1 `budget_items` remains for project budget screens; fiscal ledger is `/portfolio/budget` + fiscal APIs. Do not rewrite budget UI this phase. Write `.planning/BUDGET-COEXISTENCE.md` (or equivalent in phase dir).
 - **D-04 (HYG-02):** Operator **accepts** Anthropic malformed-output **502** (vs old 500) for the three report routes. No code change. Record acceptance in CONTEXT + a short `27-HYG-02.md` artifact.
-- **D-05 (NYQ-01):** Reconcile remaining draft/`nyquist_compliant: false` VALIDATION.md files for phases 19–26. Do not rewrite archived milestone validation files.
+- **D-05 (NYQ-01):** Reconcile remaining draft/`nyquist_compliant: false` VALIDATION.md files for phases 19–26, and write a non-draft `27-VALIDATION.md` for this closeout phase. Do not rewrite archived v1.0/v2.0 VALIDATION.md.
 - **D-06:** No new npm. Isolation none. TDD. No visual redesign. Skip UI-SPEC (docs + audit skip, not new chrome). Preserve D-23.
 
 </decisions>
