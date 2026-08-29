@@ -1,4 +1,5 @@
-import { getDb } from '@/lib/db';
+import { sql } from 'kysely';
+import { getKysely } from '@/lib/db/kysely';
 
 /**
  * Budget items and their expenses.
@@ -14,11 +15,22 @@ import { getDb } from '@/lib/db';
  * The repository does not repeat that check — REPO-02 (no session inside repositories).
  */
 
+function deleteResult(numDeletedRows: bigint | number | undefined) {
+  return { lastInsertRowid: 0, changes: Number(numDeletedRows ?? 0) };
+}
+
 // ── Budget items ──────────────────────────────────────────────────────────────
 
 export async function listBudgetItems(projectId: number | string) {
-  const db = await getDb();
-  return db.all('SELECT * FROM budget_items WHERE project_id = ? ORDER BY type, group_name, created_at', projectId);
+  const db = await getKysely();
+  return db
+    .selectFrom('budget_items')
+    .selectAll()
+    .where('project_id', '=', Number(projectId))
+    .orderBy('type')
+    .orderBy('group_name')
+    .orderBy('created_at')
+    .execute();
 }
 
 export async function createBudgetItem(
@@ -34,21 +46,22 @@ export async function createBudgetItem(
     notes?: string;
   },
 ) {
-  const db = await getDb();
-  const result = await db.run(
-    `INSERT INTO budget_items (project_id, type, group_name, name, planned_amount, approved_amount, actual_amount, unit, notes)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    projectId,
-    body.type,
-    body.group_name?.trim() ?? '',
-    body.name.trim(),
-    Number(body.planned_amount) || 0,
-    Number(body.approved_amount) || 0,
-    Number(body.actual_amount) || 0,
-    body.unit?.trim() || 'USD',
-    body.notes?.trim() ?? '',
-  );
-  return db.get('SELECT * FROM budget_items WHERE id = ?', result.lastInsertRowid);
+  const db = await getKysely();
+  return db
+    .insertInto('budget_items')
+    .values({
+      project_id: Number(projectId),
+      type: body.type,
+      group_name: body.group_name?.trim() ?? '',
+      name: body.name.trim(),
+      planned_amount: Number(body.planned_amount) || 0,
+      approved_amount: Number(body.approved_amount) || 0,
+      actual_amount: Number(body.actual_amount) || 0,
+      unit: body.unit?.trim() || 'USD',
+      notes: body.notes?.trim() ?? '',
+    })
+    .returningAll()
+    .executeTakeFirstOrThrow();
 }
 
 export async function updateBudgetItem(
@@ -65,49 +78,68 @@ export async function updateBudgetItem(
     notes?: string;
   },
 ) {
-  const db = await getDb();
-  return db.get(
-    `UPDATE budget_items SET type=?, group_name=?, name=?, planned_amount=?, approved_amount=?, actual_amount=?, unit=?, notes=?
-     WHERE id=? AND project_id=? RETURNING *`,
-    body.type,
-    body.group_name?.trim() ?? '',
-    body.name.trim(),
-    Number(body.planned_amount) || 0,
-    Number(body.approved_amount) || 0,
-    Number(body.actual_amount) || 0,
-    body.unit?.trim() || 'USD',
-    body.notes?.trim() ?? '',
-    itemId,
-    projectId,
-  );
+  const db = await getKysely();
+  return db
+    .updateTable('budget_items')
+    .set({
+      type: body.type,
+      group_name: body.group_name?.trim() ?? '',
+      name: body.name.trim(),
+      planned_amount: Number(body.planned_amount) || 0,
+      approved_amount: Number(body.approved_amount) || 0,
+      actual_amount: Number(body.actual_amount) || 0,
+      unit: body.unit?.trim() || 'USD',
+      notes: body.notes?.trim() ?? '',
+    })
+    .where('id', '=', Number(itemId))
+    .where('project_id', '=', Number(projectId))
+    .returningAll()
+    .executeTakeFirst();
 }
 
 export async function deleteBudgetItem(projectId: number | string, itemId: number | string) {
-  const db = await getDb();
-  return db.run('DELETE FROM budget_items WHERE id = ? AND project_id = ?', itemId, projectId);
+  const db = await getKysely();
+  const result = await db
+    .deleteFrom('budget_items')
+    .where('id', '=', Number(itemId))
+    .where('project_id', '=', Number(projectId))
+    .execute();
+  return deleteResult(result.numDeletedRows);
 }
 
 // ── Expenses ──────────────────────────────────────────────────────────────────
 
 export async function listExpenses(projectId: number | string) {
-  const db = await getDb();
-  return db.all(
-    'SELECT * FROM budget_expenses WHERE project_id = ? ORDER BY expense_date, created_at',
-    projectId,
-  );
+  const db = await getKysely();
+  return db
+    .selectFrom('budget_expenses')
+    .selectAll()
+    .where('project_id', '=', Number(projectId))
+    .orderBy('expense_date')
+    .orderBy('created_at')
+    .execute();
 }
 
 export async function listExpensesByItem(projectId: number | string, itemId: number | string) {
-  const db = await getDb();
-  return db.all(
-    'SELECT * FROM budget_expenses WHERE budget_item_id = ? AND project_id = ? ORDER BY expense_date, created_at',
-    itemId, projectId,
-  );
+  const db = await getKysely();
+  return db
+    .selectFrom('budget_expenses')
+    .selectAll()
+    .where('budget_item_id', '=', Number(itemId))
+    .where('project_id', '=', Number(projectId))
+    .orderBy('expense_date')
+    .orderBy('created_at')
+    .execute();
 }
 
 export async function getBudgetItemInProject(projectId: number | string, itemId: number | string) {
-  const db = await getDb();
-  return db.get<{ id: number }>('SELECT id FROM budget_items WHERE id = ? AND project_id = ?', itemId, projectId);
+  const db = await getKysely();
+  return db
+    .selectFrom('budget_items')
+    .select('id')
+    .where('id', '=', Number(itemId))
+    .where('project_id', '=', Number(projectId))
+    .executeTakeFirst();
 }
 
 /** Scoping guard for a single expense: exists only if it belongs to both the item and the project. */
@@ -116,11 +148,14 @@ export async function getExpenseInItem(
   itemId: number | string,
   expId: number | string,
 ) {
-  const db = await getDb();
-  return db.get<{ id: number }>(
-    'SELECT id FROM budget_expenses WHERE id = ? AND budget_item_id = ? AND project_id = ?',
-    expId, itemId, projectId,
-  );
+  const db = await getKysely();
+  return db
+    .selectFrom('budget_expenses')
+    .select('id')
+    .where('id', '=', Number(expId))
+    .where('budget_item_id', '=', Number(itemId))
+    .where('project_id', '=', Number(projectId))
+    .executeTakeFirst();
 }
 
 /** Create an expense and sync `actual_amount` on the parent item. */
@@ -134,21 +169,22 @@ export async function createExpense(
     reference?: string;
   },
 ) {
-  const db = await getDb();
-  const result = await db.run(
-    `INSERT INTO budget_expenses (budget_item_id, project_id, expense_date, description, amount, reference)
-     VALUES (?, ?, ?, ?, ?, ?)`,
-    itemId, projectId,
-    body.expense_date || new Date().toISOString().slice(0, 10),
-    body.description.trim(),
-    Number(body.amount) || 0,
-    body.reference?.trim() ?? '',
-  );
+  const db = await getKysely();
+  const row = await db
+    .insertInto('budget_expenses')
+    .values({
+      budget_item_id: Number(itemId),
+      project_id: Number(projectId),
+      expense_date: body.expense_date || new Date().toISOString().slice(0, 10),
+      description: body.description.trim(),
+      amount: Number(body.amount) || 0,
+      reference: body.reference?.trim() ?? '',
+    })
+    .returningAll()
+    .executeTakeFirstOrThrow();
 
-  // Keep actual_amount in sync with the sum of all expenses for this item.
-  await _syncActualAmount(db, itemId, projectId);
-
-  return db.get('SELECT * FROM budget_expenses WHERE id = ?', result.lastInsertRowid);
+  await _syncActualAmount(Number(itemId), Number(projectId));
+  return row;
 }
 
 /** Delete an expense and sync `actual_amount` on the parent item. */
@@ -157,37 +193,40 @@ export async function deleteExpense(
   itemId: number | string,
   expId: number | string,
 ) {
-  const db = await getDb();
-  await db.run(
-    'DELETE FROM budget_expenses WHERE id = ? AND budget_item_id = ? AND project_id = ?',
-    expId, itemId, projectId,
-  );
-  await _syncActualAmount(db, itemId, projectId);
+  const db = await getKysely();
+  await db
+    .deleteFrom('budget_expenses')
+    .where('id', '=', Number(expId))
+    .where('budget_item_id', '=', Number(itemId))
+    .where('project_id', '=', Number(projectId))
+    .execute();
+  await _syncActualAmount(Number(itemId), Number(projectId));
   return { ok: true };
 }
 
 /** Activity completion stats for the budget overview panel. */
 export async function activityStats(projectId: number | string) {
-  const db = await getDb();
-  return db.get<{ avg_pct: number; total: number }>(
-    'SELECT AVG(completion_pct) as avg_pct, COUNT(*) as total FROM activities WHERE project_id = ?',
-    projectId,
-  );
+  const db = await getKysely();
+  return db
+    .selectFrom('activities')
+    .select([
+      sql<number>`AVG(completion_pct)`.as('avg_pct'),
+      sql<number>`COUNT(*)`.as('total'),
+    ])
+    .where('project_id', '=', Number(projectId))
+    .executeTakeFirst();
 }
 
 // ── Internal ──────────────────────────────────────────────────────────────────
 
-import type { DbClient } from '@/lib/db';
-
-async function _syncActualAmount(
-  db: DbClient,
-  itemId: number | string,
-  projectId: number | string,
-) {
-  await db.run(
-    `UPDATE budget_items SET actual_amount = (
-      SELECT COALESCE(SUM(amount), 0) FROM budget_expenses WHERE budget_item_id = ?
-    ) WHERE id = ? AND project_id = ?`,
-    itemId, itemId, projectId,
-  );
+async function _syncActualAmount(itemId: number, projectId: number) {
+  const db = await getKysely();
+  await db
+    .updateTable('budget_items')
+    .set({
+      actual_amount: sql`(SELECT COALESCE(SUM(amount), 0) FROM budget_expenses WHERE budget_item_id = ${itemId})`,
+    })
+    .where('id', '=', itemId)
+    .where('project_id', '=', projectId)
+    .execute();
 }
