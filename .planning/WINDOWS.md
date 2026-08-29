@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 2
+open_count: 4
 waived_count: 0
 fixed_count: 3
-total_count: 5
-last_updated: 2026-08-29T00:29:00.579Z
+total_count: 7
+last_updated: 2026-08-29T00:59:48.273Z
 ---
 
 # Broken Windows Ledger
@@ -20,6 +20,8 @@ last_updated: 2026-08-29T00:29:00.579Z
 | 3 | 03 | unrun-verify | scripts/verify-credential-cutover.ts |  | INTG-08 cutover evidence could not be run — no reachable DATABASE_URL; operator must run npx tsx scripts/verify-credential-cutover.ts then land HYG-01 deletion commit | fixed |  | 2026-08-10T08:26:21.183Z | 2026-08-25T15:05:15.137Z |
 | 4 | 25 | unrun-verify | modules/audit/backend/repositories/audit.repo.test.ts |  | Integration tests skipped — TEST_DATABASE_URL not set in executor environment | open |  | 2026-08-29T00:26:00.038Z |  |
 | 5 | 25 | unrun-verify | lib/db-tx.kysely.test.ts |  | Integration test skipped — TEST_DATABASE_URL not set in executor environment | open |  | 2026-08-29T00:29:00.579Z |  |
+| 6 | 25 | unrun-verify | modules/weekly/backend/repositories/weekly-periods.repo.test.ts |  | Integration tests skipped — TEST_DATABASE_URL not set in executor environment | open |  | 2026-08-29T00:59:47.410Z |  |
+| 7 | 25 | unrun-verify | modules/weekly/backend/repositories/weekly-export.repo.test.ts |  | Integration tests skipped — TEST_DATABASE_URL not set in executor environment | open |  | 2026-08-29T00:59:48.273Z |  |
 
 ````json
 [
@@ -81,6 +83,30 @@ last_updated: 2026-08-29T00:29:00.579Z
     "status": "open",
     "reason": "",
     "recorded_at": "2026-08-29T00:29:00.579Z",
+    "resolved_at": null
+  },
+  {
+    "id": 6,
+    "kind": "unrun-verify",
+    "phase": "25",
+    "file": "modules/weekly/backend/repositories/weekly-periods.repo.test.ts",
+    "line": null,
+    "description": "Integration tests skipped — TEST_DATABASE_URL not set in executor environment",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-08-29T00:59:47.410Z",
+    "resolved_at": null
+  },
+  {
+    "id": 7,
+    "kind": "unrun-verify",
+    "phase": "25",
+    "file": "modules/weekly/backend/repositories/weekly-export.repo.test.ts",
+    "line": null,
+    "description": "Integration tests skipped — TEST_DATABASE_URL not set in executor environment",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-08-29T00:59:48.273Z",
     "resolved_at": null
   }
 ]
