@@ -78,10 +78,11 @@ v2.0 remainder (no React consumers of v2 APIs, no repo-wide module split, Kysely
 - ✓ DOC-07 / DOC-08 / DOC-09 / AUDIT-02 — Catalog, Confluence checklist, compliance, audit viewer in `modules/documents/ui/` and `modules/audit/ui/` — Phase 23
 - ✓ ENF-02 — Repositories query through Kysely on the existing `pg.Pool`; runtime `pickAllowed` / `UnknownColumnError` mass-assignment stays — Phase 25
 - ✓ PERF-02 / PERF-03 — Server `PageChrome` on v2 Sidebar routes; `getDb()` cold-start p95 budget recorded — Phase 26
-- [ ] HYG-02 — Operator confirms Anthropic malformed-output 502 vs old 500 (checkpoint, not a rewrite unless rejected)
-- [ ] NIT-01 — Wire or remove unused `listPeriodShells` / `listOpenProjectDependencies`
-- [ ] NIT-02 — Fiscal KPIs on portfolio dashboard if they belong; no-op milestone PATCH audit noise; v1 `budget_items` coexistence resolved or documented
-- [ ] NYQ-01 — Nyquist `validate-phase` pass on draft VALIDATION.md files
+- ✓ NIT-01 — `listPeriodShells` and `listOpenProjectDependencies` stay consumed (contract test) — Phase 27
+- ✓ NIT-02 — No-op milestone PATCH skips `auditLog`; partial PATCH preserves omitted fields — Phase 27
+- ✓ NIT-03 — v1 `budget_items` vs fiscal ledger coexistence documented — Phase 27
+- ✓ NYQ-01 — Phases 19–27 have non-draft `VALIDATION.md` with `nyquist_compliant: true` — Phase 27
+- ✓ HYG-02 — Operator accepts Anthropic malformed-output 502 (vs old 500) on the three report routes; no rewrite — Phase 27
 
 ### Out of Scope
 
@@ -98,9 +99,9 @@ v2.0 remainder (no React consumers of v2 APIs, no repo-wide module split, Kysely
 
 **Shipped:** v2.0 Portfolio One View (2026-08-26) — Phases 9–18, 40 plans. Archive: `.planning/milestones/`. Audit: `tech_debt` (79/79 requirements, UI deferred).
 
-**Now:** v2.1 Hardening & Deferred Debt — Phase 27 Nits, Validation & Operator Gate.
+**Now:** v2.1 Hardening & Deferred Debt — all 9 phases (19–27) complete. Ready for milestone audit.
 
-CPMO/PM/Viewer is enforced on spec APIs. Feature areas live under `modules/<feature>/{backend,ui}/` with thin `app/` re-exports. Repositories query through Kysely on the existing `pg.Pool`. v2 Sidebar routes use server `PageChrome`. Remaining: nits, Nyquist remainder, operator confirm of Anthropic 502.
+CPMO/PM/Viewer is enforced on spec APIs. Feature areas live under `modules/<feature>/{backend,ui}/` with thin `app/` re-exports. Repositories query through Kysely on the existing `pg.Pool`. v2 Sidebar routes use server `PageChrome`. Nits, Nyquist closeout, and HYG-02 502 accept are recorded.
 
 ## Next Milestone Goals
 
@@ -142,14 +143,14 @@ This milestone:
 | Layer-by-layer sweep over per-feature incremental | Fewer coexisting old/new shapes; the codebase is already inconsistent enough | Shipped — 8 sequential phases |
 | Security first among concerns | IDOR + mass-assignment SQL are live tenant-isolation holes; migrations and perf are not | Shipped on project-scoped routes; two live IDORs closed in Phase 4 |
 | Tests alongside reorg, not a pre-built safety net | Contract snapshots over endpoints that are about to move by design would mostly re-encode the mess | Vitest 4 + 727 tests; HYG-03 held |
-| Refactor + opportunistic fixes, not pure freeze | Moving code surfaces real bugs; leaving them in place to preserve a bug-for-bug freeze wastes the pass | HYG-02: Anthropic 500→502 still needs operator confirm |
+| Refactor + opportunistic fixes, not pure freeze | Moving code surfaces real bugs; leaving them in place to preserve a bug-for-bug freeze wastes the pass | HYG-02 accepted 502 (Phase 27) |
 | Migrations-out-of-`getDb()` deferred in v1–v2 | Cold-start slowness was not a correctness risk then | Reopened — single DATA task in v2.1 |
 | DATA-01..03 as one task | Origin `gsd/quick-260826-ded-data-layer-migrations` already shipped them together; splitting into three phases adds ceremony | Shipped Phase 19 |
 | Replay DATA branch, do not merge | Branch baseline is post-v1.0 / pre-v2.0; merge would omit weekly/fiscal/roles/RAID/dashboard/checklist/audit tables | Shipped Phase 19 (pattern-only; regenerated 0001) |
 | API vs page by `/api/` prefix | Accept-header detection would 401 HTML navigations that send `application/json` | Shipped Phase 20 |
 | ENF-01 allowlist file, not comments | Comment exemptions drift; posix path list is the D-23 carve-out | Shipped Phase 20 |
-| Repo-wide backend/UI split per module | Not only new v2 screens — every existing feature area gets separate backend and UI dirs | — Pending |
-| Kysely in v2.1 (ENF-02) | Allowlists stay; compile-time column safety. Still no Prisma / second ORM / Postgres replacement | — Pending |
+| Repo-wide backend/UI split per module | Not only new v2 screens — every existing feature area gets separate backend and UI dirs | Shipped Phase 24 |
+| Kysely in v2.1 (ENF-02) | Allowlists stay; compile-time column safety. Still no Prisma / second ORM / Postgres replacement | Shipped Phase 25 |
 | INTG-08 evidence before deleting dead Jira helpers | Resolver live paths already matched; deletion gated on `verify-credential-cutover.ts` | Closed Phase 8 (`e0b2cea`) |
 | Spec as source of truth for v2.0 | Bank PPM requirements are the product; existing screens that already match stay, mismatches change | Shipped Phases 9–18 (PR-01..15 + AUDIT-01) |
 | Spec dashboard pages consume Phase 16 APIs only | Do not mix `/api/portfolio` or overwrite `/` and `/dashboard` | Shipped Phase 21 |
@@ -183,4 +184,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-08-28 after Phase 23*
+*Last updated: 2026-08-29 after Phase 27*
