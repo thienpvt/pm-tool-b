@@ -1,4 +1,5 @@
-import { getDb } from '@/lib/db';
+import { sql } from 'kysely';
+import { getKysely } from '@/lib/db/kysely';
 
 /**
  * Milestones and their epic links.
@@ -12,35 +13,48 @@ import { getDb } from '@/lib/db';
  * deliberately does not do — that is Phase 5/6.
  */
 
+function deleteResult(numDeletedRows: bigint | number | undefined) {
+  return { lastInsertRowid: 0, changes: Number(numDeletedRows ?? 0) };
+}
+
 export async function listMilestones(projectId: number | string) {
-  const db = await getDb();
-  return db.all('SELECT * FROM milestones WHERE project_id = ? ORDER BY start_date, id', projectId);
+  const db = await getKysely();
+  return db
+    .selectFrom('milestones')
+    .selectAll()
+    .where('project_id', '=', Number(projectId))
+    .orderBy('start_date')
+    .orderBy('id')
+    .execute();
 }
 
 export async function getMilestone(projectId: number | string, milestoneId: number | string) {
-  const db = await getDb();
-  return db.get(
-    'SELECT * FROM milestones WHERE id = ? AND project_id = ?',
-    milestoneId,
-    projectId,
-  );
+  const db = await getKysely();
+  return db
+    .selectFrom('milestones')
+    .selectAll()
+    .where('id', '=', Number(milestoneId))
+    .where('project_id', '=', Number(projectId))
+    .executeTakeFirst();
 }
 
 export async function createMilestone(projectId: number | string, body: Record<string, unknown>) {
-  const db = await getDb();
+  const db = await getKysely();
   const planEnd = (body.plan_end ?? body.end_date ?? null) as string | null;
   const endDate = (body.end_date ?? body.plan_end ?? null) as string | null;
-  const r = await db.run(
-    `INSERT INTO milestones (project_id, name, start_date, end_date, plan_end, adjusted_end, status)
-     VALUES (?,?,?,?,?,?, 'planned')`,
-    projectId,
-    body.name ?? '',
-    body.start_date ?? null,
-    endDate,
-    planEnd,
-    body.adjusted_end ?? null,
-  );
-  return db.get('SELECT * FROM milestones WHERE id = ?', r.lastInsertRowid);
+  return db
+    .insertInto('milestones')
+    .values({
+      project_id: Number(projectId),
+      name: String(body.name ?? ''),
+      start_date: body.start_date != null ? String(body.start_date) : null,
+      end_date: endDate,
+      plan_end: planEnd,
+      adjusted_end: body.adjusted_end != null ? String(body.adjusted_end) : null,
+      status: 'planned',
+    })
+    .returningAll()
+    .executeTakeFirstOrThrow();
 }
 
 export async function updateMilestone(
@@ -48,7 +62,7 @@ export async function updateMilestone(
   milestoneId: number | string,
   body: Record<string, unknown>,
 ) {
-  const db = await getDb();
+  const db = await getKysely();
   const planEnd = body.plan_end !== undefined || body.end_date !== undefined
     ? ((body.plan_end ?? body.end_date ?? null) as string | null)
     : undefined;
@@ -56,27 +70,34 @@ export async function updateMilestone(
     ? ((body.end_date ?? body.plan_end ?? null) as string | null)
     : undefined;
 
-  const sets = ['name = ?', 'start_date = ?'];
-  const params: unknown[] = [body.name ?? '', body.start_date ?? null];
+  const set: {
+    name: string;
+    start_date: string | null;
+    end_date?: string | null;
+    plan_end?: string | null;
+    adjusted_end?: string | null;
+  } = {
+    name: String(body.name ?? ''),
+    start_date: body.start_date != null ? String(body.start_date) : null,
+  };
 
   if (endDate !== undefined) {
-    sets.push('end_date = ?');
-    params.push(endDate);
+    set.end_date = endDate;
   }
   if (planEnd !== undefined) {
-    sets.push('plan_end = ?');
-    params.push(planEnd);
+    set.plan_end = planEnd;
   }
   if (body.adjusted_end !== undefined) {
-    sets.push('adjusted_end = ?');
-    params.push(body.adjusted_end ?? null);
+    set.adjusted_end = (body.adjusted_end ?? null) as string | null;
   }
 
-  params.push(milestoneId, projectId);
-  return db.get(
-    `UPDATE milestones SET ${sets.join(', ')} WHERE id = ? AND project_id = ? RETURNING *`,
-    ...params,
-  );
+  return db
+    .updateTable('milestones')
+    .set(set)
+    .where('id', '=', Number(milestoneId))
+    .where('project_id', '=', Number(projectId))
+    .returningAll()
+    .executeTakeFirst();
 }
 
 export async function cancelMilestone(
@@ -84,12 +105,19 @@ export async function cancelMilestone(
   milestoneId: number | string,
   cancelledBy: number,
 ) {
-  const db = await getDb();
-  return db.get(
-    `UPDATE milestones SET status = 'cancelled', cancelled_at = now(), cancelled_by = ?
-     WHERE id = ? AND project_id = ? AND status != 'cancelled' RETURNING *`,
-    cancelledBy, milestoneId, projectId,
-  );
+  const db = await getKysely();
+  return db
+    .updateTable('milestones')
+    .set({
+      status: 'cancelled',
+      cancelled_at: sql`now()`,
+      cancelled_by: cancelledBy,
+    })
+    .where('id', '=', Number(milestoneId))
+    .where('project_id', '=', Number(projectId))
+    .where('status', '!=', 'cancelled')
+    .returningAll()
+    .executeTakeFirst();
 }
 
 export async function listUpcomingMilestones(
@@ -97,77 +125,108 @@ export async function listUpcomingMilestones(
   today: string,
   windowEnd: string,
 ) {
-  const db = await getDb();
-  const base = `SELECT m.*, p.name AS project_name
-    FROM milestones m JOIN projects p ON p.id = m.project_id
-    LEFT JOIN customers c ON p.customer_id = c.id`;
-  const where = `m.status NOT IN ('completed', 'cancelled')
-    AND COALESCE(m.adjusted_end, m.plan_end) IS NOT NULL
-    AND COALESCE(m.adjusted_end, m.plan_end) >= ?
-    AND COALESCE(m.adjusted_end, m.plan_end) <= ?`;
+  const db = await getKysely();
   if (companyId !== null) {
-    return db.all(
-      `${base} WHERE (p.company_id = ? OR c.company_id = ?) AND ${where}
-       ORDER BY COALESCE(m.adjusted_end, m.plan_end), m.id`,
-      companyId, companyId, today, windowEnd,
-    );
+    const result = await sql`
+      SELECT m.*, p.name AS project_name
+      FROM milestones m JOIN projects p ON p.id = m.project_id
+      LEFT JOIN customers c ON p.customer_id = c.id
+      WHERE (p.company_id = ${companyId} OR c.company_id = ${companyId})
+        AND m.status NOT IN ('completed', 'cancelled')
+        AND COALESCE(m.adjusted_end, m.plan_end) IS NOT NULL
+        AND COALESCE(m.adjusted_end, m.plan_end) >= ${today}
+        AND COALESCE(m.adjusted_end, m.plan_end) <= ${windowEnd}
+      ORDER BY COALESCE(m.adjusted_end, m.plan_end), m.id
+    `.execute(db);
+    return result.rows;
   }
-  return db.all(
-    `${base} WHERE p.company_id IS NULL AND (p.customer_id IS NULL OR c.company_id IS NULL) AND ${where}
-     ORDER BY COALESCE(m.adjusted_end, m.plan_end), m.id`,
-    today, windowEnd,
-  );
+  const result = await sql`
+    SELECT m.*, p.name AS project_name
+    FROM milestones m JOIN projects p ON p.id = m.project_id
+    LEFT JOIN customers c ON p.customer_id = c.id
+    WHERE p.company_id IS NULL AND (p.customer_id IS NULL OR c.company_id IS NULL)
+      AND m.status NOT IN ('completed', 'cancelled')
+      AND COALESCE(m.adjusted_end, m.plan_end) IS NOT NULL
+      AND COALESCE(m.adjusted_end, m.plan_end) >= ${today}
+      AND COALESCE(m.adjusted_end, m.plan_end) <= ${windowEnd}
+    ORDER BY COALESCE(m.adjusted_end, m.plan_end), m.id
+  `.execute(db);
+  return result.rows;
 }
 
 export async function listOverdueMilestones(companyId: number | null, today: string) {
-  const db = await getDb();
-  const base = `SELECT m.*, p.name AS project_name
-    FROM milestones m JOIN projects p ON p.id = m.project_id
-    LEFT JOIN customers c ON p.customer_id = c.id`;
-  const where = `m.status NOT IN ('completed', 'cancelled')
-    AND COALESCE(m.adjusted_end, m.plan_end) IS NOT NULL
-    AND COALESCE(m.adjusted_end, m.plan_end) < ?`;
+  const db = await getKysely();
   if (companyId !== null) {
-    return db.all(
-      `${base} WHERE (p.company_id = ? OR c.company_id = ?) AND ${where}
-       ORDER BY COALESCE(m.adjusted_end, m.plan_end), m.id`,
-      companyId, companyId, today,
-    );
+    const result = await sql`
+      SELECT m.*, p.name AS project_name
+      FROM milestones m JOIN projects p ON p.id = m.project_id
+      LEFT JOIN customers c ON p.customer_id = c.id
+      WHERE (p.company_id = ${companyId} OR c.company_id = ${companyId})
+        AND m.status NOT IN ('completed', 'cancelled')
+        AND COALESCE(m.adjusted_end, m.plan_end) IS NOT NULL
+        AND COALESCE(m.adjusted_end, m.plan_end) < ${today}
+      ORDER BY COALESCE(m.adjusted_end, m.plan_end), m.id
+    `.execute(db);
+    return result.rows;
   }
-  return db.all(
-    `${base} WHERE p.company_id IS NULL AND (p.customer_id IS NULL OR c.company_id IS NULL) AND ${where}
-     ORDER BY COALESCE(m.adjusted_end, m.plan_end), m.id`,
-    today,
-  );
+  const result = await sql`
+    SELECT m.*, p.name AS project_name
+    FROM milestones m JOIN projects p ON p.id = m.project_id
+    LEFT JOIN customers c ON p.customer_id = c.id
+    WHERE p.company_id IS NULL AND (p.customer_id IS NULL OR c.company_id IS NULL)
+      AND m.status NOT IN ('completed', 'cancelled')
+      AND COALESCE(m.adjusted_end, m.plan_end) IS NOT NULL
+      AND COALESCE(m.adjusted_end, m.plan_end) < ${today}
+    ORDER BY COALESCE(m.adjusted_end, m.plan_end), m.id
+  `.execute(db);
+  return result.rows;
 }
 
 export async function listEpics(milestoneId: number | string) {
-  const db = await getDb();
-  return db.all(
-    `SELECT a.id, a.phase, a.no, a.activity, a.status, a.completion_pct, a.plan_start, a.plan_end, a.jira_key, a.parent_id
-     FROM milestone_epics me
-     JOIN activities a ON a.id = me.activity_id
-     WHERE me.milestone_id = ?
-     ORDER BY a.order_idx, a.id`,
-    milestoneId,
-  );
+  const db = await getKysely();
+  return db
+    .selectFrom('milestone_epics as me')
+    .innerJoin('activities as a', 'a.id', 'me.activity_id')
+    .select([
+      'a.id',
+      'a.phase',
+      'a.no',
+      'a.activity',
+      'a.status',
+      'a.completion_pct',
+      'a.plan_start',
+      'a.plan_end',
+      'a.jira_key',
+      'a.parent_id',
+    ])
+    .where('me.milestone_id', '=', Number(milestoneId))
+    .orderBy('a.order_idx')
+    .orderBy('a.id')
+    .execute();
 }
 
-/** `INSERT OR IGNORE` — lib/db.ts rewrites this to `ON CONFLICT DO NOTHING`. */
+/** `INSERT OR IGNORE` — onConflict doNothing preserves idempotent link. */
 export async function linkEpic(milestoneId: number | string, activityId: number | string) {
-  const db = await getDb();
-  return db.run(
-    'INSERT OR IGNORE INTO milestone_epics (milestone_id, activity_id) VALUES (?,?)',
-    milestoneId, activityId,
-  );
+  const db = await getKysely();
+  const result = await db
+    .insertInto('milestone_epics')
+    .values({
+      milestone_id: Number(milestoneId),
+      activity_id: Number(activityId),
+    })
+    .onConflict((oc) => oc.columns(['milestone_id', 'activity_id']).doNothing())
+    .execute();
+  return deleteResult(result.numInsertedOrUpdatedRows);
 }
 
 export async function unlinkEpic(milestoneId: number | string, activityId: number | string) {
-  const db = await getDb();
-  return db.run(
-    'DELETE FROM milestone_epics WHERE milestone_id = ? AND activity_id = ?',
-    milestoneId, activityId,
-  );
+  const db = await getKysely();
+  const result = await db
+    .deleteFrom('milestone_epics')
+    .where('milestone_id', '=', Number(milestoneId))
+    .where('activity_id', '=', Number(activityId))
+    .execute();
+  return deleteResult(result.numDeletedRows);
 }
 
 /**
@@ -175,9 +234,10 @@ export async function unlinkEpic(milestoneId: number | string, activityId: numbe
  * `listEpics` returns full rows, which is a different shape for a different caller.
  */
 export async function listEpicActivityIds(milestoneId: number | string) {
-  const db = await getDb();
-  return db.all<{ activity_id: number }>(
-    'SELECT activity_id FROM milestone_epics WHERE milestone_id = ?',
-    milestoneId,
-  );
+  const db = await getKysely();
+  return db
+    .selectFrom('milestone_epics')
+    .select('activity_id')
+    .where('milestone_id', '=', Number(milestoneId))
+    .execute();
 }

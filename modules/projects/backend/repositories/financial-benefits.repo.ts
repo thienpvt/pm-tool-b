@@ -1,4 +1,4 @@
-import { getDb } from '@/lib/db';
+import { getKysely } from '@/lib/db/kysely';
 import { coerceVndSafe } from '@/lib/fiscal/vnd';
 
 export type FinancialBenefitRow = {
@@ -21,35 +21,37 @@ function normalizeRow(row: FinancialBenefitRow): FinancialBenefitRow {
 }
 
 export async function listFinancialBenefits(projectId: number | string) {
-  const db = await getDb();
-  const rows = await db.all<FinancialBenefitRow>(
-    `SELECT * FROM financial_benefits
-     WHERE project_id = ?
-     ORDER BY fiscal_year DESC, benefit_type`,
-    Number(projectId),
-  );
+  const db = await getKysely();
+  const rows = await db
+    .selectFrom('financial_benefits')
+    .selectAll()
+    .where('project_id', '=', Number(projectId))
+    .orderBy('fiscal_year', 'desc')
+    .orderBy('benefit_type')
+    .execute();
   return rows.map(normalizeRow);
 }
 
 export async function listFinancialBenefitsForYear(projectId: number | string, fiscalYear: number) {
-  const db = await getDb();
-  const rows = await db.all<FinancialBenefitRow>(
-    `SELECT * FROM financial_benefits
-     WHERE project_id = ? AND fiscal_year = ?
-     ORDER BY benefit_type`,
-    Number(projectId),
-    fiscalYear,
-  );
+  const db = await getKysely();
+  const rows = await db
+    .selectFrom('financial_benefits')
+    .selectAll()
+    .where('project_id', '=', Number(projectId))
+    .where('fiscal_year', '=', fiscalYear)
+    .orderBy('benefit_type')
+    .execute();
   return rows.map(normalizeRow);
 }
 
 export async function getFinancialBenefitInProject(projectId: number | string, id: number | string) {
-  const db = await getDb();
-  const row = await db.get<FinancialBenefitRow>(
-    'SELECT * FROM financial_benefits WHERE id = ? AND project_id = ?',
-    id,
-    Number(projectId),
-  );
+  const db = await getKysely();
+  const row = await db
+    .selectFrom('financial_benefits')
+    .selectAll()
+    .where('id', '=', Number(id))
+    .where('project_id', '=', Number(projectId))
+    .executeTakeFirst();
   return row ? normalizeRow(row) : undefined;
 }
 
@@ -62,24 +64,21 @@ export async function insertFinancialBenefit(
     actual_vnd?: number | null;
   },
 ) {
-  const db = await getDb();
+  const db = await getKysely();
   const hasActual = 'actual_vnd' in body;
   const actualParam = hasActual ? body.actual_vnd : null;
-  const result = await db.run(
-    `INSERT INTO financial_benefits
-       (project_id, fiscal_year, benefit_type, expected_vnd, actual_vnd)
-     VALUES (?, ?, ?, ?, ?)`,
-    Number(projectId),
-    body.fiscal_year,
-    body.benefit_type,
-    body.expected_vnd,
-    actualParam,
-  );
-  const row = await db.get<FinancialBenefitRow>(
-    'SELECT * FROM financial_benefits WHERE id = ?',
-    result.lastInsertRowid,
-  );
-  return normalizeRow(row!);
+  const row = await db
+    .insertInto('financial_benefits')
+    .values({
+      project_id: Number(projectId),
+      fiscal_year: body.fiscal_year,
+      benefit_type: body.benefit_type,
+      expected_vnd: body.expected_vnd,
+      actual_vnd: actualParam,
+    })
+    .returningAll()
+    .executeTakeFirstOrThrow();
+  return normalizeRow(row);
 }
 
 export async function updateFinancialBenefit(
@@ -87,26 +86,23 @@ export async function updateFinancialBenefit(
   id: number | string,
   patch: { expected_vnd?: number; actual_vnd?: number | null },
 ) {
-  const db = await getDb();
-  const sets: string[] = [];
-  const params: unknown[] = [];
+  const db = await getKysely();
+  const set: { expected_vnd?: number; actual_vnd?: number | null } = {};
   if (patch.expected_vnd !== undefined) {
-    sets.push('expected_vnd = ?');
-    params.push(patch.expected_vnd);
+    set.expected_vnd = patch.expected_vnd;
   }
   if ('actual_vnd' in patch) {
-    sets.push('actual_vnd = ?');
-    params.push(patch.actual_vnd);
+    set.actual_vnd = patch.actual_vnd;
   }
-  if (sets.length === 0) {
+  if (Object.keys(set).length === 0) {
     return getFinancialBenefitInProject(projectId, id);
   }
-  params.push(id, Number(projectId));
-  const row = await db.get<FinancialBenefitRow>(
-    `UPDATE financial_benefits SET ${sets.join(', ')}
-     WHERE id = ? AND project_id = ?
-     RETURNING *`,
-    ...params,
-  );
+  const row = await db
+    .updateTable('financial_benefits')
+    .set(set)
+    .where('id', '=', Number(id))
+    .where('project_id', '=', Number(projectId))
+    .returningAll()
+    .executeTakeFirst();
   return row ? normalizeRow(row) : undefined;
 }
