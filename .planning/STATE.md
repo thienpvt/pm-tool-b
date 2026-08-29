@@ -5,16 +5,16 @@ milestone_name: Hardening & Deferred Debt
 current_phase: 25
 current_phase_name: Kysely Repositories
 status: executing
-stopped_at: Completed 25-05-PLAN.md
-last_updated: "2026-08-29T00:42:25.026Z"
+stopped_at: Completed 25-06-PLAN.md
+last_updated: "2026-08-29T00:46:36.305Z"
 last_activity: 2026-08-29
 last_activity_desc: Phase 25 execution started
-state_head: 8204e58a76e4e24cf689a4b0600858bfc2148411
+state_head: 4e4ce5ca29cb8837f16cf1e0d1d7eda22779ffb1
 progress:
   total_phases: 9
   completed_phases: 6
   total_plans: 50
-  completed_plans: 40
+  completed_plans: 41
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-08-28)
 ## Current Position
 
 Phase: 25 (Kysely Repositories) — EXECUTING
-Plan: 6 of 15
+Plan: 7 of 15
 Status: Ready to execute
 Last activity: 2026-08-29 — Phase 25 execution started
 
@@ -135,6 +135,7 @@ Progress: [██░░░░░░░░] 25%
 | Phase 25 P03 | 15 | 3 tasks | 6 files |
 | Phase 25 P04 | 25 | 3 tasks | 11 files |
 | Phase 25-kysely-repositories P05 | 8min | 3 tasks | 7 files |
+| Phase 25 P06 | 5min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -285,6 +286,8 @@ Recent decisions affecting current work:
 - [Phase 25]: company_rag_config and company_jira_config upserts keyed by company_id PK without serial RETURNING
 - [Phase 25]: listEffectiveTemplates keeps DISTINCT ON via sql template on getKysely (D-05)
 - [Phase 25]: Document DDL added to setupRepoTables test harness only — not a schema migration
+- [Phase 25]: listOperationsSystems keeps aggregate SQL via sql template on getKysely (D-05)
+- [Phase 25]: Delete functions map numDeletedRows to changes for operations.service compatibility
 
 ### Pending Todos
 
@@ -308,8 +311,8 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-08-29T00:42:24.566Z
-Stopped at: Completed 25-05-PLAN.md
+Last session: 2026-08-29T00:46:35.842Z
+Stopped at: Completed 25-06-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
