@@ -165,7 +165,7 @@ export async function createPeriodWithShells(
   const dueAt = materializeDueAtUtc(startDate, config.due_weekday, config.due_time_utc);
   const displayName = formatPeriodDisplayName(isoWeek, startDate, endDate);
 
-  return withPgTransaction(async (client) => {
+  return withPgTransaction(async () => {
     const db = await getKysely();
     const periodRow = await db
       .insertInto('weekly_periods')
@@ -185,7 +185,7 @@ export async function createPeriodWithShells(
     const projectIds = await listObligatedProjectIds(companyId, isoWeek);
     const shells: WeeklyReportShellRow[] = [];
     for (const projectId of projectIds) {
-      const shell = await insertShell(client, period.id, projectId);
+      const shell = await insertShell(period.id, projectId);
       if (shell) shells.push(shell);
     }
     return { ...period, shells };
