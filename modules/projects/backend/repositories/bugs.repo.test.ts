@@ -1,8 +1,12 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest';
-import { hasTestDb } from '../../test/db';
-import { seedProject, setupRepoTables, testDb } from '../../test/repo-db';
+import { hasTestDb } from '@/test/db';
+import { seedProject, setupRepoTables, testDb, testKysely } from '@/test/repo-db';
 
 vi.mock('@/lib/db', () => ({ getDb: vi.fn(async () => testDb()) }));
+
+vi.mock('@/lib/db/kysely', () => ({
+  getKysely: vi.fn(async () => testKysely()),
+}));
 
 import {
   deleteAllBugs,
@@ -19,6 +23,12 @@ describe.skipIf(!hasTestDb)('bugs.repo', () => {
   beforeAll(async () => {
     await setupRepoTables();
     projectId = await seedProject('Bugs Suite');
+  });
+
+  it('loads via getKysely', async () => {
+    const { getKysely } = await import('@/lib/db/kysely');
+    await listSnapshotDates(projectId);
+    expect(getKysely).toHaveBeenCalled();
   });
 
   it('replaces a snapshot and lists it back', async () => {

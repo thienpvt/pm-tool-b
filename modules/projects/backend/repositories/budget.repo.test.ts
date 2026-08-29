@@ -1,8 +1,12 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest';
-import { hasTestDb } from '../../test/db';
-import { seedProject, setupRepoTables, testDb } from '../../test/repo-db';
+import { hasTestDb } from '@/test/db';
+import { seedProject, setupRepoTables, testDb, testKysely } from '@/test/repo-db';
 
 vi.mock('@/lib/db', () => ({ getDb: vi.fn(async () => testDb()) }));
+
+vi.mock('@/lib/db/kysely', () => ({
+  getKysely: vi.fn(async () => testKysely()),
+}));
 
 import {
   createBudgetItem,
@@ -21,6 +25,12 @@ describe.skipIf(!hasTestDb)('budget.repo', () => {
   beforeAll(async () => {
     await setupRepoTables();
     projectId = await seedProject('Budget Suite');
+  });
+
+  it('loads via getKysely', async () => {
+    const { getKysely } = await import('@/lib/db/kysely');
+    await listBudgetItems(projectId);
+    expect(getKysely).toHaveBeenCalled();
   });
 
   it('creates an item and reads it back scoped to the project', async () => {
