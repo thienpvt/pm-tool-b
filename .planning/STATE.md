@@ -4,17 +4,17 @@ milestone: v2.1
 milestone_name: Hardening & Deferred Debt
 current_phase: 25
 current_phase_name: Kysely Repositories
-status: planning
-stopped_at: Phase 24 complete, ready to plan Phase 25
-last_updated: "2026-08-28T14:37:25.198Z"
-last_activity: 2026-08-28
-last_activity_desc: Phase 24 complete, transitioned to Phase 25
-state_head: 95087ce1d5edec1a45b278ed6e12508477762d3f
+status: executing
+stopped_at: Completed 25-01-PLAN.md
+last_updated: "2026-08-29T00:26:05.990Z"
+last_activity: 2026-08-29
+last_activity_desc: Phase 25 execution started
+state_head: 664747145c943c51a8d99771b044e5ab09874566
 progress:
   total_phases: 9
   completed_phases: 6
-  total_plans: 35
-  completed_plans: 35
+  total_plans: 50
+  completed_plans: 36
 ---
 
 # Project State
@@ -24,14 +24,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-28)
 
 **Core value:** One source of truth for projects, milestones, RAID, and weekly reports — role- and project-scoped — so CPMO and PMs act on highlights, nearest milestones, open risks/issues, and items that need leadership support.
-**Current focus:** Phase 24 — Repo-wide Module Split
+**Current focus:** Phase 25 — Kysely Repositories
 
 ## Current Position
 
-Phase: 25 — Kysely Repositories
-Plan: Not started
-Status: Ready to plan
-Last activity: 2026-08-28 — Phase 24 complete, transitioned to Phase 25
+Phase: 25 (Kysely Repositories) — EXECUTING
+Plan: 2 of 15
+Status: Ready to execute
+Last activity: 2026-08-29 — Phase 25 execution started
 
 Progress: [██░░░░░░░░] 25%
 
@@ -130,6 +130,7 @@ Progress: [██░░░░░░░░] 25%
 | Phase 24 P08 | 7 | 3 tasks | 40 files |
 | Phase 24 P09 | 5 | 2 tasks | 56 files |
 | Phase 24 P10 | 8 | 2 tasks | 22 files |
+| Phase 25-kysely-repositories P01 | 8min | 3 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -271,6 +272,8 @@ Recent decisions affecting current work:
 - [Phase 24]: Cross-module importers retargeted to modules/admin/backend for moved repos
 - [Phase 24]: Operations handlers keep getSessionFromRequest — no withCpmo (D-07)
 - [Phase 24]: MOD-01 closeout: all ten feature modules have backend/ and ui/
+- [Phase 25]: Hand-authored lib/db/database.ts from migrations when codegen unavailable (D-03 fallback)
+- [Phase 25]: Audit tracer uses getKysely with testKysely mock; txKyselyTarget ALS stub for 25-02
 
 ### Pending Todos
 
@@ -294,8 +297,8 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-08-28T14:15:02.141Z
-Stopped at: Phase 24 complete, ready to plan Phase 25
+Last session: 2026-08-29T00:26:05.533Z
+Stopped at: Completed 25-01-PLAN.md
 Resume file: None
 
 ## Operator Next Steps

@@ -276,52 +276,67 @@ Plans:
   2. Runtime mass-assignment tests still reject extra fields; allowlists are not abandoned
   3. The app still uses a single connection pool (no second ORM and no second pool)
 
-**Plans:** 15 plans
+**Plans:** 1/15 plans executed
 
 Plans:
 **Wave 1**
-- [ ] 25-01-PLAN.md — Kysely factory + audit tracer (legitimacy checkpoint)
+
+- [x] 25-01-PLAN.md — Kysely factory + audit tracer (legitimacy checkpoint)
 
 **Wave 2** *(blocked on Wave 1)*
+
 - [ ] 25-02-PLAN.md — pickAllowed + transactional Kysely ALS
 
 **Wave 3** *(blocked on Wave 2)*
+
 - [ ] 25-03-PLAN.md — dashboards + auth.repo + settings.repo
 
 **Wave 4** *(blocked on Wave 3)*
+
 - [ ] 25-04-PLAN.md — admin module repos
 
 **Wave 5** *(blocked on Wave 4)*
+
 - [ ] 25-05-PLAN.md — documents module repos
 
 **Wave 6** *(blocked on Wave 5)*
+
 - [ ] 25-06-PLAN.md — jira import-mapping + operations
 
 **Wave 7** *(blocked on Wave 6)*
+
 - [ ] 25-07-PLAN.md — programs, fiscal-budget, resources
 
 **Wave 8** *(blocked on Wave 7)*
+
 - [ ] 25-08-PLAN.md — portfolio.repo.ts
 
 **Wave 9** *(blocked on Wave 8)*
+
 - [ ] 25-09-PLAN.md — weekly-periods + weekly-export (tx bridge)
 
 **Wave 10** *(blocked on Wave 9)*
+
 - [ ] 25-10-PLAN.md — weekly-reports.repo.ts
 
 **Wave 11** *(blocked on Wave 10)*
+
 - [ ] 25-11-PLAN.md — projects W9a reads (budget, bugs, documents, holidays, financial-benefits, milestones)
 
 **Wave 12** *(blocked on Wave 11)*
+
 - [ ] 25-12-PLAN.md — projects W9a remaining reads
 
 **Wave 13** *(blocked on Wave 12)*
+
 - [ ] 25-13-PLAN.md — W9b pickAllowed (projects, activities, risks)
 
 **Wave 14** *(blocked on Wave 13)*
+
 - [ ] 25-14-PLAN.md — W9b pickAllowed (issues, meetings, escalations, team)
 
 **Wave 15** *(blocked on Wave 14)*
+
 - [ ] 25-15-PLAN.md — cleanup SET helper; repo getKysely gate
 
 ### Phase 26: RSC Chrome & Cold Start
@@ -367,6 +382,6 @@ v1.0 Phases 1–8 and v2.0 Phases 9–18 are complete (see milestone archives ab
 | 22. Weekly Workflow Surfaces | 5/5 | Complete    | 2026-08-28 |
 | 23. Document Checklist & Audit Viewer | 5/5 | Complete    | 2026-08-28 |
 | 24. Repo-wide Module Split | 10/10 | Complete    | 2026-08-28 |
-| 25. Kysely Repositories | 0/15 | Planned | - |
+| 25. Kysely Repositories | 1/15 | In Progress|  |
 | 26. RSC Chrome & Cold Start | 0/TBD | Not started | - |
 | 27. Nits, Validation & Operator Gate | 0/TBD | Not started | - |
