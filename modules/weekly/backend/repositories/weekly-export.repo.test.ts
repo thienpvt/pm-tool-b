@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { hasTestDb, testPool } from '@/test/db';
-import { seedCompany, seedProject, setupRepoTables, testDb } from '@/test/repo-db';
+import { seedCompany, seedProject, setupRepoTables, testDb, testKysely } from '@/test/repo-db';
 import { migrateWeeklyReports } from '@/lib/db-weekly-reports';
 import { runInTransactionOnPool } from '@/lib/db-tx';
 
@@ -8,6 +8,10 @@ vi.mock('@/lib/db', () => ({
   getDb: vi.fn(async () => testDb()),
   runInTransaction: (fn: (client: import('pg').PoolClient) => Promise<unknown>) =>
     runInTransactionOnPool(testPool(), fn),
+}));
+
+vi.mock('@/lib/db/kysely', () => ({
+  getKysely: vi.fn(async () => testKysely()),
 }));
 
 import { insertWeeklyExportLog } from './weekly-export.repo';
@@ -81,5 +85,19 @@ describe.skipIf(!hasTestDb)('weekly-export.repo', () => {
       project_ids: [100, 101],
       period_display_name: '2026-W01',
     });
+  });
+
+  it('loads via getKysely', async () => {
+    const { getKysely } = await import('@/lib/db/kysely');
+    await insertWeeklyExportLog({
+      period_id: periodId,
+      company_id: companyId,
+      exported_by: userId,
+      format: 'xlsx',
+      data_version: 1,
+      project_ids: [1],
+      period_display_name: '2026-W01',
+    });
+    expect(getKysely).toHaveBeenCalled();
   });
 });
