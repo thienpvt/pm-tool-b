@@ -145,6 +145,27 @@ describe('milestones.service', () => {
     expect(auditLog).not.toHaveBeenCalled();
   });
 
+  it('updateMilestone still audits when repo returns snapshot drift on partial PATCH', async () => {
+    getMilestoneRepo.mockResolvedValue({
+      id: 3,
+      name: 'M',
+      status: 'planned',
+      start_date: '2026-01-01',
+      end_date: '2026-06-30',
+      plan_end: '2026-06-30',
+    });
+    updateMilestoneRepo.mockResolvedValue({
+      id: 3,
+      name: 'M',
+      status: 'planned',
+      start_date: null,
+      end_date: '2026-06-30',
+      plan_end: '2026-06-30',
+    });
+    await updateMilestone(7, owner, 3, { name: 'M' });
+    expect(auditLog).toHaveBeenCalledTimes(1);
+  });
+
   it('updateMilestone calls auditLog action update on success (D-02)', async () => {
     getMilestoneRepo.mockResolvedValue({
       id: 3,

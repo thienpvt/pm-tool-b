@@ -70,6 +70,21 @@ describe.skipIf(!hasTestDb)('milestones.repo', () => {
     expect(updated.name).toBe('After');
   });
 
+  it('partial PATCH with unchanged name preserves start_date (NIT-02)', async () => {
+    const created = await createMilestone(projectId, {
+      name: 'M',
+      start_date: '2026-01-01',
+    }) as { id: number };
+
+    const updated = await updateMilestone(projectId, created.id, { name: 'M' }) as Record<
+      string,
+      string | null
+    >;
+
+    expect(updated.name).toBe('M');
+    expect(updated.start_date).toBe('2026-01-01');
+  });
+
   it('will not update a milestone belonging to another project', async () => {
     const other = await seedProject('Foreign Update Milestones');
     const foreign = await createMilestone(other, { name: 'Untouched' }) as { id: number };

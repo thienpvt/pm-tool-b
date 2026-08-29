@@ -71,16 +71,19 @@ export async function updateMilestone(
     : undefined;
 
   const set: {
-    name: string;
-    start_date: string | null;
+    name?: string;
+    start_date?: string | null;
     end_date?: string | null;
     plan_end?: string | null;
     adjusted_end?: string | null;
-  } = {
-    name: String(body.name ?? ''),
-    start_date: body.start_date != null ? String(body.start_date) : null,
-  };
+  } = {};
 
+  if (body.name !== undefined) {
+    set.name = String(body.name);
+  }
+  if (body.start_date !== undefined) {
+    set.start_date = body.start_date != null ? String(body.start_date) : null;
+  }
   if (endDate !== undefined) {
     set.end_date = endDate;
   }
@@ -89,6 +92,10 @@ export async function updateMilestone(
   }
   if (body.adjusted_end !== undefined) {
     set.adjusted_end = (body.adjusted_end ?? null) as string | null;
+  }
+
+  if (Object.keys(set).length === 0) {
+    return getMilestone(projectId, milestoneId);
   }
 
   return db
