@@ -1,25 +1,38 @@
-import { getDb } from '@/lib/db';
+import { sql } from 'kysely';
+import { getKysely } from '@/lib/db/kysely';
 
-function adminFlag(isAdmin: boolean): number {
-  return isAdmin ? 1 : 0;
-}
+type OperationsSystemListRow = {
+  id: number;
+  company_id: number | null;
+  project_id: number | null;
+  name: string;
+  description: string | null;
+  go_live_date: string | null;
+  status: string;
+  created_at: Date;
+  project_name: string | null;
+  total_planned: number;
+  total_actual: number;
+  open_incidents: number;
+};
 
 /** Systems visible to a company; resolved admins bypass the company predicate. */
 export async function listOperationsSystems(companyId: number | null, isAdmin: boolean) {
-  const db = await getDb();
-  return db.all(
-    `SELECT os.*, p.name AS project_name,
+  const db = await getKysely();
+  const adminFlag = isAdmin ? 1 : 0;
+  const result = await sql<OperationsSystemListRow>`
+    SELECT os.*, p.name AS project_name,
        COALESCE(SUM(obi.planned_amount), 0) AS total_planned,
        COALESCE(SUM(obi.actual_amount), 0) AS total_actual,
-       (SELECT COUNT(*) FROM operations_incidents oi
+       (SELECT COUNT(*)::int FROM operations_incidents oi
         WHERE oi.operations_system_id = os.id AND oi.status != 'Resolved') AS open_incidents
      FROM operations_systems os
      LEFT JOIN projects p ON p.id = os.project_id
      LEFT JOIN operations_budget_items obi ON obi.operations_system_id = os.id
-     WHERE (os.company_id = ? OR ? = 1)
-     GROUP BY os.id, p.name ORDER BY os.name`,
-    companyId, adminFlag(isAdmin),
-  );
+     WHERE (os.company_id = ${companyId} OR ${adminFlag} = 1)
+     GROUP BY os.id, p.name ORDER BY os.name
+  `.execute(db);
+  return result.rows;
 }
 
 export async function findOperationsSystem(
@@ -27,11 +40,15 @@ export async function findOperationsSystem(
   companyId: number | null,
   isAdmin: boolean,
 ) {
-  const db = await getDb();
-  return db.get<{ id: number }>(
-    'SELECT id FROM operations_systems WHERE id = ? AND (company_id = ? OR ? = 1)',
-    systemId, companyId, adminFlag(isAdmin),
-  );
+  const db = await getKysely();
+  let q = db
+    .selectFrom('operations_systems')
+    .select(['id'])
+    .where('id', '=', Number(systemId));
+  if (!isAdmin) {
+    q = q.where('company_id', '=', companyId);
+  }
+  return q.executeTakeFirst();
 }
 
 export async function getOperationsSystem(
@@ -39,40 +56,55 @@ export async function getOperationsSystem(
   companyId: number | null,
   isAdmin: boolean,
 ) {
-  const db = await getDb();
-  return db.get(
-    `SELECT os.*, p.name AS project_name FROM operations_systems os
-     LEFT JOIN projects p ON p.id = os.project_id
-     WHERE os.id = ? AND (os.company_id = ? OR ? = 1)`,
-    systemId, companyId, adminFlag(isAdmin),
-  );
+  const db = await getKysely();
+  let q = db
+    .selectFrom('operations_systems as os')
+    .leftJoin('projects as p', 'p.id', 'os.project_id')
+    .selectAll('os')
+    .select('p.name as project_name')
+    .where('os.id', '=', Number(systemId));
+  if (!isAdmin) {
+    q = q.where('os.company_id', '=', companyId);
+  }
+  return q.executeTakeFirst();
 }
 
 export async function createOperationsSystem(companyId: number | null, body: Record<string, unknown>) {
-  const db = await getDb();
-  const r = await db.run(
-    `INSERT INTO operations_systems
-       (company_id, project_id, name, description, go_live_date, status)
-     VALUES (?, ?, ?, ?, ?, ?)`,
-    companyId, body.project_id || null, body.name, body.description || '',
-    body.go_live_date || null, body.status || 'active',
-  );
-  return db.get('SELECT * FROM operations_systems WHERE id = ?', r.lastInsertRowid);
+  const db = await getKysely();
+  return db
+    .insertInto('operations_systems')
+    .values({
+      company_id: companyId,
+      project_id: body.project_id != null ? Number(body.project_id) : null,
+      name: String(body.name),
+      description: body.description != null ? String(body.description) : '',
+      go_live_date: body.go_live_date != null ? String(body.go_live_date) : null,
+      status: body.status != null ? String(body.status) : 'active',
+    })
+    .returningAll()
+    .executeTakeFirstOrThrow();
 }
 
 export async function updateOperationsSystem(systemId: number | string, body: Record<string, unknown>) {
-  const db = await getDb();
-  await db.run(
-    `UPDATE operations_systems SET name=?, description=?, project_id=?, go_live_date=?, status=?
-     WHERE id=?`,
-    body.name, body.description, body.project_id || null, body.go_live_date || null,
-    body.status, systemId,
-  );
-  return db.get(
-    `SELECT os.*, p.name AS project_name FROM operations_systems os
-     LEFT JOIN projects p ON p.id = os.project_id WHERE os.id = ?`,
-    systemId,
-  );
+  const db = await getKysely();
+  await db
+    .updateTable('operations_systems')
+    .set({
+      name: String(body.name),
+      description: body.description != null ? String(body.description) : '',
+      project_id: body.project_id != null ? Number(body.project_id) : null,
+      go_live_date: body.go_live_date != null ? String(body.go_live_date) : null,
+      status: String(body.status),
+    })
+    .where('id', '=', Number(systemId))
+    .execute();
+  return db
+    .selectFrom('operations_systems as os')
+    .leftJoin('projects as p', 'p.id', 'os.project_id')
+    .selectAll('os')
+    .select('p.name as project_name')
+    .where('os.id', '=', Number(systemId))
+    .executeTakeFirst();
 }
 
 export async function deleteOperationsSystem(
@@ -80,31 +112,42 @@ export async function deleteOperationsSystem(
   companyId: number | null,
   isAdmin: boolean,
 ) {
-  const db = await getDb();
-  return db.run(
-    'DELETE FROM operations_systems WHERE id = ? AND (company_id = ? OR ? = 1)',
-    systemId, companyId, adminFlag(isAdmin),
-  );
+  const db = await getKysely();
+  let q = db.deleteFrom('operations_systems').where('id', '=', Number(systemId));
+  if (!isAdmin) {
+    q = q.where('company_id', '=', companyId);
+  }
+  const result = await q.execute();
+  return { lastInsertRowid: 0, changes: Number(result.numDeletedRows ?? 0n) };
 }
 
 export async function listOperationsBudgetItems(systemId: number | string) {
-  const db = await getDb();
-  return db.all(
-    'SELECT * FROM operations_budget_items WHERE operations_system_id = ? ORDER BY category, name',
-    systemId,
-  );
+  const db = await getKysely();
+  return db
+    .selectFrom('operations_budget_items')
+    .selectAll()
+    .where('operations_system_id', '=', Number(systemId))
+    .orderBy('category')
+    .orderBy('name')
+    .execute();
 }
 
 export async function createOperationsBudgetItem(systemId: number | string, body: Record<string, unknown>) {
-  const db = await getDb();
-  const r = await db.run(
-    `INSERT INTO operations_budget_items
-       (operations_system_id, category, name, planned_amount, actual_amount, unit, period_label, notes)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    systemId, body.category || 'OPEX', body.name, body.planned_amount || 0,
-    body.actual_amount || 0, body.unit || 'VND/month', body.period_label || '', body.notes || '',
-  );
-  return db.get('SELECT * FROM operations_budget_items WHERE id = ?', r.lastInsertRowid);
+  const db = await getKysely();
+  return db
+    .insertInto('operations_budget_items')
+    .values({
+      operations_system_id: Number(systemId),
+      category: body.category != null ? String(body.category) : 'OPEX',
+      name: String(body.name),
+      planned_amount: body.planned_amount != null ? Number(body.planned_amount) : 0,
+      actual_amount: body.actual_amount != null ? Number(body.actual_amount) : 0,
+      unit: body.unit != null ? String(body.unit) : 'VND/month',
+      period_label: body.period_label != null ? String(body.period_label) : '',
+      notes: body.notes != null ? String(body.notes) : '',
+    })
+    .returningAll()
+    .executeTakeFirstOrThrow();
 }
 
 export async function updateOperationsBudgetItem(
@@ -112,71 +155,102 @@ export async function updateOperationsBudgetItem(
   itemId: number | string,
   body: Record<string, unknown>,
 ) {
-  const db = await getDb();
-  return db.get(
-    `UPDATE operations_budget_items
-     SET category=?, name=?, planned_amount=?, actual_amount=?, unit=?, period_label=?, notes=?
-     WHERE id=? AND operations_system_id=? RETURNING *`,
-    body.category, body.name, body.planned_amount, body.actual_amount, body.unit,
-    body.period_label, body.notes, itemId, systemId,
-  );
+  const db = await getKysely();
+  return db
+    .updateTable('operations_budget_items')
+    .set({
+      category: String(body.category),
+      name: String(body.name),
+      planned_amount: Number(body.planned_amount),
+      actual_amount: Number(body.actual_amount),
+      unit: String(body.unit),
+      period_label: String(body.period_label),
+      notes: String(body.notes),
+    })
+    .where('id', '=', Number(itemId))
+    .where('operations_system_id', '=', Number(systemId))
+    .returningAll()
+    .executeTakeFirst();
 }
 
 export async function deleteOperationsBudgetItem(systemId: number | string, itemId: number | string) {
-  const db = await getDb();
-  return db.run(
-    'DELETE FROM operations_budget_items WHERE id = ? AND operations_system_id = ?',
-    itemId, systemId,
-  );
+  const db = await getKysely();
+  const result = await db
+    .deleteFrom('operations_budget_items')
+    .where('id', '=', Number(itemId))
+    .where('operations_system_id', '=', Number(systemId))
+    .execute();
+  return { lastInsertRowid: 0, changes: Number(result.numDeletedRows ?? 0n) };
 }
 
 export async function listOperationsExpenses(systemId: number | string) {
-  const db = await getDb();
-  return db.all(
-    'SELECT * FROM operations_expenses WHERE operations_system_id = ? ORDER BY expense_date DESC',
-    systemId,
-  );
+  const db = await getKysely();
+  return db
+    .selectFrom('operations_expenses')
+    .selectAll()
+    .where('operations_system_id', '=', Number(systemId))
+    .orderBy('expense_date', 'desc')
+    .execute();
 }
 
 export async function createOperationsExpense(systemId: number | string, body: Record<string, unknown>) {
-  const db = await getDb();
-  const r = await db.run(
-    `INSERT INTO operations_expenses
-       (operations_system_id, expense_date, category, description, amount, reference)
-     VALUES (?, ?, ?, ?, ?, ?)`,
-    systemId, body.expense_date || new Date().toISOString().split('T')[0],
-    body.category || 'OPEX', body.description || '', body.amount || 0, body.reference || '',
-  );
-  return db.get('SELECT * FROM operations_expenses WHERE id = ?', r.lastInsertRowid);
+  const db = await getKysely();
+  return db
+    .insertInto('operations_expenses')
+    .values({
+      operations_system_id: Number(systemId),
+      expense_date:
+        body.expense_date != null
+          ? String(body.expense_date)
+          : new Date().toISOString().split('T')[0],
+      category: body.category != null ? String(body.category) : 'OPEX',
+      description: body.description != null ? String(body.description) : '',
+      amount: body.amount != null ? Number(body.amount) : 0,
+      reference: body.reference != null ? String(body.reference) : '',
+    })
+    .returningAll()
+    .executeTakeFirstOrThrow();
 }
 
 export async function deleteOperationsExpense(systemId: number | string, expenseId: number | string) {
-  const db = await getDb();
-  return db.run(
-    'DELETE FROM operations_expenses WHERE id = ? AND operations_system_id = ?',
-    expenseId, systemId,
-  );
+  const db = await getKysely();
+  const result = await db
+    .deleteFrom('operations_expenses')
+    .where('id', '=', Number(expenseId))
+    .where('operations_system_id', '=', Number(systemId))
+    .execute();
+  return { lastInsertRowid: 0, changes: Number(result.numDeletedRows ?? 0n) };
 }
 
 export async function listOperationsIncidents(systemId: number | string) {
-  const db = await getDb();
-  return db.all(
-    'SELECT * FROM operations_incidents WHERE operations_system_id = ? ORDER BY reported_at DESC',
-    systemId,
-  );
+  const db = await getKysely();
+  return db
+    .selectFrom('operations_incidents')
+    .selectAll()
+    .where('operations_system_id', '=', Number(systemId))
+    .orderBy('reported_at', 'desc')
+    .execute();
 }
 
 export async function createOperationsIncident(systemId: number | string, body: Record<string, unknown>) {
-  const db = await getDb();
-  const r = await db.run(
-    `INSERT INTO operations_incidents
-       (operations_system_id, title, severity, description, reported_at, resolved_at, cost_impact, status)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    systemId, body.title, body.severity || 'Medium', body.description || '',
-    body.reported_at || new Date().toISOString().split('T')[0], body.resolved_at || null,
-    body.cost_impact || 0, body.status || 'Open',
-  );
-  return db.get('SELECT * FROM operations_incidents WHERE id = ?', r.lastInsertRowid);
+  const db = await getKysely();
+  return db
+    .insertInto('operations_incidents')
+    .values({
+      operations_system_id: Number(systemId),
+      title: String(body.title),
+      severity: body.severity != null ? String(body.severity) : 'Medium',
+      description: body.description != null ? String(body.description) : '',
+      reported_at:
+        body.reported_at != null
+          ? String(body.reported_at)
+          : new Date().toISOString().split('T')[0],
+      resolved_at: body.resolved_at != null ? String(body.resolved_at) : null,
+      cost_impact: body.cost_impact != null ? Number(body.cost_impact) : 0,
+      status: body.status != null ? String(body.status) : 'Open',
+    })
+    .returningAll()
+    .executeTakeFirstOrThrow();
 }
 
 export async function updateOperationsIncident(
@@ -184,20 +258,30 @@ export async function updateOperationsIncident(
   incidentId: number | string,
   body: Record<string, unknown>,
 ) {
-  const db = await getDb();
-  return db.get(
-    `UPDATE operations_incidents
-     SET title=?, severity=?, description=?, reported_at=?, resolved_at=?, cost_impact=?, status=?
-     WHERE id=? AND operations_system_id=? RETURNING *`,
-    body.title, body.severity, body.description, body.reported_at, body.resolved_at || null,
-    body.cost_impact, body.status, incidentId, systemId,
-  );
+  const db = await getKysely();
+  return db
+    .updateTable('operations_incidents')
+    .set({
+      title: String(body.title),
+      severity: String(body.severity),
+      description: String(body.description),
+      reported_at: String(body.reported_at),
+      resolved_at: body.resolved_at != null ? String(body.resolved_at) : null,
+      cost_impact: Number(body.cost_impact),
+      status: String(body.status),
+    })
+    .where('id', '=', Number(incidentId))
+    .where('operations_system_id', '=', Number(systemId))
+    .returningAll()
+    .executeTakeFirst();
 }
 
 export async function deleteOperationsIncident(systemId: number | string, incidentId: number | string) {
-  const db = await getDb();
-  return db.run(
-    'DELETE FROM operations_incidents WHERE id = ? AND operations_system_id = ?',
-    incidentId, systemId,
-  );
+  const db = await getKysely();
+  const result = await db
+    .deleteFrom('operations_incidents')
+    .where('id', '=', Number(incidentId))
+    .where('operations_system_id', '=', Number(systemId))
+    .execute();
+  return { lastInsertRowid: 0, changes: Number(result.numDeletedRows ?? 0n) };
 }
