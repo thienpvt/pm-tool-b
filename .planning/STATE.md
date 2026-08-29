@@ -4,17 +4,17 @@ milestone: v2.1
 milestone_name: Hardening & Deferred Debt
 current_phase: 25
 current_phase_name: Kysely Repositories
-status: executing
-stopped_at: Completed 25-14-PLAN.md
-last_updated: "2026-08-29T01:20:59.509Z"
+status: verifying
+stopped_at: Completed 25-15-PLAN.md
+last_updated: "2026-08-29T01:23:56.010Z"
 last_activity: 2026-08-29
 last_activity_desc: Phase 25 execution started
-state_head: e2c81a367c262c3f425dfed33564fa805c1d861a
+state_head: 47c0f5055fe14b7cac837b0de2b373ebe78ba927
 progress:
   total_phases: 9
   completed_phases: 6
   total_plans: 50
-  completed_plans: 49
+  completed_plans: 50
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-08-28)
 
 Phase: 25 (Kysely Repositories) — EXECUTING
 Plan: 15 of 15
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-08-29 — Phase 25 execution started
 
 Progress: [██░░░░░░░░] 25%
@@ -144,6 +144,7 @@ Progress: [██░░░░░░░░] 25%
 | Phase 25 P12 | 15 | 3 tasks | 12 files |
 | Phase 25-kysely-repositories P13 | 15min | 3 tasks | 6 files |
 | Phase 25-kysely-repositories P14 | 12 | 3 tasks | 8 files |
+| Phase 25 P15 | 5 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -308,6 +309,7 @@ Recent decisions affecting current work:
 - [Phase 25]: project-dependencies direction CASE via sql template
 - [Phase 25]: W9b: projects/activities/risks on getKysely with pickAllowed PATCH guard (D-04, ENF-02)
 - [Phase 25]: W9b rest: issues/meetings/escalations/team on getKysely with pickAllowed PATCH guard (D-04, ENF-02)
+- [Phase 25]: Removed buildUpdate after zero production repo callers; gate test enforces getKysely on all *.repo.ts
 
 ### Pending Todos
 
@@ -331,8 +333,8 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-08-29T01:20:59.005Z
-Stopped at: Completed 25-14-PLAN.md
+Last session: 2026-08-29T01:23:55.503Z
+Stopped at: Completed 25-15-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
