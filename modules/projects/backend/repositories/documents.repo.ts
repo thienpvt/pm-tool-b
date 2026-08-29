@@ -1,4 +1,5 @@
-import { getDb } from '@/lib/db';
+import { sql } from 'kysely';
+import { getKysely } from '@/lib/db/kysely';
 
 /**
  * Project documents.
@@ -14,25 +15,48 @@ import { getDb } from '@/lib/db';
  * see ALLOWLIST-DIFF.md.
  */
 
+function deleteResult(numDeletedRows: bigint | number | undefined) {
+  return { lastInsertRowid: 0, changes: Number(numDeletedRows ?? 0) };
+}
+
 export async function listDocuments(projectId: number | string) {
-  const db = await getDb();
-  return db.all('SELECT * FROM documents WHERE project_id = ? ORDER BY created_at DESC', projectId);
+  const db = await getKysely();
+  return db
+    .selectFrom('documents')
+    .selectAll()
+    .where('project_id', '=', Number(projectId))
+    .orderBy('created_at', 'desc')
+    .execute();
 }
 
 export async function getDocument(docId: number | string) {
-  const db = await getDb();
-  return db.get('SELECT * FROM documents WHERE id = ?', docId);
+  const db = await getKysely();
+  return db
+    .selectFrom('documents')
+    .selectAll()
+    .where('id', '=', Number(docId))
+    .executeTakeFirst();
 }
 
 /** Existence + ownership probe used by PUT and DELETE before they touch a row. */
 export async function findDocumentInProject(projectId: number | string, docId: number | string) {
-  const db = await getDb();
-  return db.get<{ id: number }>('SELECT id FROM documents WHERE id = ? AND project_id = ?', docId, projectId);
+  const db = await getKysely();
+  return db
+    .selectFrom('documents')
+    .select('id')
+    .where('id', '=', Number(docId))
+    .where('project_id', '=', Number(projectId))
+    .executeTakeFirst();
 }
 
 export async function findDocumentByType(projectId: number | string, type: string) {
-  const db = await getDb();
-  return db.get<{ id: number }>('SELECT id FROM documents WHERE project_id = ? AND type = ?', projectId, type);
+  const db = await getKysely();
+  return db
+    .selectFrom('documents')
+    .select('id')
+    .where('project_id', '=', Number(projectId))
+    .where('type', '=', type)
+    .executeTakeFirst();
 }
 
 /** Document shape consumed by Word export, optionally pinned to a specific report row. */
@@ -41,11 +65,21 @@ export async function getDocumentForExport(
   type: string,
   documentId?: number | string,
 ) {
-  const db = await getDb();
+  const db = await getKysely();
   if (documentId != null) {
-    return db.get('SELECT * FROM documents WHERE id = ? AND project_id = ?', documentId, projectId);
+    return db
+      .selectFrom('documents')
+      .selectAll()
+      .where('id', '=', Number(documentId))
+      .where('project_id', '=', Number(projectId))
+      .executeTakeFirst();
   }
-  return db.get('SELECT * FROM documents WHERE project_id = ? AND type = ?', projectId, type);
+  return db
+    .selectFrom('documents')
+    .selectAll()
+    .where('project_id', '=', Number(projectId))
+    .where('type', '=', type)
+    .executeTakeFirst();
 }
 
 export async function createDocument(
@@ -54,12 +88,17 @@ export async function createDocument(
   title: string,
   contentJson: string,
 ) {
-  const db = await getDb();
-  const r = await db.run(
-    'INSERT INTO documents (project_id, type, title, content_json) VALUES (?,?,?,?)',
-    projectId, type, title, contentJson,
-  );
-  return db.get('SELECT * FROM documents WHERE id = ?', r.lastInsertRowid);
+  const db = await getKysely();
+  return db
+    .insertInto('documents')
+    .values({
+      project_id: Number(projectId),
+      type,
+      title,
+      content_json: contentJson,
+    })
+    .returningAll()
+    .executeTakeFirstOrThrow();
 }
 
 /** Updates content/title and bumps `updated_at`, matching the route's NOW() write. */
@@ -68,15 +107,28 @@ export async function updateDocumentContent(
   title: string,
   contentJson: string,
 ) {
-  const db = await getDb();
-  await db.run(
-    'UPDATE documents SET content_json = ?, title = ?, updated_at = NOW() WHERE id = ?',
-    contentJson, title, docId,
-  );
-  return db.get('SELECT * FROM documents WHERE id = ?', docId);
+  const db = await getKysely();
+  await db
+    .updateTable('documents')
+    .set({
+      content_json: contentJson,
+      title,
+      updated_at: sql`NOW()`,
+    })
+    .where('id', '=', Number(docId))
+    .execute();
+  return db
+    .selectFrom('documents')
+    .selectAll()
+    .where('id', '=', Number(docId))
+    .executeTakeFirstOrThrow();
 }
 
 export async function deleteDocument(docId: number | string) {
-  const db = await getDb();
-  return db.run('DELETE FROM documents WHERE id = ?', docId);
+  const db = await getKysely();
+  const result = await db
+    .deleteFrom('documents')
+    .where('id', '=', Number(docId))
+    .execute();
+  return deleteResult(result.numDeletedRows);
 }

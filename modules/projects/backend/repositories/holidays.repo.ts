@@ -1,4 +1,4 @@
-import { getDb } from '@/lib/db';
+import { getKysely } from '@/lib/db/kysely';
 
 /**
  * Project holidays. Fixed-column writes, so no allowlist is needed — see ALLOWLIST-DIFF.md.
@@ -8,32 +8,49 @@ import { getDb } from '@/lib/db';
  * the route where it already lives.
  */
 
+function deleteResult(numDeletedRows: bigint | number | undefined) {
+  return { lastInsertRowid: 0, changes: Number(numDeletedRows ?? 0) };
+}
+
 export async function listHolidays(projectId: number | string) {
-  const db = await getDb();
-  return db.all('SELECT * FROM project_holidays WHERE project_id = ? ORDER BY date ASC', Number(projectId));
+  const db = await getKysely();
+  return db
+    .selectFrom('project_holidays')
+    .selectAll()
+    .where('project_id', '=', Number(projectId))
+    .orderBy('date', 'asc')
+    .execute();
 }
 
 export async function findHolidayByDate(projectId: number | string, date: string) {
-  const db = await getDb();
-  return db.get<{ id: number }>(
-    'SELECT id FROM project_holidays WHERE project_id = ? AND date = ?',
-    Number(projectId), date,
-  );
+  const db = await getKysely();
+  return db
+    .selectFrom('project_holidays')
+    .select('id')
+    .where('project_id', '=', Number(projectId))
+    .where('date', '=', date)
+    .executeTakeFirst();
 }
 
 export async function createHoliday(projectId: number | string, date: string, name: string) {
-  const db = await getDb();
-  const r = await db.run(
-    'INSERT INTO project_holidays (project_id, date, name) VALUES (?, ?, ?)',
-    Number(projectId), date, name,
-  );
-  return db.get('SELECT * FROM project_holidays WHERE id = ?', r.lastInsertRowid);
+  const db = await getKysely();
+  return db
+    .insertInto('project_holidays')
+    .values({
+      project_id: Number(projectId),
+      date,
+      name,
+    })
+    .returningAll()
+    .executeTakeFirstOrThrow();
 }
 
 export async function deleteHoliday(projectId: number | string, holidayId: number | string) {
-  const db = await getDb();
-  return db.run(
-    'DELETE FROM project_holidays WHERE id = ? AND project_id = ?',
-    Number(holidayId), Number(projectId),
-  );
+  const db = await getKysely();
+  const result = await db
+    .deleteFrom('project_holidays')
+    .where('id', '=', Number(holidayId))
+    .where('project_id', '=', Number(projectId))
+    .execute();
+  return deleteResult(result.numDeletedRows);
 }
