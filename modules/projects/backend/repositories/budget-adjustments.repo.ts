@@ -1,4 +1,5 @@
-import { getDb } from '@/lib/db';
+import { sql } from 'kysely';
+import { getKysely } from '@/lib/db/kysely';
 import { coerceVndSafe } from '@/lib/fiscal/vnd';
 
 export type BudgetAdjustmentRow = {
@@ -20,35 +21,37 @@ export async function insertBudgetAdjustment(
     created_by: number;
   },
 ) {
-  const db = await getDb();
-  const result = await db.run(
-    `INSERT INTO budget_adjustments
-       (fiscal_budget_id, amount_vnd, effective_date, reason, created_by)
-     VALUES (?, ?, ?, ?, ?)`,
-    fiscalBudgetId,
-    body.amount_vnd,
-    body.effective_date,
-    body.reason,
-    body.created_by,
-  );
-  return db.get<BudgetAdjustmentRow>('SELECT * FROM budget_adjustments WHERE id = ?', result.lastInsertRowid);
+  const db = await getKysely();
+  return db
+    .insertInto('budget_adjustments')
+    .values({
+      fiscal_budget_id: Number(fiscalBudgetId),
+      amount_vnd: body.amount_vnd,
+      effective_date: body.effective_date,
+      reason: body.reason,
+      created_by: body.created_by,
+    })
+    .returningAll()
+    .executeTakeFirstOrThrow();
 }
 
 export async function listBudgetAdjustments(fiscalBudgetId: number | string) {
-  const db = await getDb();
-  return db.all<BudgetAdjustmentRow>(
-    `SELECT * FROM budget_adjustments
-     WHERE fiscal_budget_id = ?
-     ORDER BY effective_date DESC, created_at DESC`,
-    fiscalBudgetId,
-  );
+  const db = await getKysely();
+  return db
+    .selectFrom('budget_adjustments')
+    .selectAll()
+    .where('fiscal_budget_id', '=', Number(fiscalBudgetId))
+    .orderBy('effective_date', 'desc')
+    .orderBy('created_at', 'desc')
+    .execute();
 }
 
 export async function sumAdjustmentsVnd(fiscalBudgetId: number | string): Promise<number> {
-  const db = await getDb();
-  const row = await db.get<{ total: string | number | null }>(
-    'SELECT COALESCE(SUM(amount_vnd), 0) AS total FROM budget_adjustments WHERE fiscal_budget_id = ?',
-    fiscalBudgetId,
-  );
+  const db = await getKysely();
+  const row = await db
+    .selectFrom('budget_adjustments')
+    .select(sql<number>`COALESCE(SUM(amount_vnd), 0)`.as('total'))
+    .where('fiscal_budget_id', '=', Number(fiscalBudgetId))
+    .executeTakeFirst();
   return coerceVndSafe(row?.total ?? 0, 'amount_vnd');
 }
