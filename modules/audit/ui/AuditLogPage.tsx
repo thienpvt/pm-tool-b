@@ -47,7 +47,7 @@ export default function AuditLogPage() {
       <AuditFiltersBar
         filters={filters}
         refreshing={refreshing}
-        onApply={(next) => load(next, true)}
+        onApply={(next) => { void load(next, true); }}
       />
       <AuditTable rows={data} />
     </>

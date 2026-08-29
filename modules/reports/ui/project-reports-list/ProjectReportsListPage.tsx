@@ -920,6 +920,7 @@ export default function ProjectReportsListPage() {
             </div>
           </div>
         </div>
+      </main>
     </>
   );
 }

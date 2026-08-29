@@ -1,13 +1,17 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { hasTestDb, testPool } from '@/test/db';
-import { seedCompany, seedProject, setupRepoTables, testDb } from '@/test/repo-db';
+import { seedCompany, seedProject, setupRepoTables, testDb, testKysely } from '@/test/repo-db';
 import { migrateWeeklyReports } from '@/lib/db-weekly-reports';
 import { runInTransactionOnPool } from '@/lib/db-tx';
 
 vi.mock('@/lib/db', () => ({
   getDb: vi.fn(async () => testDb()),
+  getPool: vi.fn(async () => testPool()),
   runInTransaction: (fn: (client: import('pg').PoolClient) => Promise<unknown>) =>
     runInTransactionOnPool(testPool(), fn),
+}));
+vi.mock('@/lib/db/kysely', () => ({
+  getKysely: vi.fn(async () => testKysely()),
 }));
 
 vi.mock('@/lib/services/access', () => ({

@@ -12,7 +12,7 @@ const WARM_CACHE_MAX_SAMPLES = 18;
 
 const COLD_START_MD_PATH = resolve(
   __dirname,
-  '../.planning/phases/26-rsc-chrome-cold-start/COLD-START.md',
+  '../.planning/milestones/v2.1-phases/26-rsc-chrome-cold-start/COLD-START.md',
 );
 
 function p95(values: number[]): number {

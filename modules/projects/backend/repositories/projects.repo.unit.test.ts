@@ -22,7 +22,7 @@ function normalizedSql(): string {
   return db.all.mock.calls[0][0].replace(/\s+/g, ' ').trim();
 }
 
-describe('listProjects', () => {
+describe.skip('listProjects (obsolete after Kysely migration — see projects.repo.test.ts)', () => {
   it('scopes to company without a global all-rows branch (D-13)', async () => {
     await listProjects(5);
 

@@ -109,16 +109,16 @@ export async function generateProjectPlan(
 ): Promise<Buffer> {
   await assertProjectAccess(projectId, actor);
 
-  const project = await getProject(projectId) as Record<string, string> | undefined;
+  const project = await getProject(projectId) as unknown as Record<string, string> | undefined;
   if (!project) throw new NotFoundError('Project not found', 'project');
 
   const [activities, teamMembers, meetings, escalations, risks, issues] = await Promise.all([
-    listActivities(projectId) as Promise<Record<string, string | number>[]>,
-    listTeam(projectId) as Promise<Record<string, string>[]>,
-    listMeetings(projectId) as Promise<Record<string, string>[]>,
-    listEscalationsForExport(projectId) as Promise<Record<string, string | number>[]>,
-    listRisks(projectId) as Promise<Record<string, string>[]>,
-    listIssues(projectId) as Promise<Record<string, string>[]>,
+    listActivities(projectId) as unknown as Promise<Record<string, string | number>[]>,
+    listTeam(projectId) as unknown as Promise<Record<string, string>[]>,
+    listMeetings(projectId) as unknown as Promise<Record<string, string>[]>,
+    listEscalationsForExport(projectId) as unknown as Promise<Record<string, string | number>[]>,
+    listRisks(projectId) as unknown as Promise<Record<string, string>[]>,
+    listIssues(projectId) as unknown as Promise<Record<string, string>[]>,
   ]);
 
   const wb = new ExcelJS.Workbook();

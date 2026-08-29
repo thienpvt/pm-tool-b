@@ -3,11 +3,14 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
 vi.mock('@/lib/db', () => ({ getDb: vi.fn() }));
+vi.mock('@/lib/db/kysely', () => ({
+  getKysely: vi.fn(async () => testKysely()),
+}));
 
 import { getSessionFromRequest } from '@/lib/auth';
 import { getDb } from '@/lib/db';
 import { hasTestDb } from '../../../../test/db';
-import { seedProject, setupRepoTables, testDb } from '../../../../test/repo-db';
+import { seedProject, setupRepoTables, testDb, testKysely } from '../../../../test/repo-db';
 import { PATCH } from './route';
 
 /**

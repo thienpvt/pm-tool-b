@@ -32,7 +32,7 @@ const {
   auditLogFn: vi.fn(),
 }));
 
-vi.mock('./access', () => ({
+vi.mock('@/lib/services/access', () => ({
   assertProjectAccess,
   assertCompanyWrite,
   isCpmo: (actor: { roles?: string[] }) => actor.roles?.includes('cpmo') ?? false,

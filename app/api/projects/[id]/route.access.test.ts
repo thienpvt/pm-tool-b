@@ -18,6 +18,7 @@ vi.mock('@/modules/projects/backend/repositories/projects.repo', () => ({
   deleteProject: deleteProjectRepo,
 }));
 vi.mock('@/modules/projects/backend/repositories/pm-assignments.repo', () => ({ hasActivePmAssignment }));
+vi.mock('@/modules/audit/backend/services/audit.service', () => ({ auditLog: vi.fn().mockResolvedValue(undefined) }));
 
 import { getSessionFromRequest } from '@/lib/auth';
 import { UnknownColumnError } from '@/lib/repositories/_helpers';
@@ -202,6 +203,7 @@ describe('GET/PATCH/DELETE /api/projects/[id] access control', () => {
   it('DELETE returns { ok: true } for an assigned PM owner', async () => {
     vi.mocked(getSessionFromRequest).mockResolvedValue(ownerSession as never);
     projectAccessRow.mockResolvedValue({ company_id: 5, customer_company_id: null });
+    getProjectRepo.mockResolvedValue({ id: 7, name: 'Acme Rollout', company_id: 5 });
     deleteProjectRepo.mockResolvedValue({ lastInsertRowid: 0, changes: 1 });
 
     const res = await DELETE(req('DELETE'), params());

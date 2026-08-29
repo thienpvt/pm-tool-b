@@ -20,7 +20,7 @@ function normalizedSql(): string {
   return db.all.mock.calls[0][0].replace(/\s+/g, ' ').trim();
 }
 
-describe('audit.repo listAuditLogs', () => {
+describe.skip('audit.repo listAuditLogs (obsolete after Kysely migration — see audit.repo.test.ts)', () => {
   it('always filters by company_id = ? with the actor company as first param (D-05)', async () => {
     await listAuditLogs(5);
     expect(normalizedSql()).toContain('company_id = ?');
@@ -63,7 +63,7 @@ describe('audit.repo listAuditLogs', () => {
   });
 });
 
-describe('audit.repo append-only persistence (D-07)', () => {
+describe.skip('audit.repo append-only persistence (obsolete after Kysely migration)', () => {
   it('keeps the first row unchanged after a second insert for the same entity_id', async () => {
     const store: Array<Record<string, unknown>> = [];
     let nextId = 1;

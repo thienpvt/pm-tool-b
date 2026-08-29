@@ -81,7 +81,7 @@ export async function generateWordDoc(
 ): Promise<Buffer> {
   await assertProjectAccess(projectId, actor);
 
-  const project = await getProject(projectId) as Record<string, string>;
+  const project = await getProject(projectId) as unknown as Record<string, string>;
   const docRow = await getDocumentForExport(projectId, docType, docId) as {
     content_json: string; title?: string;
   } | undefined;

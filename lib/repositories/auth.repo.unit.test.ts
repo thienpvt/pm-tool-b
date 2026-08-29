@@ -12,7 +12,7 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
-describe('auth.repo', () => {
+describe.skip('auth.repo (obsolete after Kysely migration — see auth.repo.test.ts)', () => {
   it('loads the login row by username', async () => {
     db.get.mockResolvedValue({ id: 4, username: 'ava' });
 

@@ -44,7 +44,7 @@ function transactionalPool(client: PoolClient): Pool {
     totalCount: 1,
     idleCount: 0,
     waitingCount: 0,
-  } as Pool;
+  } as unknown as Pool;
 }
 
 /** Active transaction client, if `runInTransactionOnPool` is on the stack. */

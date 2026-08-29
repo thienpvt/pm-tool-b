@@ -1,4 +1,5 @@
-import { sql } from 'kysely';
+import { sql, type Insertable } from 'kysely';
+import type { Database } from '@/lib/db/database';
 import { getKysely } from '@/lib/db/kysely';
 
 export type AuditLogInput = {
@@ -43,7 +44,7 @@ export async function insertAuditLog(input: AuditLogInput): Promise<void> {
       action: input.action,
       before: input.before === null ? null : JSON.stringify(input.before),
       after: input.after === null ? null : JSON.stringify(input.after),
-    })
+    } as Insertable<Database['audit_logs']>)
     .execute();
 }
 
@@ -77,10 +78,12 @@ export async function listAuditLogs(
     q = q.where('entity_id', '=', filters.entity_id);
   }
   if (filters.from) {
-    q = q.where('created_at', '>=', sql`${filters.from}::date`);
+    q = q.where('created_at', '>=', new Date(`${filters.from}T00:00:00.000Z`));
   }
   if (filters.to) {
-    q = q.where('created_at', '<', sql`(${filters.to}::date + INTERVAL '1 day')`);
+    const endExclusive = new Date(`${filters.to}T00:00:00.000Z`);
+    endExclusive.setUTCDate(endExclusive.getUTCDate() + 1);
+    q = q.where('created_at', '<', endExclusive);
   }
 
   const rows = await q

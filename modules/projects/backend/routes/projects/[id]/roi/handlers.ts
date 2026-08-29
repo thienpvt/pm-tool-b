@@ -3,7 +3,7 @@ import type { NextRequest } from 'next/server';
 import type { HandlerContext } from '@/lib/http/with-auth';
 import { parseFiscalYear } from '@/lib/fiscal/vnd';
 import { getProjectRoi } from '@/modules/projects/backend/services/roi.service';
-import { ValidationError } from '@/modules/projects/backend/services/errors';
+import { ValidationError } from '@/lib/services/errors';
 import { serviceErrorResponse } from '@/lib/api-errors';
 
 export async function getRoiHandler(

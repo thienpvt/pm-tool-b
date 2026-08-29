@@ -99,15 +99,15 @@ export async function generateKickoffPPT(
 ): Promise<Buffer> {
   await assertProjectAccess(projectId, actor);
 
-  const project = await getProject(projectId) as Record<string, string> | undefined;
+  const project = await getProject(projectId) as unknown as Record<string, string> | undefined;
   if (!project) throw new NotFoundError('Project not found', 'project');
 
   const [team, meetings, risks, activities, charter] = await Promise.all([
-    listTeam(projectId) as Promise<Record<string, string>[]>,
-    listMeetings(projectId) as Promise<Record<string, string>[]>,
-    listRisks(projectId) as Promise<Record<string, string>[]>,
-    listActivities(projectId) as Promise<Record<string, string>[]>,
-    getDocumentForExport(projectId, 'project_charter') as Promise<Record<string, string> | undefined>,
+    listTeam(projectId) as unknown as Promise<Record<string, string>[]>,
+    listMeetings(projectId) as unknown as Promise<Record<string, string>[]>,
+    listRisks(projectId) as unknown as Promise<Record<string, string>[]>,
+    listActivities(projectId) as unknown as Promise<Record<string, string>[]>,
+    getDocumentForExport(projectId, 'project_charter') as unknown as Promise<Record<string, string> | undefined>,
   ]);
 
   const charterContent = charter ? JSON.parse(charter.content_json || '{}') : {};

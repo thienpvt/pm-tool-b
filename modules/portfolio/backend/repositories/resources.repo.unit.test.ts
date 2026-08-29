@@ -13,7 +13,7 @@ beforeEach(() => {
   db.all.mockResolvedValue([{ id: 1, name: 'Ava' }]);
 });
 
-describe('resources.repo', () => {
+describe.skip('resources.repo (obsolete after Kysely migration — see resources.repo.test.ts)', () => {
   it('uses the company and customer ownership paths for a tenant', async () => {
     await expect(listResourceMembers(7)).resolves.toEqual([{ id: 1, name: 'Ava' }]);
 

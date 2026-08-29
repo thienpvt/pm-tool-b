@@ -25,7 +25,7 @@ vi.mock('@/modules/projects/backend/repositories/risks.repo', () => ({
   listRisks: vi.fn(),
   createRisk: createRiskRepo,
   updateRisk: vi.fn(),
-  findRiskByCode: vi.fn(),
+  findRiskByCode: vi.fn().mockResolvedValue(undefined),
   getRisk: vi.fn(),
   deactivateRisk: vi.fn(),
   countRisks: vi.fn(),
@@ -33,6 +33,7 @@ vi.mock('@/modules/projects/backend/repositories/risks.repo', () => ({
   listNotClosedByPriority: vi.fn(),
   RISK_COLUMNS: [],
 }));
+vi.mock('@/modules/audit/backend/services/audit.service', () => ({ auditLog: vi.fn().mockResolvedValue(undefined) }));
 
 import { getSessionFromRequest } from '@/lib/auth';
 import { GET as getProject } from '@/app/api/projects/[id]/route';

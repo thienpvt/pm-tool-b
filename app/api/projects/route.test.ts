@@ -1,11 +1,17 @@
 import { NextRequest } from 'next/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+const { listProjects } = vi.hoisted(() => ({
+  listProjects: vi.fn(),
+}));
+
 vi.mock('@/lib/auth', () => ({ getSessionFromRequest: vi.fn() }));
-vi.mock('@/lib/db', () => ({ getDb: vi.fn() }));
+vi.mock('@/modules/projects/backend/services/projects.service', () => ({
+  listProjects,
+  createProject: vi.fn(),
+}));
 
 import { getSessionFromRequest } from '@/lib/auth';
-import { getDb } from '@/lib/db';
 import { GET } from './route';
 
 const session = {
@@ -27,7 +33,7 @@ function req(url = 'http://localhost/api/projects') {
 
 beforeEach(() => {
   vi.mocked(getSessionFromRequest).mockReset();
-  vi.mocked(getDb).mockReset();
+  listProjects.mockReset();
 });
 
 afterEach(() => {
@@ -42,39 +48,37 @@ describe('GET /api/projects', () => {
 
     expect(res.status).toBe(401);
     await expect(res.json()).resolves.toEqual([]);
-    expect(getDb).not.toHaveBeenCalled();
+    expect(listProjects).not.toHaveBeenCalled();
   });
 
   it('scopes the query to the caller company for a non-admin', async () => {
-    const all = vi.fn().mockResolvedValue([{ id: 1, name: 'Alpha' }]);
+    listProjects.mockResolvedValue([{ id: 1, name: 'Alpha' }]);
     vi.mocked(getSessionFromRequest).mockResolvedValue(session as never);
-    vi.mocked(getDb).mockResolvedValue({ all } as never);
 
     const res = await GET(req());
 
     expect(res.status).toBe(200);
     await expect(res.json()).resolves.toEqual([{ id: 1, name: 'Alpha' }]);
-    const [sql, ...params] = all.mock.calls[0];
-    expect(sql).toContain('company_id');
-    expect(params).toContain(session.company_id);
+    expect(listProjects).toHaveBeenCalledWith(
+      expect.objectContaining({ company_id: session.company_id }),
+    );
   });
 
   it('scopes the query to the caller company even for an admin', async () => {
-    const all = vi.fn().mockResolvedValue([]);
+    listProjects.mockResolvedValue([]);
     vi.mocked(getSessionFromRequest).mockResolvedValue({ ...session, is_admin: 1 } as never);
-    vi.mocked(getDb).mockResolvedValue({ all } as never);
 
     const res = await GET(req());
 
     expect(res.status).toBe(200);
-    const [sql, ...params] = all.mock.calls[0];
-    expect(sql).toContain('WHERE');
-    expect(params).toContain(session.company_id);
+    expect(listProjects).toHaveBeenCalledWith(
+      expect.objectContaining({ company_id: session.company_id }),
+    );
   });
 
-  it('returns 500 when the db layer throws', async () => {
+  it('returns 500 when the service layer throws', async () => {
     vi.mocked(getSessionFromRequest).mockResolvedValue(session as never);
-    vi.mocked(getDb).mockRejectedValue(new Error('boom'));
+    listProjects.mockRejectedValue(new Error('boom'));
     const errorLog = vi.spyOn(console, 'error').mockImplementation(() => undefined);
 
     const res = await GET(req());

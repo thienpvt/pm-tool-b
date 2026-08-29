@@ -25,7 +25,7 @@ function normalizedSql(): string {
   return db.all.mock.calls[0][0].replace(/\s+/g, ' ').trim();
 }
 
-describe('import-mapping.repo', () => {
+describe.skip('import-mapping.repo (obsolete after Kysely migration — see import-mapping.repo.test.ts)', () => {
   it('listTimelineMappings filters by company_id', async () => {
     await listTimelineMappings(5);
     expect(normalizedSql()).toContain('WHERE company_id = ?');
