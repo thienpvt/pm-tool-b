@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import RoadmapPage from './RoadmapPage';
 
 vi.mock('next/navigation', () => ({ useParams: () => ({}) }));
-vi.mock('@/components/layout/Sidebar', () => ({ default: () => <nav data-testid="sidebar" /> }));
 vi.mock('html-to-image', () => ({ toPng: vi.fn(() => Promise.resolve('data:image/png;base64,abc')) }));
 
 const year = new Date().getFullYear();
@@ -103,7 +102,6 @@ describe('RoadmapPage', () => {
   it('renders after load with roadmap fixture', async () => {
     render(<RoadmapPage />);
     await waitFor(() => expect(screen.getByText('Portfolio Roadmap')).toBeInTheDocument());
-    expect(screen.getByTestId('sidebar')).toBeInTheDocument();
     await waitFor(() => expect(screen.getAllByText('Project One').length).toBeGreaterThan(0));
     expect(screen.getAllByText('Project Two').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Project Three').length).toBeGreaterThan(0);

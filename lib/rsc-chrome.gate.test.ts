@@ -38,6 +38,54 @@ const CHROME_ROUTES: { route: string; moduleImport: string }[] = [
     route: 'app/audit/page.tsx',
     moduleImport: 'modules/audit/ui/AuditLogPage',
   },
+  {
+    route: 'app/page.tsx',
+    moduleImport: 'modules/portfolio/ui/home/PortfolioHomePage',
+  },
+  {
+    route: 'app/admin/page.tsx',
+    moduleImport: 'modules/admin/ui/AdminPage',
+  },
+  {
+    route: 'app/documents/catalog/page.tsx',
+    moduleImport: 'modules/documents/ui/catalog/DocumentCatalogPage',
+  },
+  {
+    route: 'app/documents/compliance/page.tsx',
+    moduleImport: 'modules/documents/ui/compliance/DocumentCompliancePage',
+  },
+  {
+    route: 'app/portfolio/report/page.tsx',
+    moduleImport: 'modules/reports/ui/portfolio-report/PortfolioReportPage',
+  },
+  {
+    route: 'app/portfolio/resources/page.tsx',
+    moduleImport: 'modules/portfolio/ui/resources/PortfolioResourcesPage',
+  },
+  {
+    route: 'app/portfolio/roadmap/page.tsx',
+    moduleImport: 'modules/portfolio/ui/roadmap/RoadmapPage',
+  },
+  {
+    route: 'app/programs/page.tsx',
+    moduleImport: 'modules/portfolio/ui/programs/ProgramsPage',
+  },
+  {
+    route: 'app/resources/page.tsx',
+    moduleImport: 'modules/portfolio/ui/members/ResourcesMembersPage',
+  },
+  {
+    route: 'app/projects/page.tsx',
+    moduleImport: 'modules/projects/ui/list/ProjectsListPage',
+  },
+  {
+    route: 'app/projects/new/page.tsx',
+    moduleImport: 'modules/projects/ui/new/NewProjectPage',
+  },
+  {
+    route: 'app/weekly/tracking/page.tsx',
+    moduleImport: 'modules/weekly/ui/tracking/WeeklyTrackingPage',
+  },
 ];
 
 const MODULE_PAGES_NO_SIDEBAR: { path: string; label: string }[] = [
@@ -45,6 +93,18 @@ const MODULE_PAGES_NO_SIDEBAR: { path: string; label: string }[] = [
   { path: 'modules/dashboards/ui/pm/PmDashboardPage.tsx', label: 'PmDashboardPage' },
   { path: 'modules/weekly/ui/periods/WeeklyPeriodsPage.tsx', label: 'WeeklyPeriodsPage' },
   { path: 'modules/audit/ui/AuditLogPage.tsx', label: 'AuditLogPage' },
+  { path: 'modules/portfolio/ui/home/PortfolioHomePage.tsx', label: 'PortfolioHomePage' },
+  { path: 'modules/admin/ui/AdminPage.tsx', label: 'AdminPage' },
+  { path: 'modules/documents/ui/catalog/DocumentCatalogPage.tsx', label: 'DocumentCatalogPage' },
+  { path: 'modules/documents/ui/compliance/DocumentCompliancePage.tsx', label: 'DocumentCompliancePage' },
+  { path: 'modules/reports/ui/portfolio-report/PortfolioReportPage.tsx', label: 'PortfolioReportPage' },
+  { path: 'modules/portfolio/ui/resources/PortfolioResourcesPage.tsx', label: 'PortfolioResourcesPage' },
+  { path: 'modules/portfolio/ui/roadmap/RoadmapPage.tsx', label: 'RoadmapPage' },
+  { path: 'modules/portfolio/ui/programs/ProgramsPage.tsx', label: 'ProgramsPage' },
+  { path: 'modules/portfolio/ui/members/ResourcesMembersPage.tsx', label: 'ResourcesMembersPage' },
+  { path: 'modules/projects/ui/list/ProjectsListPage.tsx', label: 'ProjectsListPage' },
+  { path: 'modules/projects/ui/new/NewProjectPage.tsx', label: 'NewProjectPage' },
+  { path: 'modules/weekly/ui/tracking/WeeklyTrackingPage.tsx', label: 'WeeklyTrackingPage' },
 ];
 
 export const PILOT_LOADING: { path: string; message: string }[] = [
@@ -52,6 +112,7 @@ export const PILOT_LOADING: { path: string; message: string }[] = [
   { path: 'app/dashboards/pm/loading.tsx', message: 'Loading dashboard…' },
   { path: 'app/weekly/periods/loading.tsx', message: 'Loading weekly periods…' },
   { path: 'app/audit/loading.tsx', message: 'Loading audit log…' },
+  { path: 'app/weekly/tracking/loading.tsx', message: 'Loading tracking…' },
 ];
 
 describe('rsc-chrome gates (26-01, PERF-02, D-01, D-02, D-03, D-05)', () => {

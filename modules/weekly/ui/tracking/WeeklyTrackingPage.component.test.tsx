@@ -18,10 +18,6 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ replace: replaceMock }),
 }));
 
-vi.mock('@/components/layout/Sidebar', () => ({
-  default: () => <nav data-testid="sidebar" />,
-}));
-
 const downloadBlobMock = vi.fn();
 vi.mock('@/modules/dashboards/ui/shared/downloadBlob', () => ({
   downloadBlob: (...args: unknown[]) => downloadBlobMock(...args),
@@ -107,9 +103,8 @@ beforeEach(() => {
 });
 
 describe('WeeklyTrackingPage', () => {
-  it('shows sidebar and loading copy before fetch settles', () => {
+  it('shows loading copy before fetch settles', () => {
     render(<WeeklyTrackingPage />);
-    expect(screen.getByTestId('sidebar')).toBeInTheDocument();
     expect(screen.getByText('Loading tracking…')).toBeInTheDocument();
   });
 

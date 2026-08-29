@@ -4,7 +4,6 @@ import { complianceFixture, complianceProjects150 } from '../shared/documents.fi
 import DocumentCompliancePage from './DocumentCompliancePage';
 
 vi.mock('next/navigation', () => ({ usePathname: () => '/documents/compliance' }));
-vi.mock('@/components/layout/Sidebar', () => ({ default: () => <nav data-testid="sidebar" /> }));
 
 const toastError = vi.fn();
 vi.mock('sonner', () => ({
@@ -69,9 +68,8 @@ beforeEach(() => {
 });
 
 describe('DocumentCompliancePage', () => {
-  it('shows sidebar and loading copy before fetch settles', () => {
+  it('shows loading copy before fetch settles', () => {
     render(<DocumentCompliancePage />);
-    expect(screen.getByTestId('sidebar')).toBeInTheDocument();
     expect(screen.getByText('Loading compliance…')).toBeInTheDocument();
   });
 

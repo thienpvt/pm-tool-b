@@ -4,16 +4,22 @@ import { describe, expect, it } from 'vitest';
 
 const root = resolve(__dirname, '../../..');
 
+const CLIENT_DIRECTIVE = /^['"]use client['"]/m;
+
 function readUtf8(relativePath: string): string {
   return readFileSync(resolve(root, relativePath), 'utf8');
 }
 
+function expectPageChromeShell(shell: string, target: string) {
+  const source = readUtf8(shell);
+  expect(source).toContain('PageChrome');
+  expect(source).toContain(target);
+  expect(source).not.toMatch(CLIENT_DIRECTIVE);
+}
+
 describe('admin module split contract (24-09)', () => {
-  it('P1: app/admin/page.tsx re-exports AdminPage from module path', () => {
-    const source = readUtf8('app/admin/page.tsx');
-    expect(source).toMatch(
-      /export\s*\{\s*default\s*\}\s*from\s*['"]@\/modules\/admin\/ui\/AdminPage['"]/,
-    );
+  it('P1: app/admin/page.tsx wraps AdminPage with PageChrome', () => {
+    expectPageChromeShell('app/admin/page.tsx', 'modules/admin/ui/AdminPage');
   });
 
   it('D-07: companies module route uses getSessionFromRequest and requireAdmin', () => {

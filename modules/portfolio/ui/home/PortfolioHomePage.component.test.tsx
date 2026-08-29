@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import PortfolioHomePage from './PortfolioHomePage';
 
 vi.mock('next/navigation', () => ({ useParams: () => ({}) }));
-vi.mock('@/components/layout/Sidebar', () => ({ default: () => <nav data-testid="sidebar" /> }));
 vi.mock('@/components/onboarding/OnboardingModal', () => ({ default: () => null }));
 
 const portfolioFixture = {
@@ -62,7 +61,6 @@ describe('PortfolioHomePage', () => {
   it('renders after load', async () => {
     render(<PortfolioHomePage />);
     await waitFor(() => expect(screen.queryByText(/Loading portfolio/i)).not.toBeInTheDocument());
-    expect(screen.getByTestId('sidebar')).toBeInTheDocument();
     expect(screen.getByText('Portfolio Health Check')).toBeInTheDocument();
   });
 
@@ -88,6 +86,5 @@ describe('PortfolioHomePage', () => {
 
     render(<PortfolioHomePage />);
     await waitFor(() => expect(screen.queryByText(/Loading portfolio/i)).not.toBeInTheDocument());
-    expect(screen.getByTestId('sidebar')).toBeInTheDocument();
   });
 });

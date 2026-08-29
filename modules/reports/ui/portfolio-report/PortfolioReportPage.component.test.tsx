@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import PortfolioReportPage from './PortfolioReportPage';
 
 vi.mock('next/navigation', () => ({ useParams: () => ({}) }));
-vi.mock('@/components/layout/Sidebar', () => ({ default: () => <nav data-testid="sidebar" /> }));
 
 const reportFixture = {
   projects: [],
@@ -44,7 +43,6 @@ describe('PortfolioReportPage', () => {
   it('renders after load', async () => {
     render(<PortfolioReportPage />);
     await waitFor(() => expect(screen.getByText('Reporting Period:')).toBeInTheDocument());
-    expect(screen.getByTestId('sidebar')).toBeInTheDocument();
   });
 
   it('switches to milestone mode', async () => {

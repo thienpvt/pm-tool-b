@@ -12,8 +12,6 @@ vi.mock('next/navigation', () => ({
   usePathname: () => '/documents/catalog',
   useSearchParams: () => new URLSearchParams(),
 }));
-vi.mock('@/components/layout/Sidebar', () => ({ default: () => <nav data-testid="sidebar" /> }));
-
 const toastError = vi.fn();
 const toastSuccess = vi.fn();
 vi.mock('sonner', () => ({
@@ -68,9 +66,8 @@ beforeEach(() => {
 });
 
 describe('DocumentCatalogPage', () => {
-  it('shows sidebar and loading copy before fetch settles', () => {
+  it('shows loading copy before fetch settles', () => {
     render(<DocumentCatalogPage />);
-    expect(screen.getByTestId('sidebar')).toBeInTheDocument();
     expect(screen.getByText('Loading document catalog…')).toBeInTheDocument();
   });
 

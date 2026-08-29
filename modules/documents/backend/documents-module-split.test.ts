@@ -29,14 +29,18 @@ describe('documents module split contract (24-04)', () => {
     );
   });
 
-  it('P1: app/documents/catalog/page.tsx still points at DocumentCatalogPage', () => {
+  it('P1: app/documents/catalog/page.tsx wraps DocumentCatalogPage with PageChrome', () => {
     const source = readUtf8('app/documents/catalog/page.tsx');
+    expect(source).toContain('PageChrome');
     expect(source).toContain('modules/documents/ui/catalog/DocumentCatalogPage');
+    expect(source).not.toMatch(/^['"]use client['"]/m);
   });
 
-  it('P1: app/documents/compliance/page.tsx still points at DocumentCompliancePage', () => {
+  it('P1: app/documents/compliance/page.tsx wraps DocumentCompliancePage with PageChrome', () => {
     const source = readUtf8('app/documents/compliance/page.tsx');
+    expect(source).toContain('PageChrome');
     expect(source).toContain('modules/documents/ui/compliance/DocumentCompliancePage');
+    expect(source).not.toMatch(/^['"]use client['"]/m);
   });
 
   it('P1: app/projects/[id]/document-checklist/page.tsx still points at ProjectChecklistPage', () => {

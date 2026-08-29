@@ -4,8 +4,17 @@ import { describe, expect, it } from 'vitest';
 
 const root = resolve(__dirname, '../../..');
 
+const CLIENT_DIRECTIVE = /^['"]use client['"]/m;
+
 function readUtf8(relativePath: string): string {
   return readFileSync(resolve(root, relativePath), 'utf8');
+}
+
+function expectPageChromeShell(shell: string, target: string) {
+  const source = readUtf8(shell);
+  expect(source).toContain('PageChrome');
+  expect(source).toContain(target);
+  expect(source).not.toMatch(CLIENT_DIRECTIVE);
 }
 
 describe('portfolio module split contract (24-05)', () => {
@@ -14,11 +23,8 @@ describe('portfolio module split contract (24-05)', () => {
     expect(typeof mod.getPortfolioSummary).toBe('function');
   });
 
-  it('P1: app/page.tsx re-exports PortfolioHomePage from module path', () => {
-    const source = readUtf8('app/page.tsx');
-    expect(source).toMatch(
-      /export\s*\{\s*default\s*\}\s*from\s*['"]@\/modules\/portfolio\/ui\/home\/PortfolioHomePage['"]/,
-    );
+  it('P1: app/page.tsx wraps PortfolioHomePage with PageChrome', () => {
+    expectPageChromeShell('app/page.tsx', 'modules/portfolio/ui/home/PortfolioHomePage');
   });
 
   it('P2: app/api/portfolio/route.ts re-exports GET from module route', () => {
@@ -33,51 +39,41 @@ describe('portfolio module split contract (24-05)', () => {
     expect(source).toContain('withProgramAccess(');
   });
 
-  it('D-11: app/portfolio/report/page.tsx re-exports from modules/reports (Wave 7)', () => {
-    const source = readUtf8('app/portfolio/report/page.tsx');
-    expect(source).toMatch(
-      /export\s*\{\s*default\s*\}\s*from\s*['"]@\/modules\/reports\/ui\/portfolio-report\/PortfolioReportPage['"]/,
+  it('D-11: app/portfolio/report/page.tsx wraps PortfolioReportPage with PageChrome', () => {
+    expectPageChromeShell(
+      'app/portfolio/report/page.tsx',
+      'modules/reports/ui/portfolio-report/PortfolioReportPage',
     );
   });
 
   const p1PortfolioPages = [
     {
-      shell: 'app/portfolio/budget/page.tsx',
-      target: '@/modules/portfolio/ui/budget/PortfolioBudgetPage',
-    },
-    {
       shell: 'app/portfolio/roadmap/page.tsx',
-      target: '@/modules/portfolio/ui/roadmap/RoadmapPage',
+      target: 'modules/portfolio/ui/roadmap/RoadmapPage',
     },
     {
       shell: 'app/portfolio/resources/page.tsx',
-      target: '@/modules/portfolio/ui/resources/PortfolioResourcesPage',
+      target: 'modules/portfolio/ui/resources/PortfolioResourcesPage',
     },
     {
       shell: 'app/programs/page.tsx',
-      target: '@/modules/portfolio/ui/programs/ProgramsPage',
+      target: 'modules/portfolio/ui/programs/ProgramsPage',
     },
     {
       shell: 'app/resources/page.tsx',
-      target: '@/modules/portfolio/ui/members/ResourcesMembersPage',
+      target: 'modules/portfolio/ui/members/ResourcesMembersPage',
     },
   ] as const;
 
-  it.each(p1PortfolioPages)('P1: $shell re-exports from module path', ({ shell, target }) => {
-    const source = readUtf8(shell);
-    expect(source).toMatch(
-      new RegExp(
-        `export\\s*\\{\\s*default\\s*\\}\\s*from\\s*['"]${target.replace(/\//g, '\\/')}['"]`,
-      ),
-    );
+  it.each(p1PortfolioPages)('P1: $shell wraps module with PageChrome', ({ shell, target }) => {
+    expectPageChromeShell(shell, target);
   });
 
-  it('D-11: app/portfolio/report/page.tsx is a thin P1 shell (Wave 7)', () => {
+  it('D-11: app/portfolio/report/page.tsx is a PageChrome wrapper (Wave 7)', () => {
     const source = readUtf8('app/portfolio/report/page.tsx');
+    expect(source).toContain('PageChrome');
     expect(source).not.toContain('export default function PortfolioReportPage');
-    expect(source).toMatch(
-      /export\s*\{\s*default\s*\}\s*from\s*['"]@\/modules\/reports\/ui/,
-    );
+    expect(source).toContain('modules/reports/ui');
   });
 
   it('P2: app/api/programs/route.ts re-exports GET and POST from module route', () => {

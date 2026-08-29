@@ -4,8 +4,17 @@ import { describe, expect, it } from 'vitest';
 
 const root = resolve(__dirname, '../../..');
 
+const CLIENT_DIRECTIVE = /^['"]use client['"]/m;
+
 function readUtf8(relativePath: string): string {
   return readFileSync(resolve(root, relativePath), 'utf8');
+}
+
+function expectPageChromeShell(shell: string, target: string) {
+  const source = readUtf8(shell);
+  expect(source).toContain('PageChrome');
+  expect(source).toContain(target);
+  expect(source).not.toMatch(CLIENT_DIRECTIVE);
 }
 
 describe('reports module split contract (24-07)', () => {
@@ -14,10 +23,10 @@ describe('reports module split contract (24-07)', () => {
     expect(typeof mod.getPortfolioReport).toBe('function');
   });
 
-  it('D-11 P1: app/portfolio/report/page.tsx re-exports PortfolioReportPage from module path', () => {
-    const source = readUtf8('app/portfolio/report/page.tsx');
-    expect(source).toMatch(
-      /export\s*\{\s*default\s*\}\s*from\s*['"]@\/modules\/reports\/ui\/portfolio-report\/PortfolioReportPage['"]/,
+  it('D-11 P1: app/portfolio/report/page.tsx wraps PortfolioReportPage with PageChrome', () => {
+    expectPageChromeShell(
+      'app/portfolio/report/page.tsx',
+      'modules/reports/ui/portfolio-report/PortfolioReportPage',
     );
   });
 
