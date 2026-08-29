@@ -1,5 +1,7 @@
-import { getDb } from '@/lib/db';
-import { buildUpdate } from '@/lib/repositories/_helpers';
+import { sql, type Insertable, type Updateable } from 'kysely';
+import type { Database } from '@/lib/db/database';
+import { getKysely } from '@/lib/db/kysely';
+import { pickAllowed } from '@/lib/repositories/_kysely-helpers';
 
 /**
  * Updatable columns for `activities`. Excludes `id` (the WHERE key) and `project_id`
@@ -15,43 +17,83 @@ export const ACTIVITY_COLUMNS = [
   'sprint', 'priority', 'project_status', 'parent_id',
 ] as const;
 
+type ActivityUpdate = Pick<Updateable<Database['activities']>, typeof ACTIVITY_COLUMNS[number]>;
+
 export type ActivityInput = Record<string, unknown>;
 
+function deleteResult(numDeletedRows: bigint | number | undefined) {
+  return { lastInsertRowid: 0, changes: Number(numDeletedRows ?? 0) };
+}
+
 export async function listActivities(projectId: number | string) {
-  const db = await getDb();
-  return db.all('SELECT * FROM activities WHERE project_id = ? ORDER BY order_idx, id', projectId);
+  const db = await getKysely();
+  return db
+    .selectFrom('activities')
+    .selectAll()
+    .where('project_id', '=', Number(projectId))
+    .orderBy('order_idx')
+    .orderBy('id')
+    .execute();
 }
 
 /** MAX(order_idx) for a project, 0 when it has no activities. */
 export async function maxOrderIdx(projectId: number | string): Promise<number> {
-  const db = await getDb();
-  const row = await db.get<{ m: number | null }>(
-    'SELECT MAX(order_idx) as m FROM activities WHERE project_id = ?', projectId);
-  return row?.m ?? 0;
+  const db = await getKysely();
+  const row = await db
+    .selectFrom('activities')
+    .select((eb) => eb.fn.max('order_idx').as('m'))
+    .where('project_id', '=', Number(projectId))
+    .executeTakeFirst();
+  return row?.m != null ? Number(row.m) : 0;
 }
 
 /** The project's own status, used as the `project_status` fallback on create. */
 export async function projectStatus(projectId: number | string): Promise<string> {
-  const db = await getDb();
-  const row = await db.get<{ status: string }>('SELECT status FROM projects WHERE id = ?', projectId);
+  const db = await getKysely();
+  const row = await db
+    .selectFrom('projects')
+    .select('status')
+    .where('id', '=', Number(projectId))
+    .executeTakeFirst();
   return row?.status ?? '';
 }
 
 export async function createActivity(projectId: number | string, body: ActivityInput) {
-  const db = await getDb();
+  const db = await getKysely();
   const b = body as Record<string, never>;
   const orderIdx = (await maxOrderIdx(projectId)) + 1;
   const status = b.project_status ?? (await projectStatus(projectId));
-  const r = await db.run(`
-    INSERT INTO activities (project_id, phase, no, activity, deliverable, sign_off_doc, accountable, responsible, support, plan_start, plan_end, actual_start, actual_end, status, completion_pct, notes, order_idx, delay_owner, delay_reason, jira_key, sprint, project_status, parent_id, priority)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-  `, projectId, b.phase ?? 'General', b.no ?? '', b.activity ?? '', b.deliverable ?? '',
-    b.sign_off_doc ?? '', b.accountable ?? '', b.responsible ?? '', b.support ?? '',
-    b.plan_start ?? '', b.plan_end ?? '', b.actual_start ?? '', b.actual_end ?? '',
-    b.status ?? 'To-do', b.completion_pct ?? 0, b.notes ?? '', orderIdx,
-    b.delay_owner ?? 'N/A', b.delay_reason ?? '', b.jira_key ?? '', b.sprint ?? '',
-    status, b.parent_id ?? null, b.priority ?? 'Medium');
-  return db.get('SELECT * FROM activities WHERE id = ?', r.lastInsertRowid);
+  const values: Insertable<Database['activities']> = {
+    project_id: Number(projectId),
+    phase: b.phase ?? 'General',
+    no: b.no ?? '',
+    activity: b.activity ?? '',
+    deliverable: b.deliverable ?? '',
+    sign_off_doc: b.sign_off_doc ?? '',
+    accountable: b.accountable ?? '',
+    responsible: b.responsible ?? '',
+    support: b.support ?? '',
+    plan_start: b.plan_start ?? '',
+    plan_end: b.plan_end ?? '',
+    actual_start: b.actual_start ?? '',
+    actual_end: b.actual_end ?? '',
+    status: b.status ?? 'To-do',
+    completion_pct: b.completion_pct ?? 0,
+    notes: b.notes ?? '',
+    order_idx: orderIdx,
+    delay_owner: b.delay_owner ?? 'N/A',
+    delay_reason: b.delay_reason ?? '',
+    jira_key: b.jira_key ?? '',
+    sprint: b.sprint ?? '',
+    project_status: status,
+    parent_id: b.parent_id ?? null,
+    priority: b.priority ?? 'Medium',
+  };
+  return db
+    .insertInto('activities')
+    .values(values)
+    .returningAll()
+    .executeTakeFirstOrThrow();
 }
 
 /** @throws UnknownColumnError when `fields` names a column outside ACTIVITY_COLUMNS. */
@@ -60,17 +102,25 @@ export async function updateActivity(
   rowId: number | string,
   fields: Record<string, unknown>,
 ) {
-  const { sql, values } = buildUpdate('activities', ACTIVITY_COLUMNS, fields);
-  const db = await getDb();
-  return db.get(
-    `UPDATE activities SET ${sql} WHERE id = ? AND project_id = ? RETURNING *`,
-    ...values, rowId, projectId,
-  );
+  const picked = pickAllowed<ActivityUpdate>(ACTIVITY_COLUMNS, fields);
+  const db = await getKysely();
+  return db
+    .updateTable('activities')
+    .set(picked)
+    .where('id', '=', Number(rowId))
+    .where('project_id', '=', Number(projectId))
+    .returningAll()
+    .executeTakeFirst();
 }
 
 export async function deleteActivity(projectId: number | string, rowId: number | string) {
-  const db = await getDb();
-  return db.run('DELETE FROM activities WHERE id = ? AND project_id = ?', rowId, projectId);
+  const db = await getKysely();
+  const [result] = await db
+    .deleteFrom('activities')
+    .where('id', '=', Number(rowId))
+    .where('project_id', '=', Number(projectId))
+    .execute();
+  return deleteResult(result?.numDeletedRows);
 }
 
 /**
@@ -78,21 +128,27 @@ export async function deleteActivity(projectId: number | string, rowId: number |
  * insert-vs-update and to resolve `parent_jira_key` references within a batch.
  */
 export async function listJiraKeyed(projectId: number | string) {
-  const db = await getDb();
-  return db.all<{ id: number; jira_key: string }>(
-    "SELECT id, jira_key FROM activities WHERE project_id = ? AND jira_key IS NOT NULL AND jira_key != ''",
-    projectId,
-  );
+  const db = await getKysely();
+  return db
+    .selectFrom('activities')
+    .select(['id', 'jira_key'])
+    .where('project_id', '=', Number(projectId))
+    .where('jira_key', 'is not', null)
+    .where('jira_key', '!=', '')
+    .execute();
 }
 
 /** Just the keys, for the import dialog's overwrite-count preview. */
 export async function listJiraKeys(projectId: number | string): Promise<string[]> {
-  const db = await getDb();
-  const rows = await db.all<{ jira_key: string }>(
-    "SELECT jira_key FROM activities WHERE project_id = ? AND jira_key IS NOT NULL AND jira_key != ''",
-    projectId,
-  );
-  return rows.map(r => r.jira_key);
+  const db = await getKysely();
+  const rows = await db
+    .selectFrom('activities')
+    .select('jira_key')
+    .where('project_id', '=', Number(projectId))
+    .where('jira_key', 'is not', null)
+    .where('jira_key', '!=', '')
+    .execute();
+  return rows.map((r) => r.jira_key as string);
 }
 
 /**
@@ -109,25 +165,35 @@ export async function updateImportedActivity(
   act: ImportedActivity,
   parentId: number | null,
 ) {
-  const db = await getDb();
-  return db.run(
-    `UPDATE activities SET
-        phase = ?, no = ?, activity = ?, deliverable = ?, sign_off_doc = ?,
-        accountable = ?, responsible = ?, support = ?,
-        plan_start = ?, plan_end = ?, actual_start = ?, actual_end = ?,
-        status = ?, completion_pct = ?, notes = ?,
-        delay_owner = ?, delay_reason = ?, sprint = ?, parent_id = ?, priority = ?
-      WHERE id = ? AND project_id = ?`,
-    act.phase ?? 'General', act.no ?? '', act.activity,
-    act.deliverable ?? '', act.sign_off_doc ?? '',
-    act.accountable ?? '', act.responsible ?? '', act.support ?? '',
-    act.plan_start ?? '', act.plan_end ?? '',
-    act.actual_start ?? '', act.actual_end ?? '',
-    act.status ?? 'To-do', act.completion_pct ?? 0, act.notes ?? '',
-    act.delay_owner ?? 'N/A', act.delay_reason ?? '', act.sprint ?? '',
-    parentId, act.priority ?? 'Medium',
-    rowId, projectId,
-  );
+  const db = await getKysely();
+  const [result] = await db
+    .updateTable('activities')
+    .set({
+      phase: act.phase != null ? String(act.phase) : 'General',
+      no: act.no != null ? String(act.no) : '',
+      activity: String(act.activity),
+      deliverable: act.deliverable != null ? String(act.deliverable) : '',
+      sign_off_doc: act.sign_off_doc != null ? String(act.sign_off_doc) : '',
+      accountable: act.accountable != null ? String(act.accountable) : '',
+      responsible: act.responsible != null ? String(act.responsible) : '',
+      support: act.support != null ? String(act.support) : '',
+      plan_start: act.plan_start != null ? String(act.plan_start) : '',
+      plan_end: act.plan_end != null ? String(act.plan_end) : '',
+      actual_start: act.actual_start != null ? String(act.actual_start) : '',
+      actual_end: act.actual_end != null ? String(act.actual_end) : '',
+      status: act.status != null ? String(act.status) : 'To-do',
+      completion_pct: act.completion_pct != null ? Number(act.completion_pct) : 0,
+      notes: act.notes != null ? String(act.notes) : '',
+      delay_owner: act.delay_owner != null ? String(act.delay_owner) : 'N/A',
+      delay_reason: act.delay_reason != null ? String(act.delay_reason) : '',
+      sprint: act.sprint != null ? String(act.sprint) : '',
+      parent_id: parentId,
+      priority: act.priority != null ? String(act.priority) : 'Medium',
+    })
+    .where('id', '=', rowId)
+    .where('project_id', '=', Number(projectId))
+    .execute();
+  return { lastInsertRowid: 0, changes: Number(result?.numUpdatedRows ?? 0) };
 }
 
 /** Insert a new imported row at `orderIdx`. Returns the new row id. */
@@ -138,25 +204,37 @@ export async function insertImportedActivity(
   parentId: number | null,
   jiraKey: string,
 ): Promise<number> {
-  const db = await getDb();
-  const r = await db.run(
-    `INSERT INTO activities
-        (project_id, phase, no, activity, deliverable, sign_off_doc,
-         accountable, responsible, support,
-         plan_start, plan_end, actual_start, actual_end,
-         status, completion_pct, notes, order_idx,
-         delay_owner, delay_reason, jira_key, sprint, parent_id, priority)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-    projectId, act.phase ?? 'General', act.no ?? '', act.activity,
-    act.deliverable ?? '', act.sign_off_doc ?? '',
-    act.accountable ?? '', act.responsible ?? '', act.support ?? '',
-    act.plan_start ?? '', act.plan_end ?? '',
-    act.actual_start ?? '', act.actual_end ?? '',
-    act.status ?? 'To-do', act.completion_pct ?? 0, act.notes ?? '',
-    orderIdx, act.delay_owner ?? 'N/A', act.delay_reason ?? '',
-    jiraKey, act.sprint ?? '', parentId, act.priority ?? 'Medium',
-  );
-  return Number(r.lastInsertRowid);
+  const db = await getKysely();
+  const row = await db
+    .insertInto('activities')
+    .values({
+      project_id: Number(projectId),
+      phase: act.phase != null ? String(act.phase) : 'General',
+      no: act.no != null ? String(act.no) : '',
+      activity: String(act.activity),
+      deliverable: act.deliverable != null ? String(act.deliverable) : '',
+      sign_off_doc: act.sign_off_doc != null ? String(act.sign_off_doc) : '',
+      accountable: act.accountable != null ? String(act.accountable) : '',
+      responsible: act.responsible != null ? String(act.responsible) : '',
+      support: act.support != null ? String(act.support) : '',
+      plan_start: act.plan_start != null ? String(act.plan_start) : '',
+      plan_end: act.plan_end != null ? String(act.plan_end) : '',
+      actual_start: act.actual_start != null ? String(act.actual_start) : '',
+      actual_end: act.actual_end != null ? String(act.actual_end) : '',
+      status: act.status != null ? String(act.status) : 'To-do',
+      completion_pct: act.completion_pct != null ? Number(act.completion_pct) : 0,
+      notes: act.notes != null ? String(act.notes) : '',
+      order_idx: orderIdx,
+      delay_owner: act.delay_owner != null ? String(act.delay_owner) : 'N/A',
+      delay_reason: act.delay_reason != null ? String(act.delay_reason) : '',
+      jira_key: jiraKey,
+      sprint: act.sprint != null ? String(act.sprint) : '',
+      parent_id: parentId,
+      priority: act.priority != null ? String(act.priority) : 'Medium',
+    })
+    .returning('id')
+    .executeTakeFirstOrThrow();
+  return Number(row.id);
 }
 
 /**
@@ -170,24 +248,27 @@ export async function listDoneBetween(
   endDate: string,
   doneStatuses: readonly string[],
 ) {
-  const db = await getDb();
-  const placeholders = doneStatuses.map(() => '?').join(',');
-  return db.all(
-    `SELECT * FROM activities WHERE project_id = ?
-       AND actual_end >= ? AND actual_end <= ?
-       AND status IN (${placeholders})
-     ORDER BY actual_end`,
-    projectId, startDate, endDate, ...doneStatuses,
-  );
+  const db = await getKysely();
+  return db
+    .selectFrom('activities')
+    .selectAll()
+    .where('project_id', '=', Number(projectId))
+    .where('actual_end', '>=', startDate)
+    .where('actual_end', '<=', endDate)
+    .where('status', 'in', [...doneStatuses])
+    .orderBy('actual_end')
+    .execute();
 }
 
 export async function listByStatuses(projectId: number | string, statuses: readonly string[]) {
-  const db = await getDb();
-  const placeholders = statuses.map(() => '?').join(',');
-  return db.all(
-    `SELECT * FROM activities WHERE project_id = ? AND status IN (${placeholders}) ORDER BY plan_end`,
-    projectId, ...statuses,
-  );
+  const db = await getKysely();
+  return db
+    .selectFrom('activities')
+    .selectAll()
+    .where('project_id', '=', Number(projectId))
+    .where('status', 'in', [...statuses])
+    .orderBy('plan_end')
+    .execute();
 }
 
 export async function listPlannedBetweenExcludingStatuses(
@@ -196,33 +277,49 @@ export async function listPlannedBetweenExcludingStatuses(
   endDate: string,
   excludedStatuses: readonly string[],
 ) {
-  const db = await getDb();
-  const placeholders = excludedStatuses.map(() => '?').join(',');
-  return db.all(
-    `SELECT * FROM activities WHERE project_id = ?
-       AND plan_start >= ? AND plan_start <= ?
-       AND status NOT IN (${placeholders})
-     ORDER BY plan_start`,
-    projectId, startDate, endDate, ...excludedStatuses,
-  );
+  const db = await getKysely();
+  return db
+    .selectFrom('activities')
+    .selectAll()
+    .where('project_id', '=', Number(projectId))
+    .where('plan_start', '>=', startDate)
+    .where('plan_start', '<=', endDate)
+    .where('status', 'not in', [...excludedStatuses])
+    .orderBy('plan_start')
+    .execute();
 }
 
 /** Just status + phase, for the weighted-completion rollup. */
 export async function listStatusAndPhase(projectId: number | string) {
-  const db = await getDb();
-  return db.all<{ status: string; phase: string }>(
-    'SELECT status, phase FROM activities WHERE project_id = ?',
-    projectId,
-  );
+  const db = await getKysely();
+  return db
+    .selectFrom('activities')
+    .select(['status', 'phase'])
+    .where('project_id', '=', Number(projectId))
+    .execute();
 }
 
 /** The column set the project-report page needs, ordered by plan_start. */
 export async function listForProjectReport(projectId: number | string) {
-  const db = await getDb();
-  return db.all(
-    `SELECT id, activity, deliverable, status, phase, plan_start, plan_end,
-            actual_start, actual_end, no, parent_id, accountable
-     FROM activities WHERE project_id = ? ORDER BY plan_start, id`,
-    projectId,
-  );
+  const db = await getKysely();
+  return db
+    .selectFrom('activities')
+    .select([
+      'id',
+      'activity',
+      'deliverable',
+      'status',
+      'phase',
+      'plan_start',
+      'plan_end',
+      'actual_start',
+      'actual_end',
+      'no',
+      'parent_id',
+      'accountable',
+    ])
+    .where('project_id', '=', Number(projectId))
+    .orderBy('plan_start')
+    .orderBy('id')
+    .execute();
 }
