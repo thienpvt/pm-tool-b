@@ -5,16 +5,16 @@ milestone_name: Hardening & Deferred Debt
 current_phase: 27
 current_phase_name: Nits, Validation & Operator Gate
 status: executing
-stopped_at: Completed 27-01-PLAN.md
-last_updated: "2026-08-29T02:54:42.100Z"
+stopped_at: Completed 27-02-PLAN.md
+last_updated: "2026-08-29T02:57:17.793Z"
 last_activity: 2026-08-29
 last_activity_desc: Phase 27 execution started
-state_head: babe4e41b6305e48033600cb146acf85bcb238d3
+state_head: b8d0fb4f9a415577a2cce179b3cb8ed5f8753464
 progress:
   total_phases: 9
   completed_phases: 8
   total_plans: 56
-  completed_plans: 54
+  completed_plans: 55
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-08-28)
 ## Current Position
 
 Phase: 27 (Nits, Validation & Operator Gate) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Ready to execute
 Last activity: 2026-08-29 — Phase 27 execution started
 
@@ -149,6 +149,7 @@ Progress: [██░░░░░░░░] 25%
 | Phase 26 P02 | 45 | 3 tasks | 67 files |
 | Phase 26 P03 | 8 | 2 tasks | 2 files |
 | Phase 27 P01 | 8 | 2 tasks | 1 files |
+| Phase 27 P02 | 8min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -320,6 +321,8 @@ Recent decisions affecting current work:
 - [Phase 26]: Project wrappers forward only awaited id/projectId strings to PageChrome (T-26-05)
 - [Phase 26]: Warm-cache guard uses 1ms threshold; cached singleton ~0ms vs localhost cold start ~5ms
 - [Phase 27]: GREEN commits used --allow-empty because production wiring already satisfied D-01
+- [Phase 27]: Copied snapshotsEqual locally in milestones.service — no import from projects.service (D-02 unit graph)
+- [Phase 27]: No-op PATCH still calls updateMilestoneRepo; only auditLog insert is skipped (D-02)
 
 ### Pending Todos
 
@@ -343,8 +346,8 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-08-29T02:54:41.368Z
-Stopped at: Completed 27-01-PLAN.md
+Last session: 2026-08-29T02:57:17.054Z
+Stopped at: Completed 27-02-PLAN.md
 Resume file: None
 
 ## Operator Next Steps

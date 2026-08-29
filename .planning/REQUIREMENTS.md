@@ -61,7 +61,7 @@ DATA-01..03 is **one migration task** (replay origin `gsd/quick-260826-ded-data-
 ### Audit nits
 
 - [x] **NIT-01**: `listPeriodShells` and `listOpenProjectDependencies` are either consumed by a dashboard/service or removed
-- [ ] **NIT-02**: A no-op milestone PATCH (before equals after) does not append an audit row
+- [x] **NIT-02**: A no-op milestone PATCH (before equals after) does not append an audit row
 - [ ] **NIT-03**: v1 `budget_items` vs fiscal ledger coexistence is documented, or the UI routes budget screens to the fiscal API
 - [x] **NIT-04**: Fiscal KPIs appear on the portfolio dashboard only if they belong in the spec KPI set; otherwise they stay omitted with that decision recorded
 - [ ] **NYQ-01**: Each v2.1 phase ends with a reconciled (non-draft) `VALIDATION.md` for that phase
@@ -118,7 +118,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PERF-02 | Phase 26 | Complete |
 | PERF-03 | Phase 26 | Complete |
 | NIT-01 | Phase 27 | Complete |
-| NIT-02 | Phase 27 | Pending |
+| NIT-02 | Phase 27 | Complete |
 | NIT-03 | Phase 27 | Pending |
 | NYQ-01 | Phase 27 | Pending |
 | HYG-02 | Phase 27 | Pending |
