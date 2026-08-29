@@ -1,15 +1,23 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import { hasTestDb } from '../../test/db';
-import { seedProject, setupRepoTables, testDb } from '../../test/repo-db';
+import { hasTestDb } from '@/test/db';
+import { seedProject, setupRepoTables, testDb, testKysely } from '@/test/repo-db';
 
-vi.mock('@/lib/db', async () => {
-  const { testDb: db } = await import('../../test/repo-db');
-  return { getDb: async () => db() };
-});
+vi.mock('@/lib/db', () => ({
+  getDb: vi.fn(async () => testDb()),
+}));
 
-const { PROJECT_COLUMNS, deleteProject, getProject, projectAccessRow, updateProject } =
-  await import('./projects.repo');
-const { UnknownColumnError } = await import('./_helpers');
+vi.mock('@/lib/db/kysely', () => ({
+  getKysely: vi.fn(async () => testKysely()),
+}));
+
+import { UnknownColumnError } from '@/lib/repositories/_helpers';
+import {
+  PROJECT_COLUMNS,
+  deleteProject,
+  getProject,
+  projectAccessRow,
+  updateProject,
+} from './projects.repo';
 
 describe.skipIf(!hasTestDb)('projects.repo', () => {
   let projectId: number;
@@ -20,8 +28,14 @@ describe.skipIf(!hasTestDb)('projects.repo', () => {
   });
 
   afterAll(async () => {
-    const { closeTestPool } = await import('../../test/db');
+    const { closeTestPool } = await import('@/test/db');
     await closeTestPool();
+  });
+
+  it('loads via getKysely', async () => {
+    const { getKysely } = await import('@/lib/db/kysely');
+    await getProject(projectId);
+    expect(getKysely).toHaveBeenCalled();
   });
 
   it('reads a project by id', async () => {
