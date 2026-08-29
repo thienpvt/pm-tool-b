@@ -1,107 +1,174 @@
-import { getDb } from '@/lib/db';
+import { getKysely } from '@/lib/db/kysely';
 
-const PROGRAM_FIELDS = `id, name, industry, contact_name, contact_email,
-  contact_phone, website, notes, company_id, created_at`;
+const PROGRAM_COLUMNS = [
+  'id',
+  'name',
+  'industry',
+  'contact_name',
+  'contact_email',
+  'contact_phone',
+  'website',
+  'notes',
+  'company_id',
+  'created_at',
+] as const;
 
 /** Programs are stored in the legacy `customers` table. */
 export async function listPrograms(companyId: number | null) {
-  const db = await getDb();
+  const db = await getKysely();
+  let q = db.selectFrom('customers').select(PROGRAM_COLUMNS);
   if (companyId !== null) {
-    return db.all(`SELECT ${PROGRAM_FIELDS} FROM customers WHERE company_id = ? ORDER BY name`, companyId);
+    q = q.where('company_id', '=', companyId);
+  } else {
+    q = q.where('company_id', 'is', null);
   }
-  return db.all(`SELECT ${PROGRAM_FIELDS} FROM customers WHERE company_id IS NULL ORDER BY name`);
+  return q.orderBy('name').execute();
 }
 
 /** Company-scoped program list (equality filter even when companyId is null). */
 export async function listCompanyPrograms(companyId: number | null) {
-  const db = await getDb();
-  return db.all(`SELECT ${PROGRAM_FIELDS} FROM customers WHERE company_id = ? ORDER BY name`, companyId);
+  const db = await getKysely();
+  return db
+    .selectFrom('customers')
+    .select(PROGRAM_COLUMNS)
+    .where('company_id', '=', companyId)
+    .orderBy('name')
+    .execute();
 }
 
 export async function projectCountsByProgram(companyId: number | null) {
-  const db = await getDb();
+  const db = await getKysely();
   if (companyId !== null) {
-    return db.all<{ customer_id: number; count: number }>(
-      `SELECT p.customer_id, COUNT(*) as count
-       FROM projects p LEFT JOIN customers c ON p.customer_id = c.id
-       WHERE p.customer_id IS NOT NULL AND (p.company_id = ? OR c.company_id = ?)
-       GROUP BY p.customer_id`,
-      companyId, companyId,
-    );
+    return db
+      .selectFrom('projects as p')
+      .leftJoin('customers as c', 'p.customer_id', 'c.id')
+      .select(['p.customer_id', (eb) => eb.fn.countAll<number>().as('count')])
+      .where('p.customer_id', 'is not', null)
+      .where((eb) =>
+        eb.or([
+          eb('p.company_id', '=', companyId),
+          eb('c.company_id', '=', companyId),
+        ]),
+      )
+      .groupBy('p.customer_id')
+      .execute();
   }
-  return db.all<{ customer_id: number; count: number }>(
-    `SELECT p.customer_id, COUNT(*) as count
-     FROM projects p LEFT JOIN customers c ON p.customer_id = c.id
-     WHERE p.customer_id IS NOT NULL AND p.company_id IS NULL AND c.company_id IS NULL
-     GROUP BY p.customer_id`,
-  );
+  return db
+    .selectFrom('projects as p')
+    .leftJoin('customers as c', 'p.customer_id', 'c.id')
+    .select(['p.customer_id', (eb) => eb.fn.countAll<number>().as('count')])
+    .where('p.customer_id', 'is not', null)
+    .where('p.company_id', 'is', null)
+    .where('c.company_id', 'is', null)
+    .groupBy('p.customer_id')
+    .execute();
 }
 
 export async function createProgram(companyId: number | null, body: Record<string, unknown>) {
-  const db = await getDb();
-  const r = await db.run(
-    `INSERT INTO customers
-       (name, industry, contact_name, contact_email, contact_phone, website, notes, company_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    body.name, body.industry ?? '', body.contact_name ?? '', body.contact_email ?? '',
-    body.contact_phone ?? '', body.website ?? '', body.notes ?? '', companyId,
-  );
-  return getProgram(Number(r.lastInsertRowid));
+  const db = await getKysely();
+  const r = await db
+    .insertInto('customers')
+    .values({
+      name: String(body.name),
+      industry: body.industry != null ? String(body.industry) : '',
+      contact_name: body.contact_name != null ? String(body.contact_name) : '',
+      contact_email: body.contact_email != null ? String(body.contact_email) : '',
+      contact_phone: body.contact_phone != null ? String(body.contact_phone) : '',
+      website: body.website != null ? String(body.website) : '',
+      notes: body.notes != null ? String(body.notes) : '',
+      company_id: companyId,
+      created_at: new Date(),
+    })
+    .returning('id')
+    .executeTakeFirstOrThrow();
+  return getProgram(Number(r.id));
 }
 
 export async function getProgram(programId: number | string) {
-  const db = await getDb();
-  return db.get(`SELECT ${PROGRAM_FIELDS} FROM customers WHERE id = ?`, programId);
+  const db = await getKysely();
+  return db
+    .selectFrom('customers')
+    .select(PROGRAM_COLUMNS)
+    .where('id', '=', Number(programId))
+    .executeTakeFirst();
 }
 
 export async function listProgramProjects(programId: number | string) {
-  const db = await getDb();
-  return db.all('SELECT * FROM projects WHERE customer_id = ? ORDER BY created_at DESC', programId);
+  const db = await getKysely();
+  return db
+    .selectFrom('projects')
+    .selectAll()
+    .where('customer_id', '=', Number(programId))
+    .orderBy('created_at', 'desc')
+    .execute();
 }
 
 export async function updateProgram(programId: number | string, body: Record<string, unknown>) {
-  const db = await getDb();
-  await db.run(
-    `UPDATE customers SET name=?, industry=?, contact_name=?, contact_email=?,
-       contact_phone=?, website=?, notes=? WHERE id=?`,
-    body.name, body.industry ?? '', body.contact_name ?? '', body.contact_email ?? '',
-    body.contact_phone ?? '', body.website ?? '', body.notes ?? '', programId,
-  );
+  const db = await getKysely();
+  await db
+    .updateTable('customers')
+    .set({
+      name: String(body.name),
+      industry: body.industry != null ? String(body.industry) : '',
+      contact_name: body.contact_name != null ? String(body.contact_name) : '',
+      contact_email: body.contact_email != null ? String(body.contact_email) : '',
+      contact_phone: body.contact_phone != null ? String(body.contact_phone) : '',
+      website: body.website != null ? String(body.website) : '',
+      notes: body.notes != null ? String(body.notes) : '',
+    })
+    .where('id', '=', Number(programId))
+    .execute();
   return getProgram(programId);
 }
 
 export async function deleteProgram(programId: number | string) {
-  const db = await getDb();
-  return db.run('DELETE FROM customers WHERE id = ?', programId);
+  const db = await getKysely();
+  return db.deleteFrom('customers').where('id', '=', Number(programId)).execute();
 }
 
 export async function programProjectAllocations(
   programId: number | string,
   companyId: number | null,
 ) {
-  const db = await getDb();
-  const companyFilter = companyId !== null
-    ? 'AND p.company_id = ?'
-    : 'AND p.company_id IS NULL';
-  const companyParams = companyId !== null ? [companyId] : [];
-  const projects = await db.all<{
-    project_id: number; project_name: string; allocated_headcount: number;
-  }>(
-    `SELECT p.id AS project_id, p.name AS project_name,
-            COALESCE(ppa.allocated_headcount, 0) AS allocated_headcount
-     FROM projects p
-     LEFT JOIN program_project_allocations ppa ON ppa.project_id = p.id AND ppa.program_id = ?
-     WHERE p.customer_id = ? ${companyFilter}
-     ORDER BY p.name`,
-    programId, programId, ...companyParams,
-  );
-  const program = await db.get<{ allocated_headcount: number; name: string }>(
-    `SELECT c.name, COALESCE(ppa.allocated_headcount, 0) AS allocated_headcount
-     FROM customers c
-     LEFT JOIN portfolio_program_allocations ppa ON ppa.program_id = c.id AND ppa.company_id = ?
-     WHERE c.id = ?`,
-    companyId, programId,
-  );
+  const db = await getKysely();
+  const pid = Number(programId);
+
+  let projectsQuery = db
+    .selectFrom('projects as p')
+    .leftJoin('program_project_allocations as ppa', (join) =>
+      join
+        .onRef('ppa.project_id', '=', 'p.id')
+        .on('ppa.program_id', '=', pid),
+    )
+    .select([
+      'p.id as project_id',
+      'p.name as project_name',
+      (eb) => eb.fn.coalesce('ppa.allocated_headcount', eb.lit(0)).as('allocated_headcount'),
+    ])
+    .where('p.customer_id', '=', pid);
+
+  if (companyId !== null) {
+    projectsQuery = projectsQuery.where('p.company_id', '=', companyId);
+  } else {
+    projectsQuery = projectsQuery.where('p.company_id', 'is', null);
+  }
+
+  const projects = await projectsQuery.orderBy('p.name').execute();
+
+  const program = await db
+    .selectFrom('customers as c')
+    .leftJoin('portfolio_program_allocations as ppa', (join) =>
+      join
+        .onRef('ppa.program_id', '=', 'c.id')
+        .on('ppa.company_id', '=', companyId),
+    )
+    .select([
+      'c.name',
+      (eb) => eb.fn.coalesce('ppa.allocated_headcount', eb.lit(0)).as('allocated_headcount'),
+    ])
+    .where('c.id', '=', pid)
+    .executeTakeFirst();
+
   return { program, projects };
 }
 
@@ -110,22 +177,35 @@ export async function upsertProgramProjectAllocation(
   projectId: number | string,
   allocatedHeadcount: number,
 ) {
-  const db = await getDb();
-  const existing = await db.get<{ id: number }>(
-    'SELECT id FROM program_project_allocations WHERE program_id = ? AND project_id = ?',
-    programId, projectId,
-  );
+  const db = await getKysely();
+  const pid = Number(programId);
+  const projId = Number(projectId);
+
+  const existing = await db
+    .selectFrom('program_project_allocations')
+    .select('id')
+    .where('program_id', '=', pid)
+    .where('project_id', '=', projId)
+    .executeTakeFirst();
+
   if (existing) {
-    await db.run(
-      'UPDATE program_project_allocations SET allocated_headcount = ? WHERE id = ?',
-      allocatedHeadcount, existing.id,
-    );
+    await db
+      .updateTable('program_project_allocations')
+      .set({ allocated_headcount: allocatedHeadcount })
+      .where('id', '=', existing.id)
+      .execute();
     return existing.id;
   }
-  const row = await db.get<{ id: number }>(
-    `INSERT INTO program_project_allocations (program_id, project_id, allocated_headcount)
-     VALUES (?, ?, ?) RETURNING id`,
-    programId, projectId, allocatedHeadcount,
-  );
+
+  const row = await db
+    .insertInto('program_project_allocations')
+    .values({
+      program_id: pid,
+      project_id: projId,
+      allocated_headcount: allocatedHeadcount,
+      created_at: new Date(),
+    })
+    .returning('id')
+    .executeTakeFirst();
   return row?.id;
 }
