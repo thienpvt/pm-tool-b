@@ -5,16 +5,16 @@ milestone_name: Hardening & Deferred Debt
 current_phase: 26
 current_phase_name: RSC Chrome & Cold Start
 status: executing
-stopped_at: Completed 26-01-PLAN.md
-last_updated: "2026-08-29T02:06:05.061Z"
+stopped_at: Completed 26-02-PLAN.md
+last_updated: "2026-08-29T02:17:22.291Z"
 last_activity: 2026-08-29
 last_activity_desc: Phase 26 execution started
-state_head: c6f55a4a23553f3eb332b7056b918ce9cdf66994
+state_head: 894aabc32b00ca8ae40924159a088cd838f33f77
 progress:
   total_phases: 9
   completed_phases: 7
   total_plans: 53
-  completed_plans: 51
+  completed_plans: 52
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-08-28)
 ## Current Position
 
 Phase: 26 (RSC Chrome & Cold Start) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Ready to execute
 Last activity: 2026-08-29 — Phase 26 execution started
 
@@ -146,6 +146,7 @@ Progress: [██░░░░░░░░] 25%
 | Phase 25-kysely-repositories P14 | 12 | 3 tasks | 8 files |
 | Phase 25 P15 | 5 | 2 tasks | 3 files |
 | Phase 26-rsc-chrome-cold-start P01 | 3min | 3 tasks | 20 files |
+| Phase 26 P02 | 45 | 3 tasks | 67 files |
 
 ## Accumulated Context
 
@@ -313,6 +314,8 @@ Recent decisions affecting current work:
 - [Phase 25]: Removed buildUpdate after zero production repo callers; gate test enforces getKysely on all *.repo.ts
 - [Phase 26]: Inner hook loading/error uses centered flex wrapper inside PageChrome main — no server shell imports from client modules
 - [Phase 26]: Gate test under lib/ for vitest node project collection
+- [Phase 26]: EXCLUDED routes (login, landing, operations, portfolio/budget) remain client re-exports without PageChrome (D-05, D-06)
+- [Phase 26]: Project wrappers forward only awaited id/projectId strings to PageChrome (T-26-05)
 
 ### Pending Todos
 
@@ -336,8 +339,8 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-08-29T02:06:04.447Z
-Stopped at: Completed 26-01-PLAN.md
+Last session: 2026-08-29T02:17:21.669Z
+Stopped at: Completed 26-02-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
