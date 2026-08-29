@@ -14,6 +14,15 @@ function codeLines(source: string): string[] {
     .filter(line => line.length > 0 && !line.startsWith('//') && !line.startsWith('*'));
 }
 
+/** Require a live import of `token` (not merely a comment/string mention). */
+function hasImportToken(source: string, token: string): boolean {
+  const namedImport = new RegExp(
+    String.raw`import\s+(?:type\s+)?\{[\s\S]*?\b${token}\b[\s\S]*?\}\s+from\s+['"]`,
+  );
+  const defaultImport = new RegExp(String.raw`import\s+\b${token}\b\s+from\s+['"]`);
+  return namedImport.test(source) || defaultImport.test(source);
+}
+
 function readRepoFile(relativePath: string): string {
   return readFileSync(join(root, relativePath), 'utf8');
 }
@@ -29,13 +38,13 @@ describe('NIT-01 listPeriodShells (D-01)', () => {
   });
 
   it('spec-dashboards.service.ts imports listPeriodShellsRepo', () => {
-    const lines = codeLines(readRepoFile('modules/dashboards/backend/services/spec-dashboards.service.ts'));
-    expect(lines.some(line => line.includes('listPeriodShellsRepo'))).toBe(true);
+    const source = readRepoFile('modules/dashboards/backend/services/spec-dashboards.service.ts');
+    expect(hasImportToken(source, 'listPeriodShellsRepo')).toBe(true);
   });
 
   it('weekly-tracking.service.ts imports listPeriodShellsRepo', () => {
-    const lines = codeLines(readRepoFile('modules/weekly/backend/services/weekly-tracking.service.ts'));
-    expect(lines.some(line => line.includes('listPeriodShellsRepo'))).toBe(true);
+    const source = readRepoFile('modules/weekly/backend/services/weekly-tracking.service.ts');
+    expect(hasImportToken(source, 'listPeriodShellsRepo')).toBe(true);
   });
 });
 
@@ -50,7 +59,7 @@ describe('NIT-01 listOpenProjectDependencies (D-01)', () => {
   });
 
   it('project-dependencies.repo.test.ts imports listOpenProjectDependencies', () => {
-    const lines = codeLines(readRepoFile('modules/projects/backend/repositories/project-dependencies.repo.test.ts'));
-    expect(lines.some(line => line.includes('listOpenProjectDependencies'))).toBe(true);
+    const source = readRepoFile('modules/projects/backend/repositories/project-dependencies.repo.test.ts');
+    expect(hasImportToken(source, 'listOpenProjectDependencies')).toBe(true);
   });
 });
