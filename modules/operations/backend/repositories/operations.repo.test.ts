@@ -1,8 +1,12 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { hasTestDb } from '@/test/db';
-import { seedCompany, setupRepoTables, testDb } from '@/test/repo-db';
+import { seedCompany, setupRepoTables, testDb, testKysely } from '@/test/repo-db';
 
 vi.mock('@/lib/db', () => ({ getDb: vi.fn(async () => testDb()) }));
+
+vi.mock('@/lib/db/kysely', () => ({
+  getKysely: vi.fn(async () => testKysely()),
+}));
 
 import { createOperationsSystem, listOperationsSystems } from './operations.repo';
 
@@ -28,5 +32,11 @@ describe.skipIf(!hasTestDb)('operations.repo', () => {
   it('lets admins see systems from both companies', async () => {
     const rows = await listOperationsSystems(companyA, true) as { id: number }[];
     expect(rows.map(row => row.id)).toEqual(expect.arrayContaining([systemA, systemB]));
+  });
+
+  it('loads via getKysely', async () => {
+    const { getKysely } = await import('@/lib/db/kysely');
+    await listOperationsSystems(companyA, false);
+    expect(getKysely).toHaveBeenCalled();
   });
 });
