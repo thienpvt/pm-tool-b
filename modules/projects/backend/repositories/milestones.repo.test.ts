@@ -1,8 +1,12 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest';
-import { hasTestDb } from '../../test/db';
-import { seedCompany, seedProject, setupRepoTables, testDb } from '../../test/repo-db';
+import { hasTestDb } from '@/test/db';
+import { seedCompany, seedProject, setupRepoTables, testDb, testKysely } from '@/test/repo-db';
 
 vi.mock('@/lib/db', () => ({ getDb: vi.fn(async () => testDb()) }));
+
+vi.mock('@/lib/db/kysely', () => ({
+  getKysely: vi.fn(async () => testKysely()),
+}));
 
 import { createActivity } from './activities.repo';
 import {
@@ -23,6 +27,12 @@ describe.skipIf(!hasTestDb)('milestones.repo', () => {
   beforeAll(async () => {
     await setupRepoTables();
     projectId = await seedProject('Milestones Suite');
+  });
+
+  it('loads via getKysely', async () => {
+    const { getKysely } = await import('@/lib/db/kysely');
+    await listMilestones(projectId);
+    expect(getKysely).toHaveBeenCalled();
   });
 
   it('creates a milestone and reads it back scoped to the project', async () => {

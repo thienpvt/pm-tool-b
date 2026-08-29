@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { hasTestDb, testPool } from '@/test/db';
-import { seedProject, setupRepoTables, testDb } from '@/test/repo-db';
+import { seedProject, setupRepoTables, testDb, testKysely } from '@/test/repo-db';
 import { migrateFiscalBudget } from '@/lib/db-fiscal-budget';
 import { runInTransactionOnPool } from '@/lib/db-tx';
 
@@ -8,6 +8,10 @@ vi.mock('@/lib/db', () => ({
   getDb: vi.fn(async () => testDb()),
   runInTransaction: (fn: (client: import('pg').PoolClient) => Promise<unknown>) =>
     runInTransactionOnPool(testPool(), fn),
+}));
+
+vi.mock('@/lib/db/kysely', () => ({
+  getKysely: vi.fn(async () => testKysely()),
 }));
 
 import {
@@ -28,6 +32,12 @@ describe.skipIf(!hasTestDb)('financial-benefits.repo', () => {
   afterAll(async () => {
     const { closeTestPool } = await import('@/test/db');
     await closeTestPool();
+  });
+
+  it('loads via getKysely', async () => {
+    const { getKysely } = await import('@/lib/db/kysely');
+    await listFinancialBenefits(projectId);
+    expect(getKysely).toHaveBeenCalled();
   });
 
   it('stores actual_vnd as SQL NULL when omitted', async () => {
