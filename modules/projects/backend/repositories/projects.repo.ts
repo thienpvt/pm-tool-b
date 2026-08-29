@@ -1,5 +1,7 @@
-import { getDb } from '@/lib/db';
-import { buildUpdate } from '@/lib/repositories/_helpers';
+import { sql, type Insertable, type Updateable } from 'kysely';
+import type { Database } from '@/lib/db/database';
+import { getKysely } from '@/lib/db/kysely';
+import { pickAllowed } from '@/lib/repositories/_kysely-helpers';
 
 /**
  * Updatable columns for `projects`.
@@ -40,49 +42,57 @@ export const PROJECT_COLUMNS = [
   'governance',
 ] as const;
 
+type ProjectUpdate = Pick<Updateable<Database['projects']>, typeof PROJECT_COLUMNS[number]>;
+
 export type ProjectAccessRow = {
   company_id: number | null;
   customer_company_id: number | null;
 };
 
+function deleteResult(numDeletedRows: bigint | number | undefined) {
+  return { lastInsertRowid: 0, changes: Number(numDeletedRows ?? 0) };
+}
+
 /** Tenancy columns for an access check. Returns undefined when the project does not exist. */
 export async function projectAccessRow(projectId: number | string) {
-  const db = await getDb();
-  return db.get<ProjectAccessRow>(
-    `SELECT p.company_id, c.company_id AS customer_company_id
-     FROM projects p LEFT JOIN customers c ON p.customer_id = c.id
-     WHERE p.id = ?`,
-    Number(projectId)
-  );
+  const db = await getKysely();
+  return db
+    .selectFrom('projects as p')
+    .leftJoin('customers as c', 'p.customer_id', 'c.id')
+    .select(['p.company_id', sql<number | null>`c.company_id`.as('customer_company_id')])
+    .where('p.id', '=', Number(projectId))
+    .executeTakeFirst();
 }
 
 export async function getProject(projectId: number | string) {
-  const db = await getDb();
-  return db.get('SELECT * FROM projects WHERE id = ?', projectId);
+  const db = await getKysely();
+  return db
+    .selectFrom('projects')
+    .selectAll()
+    .where('id', '=', Number(projectId))
+    .executeTakeFirst();
 }
-
-const LIST_SELECT = `SELECT p.*, c.name as program_name, c.industry as program_industry
-   FROM projects p LEFT JOIN customers c ON p.customer_id = c.id`;
 
 /** PM identity columns for interim D-14 assignment checks. */
 export async function getProjectPmIdentity(projectId: number | string) {
-  const db = await getDb();
-  return db.get<{ pm_name: string; pm_email: string }>(
-    'SELECT pm_name, pm_email FROM projects WHERE id = ?',
-    Number(projectId),
-  );
+  const db = await getKysely();
+  return db
+    .selectFrom('projects')
+    .select(['pm_name', 'pm_email'])
+    .where('id', '=', Number(projectId))
+    .executeTakeFirst();
 }
 
 /** Case-insensitive per-company project code lookup (D-01). */
 export async function findProjectByCompanyCode(companyId: number, code: string) {
-  const db = await getDb();
-  return db.get<{ id: number }>(
-    `SELECT id FROM projects
-     WHERE company_id = ? AND LOWER(project_code) = LOWER(?)
-     LIMIT 1`,
-    companyId,
-    code,
-  );
+  const db = await getKysely();
+  return db
+    .selectFrom('projects')
+    .select('id')
+    .where('company_id', '=', companyId)
+    .where(sql`LOWER(project_code)`, '=', code.toLowerCase())
+    .limit(1)
+    .executeTakeFirst();
 }
 
 /**
@@ -95,26 +105,49 @@ export async function listProjects(
   companyId: number | null,
   opts?: { pmUserId?: number },
 ) {
-  const db = await getDb();
+  const db = await getKysely();
+  let q = db
+    .selectFrom('projects as p')
+    .leftJoin('customers as c', 'p.customer_id', 'c.id')
+    .selectAll('p')
+    .select([
+      sql<string | null>`c.name`.as('program_name'),
+      sql<string | null>`c.industry`.as('program_industry'),
+    ]);
+
   if (companyId !== null) {
-    let sql = `${LIST_SELECT} WHERE (p.company_id = ? OR c.company_id = ?)`;
-    const params: unknown[] = [companyId, companyId];
+    q = q.where((eb) =>
+      eb.or([
+        eb('p.company_id', '=', companyId),
+        eb('c.company_id', '=', companyId),
+      ]),
+    );
     if (opts?.pmUserId !== undefined) {
-      sql += ` AND EXISTS (
-        SELECT 1 FROM project_pm_assignments a
-        WHERE a.project_id = p.id AND a.user_id = ?
-          AND a.effective_from <= CURRENT_DATE
-          AND (a.effective_to IS NULL OR a.effective_to > CURRENT_DATE)
-      )`;
-      params.push(opts.pmUserId);
+      const pmUserId = opts.pmUserId;
+      q = q.where(({ exists, selectFrom }) =>
+        exists(
+          selectFrom('project_pm_assignments as a')
+            .select(sql<number>`1`.as('ok'))
+            .whereRef('a.project_id', '=', 'p.id')
+            .where('a.user_id', '=', pmUserId)
+            .where(sql<boolean>`a.effective_from <= CURRENT_DATE`)
+            .where(sql<boolean>`(a.effective_to IS NULL OR a.effective_to > CURRENT_DATE)`),
+        ),
+      );
     }
-    sql += ' ORDER BY p.created_at DESC';
-    return db.all(sql, ...params);
+    return q.orderBy('p.created_at', 'desc').execute();
   }
-  return db.all(
-    `${LIST_SELECT} WHERE p.company_id IS NULL
-     AND (p.customer_id IS NULL OR c.company_id IS NULL) ORDER BY p.created_at DESC`,
-  );
+
+  return q
+    .where('p.company_id', 'is', null)
+    .where((eb) =>
+      eb.or([
+        eb('p.customer_id', 'is', null),
+        eb('c.company_id', 'is', null),
+      ]),
+    )
+    .orderBy('p.created_at', 'desc')
+    .execute();
 }
 
 /** Default meetings seeded into every new project. Verbatim from the current route. */
@@ -138,48 +171,64 @@ const DEFAULT_ESCALATIONS = [
  * normal user from the session. The repository takes the decided value (REPO-02).
  */
 export async function createProject(companyId: number | null, body: Record<string, unknown>) {
-  const db = await getDb();
-  const result = await db.run(
-    `INSERT INTO projects (
-      name, client, customer_id, pm_name, pm_email, start_date, end_date, description,
-      current_phase, objective, project_owner, budget, budget_currency, company_id,
-      project_code, portfolio_year, stage, progress_pct, weekly_report_enabled
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    body.name,
-    body.client ?? '',
-    body.customer_id ?? null,
-    body.pm_name ?? '',
-    body.pm_email ?? '',
-    body.start_date ?? '',
-    body.end_date ?? '',
-    body.description ?? '',
-    body.current_phase ?? 'Initiation',
-    body.objective ?? '',
-    body.project_owner ?? '',
-    body.budget ? Number(body.budget) : 0,
-    body.budget_currency ?? 'VND',
-    companyId,
-    body.project_code ?? null,
-    body.portfolio_year ?? null,
-    body.stage ?? null,
-    body.progress_pct ?? 0,
-    body.weekly_report_enabled ?? false,
-  );
+  const db = await getKysely();
+  const values: Insertable<Database['projects']> = {
+    name: String(body.name),
+    client: body.client != null ? String(body.client) : '',
+    customer_id: body.customer_id != null ? Number(body.customer_id) : null,
+    pm_name: body.pm_name != null ? String(body.pm_name) : '',
+    pm_email: body.pm_email != null ? String(body.pm_email) : '',
+    start_date: body.start_date != null ? String(body.start_date) : '',
+    end_date: body.end_date != null ? String(body.end_date) : '',
+    description: body.description != null ? String(body.description) : '',
+    current_phase: body.current_phase != null ? String(body.current_phase) : 'Initiation',
+    objective: body.objective != null ? String(body.objective) : '',
+    project_owner: body.project_owner != null ? String(body.project_owner) : '',
+    budget: body.budget ? Number(body.budget) : 0,
+    budget_currency: body.budget_currency != null ? String(body.budget_currency) : 'VND',
+    company_id: companyId,
+    project_code: body.project_code != null ? String(body.project_code) : null,
+    portfolio_year: body.portfolio_year != null ? Number(body.portfolio_year) : null,
+    stage: body.stage != null ? String(body.stage) : null,
+    progress_pct: body.progress_pct != null ? Number(body.progress_pct) : 0,
+    weekly_report_enabled: body.weekly_report_enabled != null ? Boolean(body.weekly_report_enabled) : false,
+    created_at: new Date(),
+  };
+  const project = await db
+    .insertInto('projects')
+    .values(values)
+    .returningAll()
+    .executeTakeFirstOrThrow();
 
-  const newId = result.lastInsertRowid;
-  const project = await db.get('SELECT * FROM projects WHERE id = ?', newId);
+  const newId = project.id;
 
   for (const m of DEFAULT_MEETINGS) {
-    await db.run(
-      'INSERT INTO meetings (project_id, name, frequency, content, participants, method, type) VALUES (?,?,?,?,?,?,?)',
-      newId, m.name, m.frequency, m.content, m.participants, m.method, m.type,
-    );
+    await db
+      .insertInto('meetings')
+      .values({
+        project_id: Number(newId),
+        name: m.name,
+        frequency: m.frequency,
+        content: m.content,
+        participants: m.participants,
+        method: m.method,
+        type: m.type,
+      })
+      .execute();
   }
   for (const e of DEFAULT_ESCALATIONS) {
-    await db.run(
-      'INSERT INTO escalation_levels (project_id, level, level_name, channel, participants, input, output) VALUES (?,?,?,?,?,?,?)',
-      newId, e.level, e.level_name, e.channel, e.participants, e.input, e.output,
-    );
+    await db
+      .insertInto('escalation_levels')
+      .values({
+        project_id: Number(newId),
+        level: e.level,
+        level_name: e.level_name,
+        channel: e.channel,
+        participants: e.participants,
+        input: e.input,
+        output: e.output,
+      })
+      .execute();
   }
 
   return project;
@@ -187,26 +236,35 @@ export async function createProject(companyId: number | null, body: Record<strin
 
 /** Throws UnknownColumnError when `fields` carries a key outside PROJECT_COLUMNS. */
 export async function updateProject(projectId: number | string, fields: Record<string, unknown>) {
-  const { sql, values } = buildUpdate('projects', PROJECT_COLUMNS, fields);
-  const db = await getDb();
-  await db.run(`UPDATE projects SET ${sql} WHERE id = ?`, ...values, projectId);
+  const picked = pickAllowed<ProjectUpdate>(PROJECT_COLUMNS, fields);
+  const db = await getKysely();
+  await db
+    .updateTable('projects')
+    .set(picked)
+    .where('id', '=', Number(projectId))
+    .execute();
   return getProject(projectId);
 }
 
 export async function deleteProject(projectId: number | string) {
-  const db = await getDb();
-  return db.run('DELETE FROM projects WHERE id = ?', projectId);
+  const db = await getKysely();
+  const [result] = await db
+    .deleteFrom('projects')
+    .where('id', '=', Number(projectId))
+    .execute();
+  return deleteResult(result?.numDeletedRows);
 }
 
 /** Project plus its customer name, the shape the weekly report renders. */
 export async function getProjectWithCustomer(projectId: number | string) {
-  const db = await getDb();
-  return db.get(
-    `SELECT p.*, c.name as customer_name
-     FROM projects p LEFT JOIN customers c ON p.customer_id = c.id
-     WHERE p.id = ?`,
-    projectId,
-  );
+  const db = await getKysely();
+  return db
+    .selectFrom('projects as p')
+    .leftJoin('customers as c', 'p.customer_id', 'c.id')
+    .selectAll('p')
+    .select(sql<string | null>`c.name`.as('customer_name'))
+    .where('p.id', '=', Number(projectId))
+    .executeTakeFirst();
 }
 
 /**
@@ -215,12 +273,15 @@ export async function getProjectWithCustomer(projectId: number | string) {
  * rather than "cleaned up", because the client reads both names.
  */
 export async function getProjectForReport(projectId: number | string) {
-  const db = await getDb();
-  return db.get(
-    `SELECT p.*, c.name as customer_name, c.name as program_name
-     FROM projects p
-     LEFT JOIN customers c ON p.customer_id = c.id
-     WHERE p.id = ?`,
-    projectId,
-  );
+  const db = await getKysely();
+  return db
+    .selectFrom('projects as p')
+    .leftJoin('customers as c', 'p.customer_id', 'c.id')
+    .selectAll('p')
+    .select([
+      sql<string | null>`c.name`.as('customer_name'),
+      sql<string | null>`c.name`.as('program_name'),
+    ])
+    .where('p.id', '=', Number(projectId))
+    .executeTakeFirst();
 }
