@@ -14,7 +14,11 @@ vi.mock('@/lib/db/kysely', () => ({
   getKysely: vi.fn(async () => testKysely()),
 }));
 
-import { getShellsForPeriod, listPeriodShellsRepo } from './weekly-reports.repo';
+import {
+  getShellsForPeriod,
+  listPeriodShellsRepo,
+  updateWeeklyReportDraft,
+} from './weekly-reports.repo';
 import { createPeriodWithShells } from './weekly-periods.repo';
 
 describe.skipIf(!hasTestDb)('weekly-reports.repo', () => {
@@ -114,5 +118,20 @@ describe.skipIf(!hasTestDb)('weekly-reports.repo', () => {
     const period = await createPeriodWithShells(companyId, '2026-W01', 1);
     await listPeriodShellsRepo(companyId, period.id);
     expect(getKysely).toHaveBeenCalled();
+  });
+
+  it('updateWeeklyReportDraft persists highlights on shell (D-05)', async () => {
+    const projectId = await insertProject('draft-p1');
+    const period = await createPeriodWithShells(companyId, '2026-W01', 1);
+    const shells = await getShellsForPeriod(period.id);
+    const shell = shells.find((s) => s.project_id === projectId);
+    expect(shell).toBeDefined();
+
+    const updated = await updateWeeklyReportDraft(projectId, shell!.id, {
+      highlights: 'Shipped milestone A',
+      status: 'draft',
+    });
+    expect(updated?.highlights).toBe('Shipped milestone A');
+    expect(updated?.status).toBe('draft');
   });
 });
