@@ -69,6 +69,10 @@ export function testDb(): DbClient {
   return new TestDbClient(testPool());
 }
 
+export function testKysely(): never {
+  throw new Error('testKysely not implemented');
+}
+
 /**
  * Minimal DDL for the tables Phase 2 repository tests touch. Column sets match
  * `lib/repositories/ALLOWLIST-DIFF.md`, including the migration-added columns

@@ -1,12 +1,16 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { hasTestDb, testPool } from '@/test/db';
-import { seedCompany, setupRepoTables, testDb } from '@/test/repo-db';
+import { seedCompany, setupRepoTables, testDb, testKysely } from '@/test/repo-db';
 import { runInTransactionOnPool } from '@/lib/db-tx';
 
 vi.mock('@/lib/db', () => ({
   getDb: vi.fn(async () => testDb()),
   runInTransaction: (fn: (client: import('pg').PoolClient) => Promise<unknown>) =>
     runInTransactionOnPool(testPool(), fn),
+}));
+
+vi.mock('@/lib/db/kysely', () => ({
+  getKysely: vi.fn(async () => testKysely()),
 }));
 
 import { insertAuditLog, listAuditLogs } from './audit.repo';
@@ -65,5 +69,11 @@ describe.skipIf(!hasTestDb)('audit.repo integration', () => {
     expect(firstInsert.before).toBeNull();
     expect(firstInsert.after).toEqual({ username: 'alpha' });
     expect(firstInsert.created_at).toBeTruthy();
+  });
+
+  it('loads via getKysely', async () => {
+    const { getKysely } = await import('@/lib/db/kysely');
+    await listAuditLogs(companyId);
+    expect(getKysely).toHaveBeenCalled();
   });
 });
