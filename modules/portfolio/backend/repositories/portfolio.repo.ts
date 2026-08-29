@@ -1,5 +1,4 @@
 import { sql } from 'kysely';
-import { getDb } from '@/lib/db';
 import { getKysely } from '@/lib/db/kysely';
 
 /**
@@ -18,9 +17,6 @@ export type PortfolioMember = {
   note: string;
   member_type: string;
 };
-
-const PROJECTS_WITH_PROGRAM = `SELECT p.*, c.name as program_name, c.industry as program_industry
-  FROM projects p LEFT JOIN customers c ON p.customer_id = c.id`;
 
 function deleteResult(numDeletedRows: bigint | number | undefined) {
   return { lastInsertRowid: 0, changes: Number(numDeletedRows ?? 0) };
@@ -606,21 +602,16 @@ export async function deletePortfolioProgramAllocation(
   return deleteResult(result.numDeletedRows);
 }
 
-type Scope = { sql: string; params: unknown[] };
-
-function reportCompanyScope(companyId: number | null): Scope {
+function reportCompanyScopeSql(companyId: number | null) {
   if (companyId !== null) {
-    return { sql: 'AND p.company_id = ?', params: [companyId] };
+    return sql`AND p.company_id = ${companyId}`;
   }
-  return { sql: 'AND p.company_id IS NULL AND (p.customer_id IS NULL OR c.company_id IS NULL)', params: [] };
+  return sql`AND p.company_id IS NULL AND (p.customer_id IS NULL OR c.company_id IS NULL)`;
 }
 
-function idScope(column: string, ids: readonly number[]): Scope {
-  if (!ids.length) return { sql: '', params: [] };
-  return {
-    sql: `AND ${column} IN (${ids.map(() => '?').join(',')})`,
-    params: [...ids],
-  };
+function idScopeSql(column: string, ids: readonly number[]) {
+  if (!ids.length) return sql``;
+  return sql`AND ${sql.raw(column)} IN (${sql.join(ids.map((id) => sql.lit(id)))})`;
 }
 
 export type PortfolioMilestoneInfo = {
@@ -638,8 +629,8 @@ export async function portfolioMilestoneSelection(
   ids: readonly number[],
   companyId: number | null,
 ) {
-  const db = await getDb();
-  const company = reportCompanyScope(companyId);
+  const db = await getKysely();
+  const companyFilter = reportCompanyScopeSql(companyId);
   const milestones: PortfolioMilestoneInfo[] = [];
   const projectIds = new Set<number>();
   const activityIds = new Set<number>();
@@ -647,26 +638,25 @@ export async function portfolioMilestoneSelection(
   let periodMax: string | null = null;
 
   for (const milestoneId of ids) {
-    const row = await db.get<PortfolioMilestoneInfo>(
-      `SELECT m.id, m.project_id, m.name, m.start_date, m.end_date,
+    const result = await sql<PortfolioMilestoneInfo>`
+      SELECT m.id, m.project_id, m.name, m.start_date, m.end_date,
          COALESCE(p.name, '') AS project_name, COALESCE(c.name, '') AS program_name
        FROM milestones m
        JOIN projects p ON p.id = m.project_id
        LEFT JOIN customers c ON c.id = p.customer_id
-       WHERE m.id = ? ${company.sql}`,
-      milestoneId,
-      ...company.params,
-    );
+       WHERE m.id = ${milestoneId} ${companyFilter}
+    `.execute(db);
+    const row = result.rows[0];
     if (!row) continue;
     milestones.push(row);
     projectIds.add(row.project_id);
-    const epics = await db.all<{ activity_id: number }>(
-      `SELECT me.activity_id FROM milestone_epics me
-       JOIN activities a ON a.id = me.activity_id
-       WHERE me.milestone_id = ? AND a.project_id = ?`,
-      milestoneId,
-      row.project_id,
-    );
+    const epics = await db
+      .selectFrom('milestone_epics as me')
+      .innerJoin('activities as a', 'a.id', 'me.activity_id')
+      .select('me.activity_id')
+      .where('me.milestone_id', '=', milestoneId)
+      .where('a.project_id', '=', row.project_id)
+      .execute();
     for (const epic of epics) activityIds.add(epic.activity_id);
     if (row.start_date && (periodMin === null || row.start_date < periodMin)) periodMin = row.start_date;
     if (row.end_date && (periodMax === null || row.end_date > periodMax)) periodMax = row.end_date;
@@ -677,85 +667,79 @@ export async function portfolioMilestoneSelection(
 
 /** Report route scope intentionally uses project.company_id only, matching its prior SQL. */
 export async function listPortfolioReportProjects(companyId: number | null) {
-  const db = await getDb();
-  const company = reportCompanyScope(companyId);
-  return db.all(
-    `${PROJECTS_WITH_PROGRAM} WHERE 1=1 ${company.sql} ORDER BY p.created_at DESC`,
-    ...company.params,
-  );
+  const db = await getKysely();
+  const companyFilter = reportCompanyScopeSql(companyId);
+  const result = await sql<Record<string, unknown>>`
+    SELECT p.*, c.name as program_name, c.industry as program_industry
+    FROM projects p LEFT JOIN customers c ON p.customer_id = c.id
+    WHERE 1=1 ${companyFilter} ORDER BY p.created_at DESC
+  `.execute(db);
+  return result.rows;
 }
 
 export async function listPortfolioReportActivities() {
-  const db = await getDb();
-  return db.all<{
-    id: number; project_id: number; no: string; parent_id: number | null; epic_name: string;
-    status: string; phase: string; plan_start?: string; plan_end?: string;
-    actual_start?: string; actual_end?: string;
-  }>(
-    `SELECT id, project_id, no, parent_id, activity as epic_name, status, phase,
-       plan_start, plan_end, actual_start, actual_end FROM activities`,
-  );
+  const db = await getKysely();
+  const rows = await db
+    .selectFrom('activities')
+    .select([
+      'id', 'project_id', 'no', 'parent_id',
+      'activity as epic_name', 'status', 'phase',
+      'plan_start', 'plan_end', 'actual_start', 'actual_end',
+    ])
+    .execute();
+  return rows.map((row) => ({
+    ...row,
+    plan_start: row.plan_start ?? undefined,
+    plan_end: row.plan_end ?? undefined,
+    actual_start: row.actual_start ?? undefined,
+    actual_end: row.actual_end ?? undefined,
+  }));
 }
 
 export async function milestoneDateRanges(projectIds: readonly number[]) {
   if (!projectIds.length) return [];
-  const db = await getDb();
-  return db.all<{ project_id: number; min_s: string; max_e: string }>(
-    `SELECT project_id, MIN(start_date) as min_s, MAX(end_date) as max_e
+  const db = await getKysely();
+  const idList = sql.join(projectIds.map((id) => sql.lit(id)));
+  const result = await sql<{ project_id: number; min_s: string; max_e: string }>`
+    SELECT project_id, MIN(start_date) as min_s, MAX(end_date) as max_e
      FROM milestones
-     WHERE project_id IN (${projectIds.map(() => '?').join(',')})
+     WHERE project_id IN (${idList})
        AND start_date IS NOT NULL AND end_date IS NOT NULL
-     GROUP BY project_id`,
-    ...projectIds,
-  );
+     GROUP BY project_id
+  `.execute(db);
+  return result.rows;
 }
 
 export async function topPortfolioRisks(
   companyId: number | null,
   projectIds: readonly number[],
 ) {
-  const db = await getDb();
-  const company = reportCompanyScope(companyId);
-  const projects = idScope('r.project_id', projectIds);
-  return db.all(
-    `SELECT r.*, p.name as project_name, c.name as program_name
+  const db = await getKysely();
+  const result = await sql<Record<string, unknown>>`
+    SELECT r.*, p.name as project_name, c.name as program_name
      FROM risks r JOIN projects p ON r.project_id = p.id
      LEFT JOIN customers c ON p.customer_id = c.id
-     WHERE (r.status='Open' OR r.status='In Progress') ${company.sql} ${projects.sql}
+     WHERE (r.status='Open' OR r.status='In Progress') ${reportCompanyScopeSql(companyId)} ${idScopeSql('r.project_id', projectIds)}
      ORDER BY CASE r.priority WHEN 'Critical' THEN 1 WHEN 'High' THEN 2 WHEN 'Medium' THEN 3 ELSE 4 END,
-       r.id DESC LIMIT 12`,
-    ...company.params, ...projects.params,
-  );
+       r.id DESC LIMIT 12
+  `.execute(db);
+  return result.rows;
 }
 
 export async function topPortfolioIssues(
   companyId: number | null,
   projectIds: readonly number[],
 ) {
-  const db = await getDb();
-  const company = reportCompanyScope(companyId);
-  const projects = idScope('i.project_id', projectIds);
-  return db.all(
-    `SELECT i.*, p.name as project_name, c.name as program_name
+  const db = await getKysely();
+  const result = await sql<Record<string, unknown>>`
+    SELECT i.*, p.name as project_name, c.name as program_name
      FROM issues i JOIN projects p ON i.project_id = p.id
      LEFT JOIN customers c ON p.customer_id = c.id
-     WHERE (i.status='Open' OR i.status='In Progress') ${company.sql} ${projects.sql}
+     WHERE (i.status='Open' OR i.status='In Progress') ${reportCompanyScopeSql(companyId)} ${idScopeSql('i.project_id', projectIds)}
      ORDER BY CASE i.priority WHEN 'Critical' THEN 1 WHEN 'High' THEN 2 WHEN 'Medium' THEN 3 ELSE 4 END,
-       i.id DESC LIMIT 12`,
-    ...company.params, ...projects.params,
-  );
-}
-
-function reportActivityScopes(
-  companyId: number | null,
-  projectIds: readonly number[],
-  activityIds: readonly number[],
-) {
-  return {
-    company: reportCompanyScope(companyId),
-    projects: idScope('a.project_id', projectIds),
-    activities: idScope('a.id', activityIds),
-  };
+       i.id DESC LIMIT 12
+  `.execute(db);
+  return result.rows;
 }
 
 export async function upcomingPortfolioActivities(
@@ -766,20 +750,18 @@ export async function upcomingPortfolioActivities(
   endDate: string,
   doneStatuses: readonly string[],
 ) {
-  const db = await getDb();
-  const scope = reportActivityScopes(companyId, projectIds, activityIds);
-  const done = doneStatuses.map(() => '?').join(',');
-  return db.all(
-    `SELECT a.*, p.name as project_name, c.name as program_name
+  const db = await getKysely();
+  const doneList = sql.join(doneStatuses.map((s) => sql.lit(s)));
+  const result = await sql<Record<string, unknown>>`
+    SELECT a.*, p.name as project_name, c.name as program_name
      FROM activities a JOIN projects p ON a.project_id = p.id
      LEFT JOIN customers c ON p.customer_id = c.id
-     WHERE a.plan_end BETWEEN ? AND ? AND a.status NOT IN (${done})
+     WHERE a.plan_end BETWEEN ${startDate} AND ${endDate} AND a.status NOT IN (${doneList})
        AND (a.no IS NULL OR a.no != 'EPIC')
-       ${scope.company.sql} ${scope.projects.sql} ${scope.activities.sql}
-     ORDER BY a.plan_end ASC LIMIT 15`,
-    startDate, endDate, ...doneStatuses, ...scope.company.params,
-    ...scope.projects.params, ...scope.activities.params,
-  );
+       ${reportCompanyScopeSql(companyId)} ${idScopeSql('a.project_id', projectIds)} ${idScopeSql('a.id', activityIds)}
+     ORDER BY a.plan_end ASC LIMIT 15
+  `.execute(db);
+  return result.rows;
 }
 
 export async function recentlyCompletedPortfolioActivities(
@@ -789,20 +771,18 @@ export async function recentlyCompletedPortfolioActivities(
   sinceDate: string,
   doneStatuses: readonly string[],
 ) {
-  const db = await getDb();
-  const scope = reportActivityScopes(companyId, projectIds, activityIds);
-  const done = doneStatuses.map(() => '?').join(',');
-  return db.all(
-    `SELECT a.*, p.name as project_name, c.name as program_name
+  const db = await getKysely();
+  const doneList = sql.join(doneStatuses.map((s) => sql.lit(s)));
+  const result = await sql<Record<string, unknown>>`
+    SELECT a.*, p.name as project_name, c.name as program_name
      FROM activities a JOIN projects p ON a.project_id = p.id
      LEFT JOIN customers c ON p.customer_id = c.id
-     WHERE a.status IN (${done}) AND a.actual_end >= ?
+     WHERE a.status IN (${doneList}) AND a.actual_end >= ${sinceDate}
        AND (a.no IS NULL OR a.no != 'EPIC')
-       ${scope.company.sql} ${scope.projects.sql} ${scope.activities.sql}
-     ORDER BY a.actual_end DESC LIMIT 10`,
-    ...doneStatuses, sinceDate, ...scope.company.params,
-    ...scope.projects.params, ...scope.activities.params,
-  );
+       ${reportCompanyScopeSql(companyId)} ${idScopeSql('a.project_id', projectIds)} ${idScopeSql('a.id', activityIds)}
+     ORDER BY a.actual_end DESC LIMIT 10
+  `.execute(db);
+  return result.rows;
 }
 
 export async function completedPortfolioActivitiesBetween(
@@ -813,20 +793,18 @@ export async function completedPortfolioActivitiesBetween(
   endDate: string,
   doneStatuses: readonly string[],
 ) {
-  const db = await getDb();
-  const scope = reportActivityScopes(companyId, projectIds, activityIds);
-  const done = doneStatuses.map(() => '?').join(',');
-  return db.all(
-    `SELECT a.*, p.name as project_name, p.current_phase, c.name as program_name
+  const db = await getKysely();
+  const doneList = sql.join(doneStatuses.map((s) => sql.lit(s)));
+  const result = await sql<Record<string, unknown>>`
+    SELECT a.*, p.name as project_name, p.current_phase, c.name as program_name
      FROM activities a JOIN projects p ON a.project_id = p.id
      LEFT JOIN customers c ON p.customer_id = c.id
-     WHERE a.status IN (${done}) AND a.actual_end >= ? AND a.actual_end <= ?
+     WHERE a.status IN (${doneList}) AND a.actual_end >= ${startDate} AND a.actual_end <= ${endDate}
        AND (a.no IS NULL OR a.no != 'EPIC')
-       ${scope.company.sql} ${scope.projects.sql} ${scope.activities.sql}
-     ORDER BY a.project_id, a.actual_end`,
-    ...doneStatuses, startDate, endDate, ...scope.company.params,
-    ...scope.projects.params, ...scope.activities.params,
-  );
+       ${reportCompanyScopeSql(companyId)} ${idScopeSql('a.project_id', projectIds)} ${idScopeSql('a.id', activityIds)}
+     ORDER BY a.project_id, a.actual_end
+  `.execute(db);
+  return result.rows;
 }
 
 export async function portfolioBugCounts(
@@ -834,63 +812,63 @@ export async function portfolioBugCounts(
   projectIds: readonly number[],
   milestoneMonth: string | null,
 ) {
-  const db = await getDb();
-  const company = reportCompanyScope(companyId);
-  const projects = milestoneMonth ? idScope('b.project_id', projectIds) : { sql: '', params: [] };
-  const select = `SELECT b.project_id, p.name as project_name, b.status, b.priority, b.severity,
-      COUNT(*) as cnt FROM bugs b JOIN projects p ON b.project_id = p.id`;
-  const group = 'GROUP BY b.project_id, p.name, b.status, b.priority, b.severity';
+  const db = await getKysely();
+  const companyFilter = reportCompanyScopeSql(companyId);
   if (milestoneMonth) {
     const pattern = `${milestoneMonth}%`;
-    return db.all(
-      `${select}
+    const result = await sql<Record<string, unknown>>`
+      SELECT b.project_id, p.name as project_name, b.status, b.priority, b.severity,
+        COUNT(*)::int as cnt FROM bugs b JOIN projects p ON b.project_id = p.id
        WHERE b.snapshot_date = (
          SELECT MAX(b2.snapshot_date) FROM bugs b2
-         WHERE b2.project_id = b.project_id AND b2.snapshot_date LIKE ? AND b2.snapshot_date != '')
-       AND b.snapshot_date LIKE ? AND b.snapshot_date != ''
-       ${company.sql} ${projects.sql} ${group}`,
-      pattern, pattern, ...company.params, ...projects.params,
-    );
+         WHERE b2.project_id = b.project_id AND b2.snapshot_date LIKE ${pattern} AND b2.snapshot_date != '')
+       AND b.snapshot_date LIKE ${pattern} AND b.snapshot_date != ''
+       ${companyFilter} ${idScopeSql('b.project_id', projectIds)}
+       GROUP BY b.project_id, p.name, b.status, b.priority, b.severity
+    `.execute(db);
+    return result.rows;
   }
-  return db.all(
-    `${select}
+  const result = await sql<Record<string, unknown>>`
+    SELECT b.project_id, p.name as project_name, b.status, b.priority, b.severity,
+      COUNT(*)::int as cnt FROM bugs b JOIN projects p ON b.project_id = p.id
      WHERE b.snapshot_date = (
        SELECT MAX(b2.snapshot_date) FROM bugs b2
        WHERE b2.project_id = b.project_id AND b2.snapshot_date != '')
      AND (b.snapshot_date IS NOT NULL AND b.snapshot_date != '')
-     ${company.sql} ${group}`,
-    ...company.params,
-  );
+     ${companyFilter}
+     GROUP BY b.project_id, p.name, b.status, b.priority, b.severity
+  `.execute(db);
+  return result.rows;
 }
 
 export async function internalPortfolioMembers(companyId: number | null) {
-  const db = await getDb();
+  const db = await getKysely();
+  let q = db
+    .selectFrom('portfolio_members')
+    .select(['name', 'role'])
+    .where('member_type', '=', 'internal');
   if (companyId !== null) {
-    return db.all<{ name: string; role: string }>(
-      `SELECT name, role FROM portfolio_members WHERE member_type = 'internal' AND company_id = ?`,
-      companyId,
-    );
+    q = q.where('company_id', '=', companyId);
+  } else {
+    q = q.where('company_id', 'is', null);
   }
-  return db.all<{ name: string; role: string }>(
-    `SELECT name, role FROM portfolio_members WHERE member_type = 'internal' AND company_id IS NULL`,
-  );
+  return q.execute();
 }
 
 export async function portfolioTeamMembers(companyId: number | null) {
-  const db = await getDb();
-  const company = reportCompanyScope(companyId);
-  return db.all<{ name: string; project_name: string }>(
-    `SELECT tm.name, p.name as project_name
+  const db = await getKysely();
+  const result = await sql<{ name: string; project_name: string }>`
+    SELECT tm.name, p.name as project_name
      FROM team_members tm JOIN projects p ON tm.project_id = p.id
-     WHERE 1=1 ${company.sql}`,
-    ...company.params,
-  );
+     WHERE 1=1 ${reportCompanyScopeSql(companyId)}
+  `.execute(db);
+  return result.rows;
 }
 
 export async function portfolioMemberFte(companyId: number | null) {
-  const db = await getDb();
-  return db.all<{ member_category: string; overhead_remaining: number; current_month_fte: number }>(
-    `SELECT pm.member_category, pm.overhead_remaining,
+  const db = await getKysely();
+  const result = await sql<{ member_category: string; overhead_remaining: number; current_month_fte: number }>`
+    SELECT pm.member_category, pm.overhead_remaining,
        COALESCE((
          SELECT SUM(CASE
            WHEN tm.capacity_json IS NOT NULL AND length(trim(tm.capacity_json)) > 2
@@ -900,39 +878,38 @@ export async function portfolioMemberFte(companyId: number | null) {
          WHERE LOWER(TRIM(tm.name)) = LOWER(TRIM(pm.name)) AND p.company_id = pm.company_id
        ), 0) AS current_month_fte
      FROM portfolio_members pm
-     WHERE pm.member_type = 'internal' AND pm.company_id = ?`,
-    companyId,
-  );
+     WHERE pm.member_type = 'internal' AND pm.company_id = ${companyId}
+  `.execute(db);
+  return result.rows;
 }
 
 export async function portfolioProgramFillRates(companyId: number | null) {
-  const db = await getDb();
-  return db.all<{ program_name: string; allocated: number; actual: number }>(
-    `SELECT c.name AS program_name, COALESCE(ppa.allocated_headcount, 0) AS allocated,
+  const db = await getKysely();
+  const result = await sql<{ program_name: string; allocated: number; actual: number }>`
+    SELECT c.name AS program_name, COALESCE(ppa.allocated_headcount, 0) AS allocated,
        COALESCE((
          SELECT ROUND(CAST(SUM(COALESCE(
            CASE WHEN tm.capacity_json IS NOT NULL AND length(trim(tm.capacity_json)) > 2
                 THEN CAST((tm.capacity_json::jsonb ->> TO_CHAR(CURRENT_DATE, 'YYYY-MM')) AS FLOAT)
                 ELSE NULL END, 0)) AS NUMERIC), 1)
          FROM team_members tm JOIN projects p ON p.id = tm.project_id
-         WHERE p.customer_id = c.id AND p.company_id = ?
+         WHERE p.customer_id = c.id AND p.company_id = ${companyId}
        ), 0) AS actual
      FROM customers c
-     LEFT JOIN portfolio_program_allocations ppa ON ppa.program_id = c.id AND ppa.company_id = ?
-     WHERE c.company_id = ? ORDER BY c.name`,
-    companyId, companyId, companyId,
-  );
+     LEFT JOIN portfolio_program_allocations ppa ON ppa.program_id = c.id AND ppa.company_id = ${companyId}
+     WHERE c.company_id = ${companyId} ORDER BY c.name
+  `.execute(db);
+  return result.rows;
 }
 
 export async function portfolioReportMilestones(companyId: number | null) {
-  const db = await getDb();
-  const company = reportCompanyScope(companyId);
-  return db.all(
-    `SELECT m.id, m.project_id, m.name, m.start_date, m.end_date,
+  const db = await getKysely();
+  const result = await sql<Record<string, unknown>>`
+    SELECT m.id, m.project_id, m.name, m.start_date, m.end_date,
        p.name as project_name, COALESCE(c.name, '') as program_name
      FROM milestones m JOIN projects p ON m.project_id = p.id
      LEFT JOIN customers c ON p.customer_id = c.id
-     WHERE 1=1 ${company.sql} ORDER BY m.start_date DESC, m.name`,
-    ...company.params,
-  );
+     WHERE 1=1 ${reportCompanyScopeSql(companyId)} ORDER BY m.start_date DESC, m.name
+  `.execute(db);
+  return result.rows;
 }
