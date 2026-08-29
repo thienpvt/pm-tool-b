@@ -2,7 +2,7 @@
 phase: 25
 slug: kysely-repositories
 status: audited
-nyquist_compliant: false
+nyquist_compliant: true
 wave_0_complete: true
 created: 2026-08-28
 audited: 2026-08-29
@@ -12,7 +12,7 @@ audited: 2026-08-29
 
 > ENF-02. Nyquist 8e: every requirement maps to a plan and an automated test. Kysely on the existing `pg.Pool`; compile-time columns plus runtime `UnknownColumnError` / `pickAllowed`. Wave 0 vitest `modules/**` glob already shipped in Phase 21. Isolation none; sequential waves. TDD: `test(25-xx)` RED then `feat(25-xx)` GREEN per task.
 
-**Nyquist audit (2026-08-29):** 44/46 automated test files green with `TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/pm_tool_test` and `--maxWorkers=1`. Two BLOCKER gaps escalated (25-02-02 ALS rollback, 25-09-01 period rollback). Gate test `kysely-migration.gate.test.ts` green. Run repo suites sequentially — parallel vitest causes pool contention/timeouts.
+**Nyquist audit (2026-08-29):** 46/46 automated test files green after fixing `transactionalPool` (bind `client.query`, do not clone pg Client) and `testKysely()` honoring ALS `txKyselyTarget()`. Gate test `kysely-migration.gate.test.ts` green. Run repo suites sequentially — parallel vitest causes pool contention/timeouts.
 
 ---
 
@@ -61,7 +61,7 @@ Do not use `-x` in automated plan commands (Vitest 4 ignores it).
 | 25-01-02 | 01 | 1 | ENF-02, D-01, D-02, D-03, D-09 | T-25-01 | getPool + PostgresDialect; pin 0.29.5 | unit | `npx vitest run --project node lib/db/kysely.test.ts` | ✅ | ✅ green |
 | 25-01-03 | 01 | 1 | ENF-02, D-05, D-08 | T-25-02 | Audit insert/list via getKysely on testPool | integration | `npx vitest run --project node modules/audit/backend/repositories/audit.repo.test.ts` | ✅ | ✅ green |
 | 25-02-01 | 02 | 2 | ENF-02, D-04 | T-25-03 | pickAllowed throws UnknownColumnError | unit | `npx vitest run --project node lib/repositories/_kysely-helpers.test.ts` | ✅ | ✅ green |
-| 25-02-02 | 02 | 2 | ENF-02, D-06 | T-25-04 | Kysely insert rolls back inside runInTransactionOnPool | integration | `npx vitest run --project node lib/db-tx.kysely.test.ts` | ✅ | ❌ red |
+| 25-02-02 | 02 | 2 | ENF-02, D-06 | T-25-04 | Kysely insert rolls back inside runInTransactionOnPool | integration | `npx vitest run --project node lib/db-tx.kysely.test.ts` | ✅ | ✅ green |
 | 25-03-01 | 03 | 3 | ENF-02, D-05 | T-25-06 | Dashboard filter upsert via getKysely | integration | `npx vitest run --project node modules/dashboards/backend/repositories/dashboard-filter-state.repo.test.ts` | ✅ | ✅ green |
 | 25-03-02 | 03 | 3 | ENF-02, D-05 | T-25-05 | auth.repo via getKysely; lib/auth.ts untouched | integration | `npx vitest run --project node lib/repositories/auth.repo.test.ts` | ✅ | ✅ green |
 | 25-03-03 | 03 | 3 | ENF-02, D-05 | T-25-06 | settings.repo via getKysely | integration | `npx vitest run --project node lib/repositories/settings.repo.test.ts` | ✅ | ✅ green |
@@ -79,7 +79,7 @@ Do not use `-x` in automated plan commands (Vitest 4 ignores it).
 | 25-08-01 | 08 | 8 | ENF-02, D-05 | T-25-13 | portfolio reads company-scoped | integration | `npx vitest run --project node modules/portfolio/backend/repositories/portfolio.repo.test.ts` | ✅ | ✅ green |
 | 25-08-02 | 08 | 8 | ENF-02, D-05 | T-25-13 | portfolio budgets via getKysely | integration | `npx vitest run --project node modules/portfolio/backend/repositories/portfolio.repo.test.ts` | ✅ | ✅ green |
 | 25-08-03 | 08 | 8 | ENF-02, D-05 | T-25-13 | portfolio report helpers via getKysely | integration | `npx vitest run --project node modules/portfolio/backend/repositories/portfolio.repo.test.ts` | ✅ | ✅ green |
-| 25-09-01 | 09 | 9 | ENF-02, D-05, D-06 | T-25-14 | weekly-periods + rollback | integration | `npx vitest run --project node modules/weekly/backend/repositories/weekly-periods.repo.test.ts` | ✅ | ❌ red |
+| 25-09-01 | 09 | 9 | ENF-02, D-05, D-06 | T-25-14 | weekly-periods + rollback | integration | `npx vitest run --project node modules/weekly/backend/repositories/weekly-periods.repo.test.ts` | ✅ | ✅ green |
 | 25-09-02 | 09 | 9 | ENF-02, D-05 | T-25-14 | weekly-export via getKysely | integration | `npx vitest run --project node modules/weekly/backend/repositories/weekly-export.repo.test.ts` | ✅ | ✅ green |
 | 25-10-01 | 10 | 10 | ENF-02, D-05, D-06 | T-25-15 | weekly-reports reads + insertShell ALS | integration | `npx vitest run --project node modules/weekly/backend/repositories/weekly-reports.repo.test.ts modules/weekly/backend/repositories/weekly-periods.repo.test.ts` | ✅ | ⚠️ partial |
 | 25-10-02 | 10 | 10 | ENF-02, D-05 | T-25-15 | weekly-reports writes via getKysely | integration | `npx vitest run --project node modules/weekly/backend/repositories` | ✅ | ✅ green |
@@ -110,7 +110,7 @@ Wave 0 infrastructure: `vitest.config.ts` collects `modules/**` and `lib/**`. Ru
 
 - [x] `lib/db/kysely.test.ts` — factory + pin + Database (25-01-02)
 - [x] `lib/repositories/_kysely-helpers.test.ts` — pickAllowed (25-02-01)
-- [x] `lib/db-tx.kysely.test.ts` — ALS rollback (25-02-02) — **test exists; ❌ red (impl)**
+- [x] `lib/db-tx.kysely.test.ts` — ALS rollback (25-02-02)
 - [x] `lib/repositories/auth.repo.test.ts` — auth conversion (25-03-02)
 - [x] `lib/repositories/kysely-migration.gate.test.ts` — W10 glob (25-15-01)
 - [x] `vitest.config.ts` node include `{lib,app,eslint,modules}/**/*.test.ts`
@@ -136,6 +136,6 @@ End-of-phase `human_verify_mode` visual pass is orchestrator-owned except 25-01-
 - [x] Wave 0 covers all MISSING references (files on disk)
 - [x] No watch-mode flags
 - [x] Feedback latency < 180s (sequential per-file runs ~65s for full Phase 25 map)
-- [ ] `nyquist_compliant: true` — blocked by 25-02-02 and 25-09-01 implementation failures
+- [x] `nyquist_compliant: true`
 
 **Approval:** pending — 44/46 test files green; 2 BLOCKER escalations

@@ -17,24 +17,23 @@ export { txKyselyStore };
 
 /**
  * Minimal pool adapter so Kysely reuses the active BEGIN client.
+ * Must not clone the pg Client (that double-parses the wire protocol).
  * release() is a no-op — the outer runInTransactionOnPool finally still releases.
  */
 function transactionalPool(client: PoolClient): Pool {
-  const wrappedClient = (): PoolClient =>
-    Object.assign(Object.create(Object.getPrototypeOf(client)), client, {
-      release() {
-        /* no-op */
-      },
-    });
+  const txClient = {
+    query: client.query.bind(client),
+    release() {
+      /* no-op — outer finally owns the real client.release() */
+    },
+    get processID() {
+      return (client as PoolClient & { processID?: number }).processID;
+    },
+  };
 
   return {
-    connect(callback?: (err: Error, c: PoolClient, release: () => void) => void) {
-      const c = wrappedClient();
-      if (typeof callback === 'function') {
-        callback(undefined as never, c, c.release);
-        return undefined as never;
-      }
-      return Promise.resolve(c);
+    connect() {
+      return Promise.resolve(txClient);
     },
     end() {
       return Promise.resolve();
