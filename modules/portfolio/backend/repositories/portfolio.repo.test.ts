@@ -27,10 +27,11 @@ describe.skipIf(!hasTestDb)('portfolio.repo', () => {
         end_date TEXT NOT NULL,
         total_amount NUMERIC(15,2) NOT NULL DEFAULT 0,
         currency TEXT NOT NULL DEFAULT 'VND',
-        status TEXT NOT NULL DEFAULT 'draft',
         notes TEXT DEFAULT '',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+      ALTER TABLE portfolio_budgets ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'draft';
+      ALTER TABLE portfolio_budgets ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
       CREATE TABLE IF NOT EXISTS portfolio_budget_allocations (
         id SERIAL PRIMARY KEY,
         portfolio_budget_id INTEGER NOT NULL,

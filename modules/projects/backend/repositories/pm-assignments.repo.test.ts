@@ -29,10 +29,13 @@ describe.skipIf(!hasTestDb)('pm-assignments.repo', () => {
     await setupRepoTables();
     await migrateFiscalBudget(testPool());
     projectId = await seedProject('PM Assignments Suite');
+    const username = `pm-test-user-${Date.now()}`;
+    const email = `pm-${Date.now()}@test.example`;
     const { rows } = await testPool().query(
       `INSERT INTO users (username, password_hash, display_name, email, status)
-       VALUES ('pm-test-user', 'hash', 'PM Test User', 'pm@test.example', 'active')
+       VALUES ($1, 'hash', 'PM Test User', $2, 'active')
        RETURNING id`,
+      [username, email],
     );
     userId = rows[0].id as number;
   });

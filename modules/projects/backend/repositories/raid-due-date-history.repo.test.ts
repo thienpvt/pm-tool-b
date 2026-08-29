@@ -40,9 +40,10 @@ describe.skipIf(!hasTestDb)('raid-due-date-history.repo', () => {
   });
 
   it('appendDueDateHistory then select of entity_id returns one row', async () => {
+    const entityId = `I-${Date.now()}`;
     await appendDueDateHistory({
       entity_type: 'issue',
-      entity_id: 'I-001',
+      entity_id: entityId,
       old_due: '2026-01-15',
       new_due: '2026-02-15',
       changed_by: 1,
@@ -50,12 +51,12 @@ describe.skipIf(!hasTestDb)('raid-due-date-history.repo', () => {
     const rows = await testKysely()
       .selectFrom('raid_due_date_history')
       .selectAll()
-      .where('entity_id', '=', 'I-001')
+      .where('entity_id', '=', entityId)
       .execute();
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({
       entity_type: 'issue',
-      entity_id: 'I-001',
+      entity_id: entityId,
       old_due: '2026-01-15',
       new_due: '2026-02-15',
       changed_by: 1,

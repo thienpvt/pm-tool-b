@@ -56,9 +56,9 @@ describe.skipIf(!hasTestDb)('budget-adjustments.repo', () => {
     });
     expect(row).toMatchObject({
       fiscal_budget_id: fiscalBudgetId,
-      amount_vnd: 50_000,
       reason: 'Scope increase',
     });
+    expect(Number(row.amount_vnd)).toBe(50_000);
     const listed = await listBudgetAdjustments(fiscalBudgetId);
     expect(listed.some((r) => r.id === row.id)).toBe(true);
   });
