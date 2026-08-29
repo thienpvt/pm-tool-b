@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { hasTestDb } from '@/test/db';
-import { setupRepoTables, testDb, testKysely } from '@/test/repo-db';
+import { seedCompany, setupRepoTables, testDb, testKysely } from '@/test/repo-db';
 
 vi.mock('@/lib/db', () => ({ getDb: vi.fn(async () => testDb()) }));
 
@@ -11,9 +11,13 @@ vi.mock('@/lib/db/kysely', () => ({
 import { companyRagConfig } from './rag-config.repo';
 
 describe.skipIf(!hasTestDb)('rag-config.repo', () => {
+  let companyA: number;
+  let companyB: number;
+
   beforeAll(async () => {
     await setupRepoTables();
-    await testDb().run('DELETE FROM company_rag_config WHERE company_id IN (?, ?)', 8801, 8802);
+    companyA = await seedCompany('RAG Co A');
+    companyB = await seedCompany('RAG Co B');
   });
 
   it('returns undefined when a company has no row, so the caller can fall back', async () => {
@@ -23,18 +27,18 @@ describe.skipIf(!hasTestDb)('rag-config.repo', () => {
   it('reads a company thresholds row', async () => {
     await testDb().run(
       'INSERT INTO company_rag_config (company_id, spi_red_threshold) VALUES (?, ?)',
-      8801, 0.42,
+      companyA, 0.42,
     );
-    const cfg = await companyRagConfig(8801);
+    const cfg = await companyRagConfig(companyA);
     expect(Number(cfg?.spi_red_threshold)).toBeCloseTo(0.42);
   });
 
   it('scopes by company: one company config is not returned for another', async () => {
     await testDb().run(
       'INSERT INTO company_rag_config (company_id, spi_red_threshold) VALUES (?, ?)',
-      8802, 0.11,
+      companyB, 0.11,
     );
-    const cfg = await companyRagConfig(8801);
+    const cfg = await companyRagConfig(companyA);
     expect(Number(cfg?.spi_red_threshold)).toBeCloseTo(0.42);
   });
 
@@ -44,7 +48,7 @@ describe.skipIf(!hasTestDb)('rag-config.repo', () => {
 
   it('loads via getKysely', async () => {
     const { getKysely } = await import('@/lib/db/kysely');
-    await companyRagConfig(8801);
+    await companyRagConfig(companyA);
     expect(getKysely).toHaveBeenCalled();
   });
 });

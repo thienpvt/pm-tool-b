@@ -1,8 +1,14 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest';
-import { hasTestDb } from '../../test/db';
-import { seedCompany, seedProject, setupRepoTables, testDb } from '../../test/repo-db';
+import { hasTestDb, testPool } from '../../test/db';
+import { seedCompany, seedProject, setupRepoTables, testDb, testKysely } from '../../test/repo-db';
 
-vi.mock('@/lib/db', () => ({ getDb: vi.fn(async () => testDb()) }));
+vi.mock('@/lib/db', () => ({
+  getDb: vi.fn(async () => testDb()),
+  getPool: vi.fn(async () => testPool()),
+}));
+vi.mock('@/lib/db/kysely', () => ({
+  getKysely: vi.fn(async () => testKysely()),
+}));
 
 import { getBudget, getPortfolioSummary, listBudgets } from '@/modules/portfolio/backend/services/portfolio.service';
 import { getPortfolioReport } from '@/modules/reports/backend/services/portfolio-report.service';
