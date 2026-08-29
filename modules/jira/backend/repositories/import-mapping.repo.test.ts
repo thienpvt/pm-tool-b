@@ -1,8 +1,12 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { hasTestDb } from '../../../../test/db';
-import { seedCompany, setupRepoTables, testDb } from '../../../../test/repo-db';
+import { seedCompany, setupRepoTables, testDb, testKysely } from '../../../../test/repo-db';
 
 vi.mock('@/lib/db', () => ({ getDb: vi.fn(async () => testDb()) }));
+
+vi.mock('@/lib/db/kysely', () => ({
+  getKysely: vi.fn(async () => testKysely()),
+}));
 
 import { createBugMapping, createTimelineMapping, listBugMappings, listTimelineMappings } from './import-mapping.repo';
 
@@ -46,5 +50,11 @@ describe.skipIf(!hasTestDb)('import-mapping.repo tenant scope', () => {
     const unique = `BugDup-${Date.now()}`;
     await createBugMapping(companyA, unique, '{}');
     await expect(createBugMapping(companyA, unique, '{}')).rejects.toThrow();
+  });
+
+  it('loads via getKysely', async () => {
+    const { getKysely } = await import('@/lib/db/kysely');
+    await listTimelineMappings(companyA);
+    expect(getKysely).toHaveBeenCalled();
   });
 });
