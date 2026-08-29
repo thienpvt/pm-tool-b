@@ -1,4 +1,4 @@
-import { getDb } from '@/lib/db';
+import { getKysely } from '@/lib/db/kysely';
 
 export type WeeklyExportLogInput = {
   period_id: number;
@@ -12,17 +12,19 @@ export type WeeklyExportLogInput = {
 
 /** Append-only INSERT into weekly_export_logs (D-09). No update or delete helpers. */
 export async function insertWeeklyExportLog(input: WeeklyExportLogInput): Promise<number> {
-  const db = await getDb();
-  const result = await db.run(
-    `INSERT INTO weekly_export_logs (period_id, company_id, exported_by, format, data_version, project_ids, period_display_name)
-     VALUES (?, ?, ?, ?, ?, ?::jsonb, ?)`,
-    input.period_id,
-    input.company_id,
-    input.exported_by,
-    input.format,
-    input.data_version,
-    JSON.stringify(input.project_ids),
-    input.period_display_name,
-  );
-  return Number(result.lastInsertRowid);
+  const db = await getKysely();
+  const row = await db
+    .insertInto('weekly_export_logs')
+    .values({
+      period_id: input.period_id,
+      company_id: input.company_id,
+      exported_by: input.exported_by,
+      format: input.format,
+      data_version: input.data_version,
+      project_ids: JSON.stringify(input.project_ids),
+      period_display_name: input.period_display_name,
+    })
+    .returning('id')
+    .executeTakeFirstOrThrow();
+  return Number(row.id);
 }
