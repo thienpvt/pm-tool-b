@@ -1,8 +1,14 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest';
-import { hasTestDb, testPool } from '../../test/db';
-import { seedProject, setupRepoTables, testDb } from '../../test/repo-db';
+import { hasTestDb, testPool } from '@/test/db';
+import { seedProject, setupRepoTables, testDb, testKysely } from '@/test/repo-db';
 
-vi.mock('@/lib/db', () => ({ getDb: vi.fn(async () => testDb()) }));
+vi.mock('@/lib/db', () => ({
+  getDb: vi.fn(async () => testDb()),
+}));
+
+vi.mock('@/lib/db/kysely', () => ({
+  getKysely: vi.fn(async () => testKysely()),
+}));
 
 import { UnknownColumnError } from '@/lib/repositories/_helpers';
 import { ESCALATION_COLUMNS, listEscalations, updateEscalation } from './escalations.repo';
