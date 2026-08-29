@@ -349,10 +349,11 @@ Plans:
   1. Static chrome (layout, nav, KPI shells) on v2 pages renders as Server Components
   2. Cold-start connect time is measured and has a recorded budget after the migrate cutover
 
-**Plans:** 3 plans
+**Plans:** 1/3 plans executed
 
 Plans:
-- [ ] 26-01-PLAN.md — Server PageChrome + four pilot routes
+
+- [x] 26-01-PLAN.md — Server PageChrome + four pilot routes
 - [ ] 26-02-PLAN.md — Remaining Sidebar chrome routes (exclude login, landing, operations, budget)
 - [ ] 26-03-PLAN.md — Cold-start p95 budget artifact
 
@@ -401,5 +402,5 @@ v1.0 Phases 1–8 and v2.0 Phases 9–18 are complete (see milestone archives ab
 | 23. Document Checklist & Audit Viewer | 5/5 | Complete    | 2026-08-28 |
 | 24. Repo-wide Module Split | 10/10 | Complete    | 2026-08-28 |
 | 25. Kysely Repositories | 15/15 | Complete    | 2026-08-29 |
-| 26. RSC Chrome & Cold Start | 0/TBD | Not started | - |
+| 26. RSC Chrome & Cold Start | 1/3 | In Progress|  |
 | 27. Nits, Validation & Operator Gate | 0/TBD | Not started | - |
