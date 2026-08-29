@@ -1,5 +1,6 @@
 import type { PoolClient } from 'pg';
-import { getDb, runInTransaction } from '@/lib/db';
+import { runInTransaction } from '@/lib/db';
+import { getKysely } from '@/lib/db/kysely';
 import {
   formatPeriodDisplayName,
   isoWeekBoundsUtc,
@@ -38,6 +39,34 @@ const DEFAULT_CONFIG: CompanyWeeklyConfigRow = {
   due_time_utc: '18:00:00',
 };
 
+type WeeklyPeriodDbRow = {
+  id: number;
+  company_id: number;
+  iso_week: string;
+  start_date: string;
+  end_date: string;
+  due_at: Date | string;
+  display_name: string;
+  config_snapshot: unknown;
+  created_by: number | null;
+  created_at: Date | string;
+};
+
+function mapWeeklyPeriodRow(row: WeeklyPeriodDbRow): WeeklyPeriodRow {
+  return {
+    id: row.id,
+    company_id: row.company_id,
+    iso_week: row.iso_week,
+    start_date: String(row.start_date),
+    end_date: String(row.end_date),
+    due_at: row.due_at instanceof Date ? row.due_at.toISOString() : String(row.due_at),
+    display_name: row.display_name,
+    config_snapshot: row.config_snapshot as WeeklyPeriodRow['config_snapshot'],
+    created_by: row.created_by,
+    created_at: row.created_at instanceof Date ? row.created_at.toISOString() : String(row.created_at),
+  };
+}
+
 async function withPgTransaction<T>(fn: (client: PoolClient) => Promise<T>): Promise<T> {
   return runInTransaction(fn);
 }
@@ -45,16 +74,17 @@ async function withPgTransaction<T>(fn: (client: PoolClient) => Promise<T>): Pro
 export async function getCompanyWeeklyConfig(
   companyId: number,
 ): Promise<CompanyWeeklyConfigRow | null> {
-  const db = await getDb();
-  const row = await db.get<{ due_weekday: number; due_time_utc: string }>(
-    `SELECT due_weekday, due_time_utc::text AS due_time_utc
-     FROM company_weekly_config WHERE company_id = ?`,
-    companyId,
-  );
+  const db = await getKysely();
+  const row = await db
+    .selectFrom('company_weekly_config')
+    .select(['due_weekday', 'due_time_utc'])
+    .where('company_id', '=', companyId)
+    .executeTakeFirst();
   if (!row) return null;
+  const dueTime = String(row.due_time_utc);
   return {
     due_weekday: row.due_weekday,
-    due_time_utc: row.due_time_utc.slice(0, 8),
+    due_time_utc: dueTime.slice(0, 8),
   };
 }
 
@@ -62,59 +92,60 @@ export async function upsertCompanyWeeklyConfig(
   companyId: number,
   config: { due_weekday: number; due_time_utc: string; updated_by: number },
 ): Promise<void> {
-  const db = await getDb();
-  await db.run(
-    `INSERT INTO company_weekly_config (company_id, due_weekday, due_time_utc, updated_by)
-     VALUES (?, ?, ?, ?)
-     ON CONFLICT (company_id) DO UPDATE SET
-       due_weekday = excluded.due_weekday,
-       due_time_utc = excluded.due_time_utc,
-       updated_by = excluded.updated_by,
-       updated_at = now()`,
-    companyId,
-    config.due_weekday,
-    config.due_time_utc,
-    config.updated_by,
-  );
+  const db = await getKysely();
+  await db
+    .insertInto('company_weekly_config')
+    .values({
+      company_id: companyId,
+      due_weekday: config.due_weekday,
+      due_time_utc: config.due_time_utc,
+      updated_by: config.updated_by,
+      updated_at: new Date(),
+    })
+    .onConflict((oc) =>
+      oc.column('company_id').doUpdateSet({
+        due_weekday: (eb) => eb.ref('excluded.due_weekday'),
+        due_time_utc: (eb) => eb.ref('excluded.due_time_utc'),
+        updated_by: (eb) => eb.ref('excluded.updated_by'),
+        updated_at: (eb) => eb.ref('excluded.updated_at'),
+      }),
+    )
+    .execute();
 }
 
 export async function listObligatedProjectIds(
   companyId: number,
   isoWeek: string,
-  client?: PoolClient,
 ): Promise<number[]> {
-  const sql = `
-    SELECT p.id
-    FROM projects p
-    WHERE p.company_id = $1
-      AND p.weekly_report_enabled = TRUE
-      AND p.weekly_report_start_period <= $2
-      AND COALESCE(p.stage, '') <> 'L5'
-      AND COALESCE(p.status, '') NOT IN ('Completed', 'Paused', 'Cancelled', 'Other')
-  `;
-  if (client) {
-    const res = await client.query<{ id: number }>(sql, [companyId, isoWeek]);
-    return res.rows.map((r) => r.id);
-  }
-  const db = await getDb();
-  const rows = await db.all<{ id: number }>(
-    sql.replace(/\$(\d+)/g, '?'),
-    companyId,
-    isoWeek,
-  );
+  const db = await getKysely();
+  const rows = await db
+    .selectFrom('projects as p')
+    .select('p.id')
+    .where('p.company_id', '=', companyId)
+    .where('p.weekly_report_enabled', '=', true)
+    .where('p.weekly_report_start_period', '<=', isoWeek)
+    .where((eb) =>
+      eb.or([eb('p.stage', 'is', null), eb('p.stage', '<>', 'L5')]),
+    )
+    .where((eb) =>
+      eb.or([
+        eb('p.status', 'is', null),
+        eb('p.status', 'not in', ['Completed', 'Paused', 'Cancelled', 'Other']),
+      ]),
+    )
+    .execute();
   return rows.map((r) => r.id);
 }
 
 export async function listWeeklyPeriods(companyId: number): Promise<WeeklyPeriodRow[]> {
-  const db = await getDb();
-  return db.all<WeeklyPeriodRow>(
-    `SELECT id, company_id, iso_week, start_date::text AS start_date, end_date::text AS end_date,
-            due_at, display_name, config_snapshot, created_by, created_at
-     FROM weekly_periods
-     WHERE company_id = ?
-     ORDER BY iso_week DESC`,
-    companyId,
-  );
+  const db = await getKysely();
+  const rows = await db
+    .selectFrom('weekly_periods')
+    .selectAll()
+    .where('company_id', '=', companyId)
+    .orderBy('iso_week', 'desc')
+    .execute();
+  return rows.map(mapWeeklyPeriodRow);
 }
 
 export async function createPeriodWithShells(
@@ -135,25 +166,23 @@ export async function createPeriodWithShells(
   const displayName = formatPeriodDisplayName(isoWeek, startDate, endDate);
 
   return withPgTransaction(async (client) => {
-    const periodRes = await client.query<WeeklyPeriodRow>(
-      `INSERT INTO weekly_periods
-         (company_id, iso_week, start_date, end_date, due_at, display_name, config_snapshot, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8)
-       RETURNING id, company_id, iso_week, start_date::text AS start_date, end_date::text AS end_date,
-                 due_at, display_name, config_snapshot, created_by, created_at`,
-      [
-        companyId,
-        isoWeek,
-        startDate,
-        endDate,
-        dueAt.toISOString(),
-        displayName,
-        JSON.stringify(configSnapshot),
-        createdBy,
-      ],
-    );
-    const period = periodRes.rows[0];
-    const projectIds = await listObligatedProjectIds(companyId, isoWeek, client);
+    const db = await getKysely();
+    const periodRow = await db
+      .insertInto('weekly_periods')
+      .values({
+        company_id: companyId,
+        iso_week: isoWeek,
+        start_date: startDate,
+        end_date: endDate,
+        due_at: dueAt,
+        display_name: displayName,
+        config_snapshot: JSON.stringify(configSnapshot),
+        created_by: createdBy,
+      })
+      .returningAll()
+      .executeTakeFirstOrThrow();
+    const period = mapWeeklyPeriodRow(periodRow);
+    const projectIds = await listObligatedProjectIds(companyId, isoWeek);
     const shells: WeeklyReportShellRow[] = [];
     for (const projectId of projectIds) {
       const shell = await insertShell(client, period.id, projectId);
