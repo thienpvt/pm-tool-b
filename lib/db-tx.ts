@@ -1,5 +1,5 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
-import type { Kysely } from 'kysely';
+import { Kysely, PostgresDialect } from 'kysely';
 import type { Pool, PoolClient } from 'pg';
 import type { Database } from '@/lib/db/database';
 
@@ -14,6 +14,39 @@ export function txKyselyTarget(): Kysely<Database> | undefined {
 }
 
 export { txKyselyStore };
+
+/**
+ * Minimal pool adapter so Kysely reuses the active BEGIN client.
+ * release() is a no-op — the outer runInTransactionOnPool finally still releases.
+ */
+function transactionalPool(client: PoolClient): Pool {
+  const wrappedClient = (): PoolClient =>
+    Object.assign(Object.create(Object.getPrototypeOf(client)), client, {
+      release() {
+        /* no-op */
+      },
+    });
+
+  return {
+    connect(callback?: (err: Error, c: PoolClient, release: () => void) => void) {
+      const c = wrappedClient();
+      if (typeof callback === 'function') {
+        callback(undefined as never, c, c.release);
+        return undefined as never;
+      }
+      return Promise.resolve(c);
+    },
+    end() {
+      return Promise.resolve();
+    },
+    query(...args: Parameters<Pool['query']>) {
+      return client.query(...args);
+    },
+    totalCount: 1,
+    idleCount: 0,
+    waitingCount: 0,
+  } as Pool;
+}
 
 /** Active transaction client, if `runInTransactionOnPool` is on the stack. */
 export function txQueryTarget(fallback: Queryable): Queryable {
@@ -32,7 +65,12 @@ export async function runInTransactionOnPool<T>(
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    const result = await txStore.run(client, () => fn(client));
+    const txKysely = new Kysely<Database>({
+      dialect: new PostgresDialect({ pool: transactionalPool(client) }),
+    });
+    const result = await txStore.run(client, () =>
+      txKyselyStore.run(txKysely, () => fn(client)),
+    );
     await client.query('COMMIT');
     return result;
   } catch (err) {
