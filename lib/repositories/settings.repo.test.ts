@@ -1,10 +1,14 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { hasTestDb } from '../../test/db';
-import { setupRepoTables, testDb } from '../../test/repo-db';
+import { setupRepoTables, testDb, testKysely } from '../../test/repo-db';
 
 vi.mock('@/lib/db', () => ({ getDb: vi.fn(async () => testDb()) }));
 
-import { getSetting } from './settings.repo';
+vi.mock('@/lib/db/kysely', () => ({
+  getKysely: vi.fn(async () => testKysely()),
+}));
+
+import { getSetting, setSetting } from './settings.repo';
 
 describe.skipIf(!hasTestDb)('settings.repo', () => {
   beforeAll(async () => {
@@ -29,5 +33,11 @@ describe.skipIf(!hasTestDb)('settings.repo', () => {
     // received as an array literal and never matched. A string param must match.
     await testDb().run('INSERT INTO settings (key, value) VALUES (?, ?)', 'anthropic_api_key', 'sk-real');
     await expect(getSetting('anthropic_api_key')).resolves.toBe('sk-real');
+  });
+
+  it('loads via getKysely', async () => {
+    const { getKysely } = await import('@/lib/db/kysely');
+    await setSetting('kysely_probe_key', 'probe-value');
+    expect(getKysely).toHaveBeenCalled();
   });
 });
