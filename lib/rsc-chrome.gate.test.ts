@@ -152,6 +152,20 @@ const CHROME_ROUTES: { route: string; moduleImport: string }[] = [
   },
 ];
 
+const EXCLUDED_ROUTES = [
+  'app/login/page.tsx',
+  'app/landing/page.tsx',
+  'app/operations/page.tsx',
+  'app/operations/[id]/page.tsx',
+  'app/portfolio/budget/page.tsx',
+] as const;
+
+const MODULE_SHELL_IMPORTS = [
+  '@/components/layout/PageChrome',
+  '@/components/layout/PageLoadingShell',
+  '@/components/layout/PageErrorShell',
+] as const;
+
 const MODULE_PAGES_NO_SIDEBAR: { path: string; label: string }[] = [
   { path: 'modules/dashboards/ui/portfolio/PortfolioDashboardPage.tsx', label: 'PortfolioDashboardPage' },
   { path: 'modules/dashboards/ui/pm/PmDashboardPage.tsx', label: 'PmDashboardPage' },
@@ -194,7 +208,7 @@ export const PILOT_LOADING: { path: string; message: string }[] = [
   { path: 'app/weekly/tracking/loading.tsx', message: 'Loading tracking…' },
 ];
 
-describe('rsc-chrome gates (26-01, PERF-02, D-01, D-02, D-03, D-05)', () => {
+describe('rsc-chrome gates (26-01–26-02, PERF-02, D-01, D-02, D-03, D-05, D-06)', () => {
   it('D-01/D-03: layout shell files exist as Server Components without client directive', () => {
     for (const rel of LAYOUT_SHELLS) {
       const full = join(root, rel);
@@ -237,6 +251,34 @@ describe('rsc-chrome gates (26-01, PERF-02, D-01, D-02, D-03, D-05)', () => {
       expect(source, `${rel} must not be a Client Component`).not.toMatch(CLIENT_DIRECTIVE);
       expect(source, `${rel} must import PageChrome`).toContain('PageChrome');
       expect(source, `${rel} must import module page`).toContain(moduleImport);
+    }
+  });
+
+  it('D-05/D-06: EXCLUDED routes stay client re-exports without PageChrome', () => {
+    for (const route of EXCLUDED_ROUTES) {
+      const full = join(root, route);
+      expect(existsSync(full), `${route} must exist`).toBe(true);
+      const source = readFileSync(full, 'utf8');
+      const rel = relative(root, full).replace(/\\/g, '/');
+      expect(source, `${rel} must remain a Client Component`).toMatch(CLIENT_DIRECTIVE);
+      expect(source, `${rel} must not import PageChrome`).not.toContain('PageChrome');
+    }
+  });
+
+  it('D-06: app/portfolio/budget/page.tsx is not in CHROME_ROUTES', () => {
+    expect(CHROME_ROUTES.some(r => r.route === 'app/portfolio/budget/page.tsx')).toBe(false);
+    const source = readFileSync(join(root, 'app/portfolio/budget/page.tsx'), 'utf8');
+    expect(source).not.toContain('PageChrome');
+  });
+
+  it('D-03: chrome module pages do not import server layout shells', () => {
+    for (const { path: rel } of MODULE_PAGES_NO_SIDEBAR) {
+      const source = readFileSync(join(root, rel), 'utf8');
+      const lines = codeLines(source);
+      for (const imp of MODULE_SHELL_IMPORTS) {
+        const hit = lines.find(line => line.includes(imp));
+        expect(hit, `${rel} must not import ${imp}`).toBeUndefined();
+      }
     }
   });
 
