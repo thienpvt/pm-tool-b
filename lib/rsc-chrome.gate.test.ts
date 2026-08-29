@@ -34,15 +34,25 @@ const CHROME_ROUTES: { route: string; moduleImport: string }[] = [
     route: 'app/weekly/periods/page.tsx',
     moduleImport: 'modules/weekly/ui/periods/WeeklyPeriodsPage',
   },
+  {
+    route: 'app/audit/page.tsx',
+    moduleImport: 'modules/audit/ui/AuditLogPage',
+  },
 ];
 
 const MODULE_PAGES_NO_SIDEBAR: { path: string; label: string }[] = [
   { path: 'modules/dashboards/ui/portfolio/PortfolioDashboardPage.tsx', label: 'PortfolioDashboardPage' },
   { path: 'modules/dashboards/ui/pm/PmDashboardPage.tsx', label: 'PmDashboardPage' },
   { path: 'modules/weekly/ui/periods/WeeklyPeriodsPage.tsx', label: 'WeeklyPeriodsPage' },
+  { path: 'modules/audit/ui/AuditLogPage.tsx', label: 'AuditLogPage' },
 ];
 
-export const PILOT_LOADING: { path: string; message: string }[] = [];
+export const PILOT_LOADING: { path: string; message: string }[] = [
+  { path: 'app/dashboards/portfolio/loading.tsx', message: 'Loading dashboard…' },
+  { path: 'app/dashboards/pm/loading.tsx', message: 'Loading dashboard…' },
+  { path: 'app/weekly/periods/loading.tsx', message: 'Loading weekly periods…' },
+  { path: 'app/audit/loading.tsx', message: 'Loading audit log…' },
+];
 
 describe('rsc-chrome gates (26-01, PERF-02, D-01, D-02, D-03, D-05)', () => {
   it('D-01/D-03: layout shell files exist as Server Components without client directive', () => {

@@ -4,7 +4,6 @@ import { auditRowsFixture, auditRows150 } from '@/modules/documents/ui/shared/do
 import AuditLogPage from './AuditLogPage';
 
 vi.mock('next/navigation', () => ({ usePathname: () => '/audit' }));
-vi.mock('@/components/layout/Sidebar', () => ({ default: () => <nav data-testid="sidebar" /> }));
 
 let resolveAudit: ((value: unknown) => void) | null = null;
 let fetchMock: ReturnType<typeof vi.fn>;
@@ -46,9 +45,8 @@ beforeEach(() => {
 });
 
 describe('AuditLogPage', () => {
-  it('shows sidebar and loading copy before fetch settles', () => {
+  it('shows loading copy before fetch settles', () => {
     render(<AuditLogPage />);
-    expect(screen.getByTestId('sidebar')).toBeInTheDocument();
     expect(screen.getByText('Loading audit log…')).toBeInTheDocument();
   });
 
