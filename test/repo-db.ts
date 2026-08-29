@@ -236,6 +236,45 @@ CREATE TABLE IF NOT EXISTS bugs (
   resolution TEXT DEFAULT '', created TEXT DEFAULT '', snapshot_date TEXT DEFAULT '',
   created_at TIMESTAMP DEFAULT now()
 );
+CREATE TABLE IF NOT EXISTS document_catalog (
+  id SERIAL PRIMARY KEY,
+  company_id INTEGER NOT NULL REFERENCES companies(id),
+  name TEXT NOT NULL,
+  purpose TEXT NOT NULL DEFAULT '',
+  stage TEXT NOT NULL CHECK (stage IN ('L0','L1','L2','L3','L4','L5','ALL')),
+  mandatory BOOLEAN NOT NULL DEFAULT FALSE,
+  active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS document_templates (
+  id SERIAL PRIMARY KEY,
+  catalog_id INTEGER NOT NULL REFERENCES document_catalog(id),
+  company_id INTEGER NOT NULL REFERENCES companies(id),
+  name TEXT NOT NULL,
+  document_type TEXT NOT NULL,
+  version INTEGER NOT NULL,
+  effective_date DATE NOT NULL,
+  guidance TEXT NOT NULL DEFAULT '',
+  template_url TEXT,
+  retired_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (catalog_id, version)
+);
+CREATE TABLE IF NOT EXISTS project_document_checklist (
+  id SERIAL PRIMARY KEY,
+  project_id INTEGER NOT NULL REFERENCES projects(id),
+  catalog_id INTEGER NOT NULL REFERENCES document_catalog(id),
+  status TEXT NOT NULL DEFAULT 'none' CHECK (status IN ('none','drafting','pending_approval','approved','not_applicable')),
+  confluence_url TEXT,
+  approved_at DATE,
+  approved_by TEXT,
+  na_reason TEXT,
+  notes TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (project_id, catalog_id)
+);
 CREATE TABLE IF NOT EXISTS documents (
   id SERIAL PRIMARY KEY, project_id INTEGER NOT NULL,
   type TEXT NOT NULL, title TEXT, content_json TEXT DEFAULT '{}',
