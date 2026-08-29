@@ -5,16 +5,16 @@ milestone_name: Hardening & Deferred Debt
 current_phase: 25
 current_phase_name: Kysely Repositories
 status: executing
-stopped_at: Completed 25-09-PLAN.md
-last_updated: "2026-08-29T00:59:54.387Z"
+stopped_at: Completed 25-10-PLAN.md
+last_updated: "2026-08-29T01:04:14.794Z"
 last_activity: 2026-08-29
 last_activity_desc: Phase 25 execution started
-state_head: 89c9bbc576e919b0e9a7603e98d42a0d49eec95c
+state_head: dccacef94d52c10ab5d2809e24fbe56b209b44a5
 progress:
   total_phases: 9
   completed_phases: 6
   total_plans: 50
-  completed_plans: 44
+  completed_plans: 45
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-08-28)
 ## Current Position
 
 Phase: 25 (Kysely Repositories) — EXECUTING
-Plan: 10 of 15
+Plan: 11 of 15
 Status: Ready to execute
 Last activity: 2026-08-29 — Phase 25 execution started
 
@@ -139,6 +139,7 @@ Progress: [██░░░░░░░░] 25%
 | Phase 25 P07 | 12 | 3 tasks | 6 files |
 | Phase 25-kysely-repositories P08 | 25 | 3 tasks | 2 files |
 | Phase 25 P09 | 3min | 2 tasks | 4 files |
+| Phase 25 P10 | 5 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -295,6 +296,8 @@ Recent decisions affecting current work:
 - [Phase 25]: portfolio.repo converted in 3 slices; sql template for aggregates, query builder for CRUD
 - [Phase 25]: createPeriodWithShells uses getKysely for period insert; insertShell stays on PoolClient until 25-10
 - [Phase 25]: listObligatedProjectIds drops PoolClient param; ALS tx Kysely used inside runInTransaction
+- [Phase 25]: insertShell drops PoolClient; ALS supplies tx Kysely in createPeriodWithShells
+- [Phase 25]: weekly-reports.repo.ts all exports on getKysely including forUpdate lock and dynamic draft sets
 
 ### Pending Todos
 
@@ -318,8 +321,8 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-08-29T00:59:53.912Z
-Stopped at: Completed 25-09-PLAN.md
+Last session: 2026-08-29T01:04:14.314Z
+Stopped at: Completed 25-10-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
