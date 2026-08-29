@@ -1,5 +1,7 @@
 import type { Pool } from 'pg';
+import { Kysely, PostgresDialect } from 'kysely';
 import type { DbClient } from '@/lib/db';
+import type { Database } from '@/lib/db/database';
 import { txQueryTarget } from '@/lib/db-tx';
 import { testPool } from './db';
 
@@ -69,8 +71,15 @@ export function testDb(): DbClient {
   return new TestDbClient(testPool());
 }
 
-export function testKysely(): never {
-  throw new Error('testKysely not implemented');
+let _testKysely: Kysely<Database> | null = null;
+
+export function testKysely(): Kysely<Database> {
+  if (!_testKysely) {
+    _testKysely = new Kysely<Database>({
+      dialect: new PostgresDialect({ pool: testPool() }),
+    });
+  }
+  return _testKysely;
 }
 
 /**

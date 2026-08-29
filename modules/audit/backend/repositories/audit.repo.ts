@@ -1,4 +1,5 @@
-import { getDb } from '@/lib/db';
+import { sql } from 'kysely';
+import { getKysely } from '@/lib/db/kysely';
 
 export type AuditLogInput = {
   actor_id: number;
@@ -31,18 +32,19 @@ export type AuditLogRow = {
 };
 
 export async function insertAuditLog(input: AuditLogInput): Promise<void> {
-  const db = await getDb();
-  await db.run(
-    `INSERT INTO audit_logs (actor_id, company_id, entity_type, entity_id, action, before, after)
-     VALUES (?, ?, ?, ?, ?, ?::jsonb, ?::jsonb)`,
-    input.actor_id,
-    input.company_id,
-    input.entity_type,
-    input.entity_id,
-    input.action,
-    input.before === null ? null : JSON.stringify(input.before),
-    input.after === null ? null : JSON.stringify(input.after),
-  );
+  const db = await getKysely();
+  await db
+    .insertInto('audit_logs')
+    .values({
+      actor_id: input.actor_id,
+      company_id: input.company_id,
+      entity_type: input.entity_type,
+      entity_id: input.entity_id,
+      action: input.action,
+      before: input.before === null ? null : JSON.stringify(input.before),
+      after: input.after === null ? null : JSON.stringify(input.after),
+    })
+    .execute();
 }
 
 /** Company-scoped SELECT only — append-only alongside insertAuditLog (D-04, D-05). */
@@ -50,37 +52,50 @@ export async function listAuditLogs(
   companyId: number,
   filters: AuditListFilters = {},
 ): Promise<AuditLogRow[]> {
-  const db = await getDb();
-  const conditions = ['company_id = ?'];
-  const params: unknown[] = [companyId];
+  const db = await getKysely();
+  const limit = filters.limit ?? 50;
+
+  let q = db
+    .selectFrom('audit_logs')
+    .select([
+      'id',
+      'company_id',
+      'actor_id',
+      'entity_type',
+      'entity_id',
+      'action',
+      'before',
+      'after',
+      'created_at',
+    ])
+    .where('company_id', '=', companyId);
 
   if (filters.entity_type) {
-    conditions.push('entity_type = ?');
-    params.push(filters.entity_type);
+    q = q.where('entity_type', '=', filters.entity_type);
   }
   if (filters.entity_id) {
-    conditions.push('entity_id = ?');
-    params.push(filters.entity_id);
+    q = q.where('entity_id', '=', filters.entity_id);
   }
   if (filters.from) {
-    conditions.push('created_at >= ?::date');
-    params.push(filters.from);
+    q = q.where('created_at', '>=', sql`${filters.from}::date`);
   }
   if (filters.to) {
-    conditions.push('created_at < (?::date + INTERVAL \'1 day\')');
-    params.push(filters.to);
+    q = q.where('created_at', '<', sql`(${filters.to}::date + INTERVAL '1 day')`);
   }
 
-  const limit = filters.limit ?? 50;
-  params.push(limit);
+  const rows = await q
+    .orderBy('created_at', 'desc')
+    .orderBy('id', 'desc')
+    .limit(limit)
+    .execute();
 
-  const rows = await db.all<AuditLogRow>(
-    `SELECT id, company_id, actor_id, entity_type, entity_id, action, before, after, created_at
-     FROM audit_logs
-     WHERE ${conditions.join(' AND ')}
-     ORDER BY created_at DESC, id DESC
-     LIMIT ?`,
-    ...params,
-  );
-  return rows;
+  return rows.map((row) => ({
+    ...row,
+    actor_id: row.actor_id ?? 0,
+    entity_type: row.entity_type ?? '',
+    entity_id: row.entity_id ?? '',
+    action: row.action ?? '',
+    created_at:
+      row.created_at instanceof Date ? row.created_at.toISOString() : String(row.created_at),
+  }));
 }
