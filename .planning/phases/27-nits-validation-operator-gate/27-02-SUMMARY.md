@@ -95,7 +95,7 @@ status: complete
 1. **Task 27-02-01: End-to-end no-op milestone update skips auditLog** — `ab6d786` (test), `424e22f` (feat)
 2. **Task 27-02-02: Keep auditLog on real milestone field changes** — `8c06cb1` (test), `b8d0fb4` (feat)
 
-**Plan metadata:** pending (docs commit)
+**Plan metadata:** `d551c53` (docs: complete plan)
 
 ## Files Created/Modified
 
