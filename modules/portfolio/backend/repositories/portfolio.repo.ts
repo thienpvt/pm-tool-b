@@ -317,95 +317,137 @@ export async function listPortfolioMilestones(companyId: number | null) {
 }
 
 export async function listPortfolioBudgets(companyId: number | null) {
-  const db = await getDb();
-  return db.all(
-    `SELECT pb.*, COALESCE(SUM(pba.allocated_amount), 0) AS total_allocated
+  const db = await getKysely();
+  const result = await sql<Record<string, unknown>>`
+    SELECT pb.*, COALESCE(SUM(pba.allocated_amount), 0) AS total_allocated
      FROM portfolio_budgets pb
      LEFT JOIN portfolio_budget_allocations pba ON pba.portfolio_budget_id = pb.id
-     WHERE pb.company_id = ? GROUP BY pb.id ORDER BY pb.start_date DESC`,
-    companyId,
-  );
+     WHERE pb.company_id = ${companyId} GROUP BY pb.id ORDER BY pb.start_date DESC
+  `.execute(db);
+  return result.rows;
 }
 
 export async function createPortfolioBudget(companyId: number | null, body: Record<string, unknown>) {
-  const db = await getDb();
-  const r = await db.run(
-    `INSERT INTO portfolio_budgets
-       (company_id, period_type, period_label, start_date, end_date, total_amount, currency, notes)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    companyId, body.period_type || 'quarterly', body.period_label, body.start_date,
-    body.end_date, body.total_amount || 0, body.currency || 'VND', body.notes || '',
-  );
-  return db.get('SELECT * FROM portfolio_budgets WHERE id = ?', r.lastInsertRowid);
+  const db = await getKysely();
+  return db
+    .insertInto('portfolio_budgets')
+    .values({
+      company_id: companyId,
+      period_type: String(body.period_type || 'quarterly'),
+      period_label: String(body.period_label),
+      start_date: String(body.start_date),
+      end_date: String(body.end_date),
+      total_amount: Number(body.total_amount) || 0,
+      currency: String(body.currency || 'VND'),
+      status: 'draft',
+      notes: String(body.notes || ''),
+      created_at: new Date(),
+    })
+    .returningAll()
+    .executeTakeFirstOrThrow();
 }
 
 export async function findPortfolioBudget(companyId: number | null, budgetId: number | string) {
-  const db = await getDb();
-  return db.get('SELECT * FROM portfolio_budgets WHERE id = ? AND company_id = ?', budgetId, companyId);
+  const db = await getKysely();
+  return db
+    .selectFrom('portfolio_budgets')
+    .selectAll()
+    .where('id', '=', Number(budgetId))
+    .where('company_id', '=', companyId)
+    .executeTakeFirst();
 }
 
 export async function portfolioBudgetCategories(budgetId: number | string) {
-  const db = await getDb();
-  return db.all(
-    'SELECT * FROM portfolio_budget_categories WHERE portfolio_budget_id = ? ORDER BY category',
-    budgetId,
-  );
+  const db = await getKysely();
+  return db
+    .selectFrom('portfolio_budget_categories')
+    .selectAll()
+    .where('portfolio_budget_id', '=', Number(budgetId))
+    .orderBy('category')
+    .execute();
 }
 
 export async function portfolioBudgetAllocations(budgetId: number | string) {
-  const db = await getDb();
-  return db.all(
-    `SELECT pba.*, p.name AS project_name,
+  const db = await getKysely();
+  const bid = Number(budgetId);
+  const result = await sql<Record<string, unknown>>`
+    SELECT pba.*, p.name AS project_name,
        COALESCE(SUM(bi.planned_amount), 0) AS total_estimate,
        COALESCE(SUM(bi.approved_amount), 0) AS total_approved,
        COALESCE(SUM(bi.actual_amount), 0) AS total_actual
      FROM portfolio_budget_allocations pba
      LEFT JOIN projects p ON p.id = pba.project_id
      LEFT JOIN budget_items bi ON bi.project_id = pba.project_id
-     WHERE pba.portfolio_budget_id = ? GROUP BY pba.id, p.name ORDER BY p.name`,
-    budgetId,
-  );
+     WHERE pba.portfolio_budget_id = ${bid} GROUP BY pba.id, p.name ORDER BY p.name
+  `.execute(db);
+  return result.rows;
 }
 
 export async function spendByCategory(budgetId: number | string, category: string) {
-  const db = await getDb();
-  return db.get<{ used: number }>(
-    `SELECT COALESCE(SUM(bi.planned_amount), 0) AS used
+  const db = await getKysely();
+  const result = await sql<{ used: number }>`
+    SELECT COALESCE(SUM(bi.planned_amount), 0) AS used
      FROM budget_items bi
      JOIN portfolio_budget_allocations pba ON pba.project_id = bi.project_id
-     WHERE pba.portfolio_budget_id = ? AND bi.type = ?`,
-    budgetId, category,
-  );
+     WHERE pba.portfolio_budget_id = ${Number(budgetId)} AND bi.type = ${category}
+  `.execute(db);
+  return result.rows[0];
 }
 
 export async function updatePortfolioBudget(budgetId: number | string, body: Record<string, unknown>) {
-  const db = await getDb();
-  await db.run(
-    `UPDATE portfolio_budgets SET period_type=?, period_label=?, start_date=?, end_date=?,
-       total_amount=?, currency=?, status=?, notes=? WHERE id=?`,
-    body.period_type, body.period_label, body.start_date, body.end_date,
-    body.total_amount, body.currency, body.status, body.notes, budgetId,
-  );
-  return db.get('SELECT * FROM portfolio_budgets WHERE id = ?', budgetId);
+  const db = await getKysely();
+  await db
+    .updateTable('portfolio_budgets')
+    .set({
+      period_type: String(body.period_type),
+      period_label: String(body.period_label),
+      start_date: String(body.start_date),
+      end_date: String(body.end_date),
+      total_amount: Number(body.total_amount),
+      currency: String(body.currency),
+      status: String(body.status),
+      notes: String(body.notes),
+    })
+    .where('id', '=', Number(budgetId))
+    .execute();
+  return db
+    .selectFrom('portfolio_budgets')
+    .selectAll()
+    .where('id', '=', Number(budgetId))
+    .executeTakeFirst();
 }
 
 export async function deletePortfolioBudget(companyId: number | null, budgetId: number | string) {
-  const db = await getDb();
-  return db.run('DELETE FROM portfolio_budgets WHERE id = ? AND company_id = ?', budgetId, companyId);
+  const db = await getKysely();
+  const result = await db
+    .deleteFrom('portfolio_budgets')
+    .where('id', '=', Number(budgetId))
+    .where('company_id', '=', companyId)
+    .executeTakeFirst();
+  return deleteResult(result.numDeletedRows);
 }
 
 export async function createPortfolioBudgetAllocation(budgetId: number | string, body: Record<string, unknown>) {
-  const db = await getDb();
-  const r = await db.run(
-    `INSERT INTO portfolio_budget_allocations
-       (portfolio_budget_id, project_id, allocated_amount, notes) VALUES (?, ?, ?, ?)`,
-    budgetId, body.project_id || null, body.allocated_amount || 0, body.notes || '',
-  );
-  return db.get(
-    `SELECT pba.*, p.name AS project_name FROM portfolio_budget_allocations pba
-     LEFT JOIN projects p ON p.id = pba.project_id WHERE pba.id = ?`,
-    r.lastInsertRowid,
-  );
+  const db = await getKysely();
+  const row = await db
+    .insertInto('portfolio_budget_allocations')
+    .values({
+      portfolio_budget_id: Number(budgetId),
+      project_id: body.project_id != null ? Number(body.project_id) : null,
+      allocated_amount: Number(body.allocated_amount) || 0,
+      notes: String(body.notes || ''),
+      created_at: new Date(),
+    })
+    .returningAll()
+    .executeTakeFirstOrThrow();
+  const enriched = await db
+    .selectFrom('portfolio_budget_allocations as pba')
+    .leftJoin('projects as p', 'p.id', 'pba.project_id')
+    .selectAll('pba')
+    .select('p.name as project_name')
+    .where('pba.id', '=', row.id)
+    .executeTakeFirst();
+  return enriched;
 }
 
 export async function updatePortfolioBudgetAllocation(
@@ -413,37 +455,44 @@ export async function updatePortfolioBudgetAllocation(
   allocationId: number | string,
   body: Record<string, unknown>,
 ) {
-  const db = await getDb();
-  return db.get(
-    `WITH updated AS (
-       UPDATE portfolio_budget_allocations SET project_id=?, allocated_amount=?, notes=?
-       WHERE id=? AND portfolio_budget_id=? RETURNING *
+  const db = await getKysely();
+  const result = await sql<Record<string, unknown>>`
+    WITH updated AS (
+       UPDATE portfolio_budget_allocations SET project_id=${body.project_id != null ? Number(body.project_id) : null},
+         allocated_amount=${Number(body.allocated_amount)}, notes=${String(body.notes ?? '')}
+       WHERE id=${Number(allocationId)} AND portfolio_budget_id=${Number(budgetId)} RETURNING *
      )
      SELECT updated.*, p.name AS project_name FROM updated
-     LEFT JOIN projects p ON p.id = updated.project_id`,
-    body.project_id || null, body.allocated_amount, body.notes, allocationId, budgetId,
-  );
+     LEFT JOIN projects p ON p.id = updated.project_id
+  `.execute(db);
+  return result.rows[0];
 }
 
 export async function deletePortfolioBudgetAllocation(
   budgetId: number | string,
   allocationId: number | string,
 ) {
-  const db = await getDb();
-  return db.run(
-    'DELETE FROM portfolio_budget_allocations WHERE id = ? AND portfolio_budget_id = ?',
-    allocationId, budgetId,
-  );
+  const db = await getKysely();
+  const result = await db
+    .deleteFrom('portfolio_budget_allocations')
+    .where('id', '=', Number(allocationId))
+    .where('portfolio_budget_id', '=', Number(budgetId))
+    .executeTakeFirst();
+  return deleteResult(result.numDeletedRows);
 }
 
 export async function createPortfolioBudgetCategory(budgetId: number | string, body: Record<string, unknown>) {
-  const db = await getDb();
-  const r = await db.run(
-    `INSERT INTO portfolio_budget_categories
-       (portfolio_budget_id, category, ceiling_amount, notes) VALUES (?, ?, ?, ?)`,
-    budgetId, body.category, body.ceiling_amount || 0, body.notes || '',
-  );
-  return db.get('SELECT * FROM portfolio_budget_categories WHERE id = ?', r.lastInsertRowid);
+  const db = await getKysely();
+  return db
+    .insertInto('portfolio_budget_categories')
+    .values({
+      portfolio_budget_id: Number(budgetId),
+      category: String(body.category),
+      ceiling_amount: Number(body.ceiling_amount) || 0,
+      notes: String(body.notes || ''),
+    })
+    .returningAll()
+    .executeTakeFirstOrThrow();
 }
 
 export async function updatePortfolioBudgetCategory(
@@ -451,31 +500,42 @@ export async function updatePortfolioBudgetCategory(
   categoryId: number | string,
   body: Record<string, unknown>,
 ) {
-  const db = await getDb();
-  return db.get(
-    `UPDATE portfolio_budget_categories SET category=?, ceiling_amount=?, notes=?
-     WHERE id=? AND portfolio_budget_id=? RETURNING *`,
-    body.category, body.ceiling_amount, body.notes, categoryId, budgetId,
-  );
+  const db = await getKysely();
+  return db
+    .updateTable('portfolio_budget_categories')
+    .set({
+      category: String(body.category),
+      ceiling_amount: Number(body.ceiling_amount),
+      notes: String(body.notes),
+    })
+    .where('id', '=', Number(categoryId))
+    .where('portfolio_budget_id', '=', Number(budgetId))
+    .returningAll()
+    .executeTakeFirst();
 }
 
 export async function deletePortfolioBudgetCategory(
   budgetId: number | string,
   categoryId: number | string,
 ) {
-  const db = await getDb();
-  return db.run(
-    'DELETE FROM portfolio_budget_categories WHERE id = ? AND portfolio_budget_id = ?',
-    categoryId, budgetId,
-  );
+  const db = await getKysely();
+  const result = await db
+    .deleteFrom('portfolio_budget_categories')
+    .where('id', '=', Number(categoryId))
+    .where('portfolio_budget_id', '=', Number(budgetId))
+    .executeTakeFirst();
+  return deleteResult(result.numDeletedRows);
 }
 
 export async function programFteAllocations(companyId: number | null) {
-  const db = await getDb();
-  return db.all<{
-    program_id: number; program_name: string; allocated_headcount: number; actual_fte: number;
-  }>(
-    `SELECT c.id AS program_id, c.name AS program_name,
+  const db = await getKysely();
+  const result = await sql<{
+    program_id: number;
+    program_name: string;
+    allocated_headcount: number;
+    actual_fte: number;
+  }>`
+    SELECT c.id AS program_id, c.name AS program_name,
        COALESCE(ppa.allocated_headcount, 0) AS allocated_headcount,
        COALESCE((
          SELECT ROUND(CAST(SUM(COALESCE(
@@ -483,14 +543,14 @@ export async function programFteAllocations(companyId: number | null) {
                 THEN CAST((tm.capacity_json::jsonb ->> TO_CHAR(CURRENT_DATE, 'YYYY-MM')) AS FLOAT)
                 ELSE NULL END, 0)) AS NUMERIC), 1)
          FROM team_members tm JOIN projects p ON p.id = tm.project_id
-         WHERE p.customer_id = c.id AND p.company_id = ?
+         WHERE p.customer_id = c.id AND p.company_id = ${companyId}
        ), 0) AS actual_fte
      FROM customers c
      LEFT JOIN portfolio_program_allocations ppa
-       ON ppa.program_id = c.id AND ppa.company_id = ?
-     WHERE c.company_id = ? ORDER BY c.name`,
-    companyId, companyId, companyId,
-  );
+       ON ppa.program_id = c.id AND ppa.company_id = ${companyId}
+     WHERE c.company_id = ${companyId} ORDER BY c.name
+  `.execute(db);
+  return result.rows;
 }
 
 export async function upsertPortfolioProgramAllocation(
@@ -498,18 +558,23 @@ export async function upsertPortfolioProgramAllocation(
   programId: number,
   allocatedHeadcount: number,
 ) {
-  const db = await getDb();
-  const updated = await db.run(
-    `UPDATE portfolio_program_allocations SET allocated_headcount = ?
-     WHERE company_id = ? AND program_id = ?`,
-    allocatedHeadcount, companyId, programId,
-  );
-  if (updated.changes === 0) {
-    await db.run(
-      `INSERT INTO portfolio_program_allocations (company_id, program_id, allocated_headcount)
-       VALUES (?, ?, ?)`,
-      companyId, programId, allocatedHeadcount,
-    );
+  const db = await getKysely();
+  const updated = await db
+    .updateTable('portfolio_program_allocations')
+    .set({ allocated_headcount: allocatedHeadcount })
+    .where('company_id', '=', companyId)
+    .where('program_id', '=', programId)
+    .executeTakeFirst();
+  if (Number(updated.numUpdatedRows ?? 0) === 0) {
+    await db
+      .insertInto('portfolio_program_allocations')
+      .values({
+        company_id: companyId,
+        program_id: programId,
+        allocated_headcount: allocatedHeadcount,
+        created_at: new Date(),
+      })
+      .execute();
   }
 }
 
@@ -518,23 +583,27 @@ export async function updatePortfolioProgramAllocation(
   allocationId: number | string,
   allocatedHeadcount: number,
 ) {
-  const db = await getDb();
-  return db.run(
-    `UPDATE portfolio_program_allocations SET allocated_headcount = ?
-     WHERE id = ? AND company_id = ?`,
-    allocatedHeadcount, allocationId, companyId,
-  );
+  const db = await getKysely();
+  const result = await db
+    .updateTable('portfolio_program_allocations')
+    .set({ allocated_headcount: allocatedHeadcount })
+    .where('id', '=', Number(allocationId))
+    .where('company_id', '=', companyId)
+    .executeTakeFirst();
+  return { lastInsertRowid: 0, changes: Number(result.numUpdatedRows ?? 0) };
 }
 
 export async function deletePortfolioProgramAllocation(
   companyId: number | null,
   allocationId: number | string,
 ) {
-  const db = await getDb();
-  return db.run(
-    'DELETE FROM portfolio_program_allocations WHERE id = ? AND company_id = ?',
-    allocationId, companyId,
-  );
+  const db = await getKysely();
+  const result = await db
+    .deleteFrom('portfolio_program_allocations')
+    .where('id', '=', Number(allocationId))
+    .where('company_id', '=', companyId)
+    .executeTakeFirst();
+  return deleteResult(result.numDeletedRows);
 }
 
 type Scope = { sql: string; params: unknown[] };
