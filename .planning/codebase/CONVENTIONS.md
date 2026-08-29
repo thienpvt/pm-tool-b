@@ -1,28 +1,33 @@
 # Coding Conventions
 
-**Analysis Date:** 2026-08-25
+**Analysis Date:** 2026-08-29
 
 ## Naming Patterns
 
 **Files:**
-- App Router pages: `page.tsx`, layouts: `layout.tsx` under `app/`
-- API handlers: `app/api/**/route.ts` — export HTTP verb handlers only (`GET`, `POST`, `PUT`, `PATCH`, `DELETE`)
-- Zod schemas co-located with routes: `app/api/**/schema.ts` (e.g. `app/api/projects/[id]/bugs/schema.ts`)
-- Service layer: `lib/services/<domain>.service.ts` (e.g. `lib/services/projects.service.ts`, `lib/services/holidays.service.ts`)
-- Repository layer: `lib/repositories/<domain>.repo.ts` (e.g. `lib/repositories/projects.repo.ts`)
-- HTTP wrappers: `lib/http/with-auth.ts`, `lib/http/with-project-access.ts`, `lib/http/with-program-access.ts`
+- App Router shells: `page.tsx`, `layout.tsx` under `app/` — server components that wrap module UI with `PageChrome`
+- API surface: `app/api/**/route.ts` — thin re-exports or wrapper wiring only
+- Module routes: `modules/<domain>/backend/routes/**/route.ts`, `handlers.ts`, `schema.ts`
+- Service layer: `modules/<domain>/backend/services/<domain>.service.ts` (40 service files across 10 domains)
+- Repository layer: `modules/<domain>/backend/repositories/<entity>.repo.ts` (38 repo files)
+- Cross-cutting services: `lib/services/access.ts`, `lib/services/errors.ts`, `lib/services/settings.service.ts`
+- Shared repositories: `lib/repositories/auth.repo.ts`, `lib/repositories/settings.repo.ts`, `lib/repositories/_helpers.ts`, `lib/repositories/_kysely-helpers.ts`
+- HTTP wrappers: `lib/http/with-auth.ts`, `lib/http/with-project-access.ts`, `lib/http/with-program-access.ts`, `lib/http/with-cpmo.ts`, `lib/http/with-role.ts`
 - Error mappers (HTTP boundary): `lib/api-errors.ts` — lives outside services/repos by design
-- Typed service errors: `lib/services/errors.ts` — HTTP-code-free
 - Integration clients: `lib/integrations/<vendor>/client.ts`, `lib/integrations/<vendor>/schemas.ts`
-- Feature UI: PascalCase under domain folders — `components/timeline/ImportMappingDialog.tsx`, `components/layout/Sidebar.tsx`
-- shadcn/ui primitives: kebab-case — `components/ui/button.tsx`, `components/ui/badge.tsx`
+- Module UI pages: PascalCase — `modules/projects/ui/milestones/MilestonesPage.tsx`
+- Module UI components: `_components/` subfolder with PascalCase files — `modules/projects/ui/milestones/_components/MilestoneList.tsx`
+- Shared layout: `components/layout/PageChrome.tsx`, `components/layout/Sidebar.tsx`
+- shadcn/ui primitives: kebab-case — `components/ui/button.tsx`, `components/ui/dialog.tsx`
 - Shared libs: kebab or short names — `lib/db.ts`, `lib/auth.ts`, `lib/status-weights.ts`, `lib/utils.ts`
 
 **Functions:**
-- camelCase for helpers and exports: `getSessionFromRequest`, `assertProjectAccess`, `buildUpdate`, `serviceErrorResponse`
-- React components: PascalCase — `Button`, `Sidebar`, `ImportMappingDialog`
-- API route handlers: uppercase HTTP verbs exported from `route.ts`
-- Service functions mirror domain verbs: `listProjects`, `createHoliday`, `replaceSnapshot`
+- camelCase for helpers and exports: `getSessionFromRequest`, `assertProjectAccess`, `pickAllowed`, `serviceErrorResponse`
+- React components: PascalCase — `Button`, `MilestonesPage`, `PageChrome`
+- Route handlers in `handlers.ts`: camelCase named exports — `getProjectHandler`, `patchProjectHandler`
+- HTTP verb exports in `route.ts`: uppercase — `GET`, `POST`, `PUT`, `PATCH`, `DELETE`
+- Service functions mirror domain verbs: `listMilestones`, `createProject`, `replaceSnapshot`
+- Custom hooks: `use` prefix — `useMilestonesPage`, `useMilestonesActions`
 
 **Variables:**
 - camelCase locals: `sessionId`, `companyId`, `projectId`
@@ -31,15 +36,16 @@
 
 **Types:**
 - Prefer `type` aliases near use site: `SessionUser` in `lib/auth.ts`, `AccessActor` in `lib/services/access.ts`
+- Page-local types in module UI: `modules/projects/ui/milestones/types.ts`
 - Generics on DB helpers: `db.get<T>(...)`, `HandlerContext<TParams, TBody>` in `lib/http/with-auth.ts`
-- Avoid a separate `types/` tree — types live next to consumers
-- Repository column allowlists exported as `*_COLUMNS` constants (e.g. `PROJECT_COLUMNS` in `lib/repositories/projects.repo.ts`)
+- Avoid a separate top-level `types/` tree — types live next to consumers
+- Repository column allowlists exported as `*_COLUMNS` constants (e.g. `RISK_COLUMNS` in `modules/projects/backend/repositories/risks.repo.ts`)
 
 ## Code Style
 
 **Formatting:**
 - No Prettier / Biome config in repo
-- Mixed quotes: single quotes dominate API/lib/tests (`'use client'`, `'next/server'`); some shadcn files use double quotes (`"clsx"` in `lib/utils.ts`)
+- Mixed quotes: single quotes dominate API/lib/tests/modules backend (`'use client'`, `'next/server'`); some shadcn/shared files use double quotes (`"clsx"` in `lib/utils.ts`)
 - Semicolons common in API/lib/tests; some UI files omit trailing semicolons
 - Indentation: 2 spaces
 - Section banners in large files: `// ─── Types ───` or `// ─── Public routes ───` style dividers (see `lib/http/route-401-matrix.test.ts`)
@@ -47,61 +53,111 @@
 **Linting:**
 - ESLint 9 flat config: `eslint.config.mjs`
 - Presets: `eslint-config-next/core-web-vitals` + `eslint-config-next/typescript`
-- Ignores: `.next/**`, `out/**`, `build/**`, `next-env.d.ts`
-- Script: `npm run lint` → `eslint`
+- Custom plugin: `eslint/plugin.mjs` with rule `pm-tool/require-auth-wrapper` (error on project-scoped `app/api/**/route.ts` handlers not wrapped in `withAuth`, `withProjectAccess`, `withProgramAccess`, `withCpmo`, or `withRole`)
+- Allowlist for legacy routes: `eslint/route-wrapper-allowlist.json`
+- Script: `npm run lint` → `eslint --no-error-on-unmatched-pattern "app/api/**/route.ts"`
 - TypeScript: `strict: true` in `tsconfig.json`; path alias `@/*` → repo root
 
 ## Import Organization
 
-**Order (typical client page):**
-1. `'use client'` directive when needed
-2. React / Next: `react`, `next/navigation`, `next/link`
-3. Internal layout/feature: `@/components/layout/Sidebar`, feature dialogs
-4. UI primitives: `@/components/ui/*`
-5. Third-party UI/utils: `sonner`, `lucide-react`, `recharts`
-6. Internal lib: `@/lib/*` (when used)
+**Order (module UI page — client):**
+1. `'use client'` directive at top
+2. React hooks: `react`
+3. Next navigation: `next/navigation`
+4. Internal lib: `@/lib/*`
+5. Co-located module files: `./types`, `./useMilestonesPage`, `./_components/*`
 
-**Order (API route — thin handler):**
-1. `next/server` (`NextResponse`)
-2. HTTP wrapper: `@/lib/http/with-project-access` or `@/lib/http/with-auth`
-3. Service functions: `@/lib/services/<domain>.service`
-4. Local schema: `./schema`
+**Order (app route shell — server):**
+1. `@/components/layout/PageChrome`
+2. Default import of module page from `@/modules/<domain>/ui/...`
+
+**Order (API route — thin wrapper):**
+1. HTTP wrapper: `@/lib/http/with-project-access` or `@/lib/http/with-auth`
+2. `zod` when schema needed
+3. Handlers from `@/modules/<domain>/backend/routes/.../handlers`
+4. Local schema from `./schema` or module path
 
 **Order (service module):**
-1. Repository imports from `@/lib/repositories/<domain>.repo`
-2. `./access` for `assertProjectAccess` / `AccessActor`
-3. `./errors` for typed service errors
+1. Repository imports from `@/modules/<domain>/backend/repositories/*.repo`
+2. `@/lib/services/access` for `assertProjectAccess` / `AccessActor`
+3. `@/lib/services/errors` for typed service errors
+4. Cross-module services when needed (e.g. `@/modules/audit/backend/services/audit.service`)
 
 **Path Aliases:**
-- `@/*` maps to project root (`./*`) — use `@/lib/...`, `@/components/...` from anywhere
-- Relative imports inside same package area (e.g. `./errors` within `lib/services/`)
+- `@/*` maps to project root (`./*`) — use `@/lib/...`, `@/modules/...`, `@/components/...` from anywhere
+- Relative imports inside same module area (e.g. `./handlers` within a routes folder)
+- Do not use barrel `index.ts` files — import concrete paths
 
 ## Layered Architecture
+
+**Domain modules (10):** `admin`, `audit`, `dashboards`, `documents`, `jira`, `operations`, `portfolio`, `projects`, `reports`, `weekly`
 
 **Four layers with strict import boundaries:**
 
 | Layer | Location | May import | Must NOT import |
 |-------|----------|------------|-----------------|
-| Routes | `app/api/**/route.ts` | services, HTTP wrappers, local `schema.ts`, `lib/api-errors.ts` (via wrappers) | Direct repository calls (except legacy routes being migrated) |
+| App shells | `app/**/page.tsx`, `app/api/**/route.ts` | modules (UI + backend routes), HTTP wrappers, `PageChrome` | Direct repository calls, inline SQL |
 | HTTP wrappers | `lib/http/*.ts` | auth, api-errors, services/access | Business logic beyond session/params/body parsing |
-| Services | `lib/services/*.service.ts` | repositories, `./access`, `./errors`, integrations | `next/server` (SVC-03) |
-| Repositories | `lib/repositories/*.repo.ts` | `lib/db`, `./_helpers` | `next/server` (REPO-06) |
+| Services | `modules/*/backend/services/*.service.ts` | repositories, `@/lib/services/access`, `@/lib/services/errors`, integrations | `next/server` (SVC-03) |
+| Repositories | `modules/*/backend/repositories/*.repo.ts` | `lib/db/kysely`, `lib/repositories/_helpers`, `lib/repositories/_kysely-helpers` | `next/server` (REPO-06) |
 
-**Route pattern (canonical):**
+**App page pattern (server shell + client module page):**
 ```typescript
-// app/api/projects/[id]/bugs/route.ts
-export const GET = withProjectAccess(async (req, { params, actor }) => { ... });
-export const POST = withProjectAccess(handler, { schema: bugsInputSchema });
+// app/projects/[id]/milestones/page.tsx
+import { PageChrome } from '@/components/layout/PageChrome';
+import MilestonesPage from '@/modules/projects/ui/milestones/MilestonesPage';
+
+export default async function MilestonesRoute({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  return (
+    <PageChrome projectId={id} mainClassName="flex-1 overflow-auto">
+      <MilestonesPage />
+    </PageChrome>
+  );
+}
+```
+
+**API route pattern (wrapper + handlers):**
+```typescript
+// app/api/projects/[id]/route.ts
+import { withProjectAccess } from '@/lib/http/with-project-access';
+import { z } from 'zod';
+import { getProjectHandler, patchProjectHandler, deleteProjectHandler } from '@/modules/projects/backend/routes/projects/[id]/handlers';
+
+const projectUpdateSchema = z.object({}).passthrough();
+
+export const GET = withProjectAccess(getProjectHandler);
+export const PATCH = withProjectAccess(patchProjectHandler, { schema: projectUpdateSchema });
+export const DELETE = withProjectAccess(deleteProjectHandler);
+```
+
+**Re-export pattern (stable URL, module implementation):**
+```typescript
+// app/api/projects/route.ts
+export { GET, POST } from '@/modules/projects/backend/routes/projects/route';
 ```
 
 **Service pattern:**
 ```typescript
-// lib/services/holidays.service.ts
-export async function createHoliday(projectId, actor, date, name) {
-  await assertProjectAccess(projectId, actor);
-  if (!date) throw new ValidationError('date required', 'date');
-  if (await findHolidayByDate(projectId, date)) throw new ConflictError('date already exists');
-  return createHolidayRepo(projectId, date, name);
+// modules/projects/backend/services/milestones.service.ts
+export async function createMilestone(projectId, actor, body) {
+  await assertProjectWriteAccess(projectId, actor);
+  const created = await createMilestoneRepo(projectId, body);
+  await auditLog({ ... });
+  return created;
+}
+```
+
+**Repository pattern (Kysely):**
+```typescript
+// modules/projects/backend/repositories/milestones.repo.ts
+import { getKysely } from '@/lib/db/kysely';
+
+export async function listMilestones(projectId: number | string) {
+  const db = await getKysely();
+  return db.selectFrom('milestones').selectAll()
+    .where('project_id', '=', Number(projectId))
+    .orderBy('start_date').orderBy('id').execute();
 }
 ```
 
@@ -112,17 +168,19 @@ export async function createHoliday(projectId, actor, date, name) {
 - `NotFoundError` — missing resource; optional `resource` field; maps to 404
 - `ValidationError` — business-rule rejection; optional `field` field; maps to 400
 - `ConflictError` — duplicate/state conflict; maps to 409
+- `MandatoryIncompleteError` — stage-change guard; maps to 409 `{ code, items }`
+- `SubmitValidationError` — multi-field validation; maps to 400 `{ error, fields }`
 - These classes are HTTP-code-free by design — no `status` property on the error object
 
 **HTTP mapping (`lib/api-errors.ts`):**
 - `serviceErrorResponse(e)` — maps service errors to JSON responses; unknown errors → generic 500, never `String(e)`
 - `repoErrorResponse(e)` — maps `UnknownColumnError` → 400 with `{ error, columns }`; other repo errors → 500
-- `integrationErrorResponse(e, opts?)` — maps `IntegrationError` per service (jira/resend/anthropic) with behavior-freeze rules
+- `integrationErrorResponse(e, opts?)` — maps `IntegrationError` per service (jira/resend/anthropic)
 - `IntegrationError` is NOT handled by `serviceErrorResponse` — services re-throw it; routes call `integrationErrorResponse` in catch chain
 
-**Repository errors (`lib/repositories/_helpers.ts`):**
+**Repository errors (`lib/repositories/_helpers.ts`, `lib/repositories/_kysely-helpers.ts`):**
 - `UnknownColumnError` — thrown when UPDATE fields contain keys outside the allowlist (mass-assignment guard, REPO-03)
-- `buildUpdate(table, allowlist, fields)` — builds parameterized SET clause; rejects unknown columns
+- `pickAllowed(allowlist, fields)` — Kysely write-path filter; rejects unknown columns
 
 **Integration errors (`lib/integrations/errors.ts`):**
 - `IntegrationError` with `kind`: `'timeout' | 'auth' | 'upstream' | 'validation' | 'network'`
@@ -132,24 +190,25 @@ export async function createHoliday(projectId, actor, date, name) {
 - Unified error mapping in `withAuth` / `withProjectAccess` / `withProgramAccess`
 - Order: `ForbiddenError` → 403, `NotFoundError` → 404, `ValidationError` → 400, `ConflictError` → 409, `UnknownColumnError` → `repoErrorResponse`, else → 500
 - Malformed JSON on POST/PUT/PATCH → 400 `{ error: 'Invalid JSON' }`
+- Shadow mode: `ACCESS_ENFORCEMENT=shadow` logs `[ACCESS-SHADOW]` denials via `logAccessShadowDenial` without blocking
 
 **Client-side:**
 - `toast` from `sonner` for user-visible success/failure after `fetch`
-- JSON error shape: `{ error: string }` with optional `field` or `columns`
+- JSON error shape: `{ error: string }` with optional `field`, `columns`, or `fields`
 
 ## Zod Validation
 
-**Boundary validation only — do not duplicate service rules (Pitfall 3):**
-- Schemas live in `app/api/**/schema.ts`, co-located with the route
+**Boundary validation only — do not duplicate service rules:**
+- Schemas live in `modules/<domain>/backend/routes/**/schema.ts`, co-located with handlers
 - Passed to wrappers via `{ schema: myInputSchema }` in `withAuth` / `withProjectAccess` options
 - Use `.passthrough()` when the route accepts extra keys the service handles
-- Keep fields optional when the service owns the required-field check — e.g. `holidayInputSchema` leaves `date` optional because `holidays.service.ts` throws `ValidationError('date required')`
+- Keep fields optional when the service owns the required-field check — service throws `ValidationError`
 - On `safeParse` failure: default 400 with first issue message, or custom via `badRequest` option
 - Integration response validation uses Zod in `lib/integrations/*/schemas.ts`; failures become `IntegrationError({ kind: 'validation', ... })`
 
 **Example schema:**
 ```typescript
-// app/api/projects/[id]/bugs/schema.ts
+// modules/projects/backend/routes/projects/[id]/bugs/schema.ts
 export const bugsInputSchema = z.object({
   bugs: z.array(z.record(z.string(), z.unknown())).optional(),
   snapshot_date: z.string().optional(),
@@ -172,37 +231,40 @@ export const bugsInputSchema = z.object({
 **When to Comment:**
 - Layer boundary rules and behavior-freeze rationale — see file headers in `lib/services/errors.ts`, `lib/api-errors.ts`, `lib/http/with-auth.ts`
 - Domain rules and weighted status math — block comments in `lib/status-weights.ts`
-- Pitfall callouts at schema/service boundaries (Pitfall 3: Zod vs service validation split)
-- Test intent blocks explaining what layer the suite proves (see `app/api/projects/[id]/route.access.test.ts`)
+- Scoping/authorization caveats on repositories — see `modules/projects/backend/repositories/milestones.repo.ts`
+- Pitfall callouts at schema/service boundaries (Zod vs service validation split)
+- Test intent blocks explaining what layer the suite proves (see `app/api/projects/[id]/risks/route.access.test.ts`)
 
 **JSDoc/TSDoc:**
-- Use on public helpers where formula or contract is non-obvious (`buildUpdate`, `withFetchTimeout`, `serviceErrorResponse`)
+- Use on public helpers where formula or contract is non-obvious (`pickAllowed`, `withFetchTimeout`, `serviceErrorResponse`, HTTP wrappers)
 - Not required on every export
 - No enforced TSDoc coverage
 
 ## Function Design
 
 **Size:**
-- Routes stay thin — delegate to services; no inline SQL or access checks in new routes
+- `app/api/**/route.ts` and `app/**/page.tsx` stay thin — delegate to modules
+- Handlers in `handlers.ts` are single-purpose async functions receiving `HandlerContext`
 - Services: one exported function per route operation; assert access first, then call repo
-- Repositories: SQL + allowlist enforcement; no session awareness
-- Large client pages acceptable when feature-local; extract when reused across routes
+- Repositories: Kysely queries + allowlist enforcement; no session awareness
+- Module UI pages may be large with co-located hooks (`useMilestonesPage.ts`); extract `_components/` when sections grow
 
 **Parameters:**
-- Services receive `(resourceId, actor: AccessActor, ...payload)` — actor carries `{ company_id, is_admin }`
-- API wrappers parse body via Zod and pass typed `body` in handler context
-- DB: positional `?` placeholders via `db.run/get/all(sql, ...params)` — rewritten to `$n` for Postgres in `lib/db.ts`
+- Services receive `(resourceId, actor: AccessActor, ...payload)` — actor carries `{ company_id, is_admin, roles, user_id, ... }`
+- HTTP wrappers parse body via Zod and pass typed `body` in handler context
+- DB (legacy paths): positional `?` placeholders via `db.run/get/all(sql, ...params)` in `lib/db.ts`
+- DB (module repos): Kysely query builder via `getKysely()` from `lib/db/kysely`
 
 **Return Values:**
-- API: `NextResponse.json(...)` with explicit status via wrappers or direct return
+- Handlers: `NextResponse.json(...)` with data from service calls
 - Services: return repository rows or throw typed errors — never return HTTP responses
-- Repositories: return rows or `{ lastInsertRowid, changes }`; throw `UnknownColumnError` on bad columns
+- Repositories: return Kysely result rows; throw `UnknownColumnError` on bad columns via `pickAllowed`
 
 ## Module Design
 
 **Exports:**
-- Named exports for lib utilities (`export function`, `export type`, `export const`)
-- Default export for page components and some layout pieces (`Sidebar`)
+- Named exports for lib utilities and handlers (`export function`, `export type`, `export const`)
+- Default export for module UI pages (`MilestonesPage`) and some layout pieces (`Sidebar`)
 - UI primitives: named `Button` + `buttonVariants` pattern (CVA) in `components/ui/button.tsx`
 - Repository allowlists exported as `*_COLUMNS` for test assertions
 
@@ -212,8 +274,11 @@ export const bugsInputSchema = z.object({
 
 ## UI / Client Patterns
 
-- Mark interactive pages/components with `'use client'` at top
+- `'use client'` on module UI pages and interactive components — not on `app/**/page.tsx` shells
+- `PageChrome` wraps every authenticated page shell; passes optional `projectId` for sidebar context
 - Fetch JSON from `/api/...` with session cookie (`pm_session`)
+- Co-locate hooks: `useMilestonesPage.ts`, `useMilestonesActions.ts` next to page component
+- Private components in `_components/` subfolder within module UI directory
 - Forms: controlled React state + dialogs from `@/components/ui/dialog`
 - Styling: Tailwind utility classes; merge with `cn()` from `lib/utils.ts`; variants via `class-variance-authority`
 - Icons: `lucide-react`
@@ -221,23 +286,26 @@ export const bugsInputSchema = z.object({
 
 ## Data / SQL Conventions
 
-- SQL written inline in repositories and `lib/db.ts` (no ORM query builder)
+- Module repositories use Kysely via `getKysely()` (`lib/db/kysely.ts`); legacy/shared code may use `getDb()` from `lib/db.ts`
+- Generated types: `lib/db/database.ts` via `npm run codegen:db` (kysely-codegen)
 - Column names snake_case in DB and JSON responses
-- Multi-tenant filter: admin sees all; non-admin scoped by `user.company_id`
-- Mass-assignment prevention: every UPDATE goes through `buildUpdate` with an explicit allowlist
+- Multi-tenant filter: non-admin scoped by `user.company_id`; admin behavior varies by endpoint
+- Mass-assignment prevention: Kysely writes use `pickAllowed` with explicit allowlists; fixed-column writes documented in repo headers when no allowlist needed
 - Tenancy columns (`company_id`, `customer_id`, `id`) excluded from allowlists
-- Prefer `getDb()` singleton from `@/lib/db` in production code; tests use `testDb()` from `test/repo-db.ts`
+- Tests use `testDb()` / `testKysely()` from `test/repo-db.ts` — never `getDb()` in repo tests (avoids seeding production admin credentials)
 
 ## What To Follow When Adding Code
 
-1. **New API route:** `app/api/<resource>/route.ts` — wrap with `withAuth` / `withProjectAccess`; add `schema.ts` if body validation needed; call service, not repo
-2. **New service:** `lib/services/<domain>.service.ts` — assert access, throw typed errors, delegate to repo; add `<domain>.service.unit.test.ts`
-3. **New repository:** `lib/repositories/<domain>.repo.ts` — use `buildUpdate` with allowlist; add `<domain>.repo.test.ts` (Postgres) or `.unit.test.ts` (mocked)
-4. **New page:** `app/<route>/page.tsx` — `'use client'` if hooks/state; add `page.component.test.tsx` for critical flows
-5. **New Zod schema:** co-locate in `app/api/.../schema.ts`; keep service-owned validation in the service, not the schema
-6. **New error type:** add to `lib/services/errors.ts` (HTTP-free); map in `lib/api-errors.ts` `serviceErrorResponse`
-7. Run `npm run lint` and `npm test`; keep `strict` TypeScript happy; use `@/` imports
+1. **New domain feature:** add under `modules/<domain>/backend/` (services, repositories, routes) and `modules/<domain>/ui/` (pages, `_components/`, hooks)
+2. **New API route:** add `handlers.ts` + optional `schema.ts` in module routes; wire in `app/api/**/route.ts` with `withAuth` / `withProjectAccess`; ensure ESLint wrapper rule passes
+3. **New service:** `modules/<domain>/backend/services/<entity>.service.ts` — assert access, throw typed errors, delegate to repo; add `<entity>.service.unit.test.ts`
+4. **New repository:** `modules/<domain>/backend/repositories/<entity>.repo.ts` — use Kysely + `pickAllowed` for updates; add `<entity>.repo.test.ts` (Postgres) or `.unit.test.ts` (mocked)
+5. **New page:** `app/<route>/page.tsx` server shell with `PageChrome` + module UI page; `'use client'` only on the module UI component
+6. **New Zod schema:** co-locate in `modules/<domain>/backend/routes/**/schema.ts`; keep service-owned validation in the service
+7. **New error type:** add to `lib/services/errors.ts` (HTTP-free); map in `lib/api-errors.ts` `serviceErrorResponse`
+8. **New protected route:** update `ROUTE_MATRIX` in `lib/http/route-401-matrix.test.ts`
+9. Run `npm run lint` and `npm test`; keep `strict` TypeScript happy; use `@/` imports
 
 ---
 
-*Convention analysis: 2026-08-25*
+*Convention analysis: 2026-08-29*
