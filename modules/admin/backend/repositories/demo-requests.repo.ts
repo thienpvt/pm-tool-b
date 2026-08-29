@@ -1,4 +1,4 @@
-import { getDb } from '@/lib/db';
+import { getKysely } from '@/lib/db/kysely';
 
 /** The public demo-request form. Fields are trimmed by the route before they arrive. */
 export async function createDemoRequest(
@@ -7,10 +7,19 @@ export async function createDemoRequest(
   email: string,
   companyName: string,
 ): Promise<number | bigint> {
-  const db = await getDb();
-  const r = await db.run(
-    'INSERT INTO demo_requests (full_name, phone, email, company_name) VALUES (?, ?, ?, ?)',
-    fullName, phone, email, companyName,
-  );
-  return r.lastInsertRowid;
+  const db = await getKysely();
+  const row = await db
+    .insertInto('demo_requests')
+    .values({
+      full_name: fullName,
+      phone,
+      email,
+      company_name: companyName,
+      status: 'pending',
+      notes: '',
+      created_at: new Date(),
+    })
+    .returning('id')
+    .executeTakeFirstOrThrow();
+  return row.id;
 }
