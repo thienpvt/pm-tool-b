@@ -119,6 +119,12 @@ export async function runInTransaction<T>(fn: (client: PoolClient) => Promise<T>
   return runInTransactionOnPool(_pool, fn);
 }
 
+export async function getPool(): Promise<Pool> {
+  await getDb();
+  if (!_pool) throw new Error('Database pool is not initialized');
+  return _pool;
+}
+
 export async function getDb(): Promise<DbClient> {
   if (_client) return _client;
 

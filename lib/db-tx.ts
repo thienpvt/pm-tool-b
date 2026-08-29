@@ -1,9 +1,19 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
+import type { Kysely } from 'kysely';
 import type { Pool, PoolClient } from 'pg';
+import type { Database } from '@/lib/db/database';
 
 type Queryable = Pick<Pool, 'query'>;
 
 const txStore = new AsyncLocalStorage<PoolClient>();
+const txKyselyStore = new AsyncLocalStorage<Kysely<Database>>();
+
+/** Active transactional Kysely, if set by runInTransactionOnPool (25-02). */
+export function txKyselyTarget(): Kysely<Database> | undefined {
+  return txKyselyStore.getStore();
+}
+
+export { txKyselyStore };
 
 /** Active transaction client, if `runInTransactionOnPool` is on the stack. */
 export function txQueryTarget(fallback: Queryable): Queryable {
