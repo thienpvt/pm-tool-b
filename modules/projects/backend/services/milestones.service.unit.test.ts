@@ -127,6 +127,23 @@ describe('milestones.service', () => {
     });
   });
 
+  it('updateMilestone skips auditLog when before equals after (NIT-02)', async () => {
+    const row = {
+      id: 3,
+      name: 'M',
+      status: 'planned',
+      start_date: '2026-01-01',
+      end_date: '2026-06-30',
+      plan_end: '2026-06-30',
+    };
+    getMilestoneRepo.mockResolvedValue(row);
+    updateMilestoneRepo.mockResolvedValue(row);
+    await updateMilestone(7, owner, 3, { name: 'M' });
+    expect(assertProjectWriteAccess).toHaveBeenCalledWith(7, owner);
+    expect(updateMilestoneRepo).toHaveBeenCalledWith(7, 3, { name: 'M' });
+    expect(auditLog).not.toHaveBeenCalled();
+  });
+
   it('updateMilestone calls auditLog action update on success (D-02)', async () => {
     getMilestoneRepo.mockResolvedValue({
       id: 3,
