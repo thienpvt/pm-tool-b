@@ -384,13 +384,13 @@ Plans:
   4. Operator confirms Anthropic malformed-output 502 (vs the old 500) is acceptable for the three report routes; no code change unless the confirm is rejected
   5. Each v2.1 phase (19+) has a reconciled (non-draft) `VALIDATION.md`; archived v1.0/v2.0 validation files are not rewritten
 
-**Plans:** 3 plans
+**Plans:** 1/3 plans executed
 **UI hint**: no
 
 Plans:
 **Wave 1**
 
-- [ ] 27-01-PLAN.md — NIT-01 contract tests for listPeriodShells and listOpenProjectDependencies
+- [x] 27-01-PLAN.md — NIT-01 contract tests for listPeriodShells and listOpenProjectDependencies
 
 **Wave 2** *(blocked on Wave 1; isolation none on main tree)*
 
@@ -416,4 +416,4 @@ v1.0 Phases 1–8 and v2.0 Phases 9–18 are complete (see milestone archives ab
 | 24. Repo-wide Module Split | 10/10 | Complete    | 2026-08-28 |
 | 25. Kysely Repositories | 15/15 | Complete    | 2026-08-29 |
 | 26. RSC Chrome & Cold Start | 3/3 | Complete    | 2026-08-29 |
-| 27. Nits, Validation & Operator Gate | 0/3 | Not started | - |
+| 27. Nits, Validation & Operator Gate | 1/3 | In Progress|  |
