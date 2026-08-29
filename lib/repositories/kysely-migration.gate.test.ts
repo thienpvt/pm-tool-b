@@ -93,4 +93,10 @@ describe('kysely migration gates (25-15, ENF-02, D-05, D-09)', () => {
       );
     }
   });
+
+  it('D-05: _helpers.ts exports UnknownColumnError only — no buildUpdate SET helper', () => {
+    const helpersSrc = readFileSync(join(root, 'lib/repositories/_helpers.ts'), 'utf8');
+    expect(helpersSrc).toMatch(/export class UnknownColumnError/);
+    expect(helpersSrc).not.toMatch(/export function buildUpdate\b/);
+  });
 });
