@@ -1,4 +1,5 @@
-import { getDb } from '@/lib/db';
+import { sql } from 'kysely';
+import { getKysely } from '@/lib/db/kysely';
 
 export type DependencyType =
   | 'FINISH_TO_START'
@@ -24,11 +25,6 @@ export type ProjectDependencyListRow = ProjectDependencyRow & {
   direction: 'outgoing' | 'incoming';
 };
 
-const ACTIVE_DEP = `
-  effective_from <= CURRENT_DATE
-  AND (effective_to IS NULL OR effective_to > CURRENT_DATE)
-`;
-
 const FAR_FUTURE = '9999-12-31';
 
 export async function insertProjectDependency(input: {
@@ -41,55 +37,50 @@ export async function insertProjectDependency(input: {
   notes?: string | null;
   createdBy: number;
 }) {
-  const db = await getDb();
-  const r = await db.run(
-    `INSERT INTO project_dependencies (
-      from_project_id, to_project_id, dependency_type, need_by,
-      effective_from, effective_to, notes, created_by
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    input.fromProjectId,
-    input.toProjectId,
-    input.dependencyType,
-    input.needBy,
-    input.effectiveFrom,
-    input.effectiveTo ?? null,
-    input.notes ?? null,
-    input.createdBy,
-  );
-  return db.get<ProjectDependencyRow>(
-    'SELECT * FROM project_dependencies WHERE id = ?',
-    r.lastInsertRowid,
-  );
+  const db = await getKysely();
+  return db
+    .insertInto('project_dependencies')
+    .values({
+      from_project_id: input.fromProjectId,
+      to_project_id: input.toProjectId,
+      dependency_type: input.dependencyType,
+      need_by: input.needBy,
+      effective_from: input.effectiveFrom,
+      effective_to: input.effectiveTo ?? null,
+      notes: input.notes ?? null,
+      created_by: input.createdBy,
+    })
+    .returningAll()
+    .executeTakeFirstOrThrow();
 }
 
 export async function listProjectDependencies(projectId: number | string) {
-  const db = await getDb();
-  return db.all<ProjectDependencyListRow>(
-    `SELECT *,
-      CASE WHEN from_project_id = ? THEN 'outgoing' ELSE 'incoming' END AS direction
+  const db = await getKysely();
+  const pid = Number(projectId);
+  const result = await sql<ProjectDependencyListRow>`
+    SELECT *,
+      CASE WHEN from_project_id = ${pid} THEN 'outgoing' ELSE 'incoming' END AS direction
      FROM project_dependencies
-     WHERE from_project_id = ? OR to_project_id = ?
-     ORDER BY need_by, id`,
-    Number(projectId),
-    Number(projectId),
-    Number(projectId),
-  );
+     WHERE from_project_id = ${pid} OR to_project_id = ${pid}
+     ORDER BY need_by, id
+  `.execute(db);
+  return result.rows;
 }
 
 /** Active-window list for Phase 16 dashboards (D-16). */
 export async function listOpenProjectDependencies(projectId: number | string) {
-  const db = await getDb();
-  return db.all<ProjectDependencyListRow>(
-    `SELECT *,
-      CASE WHEN from_project_id = ? THEN 'outgoing' ELSE 'incoming' END AS direction
+  const db = await getKysely();
+  const pid = Number(projectId);
+  const result = await sql<ProjectDependencyListRow>`
+    SELECT *,
+      CASE WHEN from_project_id = ${pid} THEN 'outgoing' ELSE 'incoming' END AS direction
      FROM project_dependencies
-     WHERE (from_project_id = ? OR to_project_id = ?)
-       AND ${ACTIVE_DEP}
-     ORDER BY need_by, id`,
-    Number(projectId),
-    Number(projectId),
-    Number(projectId),
-  );
+     WHERE (from_project_id = ${pid} OR to_project_id = ${pid})
+       AND effective_from <= CURRENT_DATE
+       AND (effective_to IS NULL OR effective_to > CURRENT_DATE)
+     ORDER BY need_by, id
+  `.execute(db);
+  return result.rows;
 }
 
 /** Date-window intersection for same from/to/type (NULL effective_to is open-ended). */
@@ -100,21 +91,17 @@ export async function hasOverlappingEquivalentDependency(
   effectiveFrom: string,
   effectiveTo: string | null | undefined,
 ): Promise<boolean> {
-  const db = await getDb();
+  const db = await getKysely();
   const newTo = effectiveTo ?? FAR_FUTURE;
-  const row = await db.get<{ ok: number }>(
-    `SELECT 1 AS ok FROM project_dependencies
-     WHERE from_project_id = ? AND to_project_id = ? AND dependency_type = ?
-       AND effective_from < ?
-       AND ? < COALESCE(effective_to, ?)
-     LIMIT 1`,
-    fromId,
-    toId,
-    type,
-    newTo,
-    effectiveFrom,
-    FAR_FUTURE,
-  );
+  const row = await db
+    .selectFrom('project_dependencies')
+    .select(sql<number>`1`.as('ok'))
+    .where('from_project_id', '=', fromId)
+    .where('to_project_id', '=', toId)
+    .where('dependency_type', '=', type)
+    .where('effective_from', '<', newTo)
+    .where(sql<boolean>`${effectiveFrom} < COALESCE(effective_to, ${FAR_FUTURE})`)
+    .executeTakeFirst();
   return !!row;
 }
 
@@ -122,12 +109,13 @@ export async function getDependencyInFromProject(
   fromProjectId: number | string,
   dependencyId: number | string,
 ) {
-  const db = await getDb();
-  return db.get<ProjectDependencyRow>(
-    'SELECT * FROM project_dependencies WHERE id = ? AND from_project_id = ?',
-    dependencyId,
-    Number(fromProjectId),
-  );
+  const db = await getKysely();
+  return db
+    .selectFrom('project_dependencies')
+    .selectAll()
+    .where('id', '=', Number(dependencyId))
+    .where('from_project_id', '=', Number(fromProjectId))
+    .executeTakeFirst();
 }
 
 export async function softEndDependency(
@@ -135,22 +123,23 @@ export async function softEndDependency(
   dependencyId: number | string,
   effectiveTo?: string,
 ) {
-  const db = await getDb();
+  const db = await getKysely();
   if (effectiveTo === undefined) {
-    return db.get<ProjectDependencyRow>(
-      `UPDATE project_dependencies SET effective_to = CURRENT_DATE
-       WHERE id = ? AND from_project_id = ? AND effective_to IS NULL
-       RETURNING *`,
-      dependencyId,
-      Number(fromProjectId),
-    );
+    return db
+      .updateTable('project_dependencies')
+      .set({ effective_to: sql<string>`CURRENT_DATE` })
+      .where('id', '=', Number(dependencyId))
+      .where('from_project_id', '=', Number(fromProjectId))
+      .where('effective_to', 'is', null)
+      .returningAll()
+      .executeTakeFirst();
   }
-  return db.get<ProjectDependencyRow>(
-    `UPDATE project_dependencies SET effective_to = ?
-     WHERE id = ? AND from_project_id = ? AND effective_to IS NULL
-     RETURNING *`,
-    effectiveTo,
-    dependencyId,
-    Number(fromProjectId),
-  );
+  return db
+    .updateTable('project_dependencies')
+    .set({ effective_to: effectiveTo })
+    .where('id', '=', Number(dependencyId))
+    .where('from_project_id', '=', Number(fromProjectId))
+    .where('effective_to', 'is', null)
+    .returningAll()
+    .executeTakeFirst();
 }

@@ -1,4 +1,4 @@
-import { getDb } from '@/lib/db';
+import { getKysely } from '@/lib/db/kysely';
 
 export type NonfinancialBenefitRow = {
   id: number;
@@ -11,22 +11,24 @@ export type NonfinancialBenefitRow = {
 };
 
 export async function listNonfinancialBenefits(projectId: number | string) {
-  const db = await getDb();
-  return db.all<NonfinancialBenefitRow>(
-    `SELECT * FROM nonfinancial_benefits
-     WHERE project_id = ?
-     ORDER BY created_at DESC, id DESC`,
-    Number(projectId),
-  );
+  const db = await getKysely();
+  return db
+    .selectFrom('nonfinancial_benefits')
+    .selectAll()
+    .where('project_id', '=', Number(projectId))
+    .orderBy('created_at', 'desc')
+    .orderBy('id', 'desc')
+    .execute();
 }
 
 export async function getNonfinancialBenefitInProject(projectId: number | string, id: number | string) {
-  const db = await getDb();
-  return db.get<NonfinancialBenefitRow>(
-    'SELECT * FROM nonfinancial_benefits WHERE id = ? AND project_id = ?',
-    id,
-    Number(projectId),
-  );
+  const db = await getKysely();
+  return db
+    .selectFrom('nonfinancial_benefits')
+    .selectAll()
+    .where('id', '=', Number(id))
+    .where('project_id', '=', Number(projectId))
+    .executeTakeFirst();
 }
 
 export async function insertNonfinancialBenefit(
@@ -38,23 +40,20 @@ export async function insertNonfinancialBenefit(
     actual_text?: string | null;
   },
 ) {
-  const db = await getDb();
+  const db = await getKysely();
   const hasActualText = 'actual_text' in body;
   const actualText = hasActualText ? body.actual_text : null;
-  const result = await db.run(
-    `INSERT INTO nonfinancial_benefits
-       (project_id, group_name, measure, target, actual_text)
-     VALUES (?, ?, ?, ?, ?)`,
-    Number(projectId),
-    body.group_name,
-    body.measure,
-    body.target,
-    actualText,
-  );
-  return db.get<NonfinancialBenefitRow>(
-    'SELECT * FROM nonfinancial_benefits WHERE id = ?',
-    result.lastInsertRowid,
-  );
+  return db
+    .insertInto('nonfinancial_benefits')
+    .values({
+      project_id: Number(projectId),
+      group_name: body.group_name,
+      measure: body.measure,
+      target: body.target,
+      actual_text: actualText,
+    })
+    .returningAll()
+    .executeTakeFirstOrThrow();
 }
 
 export async function updateNonfinancialBenefit(
@@ -62,16 +61,15 @@ export async function updateNonfinancialBenefit(
   id: number | string,
   patch: { actual_text?: string | null },
 ) {
-  const db = await getDb();
+  const db = await getKysely();
   if (!('actual_text' in patch)) {
     return getNonfinancialBenefitInProject(projectId, id);
   }
-  return db.get<NonfinancialBenefitRow>(
-    `UPDATE nonfinancial_benefits SET actual_text = ?
-     WHERE id = ? AND project_id = ?
-     RETURNING *`,
-    patch.actual_text,
-    id,
-    Number(projectId),
-  );
+  return db
+    .updateTable('nonfinancial_benefits')
+    .set({ actual_text: patch.actual_text ?? null })
+    .where('id', '=', Number(id))
+    .where('project_id', '=', Number(projectId))
+    .returningAll()
+    .executeTakeFirst();
 }
