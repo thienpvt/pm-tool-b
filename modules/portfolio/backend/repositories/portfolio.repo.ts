@@ -1,4 +1,6 @@
+import { sql } from 'kysely';
 import { getDb } from '@/lib/db';
+import { getKysely } from '@/lib/db/kysely';
 
 /**
  * Portfolio-level reads and writes.
@@ -20,65 +22,91 @@ export type PortfolioMember = {
 const PROJECTS_WITH_PROGRAM = `SELECT p.*, c.name as program_name, c.industry as program_industry
   FROM projects p LEFT JOIN customers c ON p.customer_id = c.id`;
 
+function deleteResult(numDeletedRows: bigint | number | undefined) {
+  return { lastInsertRowid: 0, changes: Number(numDeletedRows ?? 0) };
+}
+
 /** Portfolio-visible projects, company-scoped (D-13). */
 export async function listPortfolioProjects(companyId: number | null) {
-  const db = await getDb();
+  const db = await getKysely();
+  let q = db
+    .selectFrom('projects as p')
+    .leftJoin('customers as c', 'p.customer_id', 'c.id')
+    .selectAll('p')
+    .select(['c.name as program_name', 'c.industry as program_industry']);
   if (companyId !== null) {
-    return db.all(
-      `${PROJECTS_WITH_PROGRAM}
-       WHERE (p.company_id = ? OR c.company_id = ?) ORDER BY p.created_at DESC`,
-      companyId, companyId,
+    q = q.where((eb) =>
+      eb.or([
+        eb('p.company_id', '=', companyId),
+        eb('c.company_id', '=', companyId),
+      ]),
     );
+  } else {
+    q = q
+      .where('p.company_id', 'is', null)
+      .where((eb) =>
+        eb.or([
+          eb('p.customer_id', 'is', null),
+          eb('c.company_id', 'is', null),
+        ]),
+      );
   }
-  return db.all(
-    `${PROJECTS_WITH_PROGRAM}
-     WHERE p.company_id IS NULL
-       AND (p.customer_id IS NULL OR c.company_id IS NULL) ORDER BY p.created_at DESC`,
-  );
+  return q.orderBy('p.created_at', 'desc').execute();
 }
 
 export async function riskCountsByProject() {
-  const db = await getDb();
-  return db.all(
-    `SELECT project_id, COUNT(*) as total,
-       SUM(CASE WHEN status='Open' OR status='In Progress' THEN 1 ELSE 0 END) as open
-     FROM risks GROUP BY project_id`,
-  );
+  const db = await getKysely();
+  const result = await sql<{ project_id: number; total: number; open: number }>`
+    SELECT project_id, COUNT(*)::int as total,
+       SUM(CASE WHEN status='Open' OR status='In Progress' THEN 1 ELSE 0 END)::int as open
+     FROM risks GROUP BY project_id
+  `.execute(db);
+  return result.rows;
 }
 
 export async function issueCountsByProject() {
-  const db = await getDb();
-  return db.all(
-    `SELECT project_id, COUNT(*) as total,
-       SUM(CASE WHEN status='Open' OR status='In Progress' THEN 1 ELSE 0 END) as open
-     FROM issues GROUP BY project_id`,
-  );
+  const db = await getKysely();
+  const result = await sql<{ project_id: number; total: number; open: number }>`
+    SELECT project_id, COUNT(*)::int as total,
+       SUM(CASE WHEN status='Open' OR status='In Progress' THEN 1 ELSE 0 END)::int as open
+     FROM issues GROUP BY project_id
+  `.execute(db);
+  return result.rows;
 }
 
 export async function activityCompletionByProject() {
-  const db = await getDb();
-  return db.all(
-    `SELECT project_id, COUNT(*) as total, AVG(completion_pct) as avg_pct,
-       SUM(CASE WHEN status='Done' THEN 1 ELSE 0 END) as done
-     FROM activities GROUP BY project_id`,
-  );
+  const db = await getKysely();
+  const result = await sql<{ project_id: number; total: number; avg_pct: number; done: number }>`
+    SELECT project_id, COUNT(*)::int as total, AVG(completion_pct) as avg_pct,
+       SUM(CASE WHEN status='Done' THEN 1 ELSE 0 END)::int as done
+     FROM activities GROUP BY project_id
+  `.execute(db);
+  return result.rows;
 }
 
 export async function roadmapActivityTotals(doneStatuses: readonly string[]) {
-  const db = await getDb();
-  const placeholders = doneStatuses.map(() => '?').join(',');
-  return db.all(
-    `SELECT project_id, COUNT(*) as total,
-       SUM(CASE WHEN status IN (${placeholders}) THEN 1 ELSE 0 END) as done
-     FROM activities GROUP BY project_id`,
-    ...doneStatuses,
-  );
+  const db = await getKysely();
+  const doneList = sql.join(doneStatuses.map((s) => sql.lit(s)));
+  const result = await sql<{ project_id: number; total: number; done: number }>`
+    SELECT project_id, COUNT(*)::int as total,
+       SUM(CASE WHEN status IN (${doneList}) THEN 1 ELSE 0 END)::int as done
+     FROM activities GROUP BY project_id
+  `.execute(db);
+  return result.rows;
 }
 
 export async function roadmapPhaseStats(doneStatuses: readonly string[]) {
-  const db = await getDb();
-  const placeholders = doneStatuses.map(() => '?').join(',');
-  return db.all(`
+  const db = await getKysely();
+  const doneList = sql.join(doneStatuses.map((s) => sql.lit(s)));
+  const result = await sql<{
+    project_id: number;
+    phase: string;
+    phase_start: string | null;
+    phase_end: string | null;
+    total: number;
+    done: number;
+    epic_key: string | null;
+  }>`
     SELECT project_id, phase,
       COALESCE(
         MAX(CASE WHEN no = 'EPIC' AND plan_start IS NOT NULL AND plan_start <> '' THEN plan_start END),
@@ -88,37 +116,46 @@ export async function roadmapPhaseStats(doneStatuses: readonly string[]) {
         MAX(CASE WHEN no = 'EPIC' AND plan_end IS NOT NULL AND plan_end <> '' THEN plan_end END),
         MAX(CASE WHEN plan_end IS NOT NULL AND plan_end <> '' THEN plan_end END)
       ) AS phase_end,
-      COUNT(*) AS total,
-      SUM(CASE WHEN status IN (${placeholders}) THEN 1 ELSE 0 END) AS done,
+      COUNT(*)::int AS total,
+      SUM(CASE WHEN status IN (${doneList}) THEN 1 ELSE 0 END)::int AS done,
       MIN(CASE WHEN jira_key IS NOT NULL AND jira_key <> '' THEN jira_key END) AS epic_key
     FROM activities
     GROUP BY project_id, phase
-  `, ...doneStatuses);
+  `.execute(db);
+  return result.rows;
 }
 
 export async function roadmapEpicRows(projectId: number | string) {
-  const db = await getDb();
-  return db.all(
-    `SELECT id, phase, no, activity, status, plan_start, plan_end, jira_key, parent_id, order_idx
-     FROM activities WHERE project_id = ? ORDER BY order_idx, id`,
-    projectId,
-  );
+  const db = await getKysely();
+  return db
+    .selectFrom('activities')
+    .select([
+      'id', 'phase', 'no', 'activity', 'status', 'plan_start', 'plan_end',
+      'jira_key', 'parent_id', 'order_idx',
+    ])
+    .where('project_id', '=', Number(projectId))
+    .orderBy('order_idx')
+    .orderBy('id')
+    .execute();
 }
 
 /** All portfolio members for a company, internal and external together. */
 export async function listPortfolioMembers(companyId: number | null) {
-  const db = await getDb();
-  return db.all<PortfolioMember>(
-    'SELECT * FROM portfolio_members WHERE company_id = ? ORDER BY member_type, name',
-    companyId,
-  );
+  const db = await getKysely();
+  return db
+    .selectFrom('portfolio_members')
+    .selectAll()
+    .where('company_id', '=', companyId)
+    .orderBy('member_type')
+    .orderBy('name')
+    .execute();
 }
 
 /** Member roster enriched with program count and current-month FTE. */
 export async function portfolioMembersWithUtilization(companyId: number | null) {
-  const db = await getDb();
-  return db.all(
-    `SELECT pm.*,
+  const db = await getKysely();
+  const result = await sql<Record<string, unknown>>`
+    SELECT pm.*,
        COALESCE((
          SELECT COUNT(DISTINCT ppa.program_id)
          FROM team_members tm
@@ -140,23 +177,30 @@ export async function portfolioMembersWithUtilization(companyId: number | null) 
            AND p.company_id = pm.company_id
        ), 0) AS current_month_fte
      FROM portfolio_members pm
-     WHERE pm.company_id = ?
-     ORDER BY pm.name`,
-    companyId,
-  );
+     WHERE pm.company_id = ${companyId}
+     ORDER BY pm.name
+  `.execute(db);
+  return result.rows;
 }
 
 export async function createPortfolioMember(companyId: number | null, body: Record<string, unknown>) {
-  const db = await getDb();
-  const r = await db.run(
-    `INSERT INTO portfolio_members
-       (company_id, role, name, email, note, member_type, member_category, overhead_remaining)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    companyId, body.role ?? '', body.name, body.email ?? '', body.note ?? '',
-    body.member_type ?? 'internal', body.member_category ?? 'delivery',
-    Number(body.overhead_remaining) || 0,
-  );
-  return db.get('SELECT * FROM portfolio_members WHERE id = ?', r.lastInsertRowid);
+  const db = await getKysely();
+  const row = await db
+    .insertInto('portfolio_members')
+    .values({
+      company_id: companyId,
+      role: String(body.role ?? ''),
+      name: String(body.name),
+      email: String(body.email ?? ''),
+      note: String(body.note ?? ''),
+      member_type: String(body.member_type ?? 'internal'),
+      member_category: String(body.member_category ?? 'delivery'),
+      overhead_remaining: Number(body.overhead_remaining) || 0,
+      created_at: new Date(),
+    })
+    .returningAll()
+    .executeTakeFirstOrThrow();
+  return row;
 }
 
 export async function updatePortfolioMember(
@@ -164,71 +208,112 @@ export async function updatePortfolioMember(
   memberId: number | string,
   body: Record<string, unknown>,
 ) {
-  const db = await getDb();
-  return db.get(
-    `UPDATE portfolio_members SET role = ?, name = ?, email = ?, note = ?,
-       member_type = ?, member_category = ?, overhead_remaining = ?
-     WHERE id = ? AND company_id = ? RETURNING *`,
-    body.role ?? '', body.name, body.email ?? '', body.note ?? '', body.member_type ?? 'internal',
-    body.member_category ?? 'delivery', Number(body.overhead_remaining) || 0, memberId, companyId,
-  );
+  const db = await getKysely();
+  return db
+    .updateTable('portfolio_members')
+    .set({
+      role: String(body.role ?? ''),
+      name: String(body.name),
+      email: String(body.email ?? ''),
+      note: String(body.note ?? ''),
+      member_type: String(body.member_type ?? 'internal'),
+      member_category: String(body.member_category ?? 'delivery'),
+      overhead_remaining: Number(body.overhead_remaining) || 0,
+    })
+    .where('id', '=', Number(memberId))
+    .where('company_id', '=', companyId)
+    .returningAll()
+    .executeTakeFirst();
 }
 
 export async function deletePortfolioMember(companyId: number | null, memberId: number | string) {
-  const db = await getDb();
-  return db.run('DELETE FROM portfolio_members WHERE id = ? AND company_id = ?', memberId, companyId);
+  const db = await getKysely();
+  const result = await db
+    .deleteFrom('portfolio_members')
+    .where('id', '=', Number(memberId))
+    .where('company_id', '=', companyId)
+    .executeTakeFirst();
+  return deleteResult(result.numDeletedRows);
 }
 
 /** Company name plus headcount quota, the pair the members export and quota panel need. */
 export async function companyNameAndQuota(companyId: number | null) {
-  const db = await getDb();
-  return db.get<{ name: string; headcount_quota: number }>(
-    'SELECT name, headcount_quota FROM companies WHERE id = ?',
-    companyId,
-  );
+  const db = await getKysely();
+  return db
+    .selectFrom('companies')
+    .select(['name', 'headcount_quota'])
+    .where('id', '=', companyId)
+    .executeTakeFirst();
 }
 
 export async function setCompanyHeadcountQuota(companyId: number | null, quota: number) {
-  const db = await getDb();
-  return db.run('UPDATE companies SET headcount_quota = ? WHERE id = ?', quota, companyId);
+  const db = await getKysely();
+  const result = await db
+    .updateTable('companies')
+    .set({ headcount_quota: quota })
+    .where('id', '=', companyId)
+    .executeTakeFirst();
+  return { lastInsertRowid: 0, changes: Number(result.numUpdatedRows ?? 0) };
 }
 
 export async function bugCountsByAssignee(companyId: number | null) {
-  const db = await getDb();
-  const base = (where: string) => `
-    SELECT b.assignee, COUNT(*) as total_bugs,
-      SUM(CASE WHEN b.status IN ('To Do', 'In Progress', 'Reopen') THEN 1 ELSE 0 END) as active_bugs,
-      SUM(CASE WHEN b.priority = 'Critical' THEN 1 ELSE 0 END) as critical_bugs,
+  const db = await getKysely();
+  const companyFilter =
+    companyId !== null
+      ? sql`AND (p.company_id = ${companyId} OR c.company_id = ${companyId})`
+      : sql`AND p.company_id IS NULL AND (p.customer_id IS NULL OR c.company_id IS NULL)`;
+  const result = await sql<Record<string, unknown>>`
+    SELECT b.assignee, COUNT(*)::int as total_bugs,
+      SUM(CASE WHEN b.status IN ('To Do', 'In Progress', 'Reopen') THEN 1 ELSE 0 END)::int as active_bugs,
+      SUM(CASE WHEN b.priority = 'Critical' THEN 1 ELSE 0 END)::int as critical_bugs,
       STRING_AGG(DISTINCT p.name, ', ') as projects,
-      COUNT(DISTINCT b.project_id) as project_count
+      COUNT(DISTINCT b.project_id)::int as project_count
     FROM bugs b
     JOIN projects p ON b.project_id = p.id
     LEFT JOIN customers c ON p.customer_id = c.id
-    WHERE b.assignee IS NOT NULL AND b.assignee != '' ${where}
+    WHERE b.assignee IS NOT NULL AND b.assignee != '' ${companyFilter}
       AND b.snapshot_date = (
         SELECT MAX(b2.snapshot_date) FROM bugs b2
         WHERE b2.project_id = b.project_id AND b2.snapshot_date != '')
-    GROUP BY b.assignee ORDER BY total_bugs DESC`;
-  if (companyId !== null) {
-    return db.all(base('AND (p.company_id = ? OR c.company_id = ?)'), companyId, companyId);
-  }
-  return db.all(base('AND p.company_id IS NULL AND (p.customer_id IS NULL OR c.company_id IS NULL)'));
+    GROUP BY b.assignee ORDER BY total_bugs DESC
+  `.execute(db);
+  return result.rows;
 }
 
 export async function listPortfolioMilestones(companyId: number | null) {
-  const db = await getDb();
-  const base = `SELECT m.id, m.project_id, m.name, m.start_date, m.end_date,
-      p.name AS project_name, p.customer_id, c.name AS program_name
-    FROM milestones m JOIN projects p ON p.id = m.project_id
-    LEFT JOIN customers c ON p.customer_id = c.id`;
+  const db = await getKysely();
+  let q = db
+    .selectFrom('milestones as m')
+    .innerJoin('projects as p', 'p.id', 'm.project_id')
+    .leftJoin('customers as c', 'p.customer_id', 'c.id')
+    .select([
+      'm.id',
+      'm.project_id',
+      'm.name',
+      'm.start_date',
+      'm.end_date',
+      'p.name as project_name',
+      'p.customer_id',
+      'c.name as program_name',
+    ]);
   if (companyId !== null) {
-    return db.all(
-      `${base} WHERE (p.company_id = ? OR c.company_id = ?) ORDER BY p.name, m.start_date, m.id`,
-      companyId, companyId,
+    q = q.where((eb) =>
+      eb.or([
+        eb('p.company_id', '=', companyId),
+        eb('c.company_id', '=', companyId),
+      ]),
     );
+  } else {
+    q = q
+      .where('p.company_id', 'is', null)
+      .where((eb) =>
+        eb.or([
+          eb('p.customer_id', 'is', null),
+          eb('c.company_id', 'is', null),
+        ]),
+      );
   }
-  return db.all(`${base} WHERE p.company_id IS NULL
-    AND (p.customer_id IS NULL OR c.company_id IS NULL) ORDER BY p.name, m.start_date, m.id`);
+  return q.orderBy('p.name').orderBy('m.start_date').orderBy('m.id').execute();
 }
 
 export async function listPortfolioBudgets(companyId: number | null) {
