@@ -1,4 +1,5 @@
-import { getDb } from '@/lib/db';
+import { sql } from 'kysely';
+import { getKysely } from '@/lib/db/kysely';
 import type { RagConfig } from '@/lib/rag';
 
 /**
@@ -7,34 +8,52 @@ import type { RagConfig } from '@/lib/rag';
  * is policy, not data.
  */
 export async function companyRagConfig(companyId: number | null) {
-  const db = await getDb();
-  return db.get<RagConfig>(
-    `SELECT spi_red_threshold, spi_amber_threshold, deadline_red_days, deadline_amber_days,
-       risks_red, risks_amber, issues_amber, low_progress_amber
-     FROM company_rag_config WHERE company_id = ?`,
-    companyId,
-  );
+  const db = await getKysely();
+  if (companyId === null) return undefined;
+  return db
+    .selectFrom('company_rag_config')
+    .select([
+      'spi_red_threshold',
+      'spi_amber_threshold',
+      'deadline_red_days',
+      'deadline_amber_days',
+      'risks_red',
+      'risks_amber',
+      'issues_amber',
+      'low_progress_amber',
+    ])
+    .where('company_id', '=', companyId)
+    .executeTakeFirst();
 }
 
 export async function setCompanyRagConfig(companyId: number, config: RagConfig): Promise<void> {
-  const db = await getDb();
-  await db.run(
-    `INSERT INTO company_rag_config
-       (company_id, spi_red_threshold, spi_amber_threshold, deadline_red_days,
-        deadline_amber_days, risks_red, risks_amber, issues_amber, low_progress_amber)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-     ON CONFLICT (company_id) DO UPDATE SET
-       spi_red_threshold = excluded.spi_red_threshold,
-       spi_amber_threshold = excluded.spi_amber_threshold,
-       deadline_red_days = excluded.deadline_red_days,
-       deadline_amber_days = excluded.deadline_amber_days,
-       risks_red = excluded.risks_red,
-       risks_amber = excluded.risks_amber,
-       issues_amber = excluded.issues_amber,
-       low_progress_amber = excluded.low_progress_amber,
-       updated_at = CURRENT_TIMESTAMP`,
-    companyId, config.spi_red_threshold, config.spi_amber_threshold,
-    config.deadline_red_days, config.deadline_amber_days, config.risks_red,
-    config.risks_amber, config.issues_amber, config.low_progress_amber,
-  );
+  const db = await getKysely();
+  await db
+    .insertInto('company_rag_config')
+    .values({
+      company_id: companyId,
+      spi_red_threshold: config.spi_red_threshold,
+      spi_amber_threshold: config.spi_amber_threshold,
+      deadline_red_days: config.deadline_red_days,
+      deadline_amber_days: config.deadline_amber_days,
+      risks_red: config.risks_red,
+      risks_amber: config.risks_amber,
+      issues_amber: config.issues_amber,
+      low_progress_amber: config.low_progress_amber,
+      updated_at: new Date(),
+    })
+    .onConflict((oc) =>
+      oc.column('company_id').doUpdateSet({
+        spi_red_threshold: (eb) => eb.ref('excluded.spi_red_threshold'),
+        spi_amber_threshold: (eb) => eb.ref('excluded.spi_amber_threshold'),
+        deadline_red_days: (eb) => eb.ref('excluded.deadline_red_days'),
+        deadline_amber_days: (eb) => eb.ref('excluded.deadline_amber_days'),
+        risks_red: (eb) => eb.ref('excluded.risks_red'),
+        risks_amber: (eb) => eb.ref('excluded.risks_amber'),
+        issues_amber: (eb) => eb.ref('excluded.issues_amber'),
+        low_progress_amber: (eb) => eb.ref('excluded.low_progress_amber'),
+        updated_at: sql`CURRENT_TIMESTAMP`,
+      }),
+    )
+    .execute();
 }
