@@ -1,4 +1,4 @@
-import { getDb } from '@/lib/db';
+import { getKysely } from '@/lib/db/kysely';
 
 /**
  * Saved column-mapping templates for the two import paths:
@@ -11,36 +11,41 @@ import { getDb } from '@/lib/db';
 // ── Timeline mappings (company-scoped) ────────────────────────────────────────
 
 export async function listTimelineMappings(companyId: number) {
-  const db = await getDb();
-  return db.all(
-    'SELECT * FROM timeline_import_mappings WHERE company_id = ? ORDER BY created_at DESC',
-    companyId,
-  );
+  const db = await getKysely();
+  return db
+    .selectFrom('timeline_import_mappings')
+    .selectAll()
+    .where('company_id', '=', companyId)
+    .orderBy('created_at', 'desc')
+    .execute();
 }
 
 export async function getTimelineMappingById(id: number | string) {
-  const db = await getDb();
-  return db.get<{ id: number; company_id: number; name: string; mappings_json: string }>(
-    'SELECT * FROM timeline_import_mappings WHERE id = ?',
-    id,
-  );
+  const db = await getKysely();
+  return db
+    .selectFrom('timeline_import_mappings')
+    .selectAll()
+    .where('id', '=', Number(id))
+    .executeTakeFirst();
 }
 
 export async function findTimelineMappingByName(companyId: number, name: string) {
-  const db = await getDb();
-  return db.get(
-    'SELECT * FROM timeline_import_mappings WHERE company_id = ? AND name = ?',
-    companyId, name,
-  );
+  const db = await getKysely();
+  return db
+    .selectFrom('timeline_import_mappings')
+    .selectAll()
+    .where('company_id', '=', companyId)
+    .where('name', '=', name)
+    .executeTakeFirst();
 }
 
 export async function createTimelineMapping(companyId: number, name: string, mappingsJson: string) {
-  const db = await getDb();
-  const r = await db.run(
-    'INSERT INTO timeline_import_mappings (name, mappings_json, company_id) VALUES (?, ?, ?)',
-    name, mappingsJson, companyId,
-  );
-  return db.get('SELECT * FROM timeline_import_mappings WHERE id = ?', r.lastInsertRowid);
+  const db = await getKysely();
+  return db
+    .insertInto('timeline_import_mappings')
+    .values({ name, mappings_json: mappingsJson, company_id: companyId })
+    .returningAll()
+    .executeTakeFirstOrThrow();
 }
 
 export async function updateTimelineMapping(
@@ -49,73 +54,83 @@ export async function updateTimelineMapping(
   name: string,
   mappingsJson: string,
 ) {
-  const db = await getDb();
-  await db.run(
-    'UPDATE timeline_import_mappings SET name = ?, mappings_json = ? WHERE id = ? AND company_id = ?',
-    name, mappingsJson, id, companyId,
-  );
-  return db.get(
-    'SELECT * FROM timeline_import_mappings WHERE id = ? AND company_id = ?',
-    id, companyId,
-  );
+  const db = await getKysely();
+  return db
+    .updateTable('timeline_import_mappings')
+    .set({ name, mappings_json: mappingsJson })
+    .where('id', '=', Number(id))
+    .where('company_id', '=', companyId)
+    .returningAll()
+    .executeTakeFirst();
 }
 
 export async function deleteTimelineMapping(companyId: number, id: number | string) {
-  const db = await getDb();
-  return db.run(
-    'DELETE FROM timeline_import_mappings WHERE id = ? AND company_id = ?',
-    id, companyId,
-  );
+  const db = await getKysely();
+  const result = await db
+    .deleteFrom('timeline_import_mappings')
+    .where('id', '=', Number(id))
+    .where('company_id', '=', companyId)
+    .execute();
+  return { lastInsertRowid: 0, changes: Number(result.numDeletedRows ?? 0n) };
 }
 
 // ── Bug mappings (company-scoped) ─────────────────────────────────────────────
 
 export async function listBugMappings(companyId: number) {
-  const db = await getDb();
-  return db.all(
-    'SELECT * FROM bug_import_mappings WHERE company_id = ? ORDER BY created_at DESC',
-    companyId,
-  );
+  const db = await getKysely();
+  return db
+    .selectFrom('bug_import_mappings')
+    .selectAll()
+    .where('company_id', '=', companyId)
+    .orderBy('created_at', 'desc')
+    .execute();
 }
 
 export async function getBugMappingById(id: number | string) {
-  const db = await getDb();
-  return db.get<{ id: number; company_id: number; name: string; mappings_json: string }>(
-    'SELECT * FROM bug_import_mappings WHERE id = ?',
-    id,
-  );
+  const db = await getKysely();
+  return db
+    .selectFrom('bug_import_mappings')
+    .selectAll()
+    .where('id', '=', Number(id))
+    .executeTakeFirst();
 }
 
 export async function findBugMappingByName(companyId: number, name: string) {
-  const db = await getDb();
-  return db.get(
-    'SELECT * FROM bug_import_mappings WHERE company_id = ? AND name = ?',
-    companyId, name,
-  );
+  const db = await getKysely();
+  return db
+    .selectFrom('bug_import_mappings')
+    .selectAll()
+    .where('company_id', '=', companyId)
+    .where('name', '=', name)
+    .executeTakeFirst();
 }
 
 /** Ids newest-first, used by the service to evict the oldest when the cap is reached. */
 export async function bugMappingIds(companyId: number) {
-  const db = await getDb();
-  return db.all<{ id: number }>(
-    'SELECT id FROM bug_import_mappings WHERE company_id = ? ORDER BY created_at DESC',
-    companyId,
-  );
+  const db = await getKysely();
+  return db
+    .selectFrom('bug_import_mappings')
+    .select(['id'])
+    .where('company_id', '=', companyId)
+    .orderBy('created_at', 'desc')
+    .execute();
 }
 
 export async function createBugMapping(companyId: number, name: string, mappingsJson: string) {
-  const db = await getDb();
-  const r = await db.run(
-    'INSERT INTO bug_import_mappings (name, mappings_json, company_id) VALUES (?, ?, ?)',
-    name, mappingsJson, companyId,
-  );
-  return db.get('SELECT * FROM bug_import_mappings WHERE id = ?', r.lastInsertRowid);
+  const db = await getKysely();
+  return db
+    .insertInto('bug_import_mappings')
+    .values({ name, mappings_json: mappingsJson, company_id: companyId })
+    .returningAll()
+    .executeTakeFirstOrThrow();
 }
 
 export async function deleteBugMapping(companyId: number, id: number | string) {
-  const db = await getDb();
-  return db.run(
-    'DELETE FROM bug_import_mappings WHERE id = ? AND company_id = ?',
-    id, companyId,
-  );
+  const db = await getKysely();
+  const result = await db
+    .deleteFrom('bug_import_mappings')
+    .where('id', '=', Number(id))
+    .where('company_id', '=', companyId)
+    .execute();
+  return { lastInsertRowid: 0, changes: Number(result.numDeletedRows ?? 0n) };
 }
