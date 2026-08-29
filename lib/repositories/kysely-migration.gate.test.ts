@@ -41,8 +41,9 @@ function collectRepoFiles(): string[] {
 describe('kysely migration gates (25-15, ENF-02, D-05, D-09)', () => {
   const repoFiles = collectRepoFiles();
 
-  it('D-09: package.json pins kysely 0.29.5', () => {
+  it('D-09: package.json pins kysely 0.29.5 and kysely-codegen 0.20.0', () => {
     expect(packageJson.dependencies?.kysely).toBe('0.29.5');
+    expect(packageJson.devDependencies?.['kysely-codegen']).toBe('0.20.0');
   });
 
   it('D-05: lib/auth.ts still imports getDb for session SQL', () => {
