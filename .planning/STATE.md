@@ -5,16 +5,16 @@ milestone_name: Hardening & Deferred Debt
 current_phase: 25
 current_phase_name: Kysely Repositories
 status: executing
-stopped_at: Completed 25-02-PLAN.md
-last_updated: "2026-08-29T00:29:21.540Z"
+stopped_at: Completed 25-03-PLAN.md
+last_updated: "2026-08-29T00:32:16.388Z"
 last_activity: 2026-08-29
 last_activity_desc: Phase 25 execution started
-state_head: c5a2d198ed7e7268cb50b43f71d1f6d069ace7f8
+state_head: bb7bc96e254e7147350d0096d278c1e317254208
 progress:
   total_phases: 9
   completed_phases: 6
   total_plans: 50
-  completed_plans: 37
+  completed_plans: 38
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-08-28)
 ## Current Position
 
 Phase: 25 (Kysely Repositories) — EXECUTING
-Plan: 3 of 15
+Plan: 4 of 15
 Status: Ready to execute
 Last activity: 2026-08-29 — Phase 25 execution started
 
@@ -132,6 +132,7 @@ Progress: [██░░░░░░░░] 25%
 | Phase 24 P10 | 8 | 2 tasks | 22 files |
 | Phase 25-kysely-repositories P01 | 8min | 3 tasks | 10 files |
 | Phase 25-kysely-repositories P02 | 10min | 2 tasks | 4 files |
+| Phase 25 P03 | 15 | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -277,6 +278,7 @@ Recent decisions affecting current work:
 - [Phase 25]: Audit tracer uses getKysely with testKysely mock; txKyselyTarget ALS stub for 25-02
 - [Phase 25]: pickAllowed mirrors buildUpdate UnknownColumnError semantics for Kysely .set() writes (D-04)
 - [Phase 25]: runInTransactionOnPool populates txKyselyStore with ephemeral Kysely on active PoolClient (D-02, D-06)
+- [Phase 25]: auth.repo converts user CRUD only; lib/auth.ts session SQL stays untouched (D-05)
 
 ### Pending Todos
 
@@ -300,8 +302,8 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-08-29T00:29:21.099Z
-Stopped at: Completed 25-02-PLAN.md
+Last session: 2026-08-29T00:32:15.937Z
+Stopped at: Completed 25-03-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
