@@ -5,16 +5,16 @@ milestone_name: Hardening & Deferred Debt
 current_phase: 25
 current_phase_name: Kysely Repositories
 status: executing
-stopped_at: Completed 25-01-PLAN.md
-last_updated: "2026-08-29T00:26:05.990Z"
+stopped_at: Completed 25-02-PLAN.md
+last_updated: "2026-08-29T00:29:21.540Z"
 last_activity: 2026-08-29
 last_activity_desc: Phase 25 execution started
-state_head: 664747145c943c51a8d99771b044e5ab09874566
+state_head: c5a2d198ed7e7268cb50b43f71d1f6d069ace7f8
 progress:
   total_phases: 9
   completed_phases: 6
   total_plans: 50
-  completed_plans: 36
+  completed_plans: 37
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-08-28)
 ## Current Position
 
 Phase: 25 (Kysely Repositories) — EXECUTING
-Plan: 2 of 15
+Plan: 3 of 15
 Status: Ready to execute
 Last activity: 2026-08-29 — Phase 25 execution started
 
@@ -131,6 +131,7 @@ Progress: [██░░░░░░░░] 25%
 | Phase 24 P09 | 5 | 2 tasks | 56 files |
 | Phase 24 P10 | 8 | 2 tasks | 22 files |
 | Phase 25-kysely-repositories P01 | 8min | 3 tasks | 10 files |
+| Phase 25-kysely-repositories P02 | 10min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -274,6 +275,8 @@ Recent decisions affecting current work:
 - [Phase 24]: MOD-01 closeout: all ten feature modules have backend/ and ui/
 - [Phase 25]: Hand-authored lib/db/database.ts from migrations when codegen unavailable (D-03 fallback)
 - [Phase 25]: Audit tracer uses getKysely with testKysely mock; txKyselyTarget ALS stub for 25-02
+- [Phase 25]: pickAllowed mirrors buildUpdate UnknownColumnError semantics for Kysely .set() writes (D-04)
+- [Phase 25]: runInTransactionOnPool populates txKyselyStore with ephemeral Kysely on active PoolClient (D-02, D-06)
 
 ### Pending Todos
 
@@ -297,8 +300,8 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-08-29T00:26:05.533Z
-Stopped at: Completed 25-01-PLAN.md
+Last session: 2026-08-29T00:29:21.099Z
+Stopped at: Completed 25-02-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
