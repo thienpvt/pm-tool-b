@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-08-28)
 Phase: Milestone v2.1 complete
 Plan: —
 Status: Awaiting next milestone
-Last activity: 2026-08-29 — Milestone v2.1 completed and archived
+Last activity: 2026-08-29 - Completed quick task 260829-gf8: another report task which summary all milestone in VNese
 
 ## Performance Metrics
 
@@ -330,6 +330,12 @@ None yet.
 - HYG-02 Anthropic 502 vs old 500 still needs operator confirm — scheduled Phase 27 (not a rewrite unless rejected)
 - Leftover v1.0 ops-route thinning and proxy JSON 401 — scheduled Phase 20
 - DATA-01..03 brownfield ledger stamp (Railway, K8s, local) and Docker/tsx migrate wiring — plan during Phase 19; do not merge origin DATA branch as-is
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 260829-gf8 | another report task which summary all milestone in VNese | 2026-08-29 | d2c811b | [260829-gf8-another-report-task-which-summary-all-mi](./quick/260829-gf8-another-report-task-which-summary-all-mi/) |
 
 ## Deferred Items
 
