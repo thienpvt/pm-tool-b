@@ -1,5 +1,7 @@
-import { getDb } from '@/lib/db';
-import { buildUpdate } from '@/lib/repositories/_helpers';
+import { type Updateable } from 'kysely';
+import type { Database } from '@/lib/db/database';
+import { getKysely } from '@/lib/db/kysely';
+import { pickAllowed } from '@/lib/repositories/_kysely-helpers';
 
 /**
  * Updatable columns for `escalation_levels`. No migration-added columns.
@@ -12,15 +14,27 @@ export const ESCALATION_COLUMNS = [
   'level', 'level_name', 'channel', 'participants', 'input', 'output',
 ] as const;
 
+type EscalationUpdate = Pick<Updateable<Database['escalation_levels']>, typeof ESCALATION_COLUMNS[number]>;
+
 export async function listEscalations(projectId: number | string) {
-  const db = await getDb();
-  return db.all('SELECT * FROM escalation_levels WHERE project_id = ? ORDER BY level DESC', projectId);
+  const db = await getKysely();
+  return db
+    .selectFrom('escalation_levels')
+    .selectAll()
+    .where('project_id', '=', Number(projectId))
+    .orderBy('level', 'desc')
+    .execute();
 }
 
 /** Ascending level order used by the project-plan export workbook. */
 export async function listEscalationsForExport(projectId: number | string) {
-  const db = await getDb();
-  return db.all('SELECT * FROM escalation_levels WHERE project_id = ? ORDER BY level', projectId);
+  const db = await getKysely();
+  return db
+    .selectFrom('escalation_levels')
+    .selectAll()
+    .where('project_id', '=', Number(projectId))
+    .orderBy('level')
+    .execute();
 }
 
 /** @throws UnknownColumnError when `fields` names a column outside ESCALATION_COLUMNS. */
@@ -29,10 +43,13 @@ export async function updateEscalation(
   rowId: number | string,
   fields: Record<string, unknown>,
 ) {
-  const { sql, values } = buildUpdate('escalation_levels', ESCALATION_COLUMNS, fields);
-  const db = await getDb();
-  return db.get(
-    `UPDATE escalation_levels SET ${sql} WHERE id = ? AND project_id = ? RETURNING *`,
-    ...values, rowId, projectId,
-  );
+  const picked = pickAllowed<EscalationUpdate>(ESCALATION_COLUMNS, fields);
+  const db = await getKysely();
+  return db
+    .updateTable('escalation_levels')
+    .set(picked)
+    .where('id', '=', Number(rowId))
+    .where('project_id', '=', Number(projectId))
+    .returningAll()
+    .executeTakeFirst();
 }
