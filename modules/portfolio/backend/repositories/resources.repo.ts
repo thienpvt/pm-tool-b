@@ -1,31 +1,42 @@
-import { getDb } from '@/lib/db';
-
-const SELECT = `SELECT tm.*, p.name as project_name, p.id as project_id,
-                 p.start_date, p.end_date, p.current_phase, p.client
-          FROM team_members tm
-          JOIN projects p ON p.id = tm.project_id`;
-
-const ORDER = 'ORDER BY tm.domain, tm.name, p.name';
+import { getKysely } from '@/lib/db/kysely';
 
 /**
  * Every team member across projects in the caller's company (D-13, D-24).
  */
 export async function listResourceMembers(companyId: number | null) {
-  const db = await getDb();
+  const db = await getKysely();
+
+  let q = db
+    .selectFrom('team_members as tm')
+    .innerJoin('projects as p', 'p.id', 'tm.project_id')
+    .leftJoin('customers as c', 'p.customer_id', 'c.id')
+    .selectAll('tm')
+    .select([
+      'p.name as project_name',
+      'p.id as project_id',
+      'p.start_date',
+      'p.end_date',
+      'p.current_phase',
+      'p.client',
+    ]);
+
   if (companyId !== null) {
-    return db.all(
-      `${SELECT}
-          LEFT JOIN customers c ON p.customer_id = c.id
-          WHERE (p.company_id = ? OR c.company_id = ?)
-          ${ORDER}`,
-      companyId, companyId,
+    q = q.where((eb) =>
+      eb.or([
+        eb('p.company_id', '=', companyId),
+        eb('c.company_id', '=', companyId),
+      ]),
     );
+  } else {
+    q = q
+      .where('p.company_id', 'is', null)
+      .where((eb) =>
+        eb.or([
+          eb('p.customer_id', 'is', null),
+          eb('c.company_id', 'is', null),
+        ]),
+      );
   }
-  return db.all(
-    `${SELECT}
-        LEFT JOIN customers c ON p.customer_id = c.id
-        WHERE p.company_id IS NULL
-          AND (p.customer_id IS NULL OR c.company_id IS NULL)
-        ${ORDER}`,
-  );
+
+  return q.orderBy('tm.domain').orderBy('tm.name').orderBy('p.name').execute();
 }
