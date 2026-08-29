@@ -134,4 +134,14 @@ describe.skipIf(!hasTestDb)('weekly-reports.repo', () => {
     expect(updated?.highlights).toBe('Shipped milestone A');
     expect(updated?.status).toBe('draft');
   });
+
+  it('writes via getKysely', async () => {
+    const { getKysely } = await import('@/lib/db/kysely');
+    const projectId = await insertProject('write-p1');
+    const period = await createPeriodWithShells(companyId, '2026-W02', 1);
+    const shells = await getShellsForPeriod(period.id);
+    const shell = shells.find((s) => s.project_id === projectId);
+    await updateWeeklyReportDraft(projectId, shell!.id, { highlights: 'x' });
+    expect(getKysely).toHaveBeenCalled();
+  });
 });
