@@ -1,9 +1,13 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { hasTestDb } from '@/test/db';
-import { seedCompany, setupRepoTables, testDb } from '@/test/repo-db';
+import { seedCompany, setupRepoTables, testDb, testKysely } from '@/test/repo-db';
 import { hashPassword } from '@/lib/auth';
 
 vi.mock('@/lib/db', () => ({ getDb: vi.fn(async () => testDb()) }));
+
+vi.mock('@/lib/db/kysely', () => ({
+  getKysely: vi.fn(async () => testKysely()),
+}));
 
 import {
   findUserByEmailLower,
@@ -95,5 +99,11 @@ describe.skipIf(!hasTestDb)('users.repo', () => {
   it('includes locked users in default list (D-06)', async () => {
     const rows = await listUsers(companyA, {});
     expect(rows.map(r => r.username)).toContain(`bob-a-${suffix}`);
+  });
+
+  it('loads via getKysely', async () => {
+    const { getKysely } = await import('@/lib/db/kysely');
+    await listUsers(companyA, {});
+    expect(getKysely).toHaveBeenCalled();
   });
 });
